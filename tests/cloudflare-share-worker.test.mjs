@@ -247,3 +247,20 @@ test("KV OGP画像Workerは4MiB以内の圧縮共有データを完全に復元�
   assert.equal(image.headers.get("content-type"), "image/webp");
   assert.equal(Buffer.from(await image.arrayBuffer()).toString("utf8"), "ABCD");
 });
+
+
+test("KV OGPの未設定HP/SAN/SPDも共有HTMLと同じダッシュで表示する", async () => {
+  const env = makeEnv();
+  const created = await worker.fetch(publishRequest({
+    token: "j.QUJD",
+    preview: { personaName: "未設定人格" },
+    fallbacks: []
+  }), env);
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/s/" + id), env);
+  const html = await response.text();
+  assert.match(html, /HP —/);
+  assert.match(html, /SAN —/);
+  assert.match(html, /速度 —/);
+});
