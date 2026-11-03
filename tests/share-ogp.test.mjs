@@ -32,3 +32,10 @@ test("共有HTMLは外部クローラー向けのLBTキャラクターシートO
   assert.match(source, /scope-area/);
   assert.match(source, /scope-barrage/);
 });
+
+
+test("共有HTMLはカスタム人格personaSrcにのみ保存されたHP/SANも共有プレビューと同じく表示する", () => {
+  assert.match(source, /const shareStatusBase = \(field\) => \[p\[field\], p\.personaSrc\?\.\[field\]\]/);
+  assert.match(source, /const shareHpBase = shareStatusBase\("hp"\)/);
+  assert.match(source, /const shareSanBase = shareStatusBase\("san"\)/);
+});
