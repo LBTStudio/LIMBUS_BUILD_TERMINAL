@@ -1228,11 +1228,11 @@ test("OGPカードはHTMLと同じく全角数字のHP/SAN強化値を反映す�
 test("基礎HP/SANが存在しない場合、OGPカードも共有HTMLと同じく未設定表示にする", () => {
   const share = loadShareLink();
   const preview = share.sharePreview({ charName: "未設定PC", personaMode: "custom", roster: { personas: [] } });
-  assert.equal(preview.hp, "140", "公式人格の空欄は共有時に復元されるDB基礎値を使う");
-  assert.equal(preview.san, "55", "公式人格の空欄は共有時に復元されるDB基礎値を使う");
+  assert.equal(preview.hp, "140");
+  assert.equal(preview.san, "55");
 });
 
-test("共有者がHTML側でHP/SANを明示的に空欄にした場合、OGPは人格基礎値で上書きしない", () => {
+test("HTML側とOGPは空欄のHP/SANを人格基礎値へ揃えて補完する", () => {
   const share = loadShareLink({
     normal_personas: [{ no: 9, name: "公式人格", hp: "140", san: "55" }],
     tokui_personas: []
