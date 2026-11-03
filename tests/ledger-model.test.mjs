@@ -595,3 +595,116 @@ test("共有所持の明示数量は厳密に検証し、不正文字列を部�
   const legacy = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage" });
   assert.equal(legacy.inventory[0].quantity, 1, "未指定数量は従来どおり1個");
 });
+
+
+test("存在しないリザルトIDは追加・編集・所持帰属の全経路で未分類へ戻す", () => {
+  const db = context.window.DB;
+  const previous = {
+    normal_personas: db.normal_personas,
+    egos: db.egos,
+    support_passives: db.support_passives,
+    death_passives: db.death_passives,
+    spirits: db.spirits
+  };
+  try {
+    db.normal_personas = [{ no: 1, name: "帰属検証人格" }];
+    db.egos = [{ no: 1, rank: "HE", name: "帰属検証E.G.O", shards: 50 }];
+    db.support_passives = [{ name: "帰属検証サポート", lp: 5 }];
+    db.death_passives = [];
+    db.spirits = [{ name: "帰属検証精神", price: 10 }];
+
+    const base = reducer(baseState(), {
+      type: "ADD_RESULT",
+      name: "有効なリザルト",
+      income: { lp: 100, shards: 100 }
+    });
+    const validResultId = base.results[0].id;
+
+    let edited = reducer(base, {
+      type: "ADD_ENTRY", kind: "item", name: "手動明細",
+      cost: { lp: 1 }, resultId: "deleted-result"
+    });
+    assert.equal(edited.entries[0].resultId, null, "存在しないIDの新規明細は未分類");
+
+    edited = reducer(edited, {
+      type: "PATCH_ENTRY", id: edited.entries[0].id,
+      patch: { resultId: "deleted-result" }
+    });
+    assert.equal(edited.entries[0].resultId, null, "存在しないIDでの明細編集も未分類");
+
+    edited = reducer(edited, {
+      type: "SET_ENTRY_RESULT", id: edited.entries[0].id,
+      resultId: "deleted-result"
+    });
+    assert.equal(edited.entries[0].resultId, null, "存在しないIDへの帰属移動も未分類");
+
+    const persona = reducer(base, {
+      type: "ADD_ROSTER", mode: "n", no: 1, purchase: true,
+      cost: { lp: 20 }, skipInitialTicketConsumption: true,
+      resultId: "deleted-result"
+    });
+    assert.equal(persona.entries.at(-1).resultId, null, "人格購入の明細も未知IDを保持しない");
+
+    const ego = reducer(base, {
+      type: "ADD_ROSTER_EGO", rank: "HE", no: 1, purchase: true,
+      resultId: "deleted-result"
+    });
+    assert.equal(ego.entries.at(-1).resultId, null, "E.G.O購入の明細も未知IDを保持しない");
+
+    let support = reducer(base, {
+      type: "ADD_ROSTER_SUPPORT",
+      spp: { name: "帰属検証サポート" },
+      purchase: true,
+      resultId: "deleted-result"
+    });
+    const supportOwned = support.roster.supports[0];
+    const supportExpense = support.entries[0];
+    assert.equal(supportOwned.resultId, null, "サポート所持レコードを未分類へ");
+    assert.equal(supportExpense.resultId, null, "サポート購入明細も未分類へ");
+
+    support = reducer(support, {
+      type: "SET_ROSTER_SUPPORT_RESULT",
+      uid: supportOwned.uid,
+      resultId: validResultId
+    });
+    assert.equal(support.roster.supports[0].resultId, validResultId);
+    assert.equal(support.entries[0].resultId, validResultId, "所持側の有効な移動は明細にも反映");
+    support = reducer(support, {
+      type: "SET_ROSTER_SUPPORT_RESULT",
+      uid: supportOwned.uid,
+      resultId: "deleted-result"
+    });
+    assert.equal(support.roster.supports[0].resultId, null);
+    assert.equal(support.entries[0].resultId, null, "所持側の無効な移動は両方を未分類へ");
+
+    let spirit = reducer(base, {
+      type: "ADD_ROSTER_SPIRIT",
+      spirit: { name: "帰属検証精神" },
+      purchase: true,
+      resultId: "deleted-result"
+    });
+    const spiritOwned = spirit.roster.spirits[0];
+    assert.equal(spiritOwned.resultId, null, "精神所持レコードを未分類へ");
+    assert.equal(spirit.entries[0].resultId, null, "精神購入明細も未分類へ");
+    spirit = reducer(spirit, {
+      type: "SET_ROSTER_SPIRIT_RESULT",
+      uid: spiritOwned.uid,
+      resultId: validResultId
+    });
+    assert.equal(spirit.roster.spirits[0].resultId, validResultId);
+    assert.equal(spirit.entries[0].resultId, validResultId);
+    spirit = reducer(spirit, {
+      type: "SET_ROSTER_SPIRIT_RESULT",
+      uid: spiritOwned.uid,
+      resultId: "deleted-result"
+    });
+    assert.equal(spirit.roster.spirits[0].resultId, null);
+    assert.equal(spirit.entries[0].resultId, null);
+  } finally {
+    db.normal_personas = previous.normal_personas;
+    db.egos = previous.egos;
+    db.support_passives = previous.support_passives;
+    db.death_passives = previous.death_passives;
+    db.spirits = previous.spirits;
+  }
+});
