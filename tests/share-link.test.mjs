@@ -1230,6 +1230,7 @@ test("基礎HP/SANが存在しない場合、OGPカードも共有HTMLと同じ�
   const preview = share.sharePreview({ charName: "未設定PC", personaMode: "custom", roster: { personas: [] } });
   assert.equal(preview.hp, "—");
   assert.equal(preview.san, "—");
+  assert.equal(preview.speed, "—");
 });
 
 
