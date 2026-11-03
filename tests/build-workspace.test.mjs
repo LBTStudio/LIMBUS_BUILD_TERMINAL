@@ -618,7 +618,7 @@ test("購入は最新リザルトへ直接入り、残高が足りなければ�
     "初期30LP判定も画面上の最新リザルトを参照する");
   /* 購入系はリデューサ入口で残高判定する（UI 無効化だけに依存しない）。 */
   assert.match(reducer, /if \(action\.type === "ADD_ROSTER" \|\| action\.type === "ADD_ROSTER_EGO"/);
-  assert.match(reducer, /action\\.type === "ADD_ENHANCEMENT" && !cost/);
+  assert.match(reducer, /action\.type === "ADD_ENHANCEMENT" && !cost/);
   assert.match(reducer, /if \(cost && !purchaseAffordability\(state, cost\)\.ok\) return state;/);
   assert.match(reducer, /function purchaseCostOf\(state, action\) \{/);
   assert.match(reducer, /window\.LBT_purchaseAffordability = purchaseAffordability;/);
