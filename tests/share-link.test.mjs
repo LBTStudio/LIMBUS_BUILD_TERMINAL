@@ -1290,3 +1290,32 @@ test("公式人格の共有復元では空欄HP/SAN/SPDを圧縮仕様どおり�
   assert.equal(explicitNull.san, String(persona.san));
   assert.equal(explicitNull.speed, null);
 });
+
+
+test("sharePreviewは公式人格DBとカスタムpersonaSrcから主罪属性を安全に補完する", () => {
+  const share = loadShareLink({
+    normal_personas: [{
+      no: 31,
+      name: "主罪属性テスト公式人格",
+      hp: 120,
+      san: 45,
+      speed: "2d4",
+      skills: [{ name: "DBスキル", sin: "憤怒" }]
+    }],
+    tokui_personas: []
+  });
+  const official = share.sharePreview({
+    personaMode: "n",
+    personaNo: 31,
+    personaSrc: { name: "主罪属性テスト公式人格" },
+    roster: { personas: [] }
+  });
+  assert.equal(official.primarySin, "憤怒");
+
+  const custom = share.sharePreview({
+    personaMode: "custom",
+    personaSrc: { name: "主罪属性テストカスタム", skills: [{ name: "カスタムスキル", sin: "傲慢" }] },
+    roster: { personas: [] }
+  });
+  assert.equal(custom.primarySin, "傲慢");
+});
