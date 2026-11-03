@@ -3078,6 +3078,11 @@ function purchaseCostOf(state, action) {
     const definition = (window.DB?.egos || []).find((ego) =>
       ego.rank === action.rank && String(ego.no) === String(action.no));
     if (!definition) return null;
+    if (action.acquisition === "gachaPaid") {
+      const rule = window.LBT_acquireCost?.("ego", "gachaPaid", { rank: action.rank, no: action.no });
+      const shards = Number(rule?.shards);
+      return Number.isSafeInteger(shards) && shards > 0 ? normalizeCurrency(rule) : null;
+    }
     const rawPrice = definition.shards;
     const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
       || (typeof rawPrice === "string" && rawPrice.trim() !== "");
@@ -4810,6 +4815,45 @@ function appReducer(state, action) {
       if (take <= 0) return state;
       return appendTicketSpend(state, kind, pack, take, action.ref, action.resultId, action.importResultKey);
     }
+    /* 図鑑で選んだ人格／E.G.Oを配布抽出チケットで取得する。
+       所持追加とチケット消費を一つのreducer取引にし、片側だけ成功する状態を作らない。 */
+    case "ACQUIRE_ROSTER_WITH_TICKET": {
+      const kind = action.kind;
+      if (kind !== "persona" && kind !== "ego") return state;
+      const balance = computeTicketBalance(state.results || [], state.entries || []);
+      if (ticketTotal(balance, kind, null) < 1) return state;
+
+      let addAction;
+      let identity;
+      if (kind === "persona") {
+        const mode = action.mode;
+        const no = String(action.no ?? "").trim();
+        if (!no || !["n", "t"].includes(mode)) return state;
+        const catalog = mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+        if (!catalog.some((persona) => String(persona.no) === no)) return state;
+        if ((state.roster?.personas || []).some((persona) => persona.mode === mode && String(persona.no) === no)) return state;
+        identity = { kind: "persona", mode, no };
+        addAction = { type: "ADD_ROSTER", mode, no, skipInitialTicketConsumption: true };
+      } else {
+        const rank = String(action.rank || "");
+        const no = String(action.no ?? "").trim();
+        if (!rank || !no) return state;
+        if (!(window.DB?.egos || []).some((ego) => ego.rank === rank && String(ego.no) === no)) return state;
+        if ((state.roster?.egos || []).some((ego) => ego.rank === rank && String(ego.no) === no)) return state;
+        identity = { kind: "ego", rank, no };
+        addAction = { type: "ADD_ROSTER_EGO", rank, no };
+      }
+
+      const spent = appendTicketSpend(state, kind, null, 1, {
+        kind: "catalogAcquire",
+        target: identity
+      }, action.resultId);
+      const acquired = appReducer(spent, addAction);
+      const added = kind === "persona"
+        ? (acquired.roster?.personas || []).some((persona) => persona.mode === addAction.mode && String(persona.no) === String(addAction.no))
+        : (acquired.roster?.egos || []).some((ego) => ego.rank === addAction.rank && String(ego.no) === String(addAction.no));
+      return added ? acquired : state;
+    }
     /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
        （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は
        明細を立てない（UTO など明細の要らない経路もあるため）。 */
@@ -5015,13 +5059,15 @@ function appReducer(state, action) {
       const next = { ...state, roster: { ...state.roster, egos } };
       if (!action.purchase) return next;
       const ego = (window.DB?.egos || []).find((e) => e.rank === rank && String(e.no) === String(no));
-return appendLedgerEntry(next, {
-      kind: "ego",
-      name: ego?.name || `E.G.O ${rank} No.${no}`,
-      cost: priceEgo(rank, no),
-      resultId: action.resultId,
-      ref: { kind: "rosterEgo", uid }
-    });
+      const cost = purchaseCostOf(state, action);
+      if (!cost) return state;
+      return appendLedgerEntry(next, {
+        kind: "ego",
+        name: ego?.name || `E.G.O ${rank} No.${no}`,
+        cost: normalizeCurrency(cost),
+        resultId: action.resultId,
+        ref: { kind: "rosterEgo", uid }
+      });
     }
     case "REMOVE_ROSTER_EGO": {
       const entry = (state.roster.egos || []).find((e) => e.uid === action.uid);
