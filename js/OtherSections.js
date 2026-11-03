@@ -4748,7 +4748,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       pack: nextPack
     };
     const name = String(draft.name || "").trim() || result.name;
-    const isInitial = result.id === "res-initial" || result.name === "初期作成";
+    const initialResult = window.LBT_findInitialResult?.(state.results) || null;
+    const isInitial = !!initialResult && String(initialResult.id || "") === String(result.id || "");
     const nextInitialPersona = {
       method: ["selected", "random"].includes(draft.initialPersona?.method) ? draft.initialPersona.method : "unknown",
       mode: draft.initialPersona?.mode === "n" || draft.initialPersona?.mode === "t" ? draft.initialPersona.mode : "",
