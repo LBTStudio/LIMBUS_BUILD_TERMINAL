@@ -233,32 +233,33 @@ function latestResultByDisplayOrder(results) {
   }
   return latest;
 }
+function isLegacyInitialGrant(result) {
+  const income = normalizeCurrency(result?.income);
+  return income.lp === INITIAL_LP && (income.shards === 0 || income.shards === INITIAL_SHARDS);
+}
 function findInitialResult(results) {
   const list = Array.isArray(results) ? results : [];
   const fixed = list.find((result) => result?.id === "res-initial");
   if (fixed) return fixed;
   const named = list.filter((result) => result?.name === "初期作成");
-  if (named.length === 1) return named[0];
-  if (named.length > 1) {
-    const matchingGrant = named.filter((result) => {
-      const income = normalizeCurrency(result?.income);
-      return income.lp === INITIAL_LP && (income.shards === 0 || income.shards === INITIAL_SHARDS);
-    });
-    if (matchingGrant.length === 1) return matchingGrant[0];
-  }
-  return null;
+  const matchingGrant = named.filter(isLegacyInitialGrant);
+  return matchingGrant.length === 1 ? matchingGrant[0] : null;
 }
 window.LBT_findInitialResult = findInitialResult;
 
 function hasInitialGrant(results) {
   const list = Array.isArray(results) ? results : [];
   if (!list.length) return false;
-  if (list.some((r) => r?.id === "res-initial" || r?.name === "初期作成")) return true;
+  if (findInitialResult(list)) return true;
+  const named = list.filter((result) => result?.name === "初期作成");
+  // 同名の旧レコードが複数あり、初期支給の署名でも一意に決められない場合は
+  // 推測で初期リザルトを重ねない。候補が1件だけで署名が無い場合は通常シナリオ。
+  if (named.length > 1) return true;
+  if (named.length === 1) return false;
   const latest = latestResultByDisplayOrder(list);
-  const income = normalizeCurrency(latest?.income);
-  /* 旧版は30LPのみを記録し、欠片10個が欠落している。0も旧初期支給として
-     認識して二重の30LPを追加しない。既存データへの欠片補正は別途確認が必要。 */
-  return income.lp === INITIAL_LP && (income.shards === 0 || income.shards === INITIAL_SHARDS);
+  /* 名前が変更された旧初期レコードは、最新リザルトの初期支給額でのみ推定する。
+     旧版は30LPのみを記録し、欠片10個が欠落している。 */
+  return isLegacyInitialGrant(latest);
 }
 /* 抽出チケットの分類。ローカルルール（ルールブックには無いが卓で配られる）。
    kind=persona 人格抽出チケット … 人格からランダム1つ
