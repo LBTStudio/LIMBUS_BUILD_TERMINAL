@@ -56,7 +56,7 @@ test("画像付きsummaryはOGP文面を軽量経路で作り、画像本体を 
   const html = await response.text();
   assert.match(html, /HP 105/);
   assert.match(html, /SAN 48/);
-  assert.match(html, /og:image" content="https:\\/\\/lbt-ogp\\.example\\/i\\?/);
+  assert.ok(html.includes('og:image" content="https://lbt-ogp.example/i?'), "画像は専用 /i ルートを使う");
   assert.ok(html.includes("lbt_img=1"), "OGP画像URLは画像付き共有の指定を保持する");
 });
 
