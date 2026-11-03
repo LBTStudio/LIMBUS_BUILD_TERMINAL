@@ -901,7 +901,7 @@
     if (preview.primarySin) params.set("lbt_sin", preview.primarySin);
     if (preview.syncRank) params.set("lbt_sync", preview.syncRank);
     if (preview.syncMax) params.set("lbt_max", "1");
-    // 古いリンクとの互換性を守るため、画像なしも明示して軽量OGP経路の利用条件にする。
+    // 古いリンクとの互換性を守るため画像の有無を明示し、完全summaryの判定に使う。
     params.set("lbt_img", preview.hasShareImage ? "1" : "0");
   }
 
