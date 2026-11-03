@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-eb3d13b8";
+const CACHE_NAME = "lbt-82a90a0c";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -85,7 +85,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=3eafff16",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=0e0b74f1",
+  "js/state.js?v=e8238fbc",
   "js/ui.js?v=f6ef7d76",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
