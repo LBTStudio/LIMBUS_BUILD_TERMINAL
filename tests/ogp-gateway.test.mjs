@@ -257,11 +257,11 @@ test("OGP snapshotはgeneratorが認識するHP/SAN強化表記だけを加算�
     speed: "3-7",
     enhancements: [{
       name: "異なる表記",
-      effect: "HPを7増加させる。SANを3上昇。"
+      effect: "HPを7増加させる。SANを3増加させる。"
     }]
   });
   assert.match(preview.description, /HP 100 ｜ SAN 45/,
-    "generatorの正規形式でない「HPをN増加」「SANをN上昇」は加算しない");
+    "generatorの正規形式でない「HPをN増加」「SANをN増加」は加算しない");
 });
 
 test("同期手動モードでは人格専用強化を除外してsnapshot OGPを生成する", () => {
