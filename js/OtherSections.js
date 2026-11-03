@@ -2283,6 +2283,9 @@ const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disab
   const ownsOne = (state?.roster?.personas || []).length > 0;
   /* E.G.O購入は番号とランクで DB を引く（core:7536）。名前だけだと一意に決まらない。 */
   const cost = resolveAcquireCost(kind, how, { name, no, rank, ownsPersona: ownsOne });
+  const costLabel = how === "ticket"
+    ? (kind === "ego" ? "E.G.O抽出チケット 1枚" : "人格抽出チケット 1枚")
+    : cost.label || "無料";
   return h("div", { className: "acquire-bar" },
     /* 抽出/購入の切替は幅を固定する。切り替えのたびに購入ボタンが横にずれると
        押し損なうので、方法欄には常に同じ横幅を持たせる。 */
@@ -2292,7 +2295,7 @@ const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disab
           /* 2択 + 卓配布の無料抽出チケット（local）。ルールブックは抽出/購入の2種類。 */
           [["purchase", "指定購入"], ["gacha", "ランダム"], ["ticket", "配布チケット"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
         : h("span", { className: "acquire-how-placeholder", "aria-hidden": "true" })),
-    h("span", { className: "acquire-cost" }, cost.label || "無料"),
+    h("span", { className: "acquire-cost" }, costLabel),
     h(Button, { size: "sm", variant: "primary", icon: "plus", disabled, onClick: onAcquire, title: disabledReason || undefined },
       how === "gacha" ? "抽出する" : how === "ticket" ? "チケットを使う" : "購入")
   );
