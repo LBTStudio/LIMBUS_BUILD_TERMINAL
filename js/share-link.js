@@ -709,7 +709,7 @@
       personaName,
       hp: displayStatus(state, "hp", official),
       san: displayStatus(state, "san", official),
-      speed: speedValue ? clipOgpCardText(speedValue, 16) : "",
+      speed: speedValue ? clipOgpCardText(speedValue, 16) : "—",
       primarySin,
       hasShareImage: Boolean(state?.shareImageData),
       syncRank: selected?.syncRank || "",
@@ -758,7 +758,7 @@
       if (!ctx) return "";
       const preview = sharePreview(state);
       const personaName = clipOgpCardText(preview.personaName || state?.charName || "キャラクターシート", 34);
-      const speed = clipOgpCardText(preview.speed || "?", 12);
+      const speed = clipOgpCardText(preview.speed || "—", 12);
       const primarySin = clipOgpCardText(preview.primarySin || "—", 12);
       const sync = [preview.syncRank ? `同期${preview.syncRank}` : "", preview.syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
       const C = OGP_CARD_COLORS;
@@ -876,7 +876,7 @@
         ctx.fillText(label, x + 18, 408, cardWidth - 30);
         ctx.fillStyle = C.body;
         ctx.font = "700 48px sans-serif";
-        ctx.fillText(String(value || "?"), x + 18, 473, cardWidth - 30);
+        ctx.fillText(String(value || "—"), x + 18, 473, cardWidth - 30);
       });
       const data = canvas.toDataURL("image/webp", .76);
       return shareImageBytes(data) > 0 && shareImageBytes(data) <= SHARE_IMAGE_TARGET_BYTES ? data : "";
