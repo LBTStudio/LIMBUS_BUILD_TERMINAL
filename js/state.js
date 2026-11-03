@@ -5058,7 +5058,11 @@ return appendLedgerEntry(next, {
     case "REMOVE_ROSTER": {
       const removed = state.roster.personas.find((p) => p.uid === action.uid);
       const personas = state.roster.personas.filter((p) => p.uid !== action.uid);
-      const next = { ...state, roster: { ...state.roster, personas } };
+      /* 単体削除も一括削除・E.G.O削除と同じく、所持人格に紐づく購入/抽選支出を戻す。 */
+      const next = dropLedgerEntriesForRef(
+        { ...state, roster: { ...state.roster, personas } },
+        { kind: "rosterPersona", uid: action.uid }
+      );
       // V16: 削除された人格を装備中なら、編集内容を破棄して DB 既定へリセットする。
       if (removed && state.personaSrc && removed.mode === state.personaMode && String(removed.no) === String(state.personaNo)) {
         /* A custom Persona has no DB fallback. Removing it must clear the active
