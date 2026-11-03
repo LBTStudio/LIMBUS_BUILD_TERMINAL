@@ -1357,4 +1357,9 @@ test("共有snapshotは手動同期モードを保持し、人格専用強化を
   assert.match(preview.description, /HP 110 ｜ SAN 45/);
   assert.doesNotMatch(preview.description, /HP 130|SAN 50/,
     "同期手動モードでは人格専用強化を共有OGPへ加算しない");
+  const runtime = loadRuntime();
+  const hydrated = share.hydratePersonaReference(restored, runtime.db);
+  const sheet = runtime.gen.buildShareSheetHTML(hydrated);
+  assert.ok(sheet.includes("HP 110 / SAN 45"), "共有HTMLも通常強化だけを加算する");
+  assert.ok(!sheet.includes("HP 130 / SAN 50"), "共有HTMLへ無効な人格専用強化を出さない");
 });
