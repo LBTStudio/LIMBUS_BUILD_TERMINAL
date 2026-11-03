@@ -226,6 +226,24 @@ test("指定購入だけが欠片を請求して所持へ入れる", () => {
   assert.ok(next.entries.some((e) => e.cost.shards > 0), "購入は欠片を請求する");
 });
 
+test("E.G.O購入は欠片が1個でも不足すれば所持・明細を変更しない", () => {
+  const poor = {
+    ...unowned(),
+    results: [{ id: "res-poor", name: "残高不足", income: { lp: 0, shards: 49 } }]
+  };
+  const rejected = reducer(poor, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1, purchase: true });
+  assert.strictEqual(rejected, poor, "必要50欠片に1個足りない購入は状態全体を変更しない");
+
+  const exact = {
+    ...poor,
+    results: [{ id: "res-exact", name: "必要額ちょうど", income: { lp: 0, shards: 50 } }]
+  };
+  const purchased = reducer(exact, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1, purchase: true });
+  assert.equal(purchased.roster.egos.length, 1, "必要額ちょうどなら購入できる");
+  assert.equal(purchased.entries.length, 1, "購入明細が一度だけ立つ");
+  assert.equal(purchased.entries[0].cost.shards, 50);
+});
+
 test("購入せず所持に追加は欠片を請求しない", () => {
   const before = unowned();
   const next = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1 });
