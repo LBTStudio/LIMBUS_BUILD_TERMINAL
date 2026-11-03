@@ -200,9 +200,11 @@ export function previewFromQuery(url) {
   const rawSan = String(params.get("lbt_san") || "").trim();
   const rawSpeed = String(params.get("lbt_spd") || "").trim();
   /* 古いURLでHP/SAN/SPDのどれかが欠けると共有HTMLと一致しない。
-     必須値が揃った「画像なし」の新形式だけ軽量経路にし、それ以外はsnapshotを復元する。 */
+     完全なsummaryなら画像の有無を問わず軽量経路でOGP文面を組み立てる。
+     画像本体は /i がsnapshotから別取得するため、lbt_img=1でも安全に分離できる。 */
   const validStatus = (value) => /^(?:\d{1,12}|—)$/.test(value);
-  if (!rawName || !rawSpeed || !validStatus(rawHp) || !validStatus(rawSan) || params.get("lbt_img") !== "0") return null;
+  const imageMode = params.get("lbt_img");
+  if (!rawName || !rawSpeed || !validStatus(rawHp) || !validStatus(rawSan) || !["0", "1"].includes(imageMode)) return null;
   const chars = Array.from(rawName);
   const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
   const hp = rawHp.slice(0, 12);
