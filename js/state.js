@@ -4921,7 +4921,8 @@ function appReducer(state, action) {
     case "BACKFILL_SYNC_ENTRIES": {
       const existing = new Set((state.entries || []).map((e) => `${e.kind}:${e.ref?.uid}`));
       let next = state;
-      const fallback = next.results.length ? next.results[next.results.length - 1].id : null;
+      // リザルト一覧の表示順と同じ判定を使う。配列末尾は最新とは限らない。
+      const fallback = latestResultId(next);
       for (const entry of next.roster.personas || []) {
         const persona = (entry.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(entry.no));
         const hasSync = Boolean(entry.syncRank) || entry.syncMax === true;
