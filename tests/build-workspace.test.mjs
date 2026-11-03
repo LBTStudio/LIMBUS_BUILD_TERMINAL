@@ -609,7 +609,7 @@ test("所持済みの人格は再獲得せず、嘘の『所持へ追加』ト�
 test("購入は最新リザルトへ直接入り、残高が足りなければ行わない", () => {
   const shop = sections.slice(sections.indexOf("const ShopSection ="), sections.indexOf("const BuildWorkspace ="));
   /* 明細の既定帰属と初期LP判定は、画面の「新しい順」と同じ比較を使う。 */
-  assert.match(reducer, /const resultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;/);
+  assert.match(reducer, /const requestedResultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;\s*const resultId = knownResultId\(state, requestedResultId\);/);
   assert.match(reducer, /function latestResultId\(state\) \{\s*return latestResultByDisplayOrder\(state\?\.results\)\?\.id \|\| null;/,
     "直近リザルトは共通の表示順判定を使う");
   assert.match(reducer, /function latestResultByDisplayOrder\(results\) \{[\s\S]{0,1200}?Date\.parse\(String\(result\?\.date \|\| ""\) \+ "T00:00:00Z"\)/,
@@ -869,7 +869,7 @@ test("人格カードの獲得ボタンはカード全面のヒット領域に�
   /* 所持済みには獲得ボタンを出さない（所持一覧を参照している）。 */
   assert.match(codex, /!isOwned && onQuickAcquire/);
   /* 獲得カード purchasers は最新リザルトへ帰属する（appendLedgerEntry の既定）。 */
-  assert.match(reducer, /const resultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;/);
+  assert.match(reducer, /const requestedResultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;\s*const resultId = knownResultId\(state, requestedResultId\);/);
 });
 
 test("削除は Undo/Redo が効く即時削除で、ごみ箱は置かない", () => {
@@ -912,7 +912,7 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(sections, /const ownsOne = \(state\?\.roster\?\.personas \|\| \[\]\)\.length > 0;/);
   const state = read("../js/state.js");
   assert.match(state, /function latestResultId\(state\)/);
-  assert.match(state, /const resultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;/);
+  assert.match(state, /const requestedResultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;\s*const resultId = knownResultId\(state, requestedResultId\);/);
   /* 購入導線は購入として明細を立てる。所持になるだけで初期作成用人格チケットを
      消費するので、その1段を挟んでから購入の分岐に入る。 */
   const addRoster = state.slice(state.indexOf('case "ADD_ROSTER"'), state.indexOf('case "ADD_ROSTER_EGO"'));
@@ -923,8 +923,14 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(addRoster, /cost: normalizeCurrency\(purchaseCost\),/);
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
   const purchaseCostOf = state.slice(state.indexOf("function purchaseCostOf"), state.indexOf("window.LBT_purchaseCostOf"));
-  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/);
-  assert.match(purchaseCostOf, /if \(!rule \|\| !\(Number\(rule\.lp\) > 0 \|\| Number\(rule\.shards\) > 0\)\) return null;/);
+  assert.match(purchaseCostOf, /action\.mode !== "n"/,
+    "特異人格は通常人格の指定購入経路を使えない");
+  assert.match(purchaseCostOf, /normal_personas \|\| \[\]\)\.find\(\(persona\) =>/,
+    "購入対象は公式の通常人格DBに存在する必要がある");
+  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/,
+    "価格は現在の所持状態からルール側で再計算する");
+  assert.match(purchaseCostOf, /Number\(rule\.lp\) <= 0[\s\S]{0,100}?Number\(rule\.shards \|\| 0\) !== 0/,
+    "呼び出し元のcost上書きではなく正規のLP価格だけを受け付ける");
 });
 
 test("人格詳細はポップオーバーで開き、自動スクロールしない", () => {

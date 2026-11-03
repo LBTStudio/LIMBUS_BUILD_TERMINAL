@@ -238,7 +238,7 @@ test("舊保存データ（装備のみ）は未分類の所持へ移り、デ�
 
 test("帰属先（resultId）は読み書きで保持される", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
+  let s = reducer({ ...baseState(), results: [{ id: "rs-1", name: "帰属テスト" }] }, { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
   const uid = s.roster.supports[0].uid;
   s = reducer(s, { type: "SET_ROSTER_SUPPORT_RESULT", uid, resultId: "rs-1" });
   assert.equal(s.roster.supports[0].resultId, "rs-1", "帰属を設定できる");
@@ -313,7 +313,7 @@ test("拡張ありでは所持一覧からの装備（SET_ROSTER_SUPPORT_EQUIPPE
   const { reducer } = reducerOf();
   let s = { ...baseState(), enhancements: [{ name: "サポートスロット追加" }] };
   for (const name of ["出血促進", "消化", "追加サポ"]) {
-    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name } });
+    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name }, purchase: false });
   }
   for (const entry of s.roster.supports) {
     s = reducer(s, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: entry.uid });

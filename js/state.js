@@ -2536,6 +2536,17 @@ function latestResultId(state) {
   return latestResultByDisplayOrder(state?.results)?.id || null;
 }
 
+/* resultId は保存データ・UI action・インポート経路から入る。
+   削除済み・誤入力のIDをそのまま書くと、画面上は未分類にも表示されず、
+   再読み込み時の正規化で初めて消える。存在するリザルトだけを帰属先として受け入れる。
+   明示された不正IDは最新へ勝手に振り替えず、未分類(null)へ戻す。 */
+function knownResultId(state, candidate) {
+  if (candidate == null || candidate === "") return null;
+  const results = Array.isArray(state?.results) ? state.results : [];
+  const match = results.find((result) => result && String(result.id) === String(candidate));
+  return match ? match.id : null;
+}
+
 /* 前回の誤修正では results 配列末尾を最新とみなしたため、抽出時刻・封緘バッチ・
    直後に作られた明細が揃っている保存データは、表示上の最新リザルトへ一度だけ直す。
    証明バッチそのものは変更しない。日時・バッチ・同じ結果IDを持つ明細を照合できない
@@ -2915,7 +2926,8 @@ function normalizeVia(via) {
 
 function appendLedgerEntry(state, detail) {
   if (!detail || !detail.name) return state;
-  const resultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
+  const requestedResultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
+  const resultId = knownResultId(state, requestedResultId);
   return {
     ...state,
     entries: [...(state.entries || []), {
@@ -3064,13 +3076,17 @@ window.LBT_operationAffordability = operationAffordability;
   /* 購入 action が計上する金額。null は「購入ではない操作」。 */
 function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER") {
-    if (!action.purchase) return null;
-    /* UI購入は cost を渡す。硝子窓取込は source="buy" だけを渡すので、
-       欠落額を0へ丸めず、現在の所持状態に応じたルール価格を解決する。 */
-    if (action.cost !== undefined && action.cost !== null) return normalizeCurrency(action.cost);
+    if (!action.purchase || action.mode !== "n") return null;
+    const definition = (window.DB?.normal_personas || []).find((persona) =>
+      String(persona?.no) === String(action.no));
+    if (!definition) return null;
+    /* cost はUI表示用のスナップショットであり、reducerへ渡された値を会計の正本にしない。
+       所持状態と公式ルールからreducer側で再計算し、0円上書き・古い残高表示・
+       任意Noの登録を同時に防ぐ。 */
     const ownsPersona = (state?.roster?.personas || []).length > 0;
     const rule = window.LBT_acquireCost?.("persona", "purchase", { ownsPersona });
-    if (!rule || !(Number(rule.lp) > 0 || Number(rule.shards) > 0)) return null;
+    if (!rule || !Number.isFinite(Number(rule.lp)) || Number(rule.lp) <= 0
+        || Number(rule.shards || 0) !== 0) return null;
     return normalizeCurrency(rule);
   }
   if (action.type === "ADD_ROSTER_EGO") {
@@ -3100,12 +3116,31 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
+    if (!name) return null;
     const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const catalog = slot === "death" ? (window.DB?.death_passives || []) : (window.DB?.support_passives || []);
+    const definition = catalog.find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const rawPrice = slot === "death" ? definition.shards : definition.lp;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceSupport(name, slot);
+    const amount = slot === "death" ? cost?.shards : cost?.lp;
+    return Number.isFinite(amount) && amount > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    if (!name) return null;
+    const definition = (window.DB?.spirits || []).find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const rawPrice = definition.price;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceSpirit(name);
+    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
@@ -5848,9 +5883,10 @@ case "ADD_CUSTOM_ITEM": {
       const isDeath = isDeathSupportPassiveRecord({ name });
       /* 購入なら明細と同じ直近リザルトへ。購入でない所持（報酬・取り込み）は
          明細が無いので、指定が無ければ未分類のままにする。 */
-      const resultId = action.resultId === undefined
+      const requestedResultId = action.resultId === undefined
         ? (action.purchase === false ? null : latestResultId(state))
         : action.resultId;
+      const resultId = knownResultId(state, requestedResultId);
       const entry = {
         uid: makeOwnedUid("spt"),
         name,
@@ -5983,7 +6019,7 @@ case "ADD_CUSTOM_ITEM": {
     case "SET_ROSTER_SUPPORT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const supports = (roster.supports || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));
@@ -6003,9 +6039,10 @@ case "ADD_CUSTOM_ITEM": {
         const cost = purchaseCostOf(state, { type: "ADD_ROSTER_SPIRIT", spirit: action.spirit, purchase: true });
         if (!cost || !purchaseAffordability(state, cost).ok) return state;
       }
-      const resultId = action.resultId === undefined
+      const requestedResultId = action.resultId === undefined
         ? (action.purchase === false ? null : latestResultId(state))
         : action.resultId;
+      const resultId = knownResultId(state, requestedResultId);
       const entry = {
         uid: makeOwnedUid("spr"),
         name,
@@ -6580,7 +6617,7 @@ case "ADD_ENTRY":
           cost: normalizeCurrency(action.cost),
           /* 抽出チケットの消費明細。残数は全リザルトの収入からこの明細を差し引く。 */
           tickets: normalizeTickets(action.tickets),
-          resultId: action.resultId || null,
+          resultId: knownResultId(state, action.resultId),
           ref: action.ref && typeof action.ref === "object" ? {
             kind: String(action.ref.kind || ""),
             uid: String(action.ref.uid || ""),
@@ -6594,25 +6631,38 @@ case "ADD_ENTRY":
             : {})
         }]
       };
-    case "PATCH_ENTRY":
-      return {
-        ...state,
-        entries: (state.entries || []).map((e) => (e.id === action.id
-          ? {
-              ...e,
-              ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
-              ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
-              ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
-              ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
-              ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
-            }
-          : e))
-      };
+    case "PATCH_ENTRY": {
+      const target = (state.entries || []).find((entry) => entry.id === action.id);
+      if (!target) return state;
+      const hasResultPatch = action.patch?.resultId !== void 0;
+      const resultId = hasResultPatch ? knownResultId(state, action.patch.resultId) : null;
+      const entries = (state.entries || []).map((entry) => (entry.id === action.id
+        ? {
+            ...entry,
+            ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
+            ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
+            ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
+            ...(hasResultPatch ? { resultId } : {}),
+            ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
+          }
+        : entry));
+      let roster = state.roster;
+      if (hasResultPatch && target.ref?.kind === "rosterSupport" && roster?.supports) {
+        roster = { ...roster, supports: roster.supports.map((entry) => (
+          entry.uid === target.ref.uid ? { ...entry, resultId } : entry
+        )) };
+      } else if (hasResultPatch && target.ref?.kind === "rosterSpirit" && roster?.spirits) {
+        roster = { ...roster, spirits: roster.spirits.map((entry) => (
+          entry.uid === target.ref.uid ? { ...entry, resultId } : entry
+        )) };
+      }
+      return roster === state.roster ? { ...state, entries } : { ...state, entries, roster };
+    }
     /* 帰属の差し替え。ドラッグ&ドロップはこの1つだけを呼ぶ。 */
     case "SET_ENTRY_RESULT": {
       const target = (state.entries || []).find((e) => e.id === action.id);
       if (!target) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const entries = state.entries.map((e) => (e.id === action.id ? { ...e, resultId } : e));
       /* 所持レコードにも帰属を持つもの（サポパ・精神）は、通帳側の
          付け替えに合わせる。片方だけ動くと、同じ購入が別のリザルトを
@@ -6646,7 +6696,7 @@ case "ADD_ENTRY":
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const spirits = (roster.spirits || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));

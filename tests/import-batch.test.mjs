@@ -73,8 +73,12 @@ test("ADD_RESULT の直後の ADD_ENTRY はそのリザルトに帰属する", (
   assert.equal(after.entries[1].resultId, after.results[1].id, "2件目は第2回に帰属");
 });
 
-test("明示した resultId は上書きしない", () => {
-  const after = reducer(baseState(), {
+test("明示した有効な resultId は上書きしない", () => {
+  const initial = {
+    ...baseState(),
+    results: [{ id: "指定したID", name: "既存のリザルト", income: { lp: 0, shards: 0 } }]
+  };
+  const after = reducer(initial, {
     type: "APPLY_IMPORT_BATCH",
     actions: [
       { type: "ADD_RESULT", name: "A", income: { lp: 10, shards: 0 } },
@@ -217,7 +221,7 @@ test("via がバッチ内のリザルトに一致しなければ未分類（直�
 });
 
 test("シナリオの獲得一覧（via 無し）の所持は直前のリザルトへ帰属する", () => {
-  const spiritName = db.spirits.find((s) => s && s.name).name;
+  const spiritName = db.spirits.find((s) => s && s.name && Number(String(s.price ?? "").replace(/[^\d.-]/g, "")) > 0).name;
   const after = reducer(baseState(), {
     type: "APPLY_IMPORT_BATCH",
     actions: [

@@ -17,6 +17,7 @@ import vm from "node:vm";
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
 
 function loadReducer() {
+  const provenance = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
     window: { DB: db }, console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
@@ -25,6 +26,7 @@ function loadReducer() {
   };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(provenance, context);
   vm.runInContext(source, context);
   return context.window.appReducer;
 }
@@ -38,7 +40,7 @@ const base = () => ({
 
 /* DB 実データから必ず引ける E.G.O を 1 件選ぶ（結果に依存させない）。 */
 const dbEgo = db.egos[0];
-const dbSpirit = db.spirits[0];
+const dbSpirit = db.spirits.find((spirit) => Number(String(spirit.price ?? "").replace(/[^\d.-]/g, "")) > 0);
 
 test("E.G.O の所持追加: no を文字列で渡しても名前と価格が引ける", () => {
   const reducer = loadReducer();
@@ -66,7 +68,49 @@ test("人格の所持追加: 明細の ref.uid が所持の uid と一致する"
   assert.equal(s.entries[0].ref.kind, "rosterPersona");
   assert.equal(s.entries[0].ref.uid, uid);
   assert.equal(s.entries[0].resultId, "res-b");
-  assert.equal(s.entries[0].cost.lp, 0, "人格はガチャ費用ではなく、所持へ入れた時点で明細が立つ");
+  assert.equal(s.entries[0].cost.lp, 20, "UIから0LPが渡されても未所持時の公式価格20LPで記帳する");
+});
+
+test("人格指定購入はDBの通常人格と公式ルール価格をreducer側で検証する", () => {
+  const reducer = loadReducer();
+  const normalOne = db.normal_personas[0];
+  const normalTwo = db.normal_personas[1];
+  assert.ok(normalOne && normalTwo, "価格検証用の通常人格が2件ある");
+
+  const baseState = base();
+  const unknown = reducer(baseState, {
+    type: "ADD_ROSTER", mode: "n", no: 999999,
+    purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-b"
+  });
+  assert.strictEqual(unknown, baseState, "DBに存在しないNoを0LP指定で購入できない");
+
+  const special = db.tokui_personas[0];
+  const specialPurchase = reducer(baseState, {
+    type: "ADD_ROSTER", mode: "t", no: special.no,
+    purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-b"
+  });
+  assert.strictEqual(specialPurchase, baseState, "特異人格を指定購入経路へ通さない");
+
+  const funded = {
+    ...baseState,
+    results: baseState.results.map((result) => ({
+      ...result,
+      income: { ...result.income, lp: 500 }
+    }))
+  };
+  const first = reducer(funded, {
+    type: "ADD_ROSTER", mode: "n", no: normalOne.no,
+    purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-b"
+  });
+  assert.equal(first.entries.at(-1).cost.lp, 20,
+    "未所持時は呼出元の0LPを採用せず、公式の初回価格20LP");
+
+  const second = reducer(first, {
+    type: "ADD_ROSTER", mode: "n", no: normalTwo.no,
+    purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-b"
+  });
+  assert.equal(second.entries.at(-1).cost.lp, 200,
+    "既所持時は呼出元の0LPを採用せず、公式価格200LP");
 });
 
 test("所持.passive と spirit も明示したリザルトへ帰属する（常に直近へ倒さない）", () => {
@@ -173,7 +217,7 @@ test("精神の初期枠は装備扱いで、明細を立てない", () => {
 
 test("精神の試着（初期枠）は所持へは入るが購入明細は立てない", () => {
   const reducer = loadReducer();
-  const sp = db.spirits[0];
+  const sp = dbSpirit;
   const viaPurchase = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: sp.name } });
   assert.equal(viaPurchase.entries.length, 1, "ショップ経由は購入として明細が立つ");
 
