@@ -1499,21 +1499,43 @@ const useEgoResourceFilterControls = (requiredResources, excludedResources, onTo
     };
   }, [requiredResources, excludedResources, onToggleRequired, onToggleExcluded]);
 };
-function acquireEgoFromCatalog(state, dispatch, ego) {
+function acquireEgoFromCatalog(state, dispatch, ego, how = "purchase") {
   if (!ego) return false;
-  const action = { type: "ADD_ROSTER_EGO", rank: ego.rank, no: ego.no, purchase: true };
+  if ((state.roster?.egos || []).some((entry) => entry.rank === ego.rank && String(entry.no) === String(ego.no))) {
+    toast(`「${ego.name}」は既に所持しています`, "assertive");
+    return false;
+  }
+  if (how === "ticket") {
+    const balance = window.LBT_computeTicketBalance?.(state.results || [], state.entries || []);
+    if (!balance || Number(balance.ego) < 1) {
+      toast("E.G.O抽出チケットがありません", "assertive");
+      return false;
+    }
+    dispatch({ type: "ACQUIRE_ROSTER_WITH_TICKET", kind: "ego", rank: ego.rank, no: ego.no });
+    toast(`「${ego.name}」をE.G.O抽出チケットで獲得しました`, "assertive");
+    return true;
+  }
+  const action = {
+    type: "ADD_ROSTER_EGO",
+    rank: ego.rank,
+    no: ego.no,
+    purchase: true,
+    ...(how === "gacha" ? { acquisition: "gachaPaid" } : {})
+  };
   const cost = window.LBT_purchaseCostOf?.(state, action);
   const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
   if (!cost || !affordability) {
-    toast("E.G.Oの購入価格を検証できません。価格情報を確認してください。", "assertive");
+    toast("E.G.Oの取得価格を検証できません。価格情報を確認してください。", "assertive");
     return false;
   }
   if (!affordability.ok) {
-    toast(affordability.reason || "購入に必要な自我の欠片が不足しています。", "assertive");
+    toast(affordability.reason || "取得に必要な自我の欠片が不足しています。", "assertive");
     return false;
   }
   dispatch(action);
-  toast(`「${ego.name}」を所持に購入しました`, "assertive");
+  toast(how === "gacha"
+    ? `「${ego.name}」を抽出しました（欠片 ${cost.shards}）`
+    : `「${ego.name}」を所持に購入しました`, "assertive");
   return true;
 }
 const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
@@ -1843,7 +1865,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
 h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
-    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", "aria-label": "E.G.O名・効果・キーワード・資源で検索", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? catalogEgos.length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(DetailDialog, { open: !!selected, onClose: () => setSelected(null), label: "E.G.O 詳細" }, h(EgoQuickDetail, { ego: selected, currentSlot, state, acquireHow, onAcquireHowChange: setAcquireHow, onAcquire: () => acquireEgoFromCatalog(state, dispatch, selected), onEquip: equip, onUnequip: unequip,
+    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", "aria-label": "E.G.O名・効果・キーワード・資源で検索", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? catalogEgos.length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(DetailDialog, { open: !!selected, onClose: () => setSelected(null), label: "E.G.O 詳細" }, h(EgoQuickDetail, { ego: selected, currentSlot, state, acquireHow, onAcquireHowChange: setAcquireHow, onAcquire: () => acquireEgoFromCatalog(state, dispatch, selected, acquireHow), onEquip: equip, onUnequip: unequip,
       isOwned: !!(selected && ownedKeys.has(`${selected.rank}:${selected.no}`)),
     onPreviewEquip: previewEquip,
       onToggleOwned: () => {
@@ -2261,6 +2283,9 @@ const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disab
   const ownsOne = (state?.roster?.personas || []).length > 0;
   /* E.G.O購入は番号とランクで DB を引く（core:7536）。名前だけだと一意に決まらない。 */
   const cost = resolveAcquireCost(kind, how, { name, no, rank, ownsPersona: ownsOne });
+  const costLabel = how === "ticket"
+    ? (kind === "ego" ? "E.G.O抽出チケット 1枚" : "人格抽出チケット 1枚")
+    : cost.label || "無料";
   return h("div", { className: "acquire-bar" },
     /* 抽出/購入の切替は幅を固定する。切り替えのたびに購入ボタンが横にずれると
        押し損なうので、方法欄には常に同じ横幅を持たせる。 */
@@ -2270,7 +2295,7 @@ const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disab
           /* 2択 + 卓配布の無料抽出チケット（local）。ルールブックは抽出/購入の2種類。 */
           [["purchase", "指定購入"], ["gacha", "ランダム"], ["ticket", "配布チケット"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
         : h("span", { className: "acquire-how-placeholder", "aria-hidden": "true" })),
-    h("span", { className: "acquire-cost" }, cost.label || "無料"),
+    h("span", { className: "acquire-cost" }, costLabel),
     h(Button, { size: "sm", variant: "primary", icon: "plus", disabled, onClick: onAcquire, title: disabledReason || undefined },
       how === "gacha" ? "抽出する" : how === "ticket" ? "チケットを使う" : "購入")
   );

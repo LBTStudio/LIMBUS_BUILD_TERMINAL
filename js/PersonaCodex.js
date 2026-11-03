@@ -802,6 +802,17 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
       toast(`『${persona.name}』は既に所持しています`);
       return;
     }
+    /* 配布チケット取得は費用0の購入ではない。reducer内で残数確認・消費・所持追加を一括する。 */
+    if (acquireHow === "ticket") {
+      const balance = window.LBT_computeTicketBalance?.(state.results || [], state.entries || []);
+      if (!balance || Number(balance.persona) < 1) {
+        toast("人格抽出チケットがありません", "assertive");
+        return;
+      }
+      dispatch({ type: "ACQUIRE_ROSTER_WITH_TICKET", kind: "persona", mode: personaMode, no: persona.no });
+      toast(successMessage || `『${persona.name}』を人格抽出チケットで獲得しました`, "assertive");
+      return;
+    }
     /* 指定購入は通常人格だけ。特異人格は抽出のみ。 */
     const blocked = acquireHow === "purchase" ? personaPurchaseBlocked(persona, personaMode) : null;
     if (blocked) { toast(blocked, "assertive"); return; }
