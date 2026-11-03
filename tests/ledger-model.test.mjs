@@ -9,7 +9,7 @@ import vm from "node:vm";
    守るべき性質:
      - 残高は保存せず、収入合計 − 支出合計として必ず導出できる
      - 帰属（resultId）を差し替えても明細は消えない
-     - リザルトを消しても明細は残る（支出額が失われると残高が狂う）
+     - リザルト削除ではそのリザルトの明細を消し、残る所持レコードの帰属だけ解除する
      - 存在しないリザルトを指す明細は未分類へ戻る
      - 通貨は LP と欠片の2種に揃い、壊れた入力でも計算が壊れない
 --------------------------------------------------------------------------- */
@@ -197,6 +197,35 @@ test("リザルトを消したら、その明細も消える（未分類へ戻�
   assert.equal(s.entries.length, 1, "A の明細も消える");
   assert.equal(s.entries[0].name, "固定的", "B の明細は残る");
   assert.equal(balance(s.results, s.entries).lp, 495, "B の収支だけが残る");
+});
+
+test("リザルト削除は所持サポート・精神の帰属だけ解除し、別リザルトは維持する", () => {
+  const state = {
+    ...baseState(),
+    results: [{ id: "res-remove" }, { id: "res-keep" }],
+    entries: [
+      { id: "entry-remove", kind: "support", name: "対象", resultId: "res-remove" },
+      { id: "entry-keep", kind: "spirit", name: "残す", resultId: "res-keep" }
+    ],
+    roster: {
+      personas: [], egos: [],
+      supports: [
+        { uid: "support-remove", name: "対象", resultId: "res-remove" },
+        { uid: "support-keep", name: "残す", resultId: "res-keep" }
+      ],
+      spirits: [
+        { uid: "spirit-remove", name: "対象", resultId: "res-remove" },
+        { uid: "spirit-keep", name: "残す", resultId: "res-keep" }
+      ]
+    }
+  };
+  const next = reducer(state, { type: "REMOVE_RESULT", id: "res-remove" });
+  assert.deepEqual(next.results.map((result) => result.id), ["res-keep"]);
+  assert.deepEqual(next.entries.map((entry) => entry.id), ["entry-keep"]);
+  assert.equal(next.roster.supports.find((entry) => entry.uid === "support-remove").resultId, null);
+  assert.equal(next.roster.spirits.find((entry) => entry.uid === "spirit-remove").resultId, null);
+  assert.equal(next.roster.supports.find((entry) => entry.uid === "support-keep").resultId, "res-keep");
+  assert.equal(next.roster.spirits.find((entry) => entry.uid === "spirit-keep").resultId, "res-keep");
 });
 
 test("存在しないリザルトを指す明細は未分類へ戻る", () => {
