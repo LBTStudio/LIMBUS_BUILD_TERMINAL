@@ -3112,12 +3112,31 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
+    if (!name) return null;
     const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const catalog = slot === "death" ? (window.DB?.death_passives || []) : (window.DB?.support_passives || []);
+    const definition = catalog.find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const rawPrice = slot === "death" ? definition.shards : definition.lp;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceSupport(name, slot);
+    const amount = slot === "death" ? cost?.shards : cost?.lp;
+    return Number.isFinite(amount) && amount > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    if (!name) return null;
+    const definition = (window.DB?.spirits || []).find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const rawPrice = definition.price;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceSpirit(name);
+    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
