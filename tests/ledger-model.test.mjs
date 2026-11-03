@@ -736,3 +736,110 @@ test("存在しないリザルトIDは追加・編集・所持帰属の全経路
     db.spirits = previous.spirits;
   }
 });
+
+
+test("DB未登録・価格不明のサポート/精神は購入扱いで無料登録できず、明示無料取得は維持する", () => {
+  const db = context.window.DB;
+  const previous = {
+    support_passives: db.support_passives,
+    death_passives: db.death_passives,
+    spirits: db.spirits
+  };
+  try {
+    db.support_passives = [
+      { name: "購入可能サポート", lp: 5 },
+      { name: "価格未設定サポート" }
+    ];
+    db.death_passives = [
+      { name: "購入可能な死亡後パッシブ", shards: 7 }
+    ];
+    db.spirits = [
+      { name: "購入可能精神", price: 10 },
+      { name: "価格未設定精神" },
+      { name: "無料初期精神", price: 0 }
+    ];
+    const funded = reducer(baseState(), {
+      type: "ADD_RESULT",
+      name: "価格検証",
+      income: { lp: 100, shards: 100 }
+    });
+
+    const unknownSupport = reducer(funded, {
+      type: "ADD_ROSTER_SUPPORT",
+      spp: { name: "DBにないサポート" },
+      purchase: true
+    });
+    assert.strictEqual(unknownSupport, funded, "DB未登録サポートは購入できない");
+
+    const missingSupportPrice = reducer(funded, {
+      type: "ADD_ROSTER_SUPPORT",
+      spp: { name: "価格未設定サポート" },
+      purchase: true
+    });
+    assert.strictEqual(missingSupportPrice, funded, "価格未設定サポートを0LPとして扱わない");
+
+    const validSupport = reducer(funded, {
+      type: "ADD_ROSTER_SUPPORT",
+      spp: { name: "購入可能サポート" },
+      purchase: true
+    });
+    assert.equal(validSupport.roster.supports.length, 1);
+    assert.equal(validSupport.entries.at(-1).cost.lp, 5);
+
+    const unknownDeath = reducer(funded, {
+      type: "ADD_ROSTER_SUPPORT",
+      spp: { name: "DBにない死亡後パッシブ", slot: "death" },
+      purchase: true
+    });
+    assert.strictEqual(unknownDeath, funded, "DB未登録の死亡後パッシブは購入できない");
+
+    const validDeath = reducer(funded, {
+      type: "ADD_ROSTER_SUPPORT",
+      spp: { name: "購入可能な死亡後パッシブ", slot: "death" },
+      purchase: true
+    });
+    assert.equal(validDeath.roster.supports.length, 1);
+    assert.equal(validDeath.entries.at(-1).cost.shards, 7);
+
+    const unknownSpirit = reducer(funded, {
+      type: "ADD_ROSTER_SPIRIT",
+      spirit: { name: "DBにない精神" },
+      purchase: true
+    });
+    assert.strictEqual(unknownSpirit, funded, "DB未登録精神は購入できない");
+
+    const missingSpiritPrice = reducer(funded, {
+      type: "ADD_ROSTER_SPIRIT",
+      spirit: { name: "価格未設定精神" },
+      purchase: true
+    });
+    assert.strictEqual(missingSpiritPrice, funded, "価格未設定精神を0欠片として扱わない");
+
+    const validSpirit = reducer(funded, {
+      type: "ADD_ROSTER_SPIRIT",
+      spirit: { name: "購入可能精神" },
+      purchase: true
+    });
+    assert.equal(validSpirit.roster.spirits.length, 1);
+    assert.equal(validSpirit.entries.at(-1).cost.shards, 10);
+
+    const zeroPricePurchase = reducer(funded, {
+      type: "ADD_ROSTER_SPIRIT",
+      spirit: { name: "無料初期精神", price: 0 },
+      purchase: true
+    });
+    assert.strictEqual(zeroPricePurchase, funded, "無料初期精神を通常購入としては登録しない");
+
+    const zeroPriceGrant = reducer(funded, {
+      type: "ADD_ROSTER_SPIRIT",
+      spirit: { name: "無料初期精神", price: 0 },
+      purchase: false
+    });
+    assert.equal(zeroPriceGrant.roster.spirits.length, 1, "明示無料取得はできる");
+    assert.equal(zeroPriceGrant.entries.length, funded.entries.length, "無料取得では支出を作らない");
+  } finally {
+    db.support_passives = previous.support_passives;
+    db.death_passives = previous.death_passives;
+    db.spirits = previous.spirits;
+  }
+});
