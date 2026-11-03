@@ -201,7 +201,11 @@ function consumeInitialPersonaTicket(state, resultId) {
         : sum, 0)
     : 0;
   if (initialGrant - initialSpent <= 0) return state;
-  return appendTicketSpend(state, "persona", null, 1, { kind: "initialPersonaTicket" }, resultId);
+  // 初期分の消費明細は、呼び出し元が別リザルトを編集中でも初期作成へ帰属させる。
+  return appendTicketSpend(
+    state, "persona", null, 1, { kind: "initialPersonaTicket" },
+    initialResultId || resultId
+  );
 }
 
 /* 継承アカウントの判定。直近リザルトの収入が初期支給（30LP）と一致するなら、
