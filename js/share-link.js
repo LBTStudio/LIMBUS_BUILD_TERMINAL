@@ -36,7 +36,7 @@
     "charName", "plName", "shareImageData", "personaMode", "personaNo", "personaSrc",
     "hp", "san", "speed", "bullets", "resS", "resP", "resB",
     "pas", "pas2Enabled", "pas2", "extraPassives", "spirit", "spiritAlways", "spiritMorale", "spiritConfuse",
-    "skills", "egoSlots", "supports", "deathSupport", "uniqueBuffs", "customStatuses", "enhancements", "syncedManual",
+    "skills", "egoSlots", "supports", "deathSupport", "uniqueBuffs", "customStatuses", "enhancements", "syncedManual", "syncedManual",
     // 手動設定の士気低下ラインは出力（computeMoraleLine）が優先して使う共有対象の値。
     // スナップショットから落とすと、共有ページだけ SAN/4 の自動計算へ戻ってしまう。
     "moraleLine",
