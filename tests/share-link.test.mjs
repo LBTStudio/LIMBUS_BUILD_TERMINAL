@@ -1332,6 +1332,18 @@ test("sharePreviewは公式人格DBとカスタムpersonaSrcから主罪属性�
 });
 
 
+test("共有復元時のsyncedManualはbooleanだけを有効として扱う", async () => {
+  const share = loadShareLink();
+  const token = await share.encodeState({
+    charName: "同期フラグ型検証",
+    personaMode: "custom",
+    syncedManual: "false",
+    roster: { personas: [] }
+  }, { includeOgpImage: false });
+  const restored = await share.decodeToken(token);
+  assert.equal(restored.syncedManual, false, "truthyな文字列を同期手動モードとして扱わない");
+});
+
 test("共有snapshotは手動同期モードを保持し、人格専用強化をHP/SANへ誤適用しない", async () => {
   const share = loadShareLink();
   const { previewFromSnapshot } = await import("../ogp-gateway/worker.mjs");
