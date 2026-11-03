@@ -929,7 +929,7 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
     "購入対象は公式の通常人格DBに存在する必要がある");
   assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/,
     "価格は現在の所持状態からルール側で再計算する");
-  assert.match(purchaseCostOf, /Number\(rule\.lp\) <= 0[\\s\\S]{0,100}?Number\(rule\.shards \|\| 0\) !== 0/,
+  assert.match(purchaseCostOf, /Number\(rule\.lp\) <= 0[\s\S]{0,100}?Number\(rule\.shards \|\| 0\) !== 0/,
     "呼び出し元のcost上書きではなく正規のLP価格だけを受け付ける");
 });
 
