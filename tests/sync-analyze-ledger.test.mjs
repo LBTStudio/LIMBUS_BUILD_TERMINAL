@@ -244,6 +244,25 @@ test("E.G.O購入は欠片が1個でも不足すれば所持・明細を変更�
   assert.equal(purchased.entries[0].cost.shards, 50);
 });
 
+test("E.G.O購入は未知の番号・価格欠落・価格解析不能を無料購入として通さない", () => {
+  const before = unowned();
+  const unknown = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 999, purchase: true });
+  assert.strictEqual(unknown, before, "DBに無いE.G.Oは購入できない");
+
+  const original = DB.egos;
+  try {
+    DB.egos = [{ no: 2, rank: "HE", name: "価格未登録E.G.O" }];
+    const missingPrice = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 2, purchase: true });
+    assert.strictEqual(missingPrice, before, "shards未設定を0欠片として扱わない");
+
+    DB.egos = [{ no: 3, rank: "HE", name: "価格不正E.G.O", shards: "価格未確認" }];
+    const unreadablePrice = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 3, purchase: true });
+    assert.strictEqual(unreadablePrice, before, "解析できない価格を0欠片として扱わない");
+  } finally {
+    DB.egos = original;
+  }
+});
+
 test("購入せず所持に追加は欠片を請求しない", () => {
   const before = unowned();
   const next = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1 });
