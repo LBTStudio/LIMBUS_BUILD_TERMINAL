@@ -122,6 +122,67 @@ test("購入扱いでも購入額がない人格取り込みは0LPの購入明�
   assert.equal(after.entries[0].cost.shards, 0, "人格購入に欠片は要求しない");
 });
 
+test("強化購入はDBに存在し価格が確認できる場合だけ欠片を消費する", () => {
+  const w = load();
+  const originalDB = w.DB;
+  const stateWithBalance = (shards) => ({
+    ...baseState(),
+    results: [{ id: "res-enhancement", name: "強化購入", income: { lp: 0, shards } }]
+  });
+  try {
+    w.DB = {
+      ...originalDB,
+      normal_enhancements: [{ name: "価格設定済み強化", group: "肉体強化0", shards: 7, effect: "検証" }],
+      special_enhancements: []
+    };
+    const unknown = stateWithBalance(20);
+    assert.strictEqual(w.appReducer(unknown, {
+      type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "DB未登録強化"
+    }), unknown, "DB未登録の強化は0欠片で追加しない");
+
+    const wrongGroup = stateWithBalance(20);
+    assert.strictEqual(w.appReducer(wrongGroup, {
+      type: "ADD_ENHANCEMENT", group: "精神強化0", name: "価格設定済み強化"
+    }), wrongGroup, "同名でもグループが一致しなければ購入できない");
+
+    const insufficient = stateWithBalance(6);
+    assert.strictEqual(w.appReducer(insufficient, {
+      type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "価格設定済み強化"
+    }), insufficient, "必要7欠片に1個足りなければ購入できない");
+
+    const exact = stateWithBalance(7);
+    const purchased = w.appReducer(exact, {
+      type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "価格設定済み強化"
+    });
+    assert.equal(purchased.enhancements.length, 1, "必要額ちょうどなら追加できる");
+    assert.equal(purchased.entries.length, 1, "購入明細を一度だけ作る");
+    assert.equal(purchased.entries[0].cost.shards, 7);
+    assert.equal(w.LBT_computeLedgerBalance(purchased.results, purchased.entries).shards, 0);
+
+    w.DB = {
+      ...originalDB,
+      normal_enhancements: [{ name: "価格欠落強化", group: "肉体強化0" }],
+      special_enhancements: []
+    };
+    const missingPrice = stateWithBalance(20);
+    assert.strictEqual(w.appReducer(missingPrice, {
+      type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "価格欠落強化"
+    }), missingPrice, "shards未設定を無料価格として扱わない");
+
+    w.DB = {
+      ...originalDB,
+      normal_enhancements: [{ name: "価格不正強化", group: "肉体強化0", shards: "確認中" }],
+      special_enhancements: []
+    };
+    const invalidPrice = stateWithBalance(20);
+    assert.strictEqual(w.appReducer(invalidPrice, {
+      type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "価格不正強化"
+    }), invalidPrice, "解析できない価格を無料価格として扱わない");
+  } finally {
+    w.DB = originalDB;
+  }
+});
+
 test("人格購入は所持状態に応じて20LPまたは200LPを記帳する", () => {
   const w = load();
   const firstState = baseState();
