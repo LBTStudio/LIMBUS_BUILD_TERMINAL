@@ -4844,10 +4844,17 @@ function appReducer(state, action) {
         addAction = { type: "ADD_ROSTER_EGO", rank, no };
       }
 
-      const spent = appendTicketSpend(state, kind, null, 1, {
-        kind: "catalogAcquire",
-        target: identity
-      }, action.resultId);
+      // 初回人格取得時に初期チケットが残っていれば、それを初期作成リザルトへ1枚だけ記録する。
+      // 既に初期分を使っている／初期分を復元できない場合は通常の配布分を消費する。
+      const initialPersonaSpend = kind === "persona"
+        ? consumeInitialPersonaTicket(state, action.resultId)
+        : state;
+      const spent = initialPersonaSpend !== state
+        ? initialPersonaSpend
+        : appendTicketSpend(state, kind, null, 1, {
+          kind: "catalogAcquire",
+          target: identity
+        }, action.resultId);
       const acquired = appReducer(spent, addAction);
       const added = kind === "persona"
         ? (acquired.roster?.personas || []).some((persona) => persona.mode === addAction.mode && String(persona.no) === String(addAction.no))
