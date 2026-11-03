@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { deflateRawSync } from "node:zlib";
 import worker from "../cloudflare/ogp-worker/worker.js";
 import { readFileSync } from "node:fs";
 
@@ -220,4 +221,46 @@ test("KVにデータがなく予備保存先も使えない場合は既存リン
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test("KV OGP画像Workerは4MiB以内の圧縮共有データを完全に復元する", async () => {
+  const env = makeEnv();
+  const snapshot = {
+    _lbtShare: 1,
+    charName: "大容量OGP画像人格",
+    ogpImageData: "data:image/webp;base64,QUJDRA==",
+    largeField: "x".repeat(300_000)
+  };
+  const compressed = deflateRawSync(Buffer.from(JSON.stringify(snapshot), "utf8"));
+  const token = "z." + compressed.toString("base64url");
+  assert.ok(token.length < 160_002);
+  const published = await worker.fetch(publishRequest({
+    token,
+    preview: { personaName: "大容量OGP画像人格", hp: "120", san: "50", speed: "2-5" },
+    fallbacks: []
+  }), env);
+  assert.equal(published.status, 201);
+  const { id } = await published.json();
+  const image = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/i/" + id), env);
+  assert.equal(image.status, 200);
+  assert.equal(image.headers.get("content-type"), "image/webp");
+  assert.equal(Buffer.from(await image.arrayBuffer()).toString("utf8"), "ABCD");
+});
+
+
+test("KV OGPの未設定HP/SAN/SPDも共有HTMLと同じダッシュで表示する", async () => {
+  const env = makeEnv();
+  const created = await worker.fetch(publishRequest({
+    token: "j.QUJD",
+    preview: { personaName: "未設定人格" },
+    fallbacks: []
+  }), env);
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/s/" + id), env);
+  const html = await response.text();
+  assert.match(html, /HP —/);
+  assert.match(html, /SAN —/);
+  assert.match(html, /速度 —/);
 });

@@ -22,7 +22,9 @@ test("共有HTMLは外部クローラー向けのLBTキャラクターシートO
   assert.match(source, /SHARE IMAGE \/ 共有シート画像/);
   assert.match(source, /object-fit:contain/);
   assert.match(source, /twitter:card/);
-  assert.match(source, /const shareHp = p\.hp === "" \|\| p\.hp == null/);
+  assert.match(source, /const shareStatusBase = \(field\) => \[p\[field\], p\.personaSrc\?\.\[field\]\]/);
+  assert.match(source, /const shareHpBase = shareStatusBase\("hp"\)/);
+  assert.match(source, /const shareSanBase = shareStatusBase\("san"\)/);
   assert.match(source, /share-at-a-glance/);
   assert.match(source, /eff-joined/);
   assert.match(source, /const inventoryHTML = ownedItems\.length/);
@@ -31,4 +33,11 @@ test("共有HTMLは外部クローラー向けのLBTキャラクターシートO
   assert.match(source, /const tacticalScopeBadges = \(sk\)/);
   assert.match(source, /scope-area/);
   assert.match(source, /scope-barrage/);
+});
+
+
+test("共有HTMLはカスタム人格personaSrcにのみ保存されたHP/SANも共有プレビューと同じく表示する", () => {
+  assert.match(source, /const shareStatusBase = \(field\) => \[p\[field\], p\.personaSrc\?\.\[field\]\]/);
+  assert.match(source, /const shareHpBase = shareStatusBase\("hp"\)/);
+  assert.match(source, /const shareSanBase = shareStatusBase\("san"\)/);
 });

@@ -1483,8 +1483,14 @@ function buildShareSheetHTML(state) {
   }
   const shareNoteKey = "lbt-share-note-v1-" + (noteHash >>> 0).toString(16);
   const shareEnhancements = computeEnhancementBonuses(p);
-  const shareHp = p.hp === "" || p.hp == null ? "—" : String((parseInt(p.hp, 10) || 0) + shareEnhancements.hp);
-  const shareSan = p.san === "" || p.san == null ? "—" : String((parseInt(p.san, 10) || 0) + shareEnhancements.san);
+  // カスタム人格では基礎値が personaSrc にのみ保存されることがある。
+  // 共有プレビューと同じく、stateの編集値を優先し、未格納時だけ人格データを使う。
+  const shareStatusBase = (field) => [p[field], p.personaSrc?.[field]]
+    .find((value) => value !== "" && value !== null && value !== undefined);
+  const shareHpBase = shareStatusBase("hp");
+  const shareSanBase = shareStatusBase("san");
+  const shareHp = shareHpBase === undefined ? "—" : String((parseInt(String(shareHpBase), 10) || 0) + shareEnhancements.hp);
+  const shareSan = shareSanBase === undefined ? "—" : String((parseInt(String(shareSanBase), 10) || 0) + shareEnhancements.san);
   const syncLabel = p.personaSrc && showSyncRank && personaSync.syncRank ? `・同期${personaSync.syncRank}${personaSync.syncMax ? " MAX" : ""}` : "";
   // 人格データがある共有では、Discordの小さなタイトル枠で最初に人格名を読めることを最優先する。
   const shareTitle = sharedPersonaName ? `【人格】${sharedPersonaName}｜LBT` : `${sharedPcName}｜LIMBUS BUILD TERMINAL キャラクターシート`;

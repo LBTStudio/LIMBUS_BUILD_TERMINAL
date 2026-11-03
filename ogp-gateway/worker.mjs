@@ -12,7 +12,7 @@ const OFFICIAL_DB_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/
 const EXTERNAL_TOKEN_MARKER = "LBT_SHARE_TOKEN=";
 const EXTERNAL_TOKEN_PART_MARKER = "LBT_SHARE_TOKEN_PART=";
 const MAX_TOKEN_CHARS = 160000;
-const MAX_DECOMPRESSED_BYTES = 256000;
+const MAX_DECOMPRESSED_BYTES = 4 * 1024 * 1024;
 // 共有IDは一度発行した内容を変更しない。不変のOGP・画像を長くキャッシュして、
 // Discordの再プレビューや多人数の同時閲覧でWorker実行と外部保存先の読込を重複させない。
 // `s-maxage` はCloudflare Workers Cacheで stale-while-revalidate / stale-if-error を無効化する。
@@ -167,9 +167,14 @@ function primaryResourceAttribute(skills) {
 export function previewFromSnapshot(snapshot) {
   const rawPersonaName = String(snapshot?.personaSrc?.name || snapshot?.charName || "LBT キャラクターシート").trim();
   const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
-  const hp = String(snapshot?.hp ?? "?").trim().slice(0, 12) || "?";
-  const san = String(snapshot?.san ?? "?").trim().slice(0, 12) || "?";
-  const speed = String(snapshot?.speed ?? "?").trim().slice(0, 16) || "?";
+  // HTMLの共有シートは明示された空欄を「—」で表示する。
+  // 圧縮前の公式人格値が personaSrc に残る旧形式だけ、未格納キーをそこから補う。
+  // generator.js / share-link.jsと同じく、state値が空またはnullなら人格sourceへ戻す。
+  const statusValue = (key) => [snapshot?.[key], snapshot?.personaSrc?.[key]]
+    .find((value) => value !== "" && value !== null && value !== undefined);
+  const hp = String(statusValue("hp") ?? "—").trim().slice(0, 12) || "—";
+  const san = String(statusValue("san") ?? "—").trim().slice(0, 12) || "—";
+  const speed = String(snapshot?.speed ?? "—").trim().slice(0, 16) || "—";
   const primarySin = String(snapshot?.primarySin || primaryResourceAttribute(snapshot?.skills) || primaryResourceAttribute(snapshot?.personaSrc?.skills) || "").trim();
   const sync = selectedSync(snapshot);
   return {
@@ -191,15 +196,18 @@ export function previewFromSnapshot(snapshot) {
 export function previewFromQuery(url) {
   const params = url.searchParams;
   const rawName = String(params.get("lbt_n") || "").trim();
+  const rawHp = String(params.get("lbt_hp") || "").trim();
+  const rawSan = String(params.get("lbt_san") || "").trim();
   const rawSpeed = String(params.get("lbt_spd") || "").trim();
-  /* 旧形式はSPD未収録、画像付き共有は保存tokenの画像を使う必要がある。
-     明示的に「画像なし」と示す新形式だけ軽量経路にし、それ以外はsnapshot経路へ戻す。 */
-  if (!rawName || !rawSpeed || params.get("lbt_img") !== "0") return null;
+  /* 古いURLでHP/SAN/SPDのどれかが欠けると共有HTMLと一致しない。
+     必須値が揃った「画像なし」の新形式だけ軽量経路にし、それ以外はsnapshotを復元する。 */
+  const validStatus = (value) => /^(?:\d{1,12}|—)$/.test(value);
+  if (!rawName || !rawSpeed || !validStatus(rawHp) || !validStatus(rawSan) || params.get("lbt_img") !== "0") return null;
   const chars = Array.from(rawName);
   const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
-  const hp = String(params.get("lbt_hp") || "").trim().slice(0, 12) || "?";
-  const san = String(params.get("lbt_san") || "").trim().slice(0, 12) || "?";
-  const speed = rawSpeed.slice(0, 16) || "?";
+  const hp = rawHp.slice(0, 12);
+  const san = rawSan.slice(0, 12);
+  const speed = rawSpeed.slice(0, 16) || "—";
   const sinCandidate = String(params.get("lbt_sin") || "");
   const primarySin = PRIMARY_RESOURCE_ATTRIBUTES.includes(sinCandidate) ? sinCandidate : "";
   const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
@@ -220,22 +228,37 @@ export function previewFromQuery(url) {
 async function enrichOfficialPersona(snapshot, fetchImpl) {
   const ref = snapshot?.personaRef;
   const mode = String(ref?.mode || snapshot?.personaMode || "");
+  // 新形式は personaRef.no、旧形式は personaNo を持つ。両方の識別子を解決する。
+  const personaNo = ref?.no ?? snapshot?.personaNo;
+  const hasOwn = (key) => Object.prototype.hasOwnProperty.call(snapshot || {}, key);
+  const hasPersonaValue = (key) => snapshot?.personaSrc?.[key] !== undefined
+    && snapshot?.personaSrc?.[key] !== null
+    && snapshot?.personaSrc?.[key] !== "";
   const needsName = !String(snapshot?.personaSrc?.name || snapshot?.charName || "").trim();
-  const needsHp = snapshot?.hp === undefined || snapshot?.hp === null || snapshot?.hp === "";
-  const needsSan = snapshot?.san === undefined || snapshot?.san === null || snapshot?.san === "";
-  const needsSpeed = snapshot?.speed === undefined || snapshot?.speed === null || snapshot?.speed === "";
+  // 公式人格の共有HTMLはHP/SANの空欄も人格基礎値へフォールバックする。
+  // 旧snapshotのpersonaSrcに古い値が残っていても、OGPと共有HTMLは公式DBを優先する。
+  const officialMode = ["n", "t"].includes(mode);
+  // HP/SANは共有HTML側で空欄を人格基礎値へフォールバックする。
+  // そのため公式参照では未格納・null・空文字をすべてDB値へ戻す。
+  const needsHp = officialMode && (!hasOwn("hp") || snapshot.hp === null || snapshot.hp === "");
+  const needsSan = officialMode && (!hasOwn("san") || snapshot.san === null || snapshot.san === "");
+  const needsSpeed = officialMode && !hasOwn("speed");
   const needsPrimarySin = !String(snapshot?.primarySin || "").trim();
-  if ((!needsName && !needsHp && !needsSan && !needsSpeed && !needsPrimarySin) || !["n", "t"].includes(mode) || ref?.no === undefined || ref?.no === null) return snapshot;
+  if ((!needsName && !needsHp && !needsSan && !needsSpeed && !needsPrimarySin)
+      || !["n", "t"].includes(mode) || personaNo === undefined || personaNo === null) return snapshot;
   try {
     const response = await fetchImpl(OFFICIAL_DB_URL, { headers: { Accept: "application/json" } });
     if (!response.ok) return snapshot;
     const db = await response.json();
     const rows = mode === "t" ? db?.tokui_personas : db?.normal_personas;
-    const persona = Array.isArray(rows) ? rows.find((entry) => String(entry?.no) === String(ref.no)) : null;
+    const persona = Array.isArray(rows) ? rows.find((entry) => String(entry?.no) === String(personaNo)) : null;
     if (!persona) return snapshot;
+    const personaSrc = snapshot?.personaSrc && typeof snapshot.personaSrc === "object"
+      ? { ...snapshot.personaSrc, name: snapshot.personaSrc.name || persona.name }
+      : { name: persona.name };
     return {
       ...snapshot,
-      personaSrc: snapshot?.personaSrc?.name ? snapshot.personaSrc : { name: persona.name },
+      personaSrc,
       hp: needsHp ? persona.hp : snapshot.hp,
       san: needsSan ? persona.san : snapshot.san,
       speed: needsSpeed ? persona.speed : snapshot.speed,

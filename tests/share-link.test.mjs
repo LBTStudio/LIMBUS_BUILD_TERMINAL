@@ -822,8 +822,8 @@ test("OGPゲートウェイ設定時の短縮共有は個別OGP入口と明示�
     throw new Error(`unexpected URL: ${url}`);
   };
   const result = await share.createPublishedUrl({ charName: "OGP検証", roster: { personas: [] } }, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
-  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test%2Cr%3Albt-rentry-ogp&cv=3");
-  assert.equal(share.ogpGatewayUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-OGP-Test"), "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test&cv=3");
+  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test%2Cr%3Albt-rentry-ogp&cv=4");
+  assert.equal(share.ogpGatewayUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-OGP-Test"), "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test&cv=4");
 });
 
 
@@ -1192,4 +1192,130 @@ test("OGP preview prioritizes edited HP/SAN, falls back to custom persona fields
   });
   assert.equal(edited.hp, "190");
   assert.equal(edited.san, "75");
+});
+
+
+test("OGPカードはHTMLと同じく全角数字のHP/SAN強化値を反映する", () => {
+  const drawnText = [];
+  const context = new Proxy({}, {
+    get(_target, property) {
+      if (property === "createLinearGradient") return () => ({ addColorStop() {} });
+      if (property === "fillText") return (value) => drawnText.push(String(value));
+      return () => {};
+    }
+  });
+  const document = {
+    createElement() {
+      return {
+        getContext: () => context,
+        toDataURL: () => "data:image/webp;base64," + "A".repeat(64)
+      };
+    }
+  };
+  const share = loadShareLink(null, { document });
+  const image = share.createDefaultOgpImageData({
+    charName: "全角強化検証",
+    hp: "120",
+    san: "50",
+    enhancements: [{ effect: "HPを１０上昇させる。SANを５上昇させる。" }],
+    roster: { personas: [] }
+  });
+  assert.match(image, /^data:image\/webp;base64,/);
+  assert.ok(drawnText.includes("130"), "HPは120+10として描画される");
+  assert.ok(drawnText.includes("55"), "SANは50+5として描画される");
+});
+
+test("基礎HP/SANが存在しない場合、OGPカードも共有HTMLと同じく未設定表示にする", () => {
+  const share = loadShareLink();
+  const preview = share.sharePreview({ charName: "未設定PC", personaMode: "custom", roster: { personas: [] } });
+  assert.equal(preview.hp, "—");
+  assert.equal(preview.san, "—");
+  assert.equal(preview.speed, "—");
+});
+
+
+
+test("HTML側とOGPは空欄のHP/SANを人格基礎値へ揃えて補完する", () => {
+  const share = loadShareLink({
+    normal_personas: [{ no: 9, name: "公式人格", hp: "140", san: "55" }],
+    tokui_personas: []
+  });
+  const preview = share.sharePreview({
+    personaMode: "n",
+    personaNo: 9,
+    personaSrc: { name: "公式人格", hp: "130", san: "45" },
+    hp: "",
+    san: "",
+    roster: { personas: [] }
+  });
+  assert.equal(preview.hp, "140", "旧personaSrcではなく公式DBの基礎値を使う");
+  assert.equal(preview.san, "55", "旧personaSrcではなく公式DBの基礎値を使う");
+});
+
+test("公式人格の共有復元では空欄HP/SAN/SPDを圧縮仕様どおり公式DBから戻す", () => {
+  const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+  const persona = db.normal_personas[0];
+  const share = loadShareLink(db);
+  const state = {
+    personaMode: "n",
+    personaNo: persona.no,
+    personaSrc: { ...persona },
+    hp: "",
+    san: "",
+    speed: "",
+    skills: persona.skills,
+    roster: { personas: [] }
+  };
+  const snapshot = share.snapshotState(state);
+  // compactValueは空文字を落とす。復元側は欠落した公式基礎値をDBから戻す。
+  assert.equal(snapshot.hp, undefined);
+  assert.equal(snapshot.san, undefined);
+  assert.equal(snapshot.speed, undefined);
+  const restored = share.hydratePersonaReference(snapshot, db);
+  assert.equal(restored.hp, String(persona.hp));
+  assert.equal(restored.san, String(persona.san));
+  assert.equal(restored.speed, persona.speed);
+
+  // nullは圧縮で残る。HP/SANだけはHTMLのpersonaSrc fallbackに合わせてDBへ戻すが、
+  // SPDのnullは共有HTMLどおり未設定のままにする。
+  const explicitNull = share.hydratePersonaReference({
+    _lbtShare: 1,
+    personaRef: { mode: "n", no: persona.no },
+    hp: null,
+    san: null,
+    speed: null,
+    roster: { personas: [] }
+  }, db);
+  assert.equal(explicitNull.hp, String(persona.hp));
+  assert.equal(explicitNull.san, String(persona.san));
+  assert.equal(explicitNull.speed, null);
+});
+
+
+test("sharePreviewは公式人格DBとカスタムpersonaSrcから主罪属性を安全に補完する", () => {
+  const share = loadShareLink({
+    normal_personas: [{
+      no: 31,
+      name: "主罪属性テスト公式人格",
+      hp: 120,
+      san: 45,
+      speed: "2d4",
+      skills: [{ name: "DBスキル", sin: "憤怒" }]
+    }],
+    tokui_personas: []
+  });
+  const official = share.sharePreview({
+    personaMode: "n",
+    personaNo: 31,
+    personaSrc: { name: "主罪属性テスト公式人格" },
+    roster: { personas: [] }
+  });
+  assert.equal(official.primarySin, "憤怒");
+
+  const custom = share.sharePreview({
+    personaMode: "custom",
+    personaSrc: { name: "主罪属性テストカスタム", skills: [{ name: "カスタムスキル", sin: "傲慢" }] },
+    roster: { personas: [] }
+  });
+  assert.equal(custom.primarySin, "傲慢");
 });

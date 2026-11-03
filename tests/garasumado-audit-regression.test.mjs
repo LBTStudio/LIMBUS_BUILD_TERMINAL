@@ -329,11 +329,12 @@ test("同一原文行の通貨警告とチケット警告は別々の確認候�
   reasons: [{ line: raw, reason: "チケット枚数が正の整数でないため保留" }]
  });
  const reviews = roster.buildFinancialReviewCandidates(input);
- assert.deepEqual(reviews.map((row) => row.category).sort(), ["currency", "ticket"]);
+ // API実装はVM realmで評価されるため、配列をNode側のArrayへ正規化して比較する。
+ assert.deepEqual(Array.from(reviews, (row) => row.category).sort(), ["currency", "ticket"]);
  assert.equal(new Set(reviews.map((row) => row.key)).size, 2, "同じ行でも候補IDを分離する");
  const built = roster.toDispatchActions({ groups: [], scenarios: [input] }, [], { db });
  const saved = built.actions.find((action) => action.type === "ADD_RESULT");
- assert.deepEqual(saved.financialReviews.map((row) => row.category).sort(), ["currency", "ticket"]);
+ assert.deepEqual(Array.from(saved.financialReviews, (row) => row.category).sort(), ["currency", "ticket"]);
  assert.equal(built.actions.filter((action) => action.type === "ADD_ENTRY").length, 0,
   "両方の警告がある行は、明示確認までどちらも確定計上しない");
 });

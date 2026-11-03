@@ -23,7 +23,7 @@
   const CLOUDFLARE_PUBLISH_TIMEOUT_MS = 2500;
   // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
-  const OGP_CARD_CACHE_VERSION = "3";
+  const OGP_CARD_CACHE_VERSION = "4";
   // localStorage tracks creation, not the Worker's last-access refresh. Refresh cached KV links
   // conservatively before their 7-day idle expiry so a stale cache cannot return a dead URL.
   const LOCAL_KV_SHARE_REUSE_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
@@ -444,7 +444,10 @@
     return normalizeShareState(state);
   }
     Object.entries(sourceSheetFields(source)).forEach(([key, baseValue]) => {
-      if (state[key] === undefined) state[key] = cloneJSON(baseValue);
+      // 共有HTML生成時のHP/SANは空欄ならpersonaSrcの基礎値を表示する。
+      // 公式人格は参照化でpersonaSrcを名前だけに縮約するため、復元時も同じ値へ戻す。
+      const statusFallback = (key === "hp" || key === "san") && (state[key] === "" || state[key] === null);
+      if (state[key] === undefined || statusFallback) state[key] = cloneJSON(baseValue);
     });
     // 旧バージョンのDBで作成された共有リンクには、エラッタ前の固有バフ・
     // パッシブ・サポート・強化・精神の古いコピーがそのまま埋め込まれている。
@@ -648,16 +651,21 @@
   }
 
   function displayStatus(state, field, officialPersona = null) {
-    // 共有元のHTMLと同じ優先順位で基礎値を解決する。
-    // 公式人格は snapshot 圧縮時に state.hp/state.san を省略するため、
-    // personaSrc が名前だけになっていてもDBの人格基礎値へ戻れる必要がある。
-    const candidates = [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
+    // 編集値を最優先し、公式人格は復元後の共有HTMLと同じく公式DBを優先する。
+    // カスタム人格は personaSrc に基礎値が残るため、そちらを参照する。
+    const mode = String(state?.personaRef?.mode || state?.personaMode || "");
+    const isOfficial = mode === "n" || mode === "t";
+    const candidates = isOfficial && officialPersona
+      ? [state?.[field], officialPersona?.[field]]
+      : [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
     const raw = candidates.find((value) => value !== "" && value !== null && value !== undefined);
-    const fallback = field === "hp" ? 100 : field === "san" ? 50 : "";
-    const parsed = raw === undefined ? fallback : parseInt(String(raw), 10);
-    const base = Number.isFinite(parsed) ? parsed : fallback;
+    if (raw === undefined) return "—";
+    const parsed = parseInt(String(raw), 10);
+    const base = Number.isFinite(parsed) ? parsed : 0;
     const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || state?.enhancements || [];
-    const enhancementText = activeEnhancements.map((entry) => String(entry?.effect || "")).join("\n");
+    // generator.js は原典の全角数字を半角へ正規化してからHP/SAN強化値を読む。
+    const enhancementText = activeEnhancements.map((entry) => String(entry?.effect || "")).join("\n")
+      .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
     const target = field === "hp" ? /HP(?:を|\+)(\d+)(?:上昇)?/g : /SAN(?:を|\+)(\d+)(?:上昇)?/g;
     let bonus = 0;
     let match;
@@ -694,15 +702,21 @@
     const personaName = String(
       state?.personaSrc?.name || refName || official?.name || ""
     ).trim();
-    const speedValue = String(state?.speed || state?.personaSrc?.speed || official?.speed || "").trim();
+    const isOfficial = refMode === "n" || refMode === "t";
+    // 速度は共有HTML側がstate.speedのみを表示する。公式参照化でキー自体が
+    // 省略された場合に限りDBから戻し、明示的な空欄は「—」のままにする。
+    const hasExplicitSpeed = !!state
+      && Object.prototype.hasOwnProperty.call(state, "speed")
+      && state.speed !== "";
+    const speedValue = String(hasExplicitSpeed ? state.speed ?? "" : (isOfficial ? official?.speed ?? "" : "")).trim();
+    const fallbackPersona = isOfficial && official ? official : state?.personaSrc;
     const primarySin = primaryResourceAttribute(state?.skills)
-      || primaryResourceAttribute(state?.personaSrc?.skills)
-      || primaryResourceAttribute(official?.skills);
+      || primaryResourceAttribute(fallbackPersona?.skills);
     return {
       personaName,
       hp: displayStatus(state, "hp", official),
       san: displayStatus(state, "san", official),
-      speed: speedValue ? clipOgpCardText(speedValue, 16) : "",
+      speed: speedValue ? clipOgpCardText(speedValue, 16) : "—",
       primarySin,
       hasShareImage: Boolean(state?.shareImageData),
       syncRank: selected?.syncRank || "",
@@ -751,7 +765,7 @@
       if (!ctx) return "";
       const preview = sharePreview(state);
       const personaName = clipOgpCardText(preview.personaName || state?.charName || "キャラクターシート", 34);
-      const speed = clipOgpCardText(preview.speed || "?", 12);
+      const speed = clipOgpCardText(preview.speed || "—", 12);
       const primarySin = clipOgpCardText(preview.primarySin || "—", 12);
       const sync = [preview.syncRank ? `同期${preview.syncRank}` : "", preview.syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
       const C = OGP_CARD_COLORS;
@@ -869,7 +883,7 @@
         ctx.fillText(label, x + 18, 408, cardWidth - 30);
         ctx.fillStyle = C.body;
         ctx.font = "700 48px sans-serif";
-        ctx.fillText(String(value || "?"), x + 18, 473, cardWidth - 30);
+        ctx.fillText(String(value || "—"), x + 18, 473, cardWidth - 30);
       });
       const data = canvas.toDataURL("image/webp", .76);
       return shareImageBytes(data) > 0 && shareImageBytes(data) <= SHARE_IMAGE_TARGET_BYTES ? data : "";

@@ -181,6 +181,9 @@ function mergeFinancialReviewCandidates(previous, incoming) {
    人格抽出チケットで抽選した場合は、その支払いが初期分の消費を兼ねるため、
    applyRosterAdds 側で自動消費を抑止する。 */
 function consumeInitialPersonaTicket(state, resultId) {
+  // 初期リザルトの編集とADD_ROSTERの両方から呼ばれる。
+  // 所持への追加が再送されても、初期チケットを二度消費しない。
+  if ((state.entries || []).some((entry) => entry?.ref?.kind === "initialPersonaTicket")) return state;
   const balance = computeTicketBalance(state.results, state.entries);
   if ((Number(balance?.persona) || 0) <= 0) return state;
   return appendTicketSpend(state, "persona", null, 1, { kind: "initialPersonaTicket" }, resultId);
@@ -4705,6 +4708,11 @@ function appReducer(state, action) {
       if (delta === null || delta === 0) return state;
       return setTicketIncome(state, kind, pack, delta, action.resultId);
     }
+    /* 初期作成リザルトを後から編集した場合、既に他の人格を所持していても
+       「最初に得た人格」が確定した時点で初期チケットを1枚だけ消費する。
+       既存所持が空のときのADD_ROSTER経路と共通の冪等ヘルパーを使う。 */
+    case "CONSUME_INITIAL_PERSONA_TICKET":
+      return consumeInitialPersonaTicket(state, action.resultId);
     /* 抽出チケットを使ったときの消費。収入から引いて残数が減る。
        一括抽選は「引いた回数ぶん」をまとめて 1 action で送るので、
        count を honoured しないと 5 回引いて 1 枚しか消費されない。

@@ -3,7 +3,7 @@ const DEFAULT_VIEWER_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/sh
 const DEFAULT_OG_IMAGE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png";
 const API_PATH = "/api/r2-share/v1";
 const MAX_TOKEN_LENGTH = 160002;
-const MAX_DECOMPRESSED_BYTES = 256000;
+const MAX_DECOMPRESSED_BYTES = 4 * 1024 * 1024;
 const MAX_IMAGE_DATA_URL_CHARS = 64000;
 const MAX_REQUEST_BYTES = 200000;
 const PRIMARY_RESOURCE_ATTRIBUTES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
@@ -48,9 +48,9 @@ function sanitizePreview(value) {
   const cleanText = (entry, max) => String(entry ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
   return {
     personaName: cleanText(raw.personaName, 72),
-    hp: cleanText(raw.hp, 8).replace(/[^0-9?—-]/g, ""),
-    san: cleanText(raw.san, 8).replace(/[^0-9?—-]/g, ""),
-    speed: cleanText(raw.speed, 16),
+    hp: cleanText(raw.hp, 8).replace(/[^0-9?—-]/g, "") || "—",
+    san: cleanText(raw.san, 8).replace(/[^0-9?—-]/g, "") || "—",
+    speed: cleanText(raw.speed, 16) || "—",
     primarySin: PRIMARY_RESOURCE_ATTRIBUTES.includes(String(raw.primarySin || "")) ? String(raw.primarySin) : "",
     syncRank: ["0", "00", "000"].includes(String(raw.syncRank || "")) ? String(raw.syncRank) : "",
     syncMax: raw.syncMax === true,

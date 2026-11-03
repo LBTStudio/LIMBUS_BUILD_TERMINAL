@@ -220,6 +220,7 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
   assert.match(saveBlock, /hasRecordedPersonaTicketSpend/);
   assert.match(saveBlock, /recordedPersonaTicketSpendCoversInitial\s*=\s*nextInitialPersona\.method !== "selected" && hasRecordedPersonaTicketSpend/);
   assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| recordedPersonaTicketSpendCoversInitial/);
+  assert.match(saveBlock, /type:\s*"CONSUME_INITIAL_PERSONA_TICKET"/);
   assert.match(saveBlock, /const isInitial = result\.id === "res-initial"/);
   assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
   assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
@@ -284,4 +285,33 @@ test("settings and ledger readability improvements are in the active B-type styl
   assert.match(readabilityCss, /@media\s*\(max-width:\s*640px\)/);
   assert.match(readabilityCss, /\.ledger-persona-audit-disclosure/);
   assert.match(readabilityCss, /\.ledger-history-editor-disclosure/);
+});
+
+
+test("既に人格を所持していても初期リザルトの確定は初期チケットを一度だけ消費する", () => {
+  const { reducer, window } = createReducer();
+  const initial = {
+    ...baseState(),
+    roster: { personas: [{ uid: "already-owned", mode: "n", no: 1, equipped: true }], egos: [], supports: [], spirits: [] },
+    results: [{
+      id: "res-initial",
+      name: "初期作成",
+      income: { lp: 30, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } },
+      initialPersona: { method: "selected", mode: "n", no: "2", name: "通常人格B" }
+    }],
+    entries: [{
+      id: "existing-ticket-use",
+      kind: "ticket",
+      name: "人格抽出チケット を使用",
+      cost: { lp: 0, shards: 0 },
+      tickets: { persona: 1, ego: 0, choice: 0, pack: {} },
+      resultId: "res-initial"
+    }]
+  };
+  const first = reducer(initial, { type: "CONSUME_INITIAL_PERSONA_TICKET", resultId: "res-initial" });
+  const balance = window.LBT_computeTicketBalance(first.results, first.entries);
+  assert.equal(balance.persona, 0, "既存の使用1枚に初期分1枚を加えて残数0にする");
+  assert.equal(first.entries.filter((entry) => entry.ref?.kind === "initialPersonaTicket").length, 1);
+  const repeated = reducer(first, { type: "CONSUME_INITIAL_PERSONA_TICKET", resultId: "res-initial" });
+  assert.equal(repeated.entries.length, first.entries.length, "同じ初期記録の保存を繰り返しても二重消費しない");
 });
