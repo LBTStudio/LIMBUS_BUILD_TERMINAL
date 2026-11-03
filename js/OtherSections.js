@@ -2096,12 +2096,24 @@ const EnhancementSection = ({ state, dispatch }) => {
     }
     /* 強化は購入。SET_FIELD で所持だけ増やすと、DB 価格と明細が
        通帳から抜け落ちる。追加・削除とも購入 reducer を通す。 */
-    const afford = window.LBT_purchaseAffordability?.(state, { lp: 0, shards: Number(entry.shards) || 0 });
-    if (afford && !afford.ok) {
-      toast(afford.reason, "assertive");
+    const action = {
+      type: "ADD_ENHANCEMENT",
+      group: String(entry.group || ""),
+      name: entry.name,
+      effect: entry.effect || "",
+      category: entry.category || ""
+    };
+    const cost = window.LBT_purchaseCostOf?.(state, action);
+    if (!cost || !Number.isFinite(Number(cost.shards)) || Number(cost.shards) <= 0) {
+      toast("この強化の購入価格を確認できません。", "assertive");
       return;
     }
-    dispatch({ type: "ADD_ENHANCEMENT", group: String(entry.group || ""), name: entry.name, effect: entry.effect || "", category: entry.category || "" });
+    const afford = window.LBT_purchaseAffordability?.(state, cost);
+    if (!afford?.ok) {
+      toast(afford?.reason || "強化の購入価格または残高を確認できません。", "assertive");
+      return;
+    }
+    dispatch(action);
     toast(`『${entry.name}』を追加`);
   };
   const removeEnh = (id) => dispatch({ type: "REMOVE_ENHANCEMENT", id });
