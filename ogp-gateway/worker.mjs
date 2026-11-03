@@ -236,12 +236,14 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
     && snapshot?.personaSrc?.[key] !== null
     && snapshot?.personaSrc?.[key] !== "";
   const needsName = !String(snapshot?.personaSrc?.name || snapshot?.charName || "").trim();
-  // 明示された空欄はHTML表示と同じく空欄のまま。キー自体が省略された場合のみDB補完する。
-  // 公式人格の共有HTMLは復元時にDB基礎値を使う。旧snapshotのpersonaSrcが
-  // 古い数値を保持していても、DB照会を省略してその値を採用してはいけない。
-  const needsHp = !hasOwn("hp") && (["n", "t"].includes(mode) || !hasPersonaValue("hp"));
-  const needsSan = !hasOwn("san") && (["n", "t"].includes(mode) || !hasPersonaValue("san"));
-  const needsSpeed = !hasOwn("speed") && (["n", "t"].includes(mode) || !hasPersonaValue("speed"));
+  // 公式人格の共有HTMLはHP/SANの空欄も人格基礎値へフォールバックする。
+  // 旧snapshotのpersonaSrcに古い値が残っていても、OGPと共有HTMLは公式DBを優先する。
+  const officialMode = ["n", "t"].includes(mode);
+  // HP/SANは共有HTML側で空欄を人格基礎値へフォールバックする。
+  // そのため公式参照では未格納・null・空文字をすべてDB値へ戻す。
+  const needsHp = officialMode && (!hasOwn("hp") || snapshot.hp === null || snapshot.hp === "");
+  const needsSan = officialMode && (!hasOwn("san") || snapshot.san === null || snapshot.san === "");
+  const needsSpeed = officialMode && !hasOwn("speed");
   const needsPrimarySin = !String(snapshot?.primarySin || "").trim();
   if ((!needsName && !needsHp && !needsSan && !needsSpeed && !needsPrimarySin)
       || !["n", "t"].includes(mode) || personaNo === undefined || personaNo === null) return snapshot;
