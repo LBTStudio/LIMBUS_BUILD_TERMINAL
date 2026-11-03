@@ -653,6 +653,23 @@ test("同名の旧初期作成候補は初期支給額が一致する唯一の�
   assert.equal(ticketBalance(added).persona, 5, "通常の同名シナリオと後日付与分は残す");
 });
 
+test("唯一の同名通常シナリオは初期作成として扱わず、本物の初期リザルトを補完する", () => {
+  const decoy = {
+    id: "res-decoy",
+    name: "初期作成",
+    income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } }
+  };
+  assert.equal(context.window.LBT_findInitialResult([decoy]), null,
+    "同名だけでは旧初期リザルトと認定しない");
+  const normalized = context.window.LBT_normalizeStateShape({
+    ...freshState(),
+    results: [decoy],
+    entries: []
+  });
+  assert.ok(normalized.results.some((result) => result.id === "res-initial"),
+    "本物の初期支給リザルトを別途作成する");
+});
+
 test("同名候補が複数で初期支給額でも一意に判定できない旧データは自動消費を保留する", () => {
   const state = {
     ...freshState(),
