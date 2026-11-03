@@ -257,7 +257,13 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
   const needsSpeed = officialMode && !hasOwn("speed");
   const needsPrimarySin = officialMode && !String(snapshot?.primarySin || "").trim();
   const enhancementRefs = Array.isArray(snapshot?._r?.h) ? snapshot._r.h : null;
-  const needsEnhancements = !!enhancementRefs?.some((entry) => typeof entry === "string");
+  const enhancementEntries = Array.isArray(snapshot?.enhancements) ? snapshot.enhancements : enhancementRefs;
+  // share-link.js は category が無い強化も DB 名称から分類する。
+  // syncedManual 共有ではこの分類がないと人格専用強化を誤って加算する。
+  const needsEnhancements = !!enhancementEntries?.some((entry) =>
+    typeof entry === "string"
+    || (snapshot?.syncedManual && entry && typeof entry === "object" && !entry.category && entry.name)
+  );
   const needsPersonaDb = officialMode && personaNo !== undefined && personaNo !== null
     && (needsName || needsHp || needsSan || needsSpeed || needsPrimarySin);
   if (!needsPersonaDb && !needsEnhancements) return snapshot;
@@ -268,9 +274,12 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
     const next = { ...snapshot };
     if (needsEnhancements) {
       const enhancementRows = [...(db?.normal_enhancements || []), ...(db?.special_enhancements || [])];
-      next.enhancements = enhancementRefs.map((entry) => typeof entry === "string"
-        ? enhancementRows.find((row) => row?.name === entry) || { name: entry }
-        : entry);
+      next.enhancements = enhancementEntries.map((entry) => {
+        if (typeof entry === "string") return enhancementRows.find((row) => row?.name === entry) || { name: entry };
+        if (!entry || typeof entry !== "object" || !snapshot?.syncedManual || entry.category || !entry.name) return entry;
+        const source = enhancementRows.find((row) => row?.name === entry.name);
+        return source ? { ...entry, category: source.category || "" } : entry;
+      });
     }
     if (needsPersonaDb) {
       const rows = mode === "t" ? db?.tokui_personas : db?.normal_personas;
