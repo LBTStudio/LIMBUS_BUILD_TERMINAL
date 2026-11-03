@@ -184,8 +184,23 @@ function consumeInitialPersonaTicket(state, resultId) {
   // 初期リザルトの編集とADD_ROSTERの両方から呼ばれる。
   // 所持への追加が再送されても、初期チケットを二度消費しない。
   if ((state.entries || []).some((entry) => entry?.ref?.kind === "initialPersonaTicket")) return state;
-  const balance = computeTicketBalance(state.results, state.entries);
-  if ((Number(balance?.persona) || 0) <= 0) return state;
+  // 全期間の合計残高だけを見ると、初期分を0枚に直した後でも後日獲得した
+  // チケットを「初期チケット」と誤認して消費してしまう。初期リザルトに
+  // 記録された付与数から、そのリザルトに帰属する明細消費を引いて判定する。
+  const initialResult = (state.results || []).find((result) =>
+    result?.id === "res-initial" || result?.name === "初期作成"
+  );
+  if (!initialResult) return state;
+  const initialGrant = normalizeTickets(initialResult.income?.tickets).persona;
+  if (initialGrant <= 0) return state;
+  const initialResultId = String(initialResult.id || "");
+  const initialSpent = initialResultId
+    ? (state.entries || []).reduce((sum, entry) =>
+      String(entry?.resultId || "") === initialResultId
+        ? sum + normalizeTickets(entry?.tickets).persona
+        : sum, 0)
+    : 0;
+  if (initialGrant - initialSpent <= 0) return state;
   return appendTicketSpend(state, "persona", null, 1, { kind: "initialPersonaTicket" }, resultId);
 }
 
