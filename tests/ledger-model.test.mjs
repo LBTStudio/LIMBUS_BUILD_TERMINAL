@@ -663,6 +663,21 @@ test("存在しないリザルトIDは追加・編集・所持帰属の全経路
     assert.equal(supportExpense.resultId, null, "サポート購入明細も未分類へ");
 
     support = reducer(support, {
+      type: "PATCH_ENTRY", id: supportExpense.id,
+      patch: { resultId: validResultId }
+    });
+    assert.equal(support.roster.supports[0].resultId, validResultId,
+      "PATCH_ENTRYから有効な帰属を変更しても所持レコードと同期");
+    assert.equal(support.entries[0].resultId, validResultId);
+    support = reducer(support, {
+      type: "PATCH_ENTRY", id: supportExpense.id,
+      patch: { resultId: "deleted-result" }
+    });
+    assert.equal(support.roster.supports[0].resultId, null,
+      "PATCH_ENTRYから無効IDを渡した場合も所持レコードを未分類へ");
+    assert.equal(support.entries[0].resultId, null);
+
+    support = reducer(support, {
       type: "SET_ROSTER_SUPPORT_RESULT",
       uid: supportOwned.uid,
       resultId: validResultId
@@ -686,6 +701,19 @@ test("存在しないリザルトIDは追加・編集・所持帰属の全経路
     const spiritOwned = spirit.roster.spirits[0];
     assert.equal(spiritOwned.resultId, null, "精神所持レコードを未分類へ");
     assert.equal(spirit.entries[0].resultId, null, "精神購入明細も未分類へ");
+    spirit = reducer(spirit, {
+      type: "PATCH_ENTRY", id: spirit.entries[0].id,
+      patch: { resultId: validResultId }
+    });
+    assert.equal(spirit.roster.spirits[0].resultId, validResultId,
+      "PATCH_ENTRYから精神の帰属を変更しても所持レコードと同期");
+    assert.equal(spirit.entries[0].resultId, validResultId);
+    spirit = reducer(spirit, {
+      type: "PATCH_ENTRY", id: spirit.entries[0].id,
+      patch: { resultId: "deleted-result" }
+    });
+    assert.equal(spirit.roster.spirits[0].resultId, null);
+    assert.equal(spirit.entries[0].resultId, null);
     spirit = reducer(spirit, {
       type: "SET_ROSTER_SPIRIT_RESULT",
       uid: spiritOwned.uid,
