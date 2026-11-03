@@ -371,7 +371,7 @@
     const ogpImageData = String(state.ogpImageData || "");
     state.ogpImageData = /^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(ogpImageData) && shareImageBytes(ogpImageData) <= SHARE_IMAGE_TARGET_BYTES
       ? ogpImageData : "";
-    state.skills = Array.isArray(state.skills) ? state.skills : [];
+    state.syncedManual = state.syncedManual === true;\n    state.skills = Array.isArray(state.skills) ? state.skills : [];
     state.supports = Array.isArray(state.supports) ? state.supports : [];
     state.uniqueBuffs = Array.isArray(state.uniqueBuffs) ? state.uniqueBuffs : [];
     state.customStatuses = Array.isArray(state.customStatuses) ? state.customStatuses : [];
