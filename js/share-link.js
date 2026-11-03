@@ -444,7 +444,10 @@
     return normalizeShareState(state);
   }
     Object.entries(sourceSheetFields(source)).forEach(([key, baseValue]) => {
-      if (state[key] === undefined) state[key] = cloneJSON(baseValue);
+      // 共有HTML生成時のHP/SANは空欄ならpersonaSrcの基礎値を表示する。
+      // 公式人格は参照化でpersonaSrcを名前だけに縮約するため、復元時も同じ値へ戻す。
+      const statusFallback = (key === "hp" || key === "san") && (state[key] === "" || state[key] === null);
+      if (state[key] === undefined || statusFallback) state[key] = cloneJSON(baseValue);
     });
     // 旧バージョンのDBで作成された共有リンクには、エラッタ前の固有バフ・
     // パッシブ・サポート・強化・精神の古いコピーがそのまま埋め込まれている。
@@ -700,8 +703,10 @@
       state?.personaSrc?.name || refName || official?.name || ""
     ).trim();
     const isOfficial = refMode === "n" || refMode === "t";
-    const fallbackPersona = isOfficial && official ? official : state?.personaSrc;
-    const speedValue = String(state?.speed || fallbackPersona?.speed || (!official ? official?.speed : "") || "").trim();
+    // 速度は共有HTML側がstate.speedのみを表示する。公式参照化でキー自体が
+    // 省略された場合に限りDBから戻し、明示的な空欄は「—」のままにする。
+    const hasSpeed = !!state && Object.prototype.hasOwnProperty.call(state, "speed");
+    const speedValue = String(hasSpeed ? state.speed ?? "" : (isOfficial ? official?.speed ?? "" : "")).trim();
     const primarySin = primaryResourceAttribute(state?.skills)
       || primaryResourceAttribute(fallbackPersona?.skills)
       || (!official ? primaryResourceAttribute(official?.skills) : "");
