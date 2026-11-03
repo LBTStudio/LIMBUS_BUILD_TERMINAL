@@ -1252,7 +1252,7 @@ test("HTML側とOGPは空欄のHP/SANを人格基礎値へ揃えて補完する"
   assert.equal(preview.san, "55", "旧personaSrcではなく公式DBの基礎値を使う");
 });
 
-test("公式人格の共有復元では空欄のHP/SANをDB基礎値へ戻し、空欄SPDは維持する", () => {
+test("公式人格の共有復元では空欄HP/SAN/SPDを圧縮仕様どおり公式DBから戻す", () => {
   const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
   const persona = db.normal_personas[0];
   const share = loadShareLink(db);
@@ -1267,11 +1267,26 @@ test("公式人格の共有復元では空欄のHP/SANをDB基礎値へ戻し、
     roster: { personas: [] }
   };
   const snapshot = share.snapshotState(state);
-  assert.equal(snapshot.hp, "");
-  assert.equal(snapshot.san, "");
-  assert.equal(snapshot.speed, "");
+  // compactValueは空文字を落とす。復元側は欠落した公式基礎値をDBから戻す。
+  assert.equal(snapshot.hp, undefined);
+  assert.equal(snapshot.san, undefined);
+  assert.equal(snapshot.speed, undefined);
   const restored = share.hydratePersonaReference(snapshot, db);
   assert.equal(restored.hp, String(persona.hp));
   assert.equal(restored.san, String(persona.san));
-  assert.equal(restored.speed, "");
+  assert.equal(restored.speed, persona.speed);
+
+  // nullは圧縮で残る。HP/SANだけはHTMLのpersonaSrc fallbackに合わせてDBへ戻すが、
+  // SPDのnullは共有HTMLどおり未設定のままにする。
+  const explicitNull = share.hydratePersonaReference({
+    _lbtShare: 1,
+    personaRef: { mode: "n", no: persona.no },
+    hp: null,
+    san: null,
+    speed: null,
+    roster: { personas: [] }
+  }, db);
+  assert.equal(explicitNull.hp, String(persona.hp));
+  assert.equal(explicitNull.san, String(persona.san));
+  assert.equal(explicitNull.speed, null);
 });
