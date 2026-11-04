@@ -923,7 +923,7 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(addRoster, /cost: normalizeCurrency\(purchaseCost\),/);
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
   const purchaseCostOf = state.slice(state.indexOf("function purchaseCostOf"), state.indexOf("window.LBT_purchaseCostOf"));
-  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/);
+  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona, db: window\.DB \}\)/);
   assert.match(purchaseCostOf, /if \(!rule \|\| !\(Number\(rule\.lp\) > 0 \|\| Number\(rule\.shards\) > 0\)\) return null;/);
 });
 
