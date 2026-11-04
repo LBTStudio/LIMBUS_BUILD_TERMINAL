@@ -856,7 +856,8 @@ test("サポート枠の手動編集が保存される（投影へ反映され�
   const { reducer, initialState } = loadRuntime();
   const added = reducer(initialState, {
     type: "ADD_ROSTER_SUPPORT",
-    spp: { id: 7, name: "テストサポート", cond: "なし", effect: "効果", lp: 3 }
+    spp: { id: 7, name: "テストサポート", cond: "なし", effect: "効果", lp: 3 },
+    purchase: false
   });
   const target = (added.roster?.supports || [])[0];
   assert.ok(target, "サポートが所持へ入る");
