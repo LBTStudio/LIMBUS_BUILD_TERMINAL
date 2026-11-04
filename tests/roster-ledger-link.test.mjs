@@ -40,7 +40,7 @@ const base = () => ({
 
 /* DB 実データから必ず引ける E.G.O を 1 件選ぶ（結果に依存させない）。 */
 const dbEgo = db.egos[0];
-const dbSpirit = db.spirits[0];
+const dbSpirit = db.spirits.find((sp) => Number(sp?.price) > 0);
 
 test("E.G.O の所持追加: no を文字列で渡しても名前と価格が引ける", () => {
   const reducer = loadReducer();
@@ -222,11 +222,12 @@ test("精神の初期枠は装備扱いで、明細を立てない", () => {
 
 test("精神の試着（初期枠）は所持へは入るが購入明細は立てない", () => {
   const reducer = loadReducer();
-  const sp = db.spirits[0];
+  const sp = db.spirits.find((entry) => Number(entry?.price) > 0);
+  const freeSpirit = db.spirits.find((entry) => Number(entry?.price) === 0);
   const viaPurchase = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: sp.name } });
   assert.equal(viaPurchase.entries.length, 1, "ショップ経由は購入として明細が立つ");
 
-  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [sp.name] });
+  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [freeSpirit.name] });
   const seeded = reducer(viaInitial, { type: "APPLY_INITIAL_SPIRITS" });
   assert.equal(seeded.roster.spirits.length, 1);
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
