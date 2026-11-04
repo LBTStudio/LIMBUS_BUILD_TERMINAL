@@ -1533,6 +1533,37 @@ function acquireSupportFromCatalog(state, dispatch, support) {
   toast(`「${support.name}」を所持に購入しました`, "assertive");
   return true;
 }
+
+function acquireSpiritFromCatalog(state, dispatch, spirit) {
+  if (!spirit || !String(spirit.name || "").trim()) return false;
+  const rawPrice = spirit.price;
+  const numericPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice))
+    || (typeof rawPrice === "string" && rawPrice.trim() !== "" && Number.isFinite(Number(rawPrice)));
+  const explicitlyFree = numericPrice && Number(rawPrice) === 0;
+  if (!numericPrice || Number(rawPrice) < 0) {
+    toast("精神の購入価格を検証できません。価格情報を確認してください。", "assertive");
+    return false;
+  }
+  if (explicitlyFree) {
+    dispatch({ type: "ADD_ROSTER_SPIRIT", spirit, purchase: false });
+    toast(`「${spirit.name}」を無料の初期精神として所持に追加しました`, "assertive");
+    return true;
+  }
+  const action = { type: "ADD_ROSTER_SPIRIT", spirit, purchase: true };
+  const cost = window.LBT_purchaseCostOf?.(state, action);
+  const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
+  if (!cost || !affordability) {
+    toast("精神の購入価格を検証できません。価格情報を確認してください。", "assertive");
+    return false;
+  }
+  if (!affordability.ok) {
+    toast(affordability.reason || "購入に必要な残高が不足しています。", "assertive");
+    return false;
+  }
+  dispatch(action);
+  toast(`「${spirit.name}」を所持に購入しました`, "assertive");
+  return true;
+}
 const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
   const h = React.createElement;
   const [creating, setCreating] = React.useState(false);
@@ -3132,16 +3163,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       ].filter(Boolean))),
     spirit: (entries) => entries.map((sp) => card(sp.name, sp.name,
       !hasExplicitSpiritPrice(sp) ? "価格不明" : Number(sp.price) > 0 ? null : "初期選択可", "spirit",
-      () => {
-        if (!hasExplicitSpiritPrice(sp)) {
-          toast("価格が不明なため追加できません", "assertive");
-          return;
-        }
-        dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: !isExplicitlyFreeSpirit(sp) });
-        toast(isExplicitlyFreeSpirit(sp)
-          ? `「${sp.name}」を無料の初期精神として所持に追加しました`
-          : `「${sp.name}」を所持に購入しました`, "assertive");
-      },
+      () => acquireSpiritFromCatalog(state, dispatch, sp),
       false, null, shopCardLines("spirit", sp), ownedSpiritNames.has(sp.name),
       null, null,
       /* 精神の費用はビルドと同じ規則で表す。価格 0 は費用ではなく
