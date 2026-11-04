@@ -367,7 +367,7 @@ test("ショップの消耗品カタログは所持状況に依存せず、在�
   assert.doesNotMatch(shop, /className: "shop-card-head ucard-head"/);
   assert.doesNotMatch(shop, /className: "ucard-actions" \}\},\n\s*h\(AcquireBar/);
   /* 導入は購入。サポート/アイテムは元から明細のある action を、E.G.O は purchase:true を渡す。 */
-  assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true \}\);/);
+  assert.match(shop, /\(\) => acquireSupportFromCatalog\(state, dispatch, entry\)/);
   assert.match(shop, /\(\) => acquireEgoFromCatalog\(state, dispatch, ego\)/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: !isExplicitlyFreeSpirit\(sp\) \}\);/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\);/);
