@@ -1516,6 +1516,23 @@ function acquireEgoFromCatalog(state, dispatch, ego) {
   toast(`「${ego.name}」を所持に購入しました`, "assertive");
   return true;
 }
+function acquireSupportFromCatalog(state, dispatch, support) {
+  if (!support) return false;
+  const action = { type: "ADD_ROSTER_SUPPORT", spp: support, purchase: true };
+  const cost = window.LBT_purchaseCostOf?.(state, action);
+  const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
+  if (!cost || !affordability) {
+    toast("サポートパッシブの購入価格を検証できません。価格情報を確認してください。", "assertive");
+    return false;
+  }
+  if (!affordability.ok) {
+    toast(affordability.reason || "購入に必要な残高が不足しています。", "assertive");
+    return false;
+  }
+  dispatch(action);
+  toast(`「${support.name}」を所持に購入しました`, "assertive");
+  return true;
+}
 const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
   const h = React.createElement;
   const [creating, setCreating] = React.useState(false);
@@ -3097,7 +3114,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       );
     }),
     support: (entries) => entries.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
-      () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
+      () => acquireSupportFromCatalog(state, dispatch, entry),
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
     ego: (entries) => entries.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
       () => acquireEgoFromCatalog(state, dispatch, ego),
