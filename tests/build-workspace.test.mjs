@@ -367,9 +367,9 @@ test("ショップの消耗品カタログは所持状況に依存せず、在�
   assert.doesNotMatch(shop, /className: "shop-card-head ucard-head"/);
   assert.doesNotMatch(shop, /className: "ucard-actions" \}\},\n\s*h\(AcquireBar/);
   /* 導入は購入。サポート/アイテムは元から明細のある action を、E.G.O は purchase:true を渡す。 */
-  assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true \}\);/);
+  assert.match(shop, /\(\) => acquireSupportFromCatalog\(state, dispatch, entry\)/);
   assert.match(shop, /\(\) => acquireEgoFromCatalog\(state, dispatch, ego\)/);
-  assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: !isExplicitlyFreeSpirit\(sp\) \}\);/);
+  assert.match(shop, /\(\) => acquireSpiritFromCatalog\(state, dispatch, sp\)/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\);/);
   /* 所持上限に達したアイテムは購入できない。 */
   assert.match(shop, /card\(item\.id, item\.name, item\.category \|\| "その他", "item",[\s\S]{0,200}?atCap\(item\), "所持上限に達しています"/);
@@ -923,7 +923,7 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(addRoster, /cost: normalizeCurrency\(purchaseCost\),/);
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
   const purchaseCostOf = state.slice(state.indexOf("function purchaseCostOf"), state.indexOf("window.LBT_purchaseCostOf"));
-  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/);
+  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona, db: window\.DB \}\)/);
   assert.match(purchaseCostOf, /if \(!rule \|\| !\(Number\(rule\.lp\) > 0 \|\| Number\(rule\.shards\) > 0\)\) return null;/);
 });
 

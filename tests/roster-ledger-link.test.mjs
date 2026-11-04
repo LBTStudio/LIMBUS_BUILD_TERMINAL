@@ -16,15 +16,17 @@ import vm from "node:vm";
 
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
 
-function loadReducer() {
+function loadReducer(database = db) {
+  const provenance = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
-    window: { DB: db }, console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
+    window: { DB: database }, console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
     localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
   };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(provenance, context);
   vm.runInContext(source, context);
   return context.window.appReducer;
 }
@@ -38,7 +40,7 @@ const base = () => ({
 
 /* DB 実データから必ず引ける E.G.O を 1 件選ぶ（結果に依存させない）。 */
 const dbEgo = db.egos[0];
-const dbSpirit = db.spirits[0];
+const dbSpirit = db.spirits.find((sp) => Number(sp?.price) > 0);
 
 test("E.G.O の所持追加: no を文字列で渡しても名前と価格が引ける", () => {
   const reducer = loadReducer();
@@ -59,14 +61,28 @@ test("E.G.O の所持追加: 数値の no でも同じ結果になる（どち�
   assert.deepEqual(num.entries[0].cost, str.entries[0].cost);
 });
 
-test("人格の所持追加: 明細の ref.uid が所持の uid と一致する", () => {
+test("人格の所持追加は呼び出し側のcostを信用せず、現在の所持状態から購入額を再計算する", () => {
   const reducer = loadReducer();
   const s = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-b" });
   const uid = s.roster.personas[0].uid;
   assert.equal(s.entries[0].ref.kind, "rosterPersona");
   assert.equal(s.entries[0].ref.uid, uid);
   assert.equal(s.entries[0].resultId, "res-b");
-  assert.equal(s.entries[0].cost.lp, 0, "人格はガチャ費用ではなく、所持へ入れた時点で明細が立つ");
+  assert.equal(s.entries[0].cost.lp, 20, "未所持からの指定購入は原典の20LPを請求する");
+  const rich = {
+    ...base(),
+    results: base().results.map((result) => ({ ...result, income: { ...result.income, lp: 1000 } }))
+  };
+  const first = reducer(rich, { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true });
+  const second = reducer(first, { type: "ADD_ROSTER", mode: "n", no: 2, purchase: true, cost: { lp: 20, shards: 0 } });
+  assert.equal(second.entries[1].cost.lp, 200, "既所持の状態ではUIの古い20LPを信用せず200LPへ更新");
+});
+
+test("特異人格・未知の人格番号は指定購入経路から追加できない", () => {
+  const reducer = loadReducer();
+  const before = base();
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER", mode: "t", no: 1, purchase: true, cost: { lp: 0 } }), before);
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER", mode: "n", no: 99999, purchase: true, cost: { lp: 0 } }), before);
 });
 
 test("所持.passive と spirit も明示したリザルトへ帰属する（常に直近へ倒さない）", () => {
@@ -91,6 +107,39 @@ test("resultId 未指定の所持追加は、所持レコードと明細が同�
   const spirit = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: dbSpirit.name } });
   assert.equal(spirit.roster.spirits[0].resultId, "res-b");
   assert.equal(spirit.entries[0].resultId, "res-b");
+});
+
+test("サポート・死亡後パッシブの購入はカタログ価格が確定しない場合に拒否する", () => {
+  const invalidDb = {
+    ...db,
+    support_passives: [{ name: "価格不明サポート", lp: "無料" }],
+    death_passives: [{ name: "価格不明死亡後", shards: "未設定" }]
+  };
+  const reducer = loadReducer(invalidDb);
+  const before = base();
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER_SUPPORT", spp: { name: "未知サポート" }, purchase: true }), before);
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER_SUPPORT", spp: { name: "価格不明サポート" }, purchase: true }), before);
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER_SUPPORT", spp: { name: "価格不明死亡後" }, purchase: true }), before);
+  assert.equal(before.roster.supports.length, 0);
+  assert.equal(before.entries.length, 0);
+});
+
+test("精神の購入は正の欠片価格がDBにある場合だけ許可し、無料精神は非購入で登録する", () => {
+  const invalidDb = {
+    ...db,
+    spirits: [
+      { name: "価格不明精神", price: "未設定" },
+      { name: "無料初期精神", price: 0 }
+    ]
+  };
+  const reducer = loadReducer(invalidDb);
+  const before = base();
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "未知精神" }, purchase: true }), before);
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格不明精神" }, purchase: true }), before);
+  assert.strictEqual(reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: true }), before);
+  const free = reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: false });
+  assert.equal(free.roster.spirits.length, 1, "無料初期精神は所持登録できる");
+  assert.equal(free.entries.length, 0, "無料取得で購入明細を立てない");
 });
 
 test("購入でない所持は、明細が無いので未分類のまま（勝手に直近へ倒さない）", () => {
@@ -173,11 +222,12 @@ test("精神の初期枠は装備扱いで、明細を立てない", () => {
 
 test("精神の試着（初期枠）は所持へは入るが購入明細は立てない", () => {
   const reducer = loadReducer();
-  const sp = db.spirits[0];
+  const sp = db.spirits.find((entry) => Number(entry?.price) > 0);
+  const freeSpirit = db.spirits.find((entry) => Number(entry?.price) === 0);
   const viaPurchase = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: sp.name } });
   assert.equal(viaPurchase.entries.length, 1, "ショップ経由は購入として明細が立つ");
 
-  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [sp.name] });
+  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [freeSpirit.name] });
   const seeded = reducer(viaInitial, { type: "APPLY_INITIAL_SPIRITS" });
   assert.equal(seeded.roster.spirits.length, 1);
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
