@@ -3065,13 +3065,17 @@ window.LBT_operationAffordability = operationAffordability;
 function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER") {
     if (!action.purchase) return null;
-    /* UI購入は cost を渡す。硝子窓取込は source="buy" だけを渡すので、
-       欠落額を0へ丸めず、現在の所持状態に応じたルール価格を解決する。 */
-    if (action.cost !== undefined && action.cost !== null) return normalizeCurrency(action.cost);
+    /* 指定購入は通常人格だけ。特異人格・自作人格・DBに無い番号を
+       外部 action から購入扱いで追加できないよう、購入元をDBで固定する。 */
+    if (action.mode !== "n" || !(window.DB?.normal_personas || []).some((persona) =>
+      String(persona?.no) === String(action.no))) return null;
+    /* UIから届く cost は表示時点の参考値にすぎない。状態が変わった後の古い額や
+       直接呼び出しの偽装額を信用せず、現在の所持数に応じて reducer 側で再計算する。 */
     const ownsPersona = (state?.roster?.personas || []).length > 0;
-    const rule = window.LBT_acquireCost?.("persona", "purchase", { ownsPersona });
-    if (!rule || !(Number(rule.lp) > 0 || Number(rule.shards) > 0)) return null;
-    return normalizeCurrency(rule);
+    const rule = window.LBT_acquireCost?.("persona", "purchase", { ownsPersona, db: window.DB });
+    if (!rule) return null;
+    const cost = normalizeCurrency(rule);
+    return cost.lp > 0 || cost.shards > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_EGO") {
     if (!action.purchase) return null;
@@ -3100,12 +3104,27 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
-    const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const deathDefinition = (window.DB?.death_passives || []).find((entry) => entry?.name === name);
+    if (deathDefinition) {
+      const cost = parsePriceText(deathDefinition.shards, "shards");
+      return cost.shards > 0 && cost.lp === 0 ? cost : null;
+    }
+    const normalDefinition = (window.DB?.support_passives || []).find((entry) => entry?.name === name);
+    if (!normalDefinition) return null;
+    const cost = parsePriceText(normalDefinition.lp, "lp");
+    return cost.lp > 0 && cost.shards === 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    const definition = (window.DB?.spirits || []).find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const rawPrice = definition.price;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceSpirit(name);
+    return cost.shards > 0 && cost.lp === 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
