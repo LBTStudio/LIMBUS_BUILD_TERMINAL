@@ -183,6 +183,49 @@ test("精神の試着（初期枠）は所持へは入るが購入明細は立�
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
 });
 
+test("ライブラリのUndoは削除済みリザルトの帰属を孤立させず未分類へ戻す", () => {
+  const reducer = loadReducer();
+  const state = {
+    ...base(),
+    results: [{ id: "res-b", name: "残っているリザルト", date: "2026-10-26", createdAt: 200, income: { lp: 100, shards: 100 } }],
+    roster: {
+      personas: [], egos: [],
+      supports: [
+        { uid: "support-deleted-result", name: "削除リザルト由来サポート", resultId: "res-a" },
+        { uid: "support-live-result", name: "存続リザルト由来サポート", resultId: "res-b" }
+      ],
+      spirits: [
+        { uid: "spirit-deleted-result", name: "削除リザルト由来精神", resultId: "res-a" },
+        { uid: "spirit-live-result", name: "存続リザルト由来精神", resultId: "res-b" }
+      ]
+    },
+    entries: [
+      { id: "support-entry-deleted", kind: "support", name: "削除リザルト由来サポート", resultId: "res-a", cost: { lp: 7 }, ref: { kind: "rosterSupport", uid: "support-deleted-result" } },
+      { id: "support-entry-live", kind: "support", name: "存続リザルト由来サポート", resultId: "res-b", cost: { lp: 7 }, ref: { kind: "rosterSupport", uid: "support-live-result" } },
+      { id: "spirit-entry-deleted", kind: "spirit", name: "削除リザルト由来精神", resultId: "res-a", cost: { shards: 50 }, ref: { kind: "rosterSpirit", uid: "spirit-deleted-result" } },
+      { id: "spirit-entry-live", kind: "spirit", name: "存続リザルト由来精神", resultId: "res-b", cost: { shards: 50 }, ref: { kind: "rosterSpirit", uid: "spirit-live-result" } }
+    ]
+  };
+  const restoredSupport = reducer(state, {
+    type: "RESTORE_ROSTER_BATCH", kind: "supports",
+    items: state.roster.supports, entries: state.entries.filter((entry) => entry.ref.kind === "rosterSupport")
+  });
+  const restored = reducer(restoredSupport, {
+    type: "RESTORE_ROSTER_BATCH", kind: "spirits",
+    items: state.roster.spirits, entries: state.entries.filter((entry) => entry.ref.kind === "rosterSpirit")
+  });
+
+  assert.equal(restored.roster.supports.find((entry) => entry.uid === "support-deleted-result").resultId, null);
+  assert.equal(restored.roster.spirits.find((entry) => entry.uid === "spirit-deleted-result").resultId, null);
+  assert.equal(restored.entries.find((entry) => entry.id === "support-entry-deleted").resultId, null);
+  assert.equal(restored.entries.find((entry) => entry.id === "spirit-entry-deleted").resultId, null);
+  assert.equal(restored.roster.supports.find((entry) => entry.uid === "support-live-result").resultId, "res-b");
+  assert.equal(restored.roster.spirits.find((entry) => entry.uid === "spirit-live-result").resultId, "res-b");
+  assert.equal(restored.entries.find((entry) => entry.id === "support-entry-live").resultId, "res-b");
+  assert.equal(restored.entries.find((entry) => entry.id === "spirit-entry-live").resultId, "res-b");
+  assert.equal(restored.entries.length, 4, "復元した購入明細自体は失わない");
+});
+
 test("人格・E.G.O の一括削除も購入明細を外し、undo で所持と明細を戻す", () => {
   const reducer = loadReducer();
   let s = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-a" });
