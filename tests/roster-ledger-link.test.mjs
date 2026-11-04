@@ -69,6 +69,34 @@ test("人格の所持追加: 明細の ref.uid が所持の uid と一致する"
   assert.equal(s.entries[0].cost.lp, 0, "人格はガチャ費用ではなく、所持へ入れた時点で明細が立つ");
 });
 
+test("サポート・精神の購入はDB価格の欠落や0価格を無料購入として扱わない", () => {
+  const reducer = loadReducer();
+  const before = base();
+
+  const unknownSupport = reducer(before, {
+    type: "ADD_ROSTER_SUPPORT", spp: { name: "DB未登録のサポート" }, purchase: true
+  });
+  assert.strictEqual(unknownSupport, before, "DB未登録のサポートは購入できない");
+
+  const unknownSpirit = reducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "DB未登録の精神" }, purchase: true
+  });
+  assert.strictEqual(unknownSpirit, before, "DB未登録の精神は購入できない");
+
+  const freeSpirit = db.spirits.find((entry) => Number(entry.price) === 0);
+  assert.ok(freeSpirit, "DBに初期無料精神がある");
+  const rejectedFreePurchase = reducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: freeSpirit, purchase: true
+  });
+  assert.strictEqual(rejectedFreePurchase, before, "初期無料精神を購入扱いの0円明細で登録しない");
+
+  const freeGrant = reducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: freeSpirit, purchase: false
+  });
+  assert.equal(freeGrant.roster.spirits.length, 1, "初期無料精神は無料取得経路で登録できる");
+  assert.equal(freeGrant.entries.length, 0, "無料取得に購入明細を作らない");
+});
+
 test("所持.passive と spirit も明示したリザルトへ帰属する（常に直近へ倒さない）", () => {
   const reducer = loadReducer();
   const withSupport = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: db.support_passives[0].name }, resultId: "res-a" });
