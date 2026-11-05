@@ -313,7 +313,7 @@ test("拡張ありでは所持一覧からの装備（SET_ROSTER_SUPPORT_EQUIPPE
   const { reducer } = reducerOf();
   let s = { ...baseState(), enhancements: [{ name: "サポートスロット追加" }] };
   for (const name of ["出血促進", "消化", "追加サポ"]) {
-    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name } });
+    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name }, purchase: false });
   }
   for (const entry of s.roster.supports) {
     s = reducer(s, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: entry.uid });

@@ -217,7 +217,7 @@ test("via がバッチ内のリザルトに一致しなければ未分類（直�
 });
 
 test("シナリオの獲得一覧（via 無し）の所持は直前のリザルトへ帰属する", () => {
-  const spiritName = db.spirits.find((s) => s && s.name).name;
+  const spiritName = db.spirits.find((s) => s && s.name && Number(s.price) > 0).name;
   const after = reducer(baseState(), {
     type: "APPLY_IMPORT_BATCH",
     actions: [
