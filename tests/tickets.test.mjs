@@ -42,6 +42,22 @@ test("パック別はパックごとに独立して数える", () => {
   assert.equal(b.pack["向き合わない"], undefined, "未 Cue のパックは 0");
 });
 
+test("チケット収入が安全整数上限を超える加算は既存残数を壊さず拒否する", () => {
+  const state = withResult({ persona: Number.MAX_SAFE_INTEGER });
+  const overflowPersona = reducer(state, { type: "GRANT_TICKET", kind: "persona", count: 1 });
+  assert.strictEqual(overflowPersona, state, "人格チケットの安全整数超過を拒否");
+  assert.equal(balanceOf(overflowPersona).persona, Number.MAX_SAFE_INTEGER,
+    "既存の最大残数を0へ正規化して失わない");
+
+  const packState = withResult({ pack: { "検証パック": Number.MAX_SAFE_INTEGER } });
+  const overflowPack = reducer(packState, {
+    type: "GRANT_TICKET", kind: "pack", pack: "検証パック", count: 1
+  });
+  assert.strictEqual(overflowPack, packState, "パック別チケットの安全整数超過を拒否");
+  assert.equal(balanceOf(overflowPack).pack["検証パック"], Number.MAX_SAFE_INTEGER,
+    "既存のパック別残数を維持する");
+});
+
 test("GRANT_TICKET は直近リザルトの収入に積む", () => {
   const s = reducer(withResult({}), { type: "GRANT_TICKET", kind: "ego", count: 2 });
   assert.equal(balanceOf(s).ego, 2);
