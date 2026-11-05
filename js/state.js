@@ -3100,19 +3100,32 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
-    const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const deathDefinition = (window.DB?.death_passives || []).find((entry) => entry?.name === name);
+    const normalDefinition = (window.DB?.support_passives || []).find((entry) => entry?.name === name);
+    const definition = deathDefinition || normalDefinition;
+    if (!definition) return null;
+    const slot = deathDefinition ? "death" : "normal";
+    const cost = priceSupport(name, slot);
+    const amount = slot === "death" ? Number(cost?.shards) : Number(cost?.lp);
+    return Number.isFinite(amount) && amount > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    const definition = (window.DB?.spirits || []).find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const cost = priceSpirit(name);
+    return Number.isFinite(Number(cost?.shards)) && Number(cost.shards) > 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
     const name = String(action.name || "");
     if (!name) return null;
     const catalog = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
-    const definition = catalog.find((entry) => entry?.name === name && entry?.group === group);
+    /* special_enhancements は group を持たず、UI は空文字へ正規化する。
+       未設定 group と空 group を同一視し、通常強化の明示 group は厳密に照合する。 */
+    const definition = catalog.find((entry) =>
+      entry?.name === name && String(entry?.group || "") === group);
     if (!definition) return null;
     const rawPrice = definition.shards;
     const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
@@ -4446,9 +4459,15 @@ function appReducer(state, action) {
     || action.type === "ADD_ITEM" || action.type === "ADD_ROSTER_SUPPORT"
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
-    /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
-       || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
+    /* 購入扱いなのに価格が解決できないものは、0円購入として通さない。
+       サポート/精神の明示的な無料取得（purchase:false）だけは価格検証を免除する。 */
+    const requiresCatalogPrice =
+      (action.type === "ADD_ROSTER" && action.purchase === true)
+      || (action.type === "ADD_ROSTER_EGO" && action.purchase === true)
+      || (action.type === "ADD_ROSTER_SUPPORT" && action.purchase !== false)
+      || (action.type === "ADD_ROSTER_SPIRIT" && action.purchase !== false)
+      || action.type === "ADD_ENHANCEMENT";
+    if (requiresCatalogPrice && !cost) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
