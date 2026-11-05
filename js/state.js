@@ -6618,20 +6618,37 @@ case "ADD_ENTRY":
             : {})
         }]
       };
-    case "PATCH_ENTRY":
-      return {
-        ...state,
-        entries: (state.entries || []).map((e) => (e.id === action.id
-          ? {
-              ...e,
-              ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
-              ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
-              ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
-              ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
-              ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
-            }
-          : e))
-      };
+    case "PATCH_ENTRY": {
+      const target = (state.entries || []).find((entry) => entry.id === action.id);
+      if (!target) return state;
+      const resultId = action.patch?.resultId === undefined
+        ? target.resultId
+        : action.patch.resultId || null;
+      const entries = (state.entries || []).map((entry) => (entry.id === action.id
+        ? {
+            ...entry,
+            ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
+            ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
+            ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
+            ...(action.patch?.resultId !== void 0 ? { resultId } : {}),
+            ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
+          }
+        : entry));
+      if (action.patch?.resultId === undefined) return { ...state, entries };
+      /* 旧互換PATCHでも、所持UIDに結び付く明細の移動は所持側へ投影する。
+         正式UIのSET_ENTRY_RESULTだけが同期する状態を作らない。 */
+      let roster = state.roster;
+      if (target.ref?.kind === "rosterSupport" && roster?.supports) {
+        roster = { ...roster, supports: roster.supports.map((entry) => (
+          entry.uid === target.ref.uid ? { ...entry, resultId } : entry
+        )) };
+      } else if (target.ref?.kind === "rosterSpirit" && roster?.spirits) {
+        roster = { ...roster, spirits: roster.spirits.map((entry) => (
+          entry.uid === target.ref.uid ? { ...entry, resultId } : entry
+        )) };
+      }
+      return roster === state.roster ? { ...state, entries } : { ...state, entries, roster };
+    }
     /* 帰属の差し替え。ドラッグ&ドロップはこの1つだけを呼ぶ。 */
     case "SET_ENTRY_RESULT": {
       const target = (state.entries || []).find((e) => e.id === action.id);
