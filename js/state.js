@@ -3100,12 +3100,21 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
+    if (!name) return null;
     const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const catalogue = slot === "death" ? (window.DB?.death_passives || []) : (window.DB?.support_passives || []);
+    if (!catalogue.some((entry) => String(entry?.name || "").trim() === name)) return null;
+    const cost = priceSupport(name, slot);
+    const amount = slot === "death" ? cost?.shards : cost?.lp;
+    return Number.isSafeInteger(amount) && amount > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    const definition = (window.DB?.spirits || []).find((entry) => String(entry?.name || "").trim() === name);
+    if (!definition) return null;
+    const cost = priceSpirit(name);
+    return Number.isSafeInteger(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
@@ -4446,9 +4455,15 @@ function appReducer(state, action) {
     || action.type === "ADD_ITEM" || action.type === "ADD_ROSTER_SUPPORT"
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
-    /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
-       || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
+    /* 購入扱いなのにカタログ価格が解決できないものは、無料購入として通さない。
+       所持追加・報酬取込は purchase:false で従来どおり別経路にする。 */
+    const requiresPrice = (
+      (action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase
+    ) || (
+      (action.type === "ADD_ROSTER_SUPPORT" || action.type === "ADD_ROSTER_SPIRIT")
+      && action.purchase !== false
+    ) || action.type === "ADD_ENHANCEMENT";
+    if (requiresPrice && !cost) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
