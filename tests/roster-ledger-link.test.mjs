@@ -59,6 +59,77 @@ test("E.G.O の所持追加: 数値の no でも同じ結果になる（どち�
   assert.deepEqual(num.entries[0].cost, str.entries[0].cost);
 });
 
+test("サポート購入はカタログ不在・価格不明を無料登録として通さない", () => {
+  const reducer = loadReducer();
+  const before = base();
+  const unknown = reducer(before, {
+    type: "ADD_ROSTER_SUPPORT", spp: { name: "カタログに存在しない支援" }, purchase: true
+  });
+  assert.strictEqual(unknown, before, "カタログにない支援は購入できない");
+
+  const original = db.support_passives;
+  try {
+    db.support_passives = [{ name: "価格欠落支援" }];
+    const missing = reducer(before, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格欠落支援" }, purchase: true
+    });
+    assert.strictEqual(missing, before, "価格が欠落した支援を0LPで買えない");
+
+    db.support_passives = [{ name: "価格不正支援", lp: "無料ではない価格表記" }];
+    const invalid = reducer(before, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格不正支援" }, purchase: true
+    });
+    assert.strictEqual(invalid, before, "解析不能な価格を0LPとして買えない");
+  } finally {
+    db.support_passives = original;
+  }
+
+  const granted = reducer(before, {
+    type: "ADD_ROSTER_SUPPORT", spp: { name: "報酬由来の未登録支援" }, purchase: false
+  });
+  assert.equal(granted.roster.supports.length, 1, "購入ではない報酬・取込経路は維持する");
+  assert.equal(granted.entries.length, 0, "報酬追加に購入明細を立てない");
+});
+
+test("精神購入は未知・価格欠落・無料枠の購入扱いを拒否し、無料追加は維持する", () => {
+  const reducer = loadReducer();
+  const before = base();
+  const unknown = reducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "カタログに存在しない精神" }, purchase: true
+  });
+  assert.strictEqual(unknown, before, "カタログにない精神は購入できない");
+
+  const original = db.spirits;
+  try {
+    db.spirits = [{ name: "価格欠落精神" }];
+    const missing = reducer(before, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格欠落精神" }, purchase: true
+    });
+    assert.strictEqual(missing, before, "価格が欠落した精神を無料購入できない");
+
+    db.spirits = [
+      { name: "無料初期精神", price: 0 },
+      { name: "価格不正精神", price: "価格未照合" }
+    ];
+    const freePurchase = reducer(before, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: true
+    });
+    assert.strictEqual(freePurchase, before, "価格0は購入ではなく無料配布経路を使う");
+    const invalid = reducer(before, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格不正精神" }, purchase: true
+    });
+    assert.strictEqual(invalid, before, "解析不能な価格を無料購入として扱わない");
+
+    const freeGrant = reducer(before, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: false
+    });
+    assert.equal(freeGrant.roster.spirits.length, 1, "明示された無料初期精神は追加できる");
+    assert.equal(freeGrant.entries.length, 0, "無料初期精神に購入明細を立てない");
+  } finally {
+    db.spirits = original;
+  }
+});
+
 test("人格の所持追加: 明細の ref.uid が所持の uid と一致する", () => {
   const reducer = loadReducer();
   const s = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-b" });
