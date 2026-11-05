@@ -3097,29 +3097,42 @@ function purchaseCostOf(state, action) {
     const alreadyOwned = (state?.inventory || []).some((entry) => entry?.itemId === itemId);
     return alreadyOwned ? null : priceItemById(state, itemId);
   }
+  /* DB 定義と正の価格が確認できたものだけを有料取得として扱う。
+     parsePriceText は未知名・不正文字列を {0,0} に正規化するため、
+     「0円」だけで判断すると未知の品まで無料購入できてしまう。 */
+  const positiveConfiguredCost = (raw, unit) => {
+    const cost = parsePriceText(raw, unit);
+    const amount = Number(cost?.[unit]);
+    const other = unit === "lp" ? "shards" : "lp";
+    return Number.isSafeInteger(amount) && amount > 0 && Number(cost?.[other] || 0) === 0
+      ? cost : null;
+  };
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
-    const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const death = (window.DB?.death_passives || []).find((entry) => entry?.name === name);
+    if (death) return positiveConfiguredCost(death.shards, "shards");
+    const normal = (window.DB?.support_passives || []).find((entry) => entry?.name === name);
+    return normal ? positiveConfiguredCost(normal.lp, "lp") : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    const definition = (window.DB?.spirits || []).find((entry) => entry?.name === name);
+    /* 明示価格0の初期精神は purchase:false で受け取る。購入 action で
+       未登録名や無料枠を有料取得として記録しない。 */
+    return definition ? positiveConfiguredCost(definition.price, "shards") : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
     const name = String(action.name || "");
     if (!name) return null;
     const catalog = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
-    const definition = catalog.find((entry) => entry?.name === name && entry?.group === group);
+    /* 特殊強化の正規5件は DB の group が未設定。保存・UI側では空文字へ
+       正規化するため、ここも同じ表現で照合しないと正規商品が購入不能になる。 */
+    const definition = catalog.find((entry) => entry?.name === name && String(entry?.group || "") === group);
     if (!definition) return null;
-    const rawPrice = definition.shards;
-    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
-    if (!hasExplicitPrice) return null;
-    const cost = priceEnhancement(group, name);
-    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
+    return positiveConfiguredCost(definition.shards, "shards");
   }
   return null;
 }
@@ -4446,9 +4459,14 @@ function appReducer(state, action) {
     || action.type === "ADD_ITEM" || action.type === "ADD_ROSTER_SUPPORT"
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
-    /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
-       || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
+    /* 有料取得 action はカタログ定義と正の価格が必要。UIを迂回したdispatchでも
+       価格不明を0欠片/0LPとして所持にできない。無料配布は purchase:false を明示。 */
+    const requiresPrice = (
+      (action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase
+    ) || action.type === "ADD_ENHANCEMENT"
+      || ((action.type === "ADD_ROSTER_SUPPORT" || action.type === "ADD_ROSTER_SPIRIT")
+        && action.purchase !== false);
+    if (requiresPrice && !cost) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
@@ -6045,12 +6063,16 @@ case "ADD_CUSTOM_ITEM": {
       if (!name) return state;
       const current = state.enhancements || [];
       if (current.some((e) => e.name === name && e.group === group)) return state;
+      /* reducer入口でも価格を再解決する。未知の強化や価格欠落を0欠片で
+         登録させず、購入判定と実際の台帳記録に同じ金額を使う。 */
+      const purchaseCost = purchaseCostOf(state, { ...action, type: "ADD_ENHANCEMENT", group, name });
+      if (!purchaseCost || !purchaseAffordability(state, purchaseCost).ok) return state;
       const entry = {
         id: makeOwnedUid("enh"),
         group,
         name,
         effect: String(action.effect || ""),
-        shards: priceEnhancement(group, name).shards,
+        shards: purchaseCost.shards,
         category: String(action.category || "")
       };
       const next = { ...state, enhancements: [...current, entry] };
