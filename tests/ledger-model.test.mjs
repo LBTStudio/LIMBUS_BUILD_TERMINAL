@@ -619,3 +619,112 @@ test("共有所持の明示数量は厳密に検証し、不正文字列を部�
   const legacy = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage" });
   assert.equal(legacy.inventory[0].quantity, 1, "未指定数量は従来どおり1個");
 });
+
+test("カタログ購入はDB価格を要求し、特殊強化の未設定groupは正しく照合する", () => {
+  const db = context.window.DB;
+  const beforeDb = {
+    support_passives: db.support_passives,
+    death_passives: db.death_passives,
+    spirits: db.spirits,
+    normal_enhancements: db.normal_enhancements,
+    special_enhancements: db.special_enhancements
+  };
+  db.support_passives = [
+    { name: "正規サポート", lp: 7, cond: "", effect: "" },
+    { name: "価格不明サポート", lp: "未設定", cond: "", effect: "" }
+  ];
+  db.death_passives = [
+    { name: "正規死亡後パッシブ", shards: 11, cond: "", effect: "" }
+  ];
+  db.spirits = [
+    { name: "正規精神", price: 13 },
+    { name: "初期無料精神", price: 0 },
+    { name: "価格不明精神", price: "未設定" }
+  ];
+  db.normal_enhancements = [
+    { name: "正規通常強化", group: "肉体強化A", shards: 9, category: "persona", effect: "" }
+  ];
+  db.special_enhancements = [
+    { name: "正規特殊強化", shards: 150, category: "common", effect: "" }
+  ];
+
+  try {
+    const empty = baseState();
+    const unknownSupport = reducer(empty, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "未登録サポート" }, purchase: true
+    });
+    assert.strictEqual(unknownSupport, empty, "DB未登録サポートは無料購入できない");
+    const invalidSupport = reducer(empty, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格不明サポート" }, purchase: true
+    });
+    assert.strictEqual(invalidSupport, empty, "価格が解析できないサポートは購入できない");
+
+    const normalSupport = reducer(empty, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "正規サポート" }, purchase: true
+    });
+    assert.equal(normalSupport.roster.supports.length, 1);
+    assert.equal(normalSupport.entries[0].cost.lp, 7);
+
+    const deathSupport = reducer(empty, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "正規死亡後パッシブ" }, purchase: true
+    });
+    assert.equal(deathSupport.roster.supports.length, 1);
+    assert.equal(deathSupport.entries[0].cost.shards, 11);
+
+    const unknownSpirit = reducer(empty, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "未登録精神" }, purchase: true
+    });
+    assert.strictEqual(unknownSpirit, empty, "DB未登録精神は無料購入できない");
+    const invalidSpirit = reducer(empty, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格不明精神" }, purchase: true
+    });
+    assert.strictEqual(invalidSpirit, empty, "価格不明の精神は購入できない");
+    const zeroPricePurchase = reducer(empty, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "初期無料精神" }, purchase: true
+    });
+    assert.strictEqual(zeroPricePurchase, empty, "無料精神を購入扱いでは追加できない");
+    const freeSpirit = reducer(empty, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "初期無料精神" }, purchase: false
+    });
+    assert.equal(freeSpirit.roster.spirits.length, 1, "無料精神は明示的な無料取得なら追加できる");
+    assert.equal(freeSpirit.entries.length, 0, "無料精神は支出を立てない");
+
+    const unknownEnhancement = reducer(empty, {
+      type: "ADD_ENHANCEMENT", group: "", name: "未登録強化"
+    });
+    assert.strictEqual(unknownEnhancement, empty, "DB未登録強化は追加できない");
+    const special = reducer(empty, {
+      type: "ADD_ENHANCEMENT", group: "", name: "正規特殊強化"
+    });
+    assert.equal(special.enhancements.length, 1,
+      "DB側group未設定の特殊強化も空groupで購入できる");
+    assert.equal(special.enhancements[0].shards, 150);
+    assert.equal(special.entries[0].cost.shards, 150);
+    const normal = reducer(empty, {
+      type: "ADD_ENHANCEMENT", group: "肉体強化A", name: "正規通常強化"
+    });
+    assert.equal(normal.enhancements.length, 1);
+    assert.equal(normal.entries[0].cost.shards, 9);
+
+    const poor = reducer(empty, {
+      type: "ADD_RESULT", name: "残高不足", income: { lp: 0, shards: 149 }
+    });
+    const rejected = reducer(poor, {
+      type: "ADD_ENHANCEMENT", group: "", name: "正規特殊強化"
+    });
+    assert.strictEqual(rejected, poor, "特殊強化は欠片が1個不足すれば追加しない");
+    const exact = reducer({
+      ...empty,
+      results: [{ id: "exact-shards", name: "必要額ちょうど", income: { lp: 0, shards: 150 } }]
+    }, { type: "ADD_ENHANCEMENT", group: "", name: "正規特殊強化" });
+    assert.equal(exact.enhancements.length, 1);
+    assert.equal(exact.entries[0].cost.shards, 150);
+  } finally {
+    db.support_passives = beforeDb.support_passives;
+    db.death_passives = beforeDb.death_passives;
+    db.spirits = beforeDb.spirits;
+    db.normal_enhancements = beforeDb.normal_enhancements;
+    db.special_enhancements = beforeDb.special_enhancements;
+  }
+});
+
