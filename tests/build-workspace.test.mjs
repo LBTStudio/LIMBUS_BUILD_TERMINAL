@@ -490,9 +490,10 @@ test("抽出チケットはリザルト収入で管理し、ショップのガ�
      assert.match(reducer, /const out = \{ persona: toNumber\(raw\.persona\), ego: toNumber\(raw\.ego\), choice: toNumber\(raw\.choice\), pack: \{\} \};/);
       assert.match(reducer, /const income = \{ \.\.\.normalizeCurrency\(result\.income\), tickets: normalizeTickets\(result\.income\?\.tickets\) \};/);
      assert.match(reducer, /tickets: normalizeTickets\(entry\.tickets\),/);
-      /* 付与は直近リザルトの収入へ、消費は明細へ。
-         消費は枚数を受け取る（一括抽選は引いた回数ぶんを一度に送る）。 */
-      assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,700}?return setTicketIncome\(state, kind, pack, delta, action\.resultId\);/);
+       /* 正数付与は直近リザルトの収入へ、負数調整は全リザルト残数を上限に消費明細へ。 */
+       /* 抽出での消費も枚数を受け取り、一括抽選の回数を保つ。 */
+       assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,900}?if \(delta < 0\)[\s\S]{0,450}?ticketTotal\(balance, kind, pack\)[\s\S]{0,250}?ticketBalanceAdjustment/);
+       assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,1000}?return setTicketIncome\(state, kind, pack, delta, action\.resultId\);/);
       assert.match(reducer, /case "SPEND_TICKET"[\s\S]{0,1200}?Math\.min\(use, available\)/);
       assert.match(reducer, /return appendTicketSpend\(state, kind, pack, take, action\.ref, action\.resultId, action\.importResultKey\);/);
       assert.match(reducer, /function appendTicketSpend\(state, kind, pack, count, ref, resultId, importResultKey\)/);
