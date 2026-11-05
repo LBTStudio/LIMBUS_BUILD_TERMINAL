@@ -199,6 +199,30 @@ test("リザルトを消したら、その明細も消える（未分類へ戻�
   assert.equal(balance(s.results, s.entries).lp, 495, "B の収支だけが残る");
 });
 
+test("PATCH_ENTRYからの帰属変更も所持サポート・精神と同期する", () => {
+  const state = {
+    ...baseState(),
+    results: [{ id: "patch-from" }, { id: "patch-to" }],
+    entries: [
+      { id: "support-patch", kind: "support", name: "支援", cost: { lp: 7 }, resultId: "patch-from", ref: { kind: "rosterSupport", uid: "support-patch" } },
+      { id: "spirit-patch", kind: "spirit", name: "精神", cost: { shards: 20 }, resultId: "patch-from", ref: { kind: "rosterSpirit", uid: "spirit-patch" } }
+    ],
+    roster: {
+      personas: [], egos: [],
+      supports: [{ uid: "support-patch", name: "支援", resultId: "patch-from" }],
+      spirits: [{ uid: "spirit-patch", name: "精神", resultId: "patch-from" }]
+    }
+  };
+  const movedSupport = reducer(state, { type: "PATCH_ENTRY", id: "support-patch", patch: { resultId: "patch-to", note: "移動" } });
+  assert.equal(movedSupport.entries.find((entry) => entry.id === "support-patch").resultId, "patch-to");
+  assert.equal(movedSupport.entries.find((entry) => entry.id === "support-patch").note, "移動");
+  assert.equal(movedSupport.roster.supports[0].resultId, "patch-to");
+
+  const movedSpirit = reducer(movedSupport, { type: "PATCH_ENTRY", id: "spirit-patch", patch: { resultId: null } });
+  assert.equal(movedSpirit.entries.find((entry) => entry.id === "spirit-patch").resultId, null);
+  assert.equal(movedSpirit.roster.spirits[0].resultId, null);
+});
+
 test("所持側からのサポート・精神の帰属変更も対応する購入明細へ同期する", () => {
   const state = {
     ...baseState(),
