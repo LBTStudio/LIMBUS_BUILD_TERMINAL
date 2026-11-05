@@ -183,6 +183,106 @@ test("精神の試着（初期枠）は所持へは入るが購入明細は立�
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
 });
 
+test("未知・価格欠落のサポートと精神は有料取得で所持に登録できない", () => {
+  const reducer = loadReducer();
+  const before = base();
+  assert.strictEqual(
+    reducer(before, { type: "ADD_ROSTER_SUPPORT", spp: { name: "未登録サポート" }, purchase: true }),
+    before,
+    "未知のサポートを0LPで購入できない"
+  );
+  assert.strictEqual(
+    reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "未登録精神" }, purchase: true }),
+    before,
+    "未知の精神を0欠片で購入できない"
+  );
+
+  const supportRows = db.support_passives;
+  const spiritRows = db.spirits;
+  try {
+    db.support_passives = [...supportRows, { name: "価格未登録サポート", lp: "" }];
+    db.spirits = [...spiritRows, { name: "価格不正精神", price: "価格確認中" }];
+    assert.strictEqual(
+      reducer(before, { type: "ADD_ROSTER_SUPPORT", spp: { name: "価格未登録サポート" }, purchase: true }),
+      before,
+      "カタログ行があってもLP価格が欠落したサポートは購入できない"
+    );
+    assert.strictEqual(
+      reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格不正精神" }, purchase: true }),
+      before,
+      "カタログ行があっても解析不能な欠片価格の精神は購入できない"
+    );
+  } finally {
+    db.support_passives = supportRows;
+    db.spirits = spiritRows;
+  }
+});
+
+test("初期取得用の無料精神は購入扱いにせず所持へ追加できる", () => {
+  const reducer = loadReducer();
+  const free = db.spirits.find((entry) => Number(entry.price) === 0);
+  assert.ok(free, "明示価格0の初期精神がDBにある");
+  const before = base();
+  assert.strictEqual(
+    reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: free.name }, purchase: true }),
+    before,
+    "無料枠を有料購入actionで登録しない"
+  );
+  const added = reducer(before, { type: "ADD_ROSTER_SPIRIT", spirit: { name: free.name }, purchase: false });
+  assert.equal(added.roster.spirits.length, 1);
+  assert.equal(added.entries.length, 0, "初期取得は支出明細を立てない");
+});
+
+test("未知・価格欠落の強化は所持にも台帳にも追加されない", () => {
+  const reducer = loadReducer();
+  const before = base();
+  assert.strictEqual(
+    reducer(before, { type: "ADD_ENHANCEMENT", group: "unknown", name: "未登録強化" }),
+    before,
+    "未知の強化を無料登録できない"
+  );
+
+  const specialRows = db.special_enhancements;
+  try {
+    db.special_enhancements = [...specialRows, { name: "価格不明強化", group: "test", shards: "", category: "common" }];
+    assert.strictEqual(
+      reducer(before, { type: "ADD_ENHANCEMENT", group: "test", name: "価格不明強化" }),
+      before,
+      "価格欠落の強化を0欠片で登録できない"
+    );
+  } finally {
+    db.special_enhancements = specialRows;
+  }
+});
+
+test("group未設定の正規特殊強化5件も価格を照合して購入できる", () => {
+  const reducer = loadReducer();
+  const enhancement = db.special_enhancements.find((entry) => !String(entry.group || "").trim());
+  assert.ok(enhancement, "group未設定の正規特殊強化がDBにある");
+  const poor = {
+    ...base(),
+    results: [{ id: "res-poor", name: "残高不足", income: { lp: 0, shards: Number(enhancement.shards) - 1 } }]
+  };
+  assert.strictEqual(
+    reducer(poor, { type: "ADD_ENHANCEMENT", group: "", name: enhancement.name, effect: enhancement.effect, category: enhancement.category }),
+    poor,
+    "欠片が1個不足すれば購入を拒否する"
+  );
+  const funded = {
+    ...base(),
+    results: [{ id: "res-funded", name: "必要額", income: { lp: 0, shards: Number(enhancement.shards) } }]
+  };
+  const bought = reducer(funded, {
+    type: "ADD_ENHANCEMENT", group: "", name: enhancement.name,
+    effect: enhancement.effect, category: enhancement.category
+  });
+  assert.equal(bought.enhancements.length, 1);
+  assert.equal(bought.enhancements[0].group, "");
+  assert.equal(bought.entries.length, 1);
+  assert.equal(bought.entries[0].cost.shards, Number(enhancement.shards));
+  assert.equal(bought.entries[0].resultId, "res-funded");
+});
+
 test("人格・E.G.O の一括削除も購入明細を外し、undo で所持と明細を戻す", () => {
   const reducer = loadReducer();
   let s = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-a" });
