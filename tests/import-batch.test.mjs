@@ -222,7 +222,7 @@ test("シナリオの獲得一覧（via 無し）の所持は直前のリザル�
     type: "APPLY_IMPORT_BATCH",
     actions: [
       { type: "ADD_RESULT", name: "獲得上の夜", income: { lp: 0, shards: 1000 } },
-      { type: "ADD_ROSTER_SPIRIT", spirit: { name: spiritName } }
+      { type: "ADD_ROSTER_SPIRIT", spirit: { name: spiritName }, purchase: false }
     ]
   });
   assert.equal(after.roster.spirits[0].resultId, after.results[0].id, "直前のリザルトへ");

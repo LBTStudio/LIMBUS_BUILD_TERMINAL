@@ -1333,18 +1333,27 @@ function parseStrictTicketInteger(value, options = {}) {
 function setTicketIncome(state, kind, pack, delta, resultId) {
   const targetId = resultId || latestResultId(state);
   if (!targetId) return state;
+  const target = (state.results || []).find((result) => result.id === targetId);
+  if (!target) return state;
+  const current = normalizeTickets(target.income?.tickets);
+  const currentCount = kind === "pack"
+    ? Number(getSafeRecordEntry(current.pack, pack, 0)) || 0
+    : Number(current[kind]) || 0;
+  const nextCount = currentCount + delta;
+  /* normalizeTickets は安全整数以外を0へ落とす。加算前に拒否しないと、
+     MAX_SAFE_INTEGER を超えた一回の付与で、既存の所持枚数まで消える。 */
+  if (!Number.isSafeInteger(nextCount)) return state;
   const results = (state.results || []).map((r) => {
     if (r.id !== targetId) return r;
-    const cur = normalizeTickets(r.income?.tickets);
     const next = kind === "pack"
-      ? { ...cur, pack: { ...cur.pack } }
-      : { ...cur };
+      ? { ...current, pack: { ...current.pack } }
+      : { ...current };
     if (kind === "pack") {
-      const nextVal = Math.max(0, (Number(getSafeRecordEntry(next.pack, pack, 0)) || 0) + delta);
-      if (nextVal) setSafeRecordEntry(next.pack, pack, nextVal);
+      const value = Math.max(0, nextCount);
+      if (value) setSafeRecordEntry(next.pack, pack, value);
       else delete next.pack[pack];
     } else {
-      next[kind] = Math.max(0, (Number(next[kind]) || 0) + delta);
+      next[kind] = Math.max(0, nextCount);
     }
     return { ...r, income: { ...normalizeCurrency(r.income), tickets: next } };
   });
@@ -3100,12 +3109,21 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
+    if (!name) return null;
     const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const catalogue = slot === "death" ? (window.DB?.death_passives || []) : (window.DB?.support_passives || []);
+    if (!catalogue.some((entry) => String(entry?.name || "").trim() === name)) return null;
+    const cost = priceSupport(name, slot);
+    const amount = slot === "death" ? cost?.shards : cost?.lp;
+    return Number.isSafeInteger(amount) && amount > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    const definition = (window.DB?.spirits || []).find((entry) => String(entry?.name || "").trim() === name);
+    if (!definition) return null;
+    const cost = priceSpirit(name);
+    return Number.isSafeInteger(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
@@ -4446,9 +4464,15 @@ function appReducer(state, action) {
     || action.type === "ADD_ITEM" || action.type === "ADD_ROSTER_SUPPORT"
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
-    /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
-       || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
+    /* 購入扱いなのにカタログ価格が解決できないものは、無料購入として通さない。
+       所持追加・報酬取込は purchase:false で従来どおり別経路にする。 */
+    const requiresPrice = (
+      (action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase
+    ) || (
+      (action.type === "ADD_ROSTER_SUPPORT" || action.type === "ADD_ROSTER_SPIRIT")
+      && action.purchase !== false
+    ) || action.type === "ADD_ENHANCEMENT";
+    if (requiresPrice && !cost) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
@@ -6594,20 +6618,37 @@ case "ADD_ENTRY":
             : {})
         }]
       };
-    case "PATCH_ENTRY":
-      return {
-        ...state,
-        entries: (state.entries || []).map((e) => (e.id === action.id
-          ? {
-              ...e,
-              ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
-              ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
-              ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
-              ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
-              ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
-            }
-          : e))
-      };
+    case "PATCH_ENTRY": {
+      const target = (state.entries || []).find((entry) => entry.id === action.id);
+      if (!target) return state;
+      const resultId = action.patch?.resultId === undefined
+        ? target.resultId
+        : action.patch.resultId || null;
+      const entries = (state.entries || []).map((entry) => (entry.id === action.id
+        ? {
+            ...entry,
+            ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
+            ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
+            ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
+            ...(action.patch?.resultId !== void 0 ? { resultId } : {}),
+            ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
+          }
+        : entry));
+      if (action.patch?.resultId === undefined) return { ...state, entries };
+      /* 旧互換PATCHでも、所持UIDに結び付く明細の移動は所持側へ投影する。
+         正式UIのSET_ENTRY_RESULTだけが同期する状態を作らない。 */
+      let roster = state.roster;
+      if (target.ref?.kind === "rosterSupport" && roster?.supports) {
+        roster = { ...roster, supports: roster.supports.map((entry) => (
+          entry.uid === target.ref.uid ? { ...entry, resultId } : entry
+        )) };
+      } else if (target.ref?.kind === "rosterSpirit" && roster?.spirits) {
+        roster = { ...roster, spirits: roster.spirits.map((entry) => (
+          entry.uid === target.ref.uid ? { ...entry, resultId } : entry
+        )) };
+      }
+      return roster === state.roster ? { ...state, entries } : { ...state, entries, roster };
+    }
     /* 帰属の差し替え。ドラッグ&ドロップはこの1つだけを呼ぶ。 */
     case "SET_ENTRY_RESULT": {
       const target = (state.entries || []).find((e) => e.id === action.id);

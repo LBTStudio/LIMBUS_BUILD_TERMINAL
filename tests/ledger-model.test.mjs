@@ -199,6 +199,35 @@ test("リザルトを消したら、その明細も消える（未分類へ戻�
   assert.equal(balance(s.results, s.entries).lp, 495, "B の収支だけが残る");
 });
 
+test("PATCH_ENTRY経由の帰属変更もサポート・精神の所持レコードへ同期する", () => {
+  const state = {
+    ...baseState(),
+    results: [{ id: "res-a" }, { id: "res-b" }],
+    entries: [
+      { id: "support-entry", kind: "support", name: "支援", resultId: "res-a", ref: { kind: "rosterSupport", uid: "support-1" } },
+      { id: "spirit-entry", kind: "spirit", name: "精神", resultId: "res-a", ref: { kind: "rosterSpirit", uid: "spirit-1" } }
+    ],
+    roster: {
+      personas: [], egos: [],
+      supports: [{ uid: "support-1", name: "支援", resultId: "res-a" }],
+      spirits: [{ uid: "spirit-1", name: "精神", resultId: "res-a" }]
+    }
+  };
+  const moved = reducer(state, {
+    type: "PATCH_ENTRY", id: "support-entry", patch: { resultId: "res-b" }
+  });
+  assert.equal(moved.entries.find((entry) => entry.id === "support-entry").resultId, "res-b");
+  assert.equal(moved.roster.supports[0].resultId, "res-b",
+    "サポートの購入明細と所持起点が同じリザルトを指す");
+
+  const unclassified = reducer(moved, {
+    type: "PATCH_ENTRY", id: "spirit-entry", patch: { resultId: null }
+  });
+  assert.equal(unclassified.entries.find((entry) => entry.id === "spirit-entry").resultId, null);
+  assert.equal(unclassified.roster.spirits[0].resultId, null,
+    "精神の購入明細と所持起点が同時に未分類へ戻る");
+});
+
 test("所持側からのサポート・精神の帰属変更も対応する購入明細へ同期する", () => {
   const state = {
     ...baseState(),
