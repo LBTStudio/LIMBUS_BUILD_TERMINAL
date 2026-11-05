@@ -257,30 +257,40 @@ test("未知・価格欠落の強化は所持にも台帳にも追加されな�
 
 test("group未設定の正規特殊強化5件も価格を照合して購入できる", () => {
   const reducer = loadReducer();
-  const enhancement = db.special_enhancements.find((entry) => !String(entry.group || "").trim());
-  assert.ok(enhancement, "group未設定の正規特殊強化がDBにある");
-  const poor = {
-    ...base(),
-    results: [{ id: "res-poor", name: "残高不足", income: { lp: 0, shards: Number(enhancement.shards) - 1 } }]
-  };
-  assert.strictEqual(
-    reducer(poor, { type: "ADD_ENHANCEMENT", group: "", name: enhancement.name, effect: enhancement.effect, category: enhancement.category }),
-    poor,
-    "欠片が1個不足すれば購入を拒否する"
-  );
-  const funded = {
-    ...base(),
-    results: [{ id: "res-funded", name: "必要額", income: { lp: 0, shards: Number(enhancement.shards) } }]
-  };
-  const bought = reducer(funded, {
-    type: "ADD_ENHANCEMENT", group: "", name: enhancement.name,
-    effect: enhancement.effect, category: enhancement.category
-  });
-  assert.equal(bought.enhancements.length, 1);
-  assert.equal(bought.enhancements[0].group, "");
-  assert.equal(bought.entries.length, 1);
-  assert.equal(bought.entries[0].cost.shards, Number(enhancement.shards));
-  assert.equal(bought.entries[0].resultId, "res-funded");
+  const enhancements = db.special_enhancements.filter((entry) => !String(entry.group || "").trim());
+  assert.equal(enhancements.length, 5, "group未設定の正規特殊強化が5件ある");
+  for (const enhancement of enhancements) {
+    const price = Number(enhancement.shards);
+    const action = {
+      type: "ADD_ENHANCEMENT", group: String(enhancement.group || ""),
+      name: enhancement.name, effect: enhancement.effect, category: enhancement.category
+    };
+    const poor = {
+      ...base(),
+      results: [{ id: "res-poor", name: "残高不足", income: { lp: 0, shards: price - 1 } }]
+    };
+    assert.strictEqual(reducer(poor, action), poor, `${enhancement.name}: 欠片が1個不足すれば購入を拒否する`);
+
+    const funded = {
+      ...base(),
+      results: [{ id: "res-funded", name: "必要額", income: { lp: 0, shards: price } }]
+    };
+    const bought = reducer(funded, action);
+    assert.equal(bought.enhancements.length, 1, `${enhancement.name}: 必要額ちょうどで所持へ追加`);
+    assert.equal(bought.enhancements[0].group, "", `${enhancement.name}: 空groupを正規化`);
+    assert.equal(bought.entries.length, 1, `${enhancement.name}: 支出明細を1件記録`);
+    assert.equal(bought.entries[0].cost.shards, price, `${enhancement.name}: DB価格を記録`);
+    assert.equal(bought.entries[0].resultId, "res-funded");
+  }
+  const normal = db.normal_enhancements.find((entry) => entry.group);
+  if (normal) {
+    const wrongGroup = { ...base(), results: [{ id: "res-normal", income: { lp: 0, shards: 1000 } }] };
+    assert.strictEqual(
+      reducer(wrongGroup, { type: "ADD_ENHANCEMENT", group: "別グループ", name: normal.name }),
+      wrongGroup,
+      "group付き通常強化はgroupの不一致を通さない"
+    );
+  }
 });
 
 test("人格・E.G.O の一括削除も購入明細を外し、undo で所持と明細を戻す", () => {
