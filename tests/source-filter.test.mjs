@@ -145,7 +145,7 @@ const ownedState = (roster) => ({
 test("所持へ写すとき出典を落とさない（サポート・精神）", () => {
   const w = loadStateWithDb({
     support_passives: [{ name: "潜撃", cond: "条件", effect: "効果", lp: "50", source: "supplement" }],
-    spirits: [{ name: "快撃", morale_effect: "m", source: "supplement" }]
+    spirits: [{ name: "快撃", morale_effect: "m", price: 50, source: "supplement" }]
   });
   const withSupport = w.appReducer(ownedState({}), { type: "ADD_ROSTER_SUPPORT", spp: { name: "潜撃" } });
   assert.equal(withSupport.roster.supports[0].source, "supplement", "所持サポートが出典を保つ");
