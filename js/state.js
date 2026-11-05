@@ -1333,18 +1333,27 @@ function parseStrictTicketInteger(value, options = {}) {
 function setTicketIncome(state, kind, pack, delta, resultId) {
   const targetId = resultId || latestResultId(state);
   if (!targetId) return state;
+  const target = (state.results || []).find((result) => result.id === targetId);
+  if (!target) return state;
+  const current = normalizeTickets(target.income?.tickets);
+  const currentCount = kind === "pack"
+    ? Number(getSafeRecordEntry(current.pack, pack, 0)) || 0
+    : Number(current[kind]) || 0;
+  const nextCount = currentCount + delta;
+  /* normalizeTickets は安全整数以外を0へ落とす。加算前に拒否しないと、
+     MAX_SAFE_INTEGER を超えた一回の付与で、既存の所持枚数まで消える。 */
+  if (!Number.isSafeInteger(nextCount)) return state;
   const results = (state.results || []).map((r) => {
     if (r.id !== targetId) return r;
-    const cur = normalizeTickets(r.income?.tickets);
     const next = kind === "pack"
-      ? { ...cur, pack: { ...cur.pack } }
-      : { ...cur };
+      ? { ...current, pack: { ...current.pack } }
+      : { ...current };
     if (kind === "pack") {
-      const nextVal = Math.max(0, (Number(getSafeRecordEntry(next.pack, pack, 0)) || 0) + delta);
-      if (nextVal) setSafeRecordEntry(next.pack, pack, nextVal);
+      const value = Math.max(0, nextCount);
+      if (value) setSafeRecordEntry(next.pack, pack, value);
       else delete next.pack[pack];
     } else {
-      next[kind] = Math.max(0, (Number(next[kind]) || 0) + delta);
+      next[kind] = Math.max(0, nextCount);
     }
     return { ...r, income: { ...normalizeCurrency(r.income), tickets: next } };
   });
