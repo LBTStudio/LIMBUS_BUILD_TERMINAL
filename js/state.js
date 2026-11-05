@@ -6604,20 +6604,26 @@ case "ADD_ENTRY":
             : {})
         }]
       };
-    case "PATCH_ENTRY":
-      return {
+    case "PATCH_ENTRY": {
+      const patch = action.patch || {};
+      const next = {
         ...state,
         entries: (state.entries || []).map((e) => (e.id === action.id
           ? {
               ...e,
-              ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
-              ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
-              ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
-              ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
-              ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
+              ...(patch.name !== void 0 ? { name: String(patch.name).slice(0, 120) } : {}),
+              ...(patch.cost !== void 0 ? { cost: normalizeCurrency(patch.cost) } : {}),
+              ...(patch.tickets !== void 0 ? { tickets: normalizeTickets(patch.tickets) } : {}),
+              ...(patch.resultId !== void 0 ? { resultId: patch.resultId || null } : {}),
+              ...(patch.note !== void 0 ? { note: String(patch.note).slice(0, 2000) } : {})
             }
           : e))
       };
+      /* 帰属変更を含む場合は共有アクションへ渡し、所持側の参照も同期する。 */
+      return patch.resultId === undefined
+        ? next
+        : appReducer(next, { type: "SET_ENTRY_RESULT", id: action.id, resultId: patch.resultId });
+    }
     /* 帰属の差し替え。ドラッグ&ドロップはこの1つだけを呼ぶ。 */
     case "SET_ENTRY_RESULT": {
       const target = (state.entries || []).find((e) => e.id === action.id);
