@@ -4778,6 +4778,16 @@ function appReducer(state, action) {
         ? 0
         : parseStrictTicketInteger(action.count, { allowZero: true, allowNegative: true });
       if (delta === null || delta === 0) return state;
+      if (delta < 0) {
+        /* 負の差分は全リザルト合計から減らす。最新リザルトの受領履歴だけを
+           直接削ると、古いリザルトに残るチケットを調整できない。 */
+        const balance = computeTicketBalance(state.results || [], state.entries || []);
+        const take = Math.min(-delta, ticketTotal(balance, kind, pack));
+        if (take <= 0) return state;
+        return appendTicketSpend(
+          state, kind, pack, take, { kind: "ticketBalanceAdjustment" }, action.resultId
+        );
+      }
       return setTicketIncome(state, kind, pack, delta, action.resultId);
     }
     /* 初期作成リザルトを後から編集した場合、既に他の人格を所持していても
