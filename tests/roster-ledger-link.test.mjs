@@ -16,10 +16,10 @@ import vm from "node:vm";
 
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
 
-function loadReducer() {
+function loadReducer(database = db) {
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
-    window: { DB: db }, console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
+    window: { DB: database }, console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
     localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
   };
@@ -67,22 +67,19 @@ test("サポート購入はカタログ不在・価格不明を無料登録と�
   });
   assert.strictEqual(unknown, before, "カタログにない支援は購入できない");
 
-  const original = db.support_passives;
-  try {
-    db.support_passives = [{ name: "価格欠落支援" }];
-    const missing = reducer(before, {
-      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格欠落支援" }, purchase: true
-    });
-    assert.strictEqual(missing, before, "価格が欠落した支援を0LPで買えない");
+  const missingDb = JSON.parse(JSON.stringify(db));
+  missingDb.support_passives = [{ name: "価格欠落支援" }];
+  const missing = loadReducer(missingDb)(before, {
+    type: "ADD_ROSTER_SUPPORT", spp: { name: "価格欠落支援" }, purchase: true
+  });
+  assert.strictEqual(missing, before, "価格が欠落した支援を0LPで買えない");
 
-    db.support_passives = [{ name: "価格不正支援", lp: "無料ではない価格表記" }];
-    const invalid = reducer(before, {
-      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格不正支援" }, purchase: true
-    });
-    assert.strictEqual(invalid, before, "解析不能な価格を0LPとして買えない");
-  } finally {
-    db.support_passives = original;
-  }
+  const invalidDb = JSON.parse(JSON.stringify(db));
+  invalidDb.support_passives = [{ name: "価格不正支援", lp: "無料ではない価格表記" }];
+  const invalid = loadReducer(invalidDb)(before, {
+    type: "ADD_ROSTER_SUPPORT", spp: { name: "価格不正支援" }, purchase: true
+  });
+  assert.strictEqual(invalid, before, "解析不能な価格を0LPとして買えない");
 
   const granted = reducer(before, {
     type: "ADD_ROSTER_SUPPORT", spp: { name: "報酬由来の未登録支援" }, purchase: false
@@ -99,35 +96,33 @@ test("精神購入は未知・価格欠落・無料枠の購入扱いを拒否�
   });
   assert.strictEqual(unknown, before, "カタログにない精神は購入できない");
 
-  const original = db.spirits;
-  try {
-    db.spirits = [{ name: "価格欠落精神" }];
-    const missing = reducer(before, {
-      type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格欠落精神" }, purchase: true
-    });
-    assert.strictEqual(missing, before, "価格が欠落した精神を無料購入できない");
+  const missingDb = JSON.parse(JSON.stringify(db));
+  missingDb.spirits = [{ name: "価格欠落精神" }];
+  const missing = loadReducer(missingDb)(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格欠落精神" }, purchase: true
+  });
+  assert.strictEqual(missing, before, "価格が欠落した精神を無料購入できない");
 
-    db.spirits = [
-      { name: "無料初期精神", price: 0 },
-      { name: "価格不正精神", price: "価格未照合" }
-    ];
-    const freePurchase = reducer(before, {
-      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: true
-    });
-    assert.strictEqual(freePurchase, before, "価格0は購入ではなく無料配布経路を使う");
-    const invalid = reducer(before, {
-      type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格不正精神" }, purchase: true
-    });
-    assert.strictEqual(invalid, before, "解析不能な価格を無料購入として扱わない");
+  const invalidDb = JSON.parse(JSON.stringify(db));
+  invalidDb.spirits = [
+    { name: "無料初期精神", price: 0 },
+    { name: "価格不正精神", price: "価格未照合" }
+  ];
+  const invalidReducer = loadReducer(invalidDb);
+  const freePurchase = invalidReducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: true
+  });
+  assert.strictEqual(freePurchase, before, "価格0は購入ではなく無料配布経路を使う");
+  const invalid = invalidReducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格不正精神" }, purchase: true
+  });
+  assert.strictEqual(invalid, before, "解析不能な価格を無料購入として扱わない");
 
-    const freeGrant = reducer(before, {
-      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: false
-    });
-    assert.equal(freeGrant.roster.spirits.length, 1, "明示された無料初期精神は追加できる");
-    assert.equal(freeGrant.entries.length, 0, "無料初期精神に購入明細を立てない");
-  } finally {
-    db.spirits = original;
-  }
+  const freeGrant = invalidReducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: false
+  });
+  assert.equal(freeGrant.roster.spirits.length, 1, "明示された無料初期精神は追加できる");
+  assert.equal(freeGrant.entries.length, 0, "無料初期精神に購入明細を立てない");
 });
 
 test("人格の所持追加: 明細の ref.uid が所持の uid と一致する", () => {
