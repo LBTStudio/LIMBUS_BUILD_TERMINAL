@@ -7,7 +7,7 @@ const QUICK_SEARCH_SHORTCUT = (() => {
 
 /* V13: 基本機能の説明書（ヘルプ）セクション */
 const HELP_ITEMS = [
-  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ビルド」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・イニシアチブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
+  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ビルド」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・参照URL・イニシアチブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
   { group: "prepare", icon: "persona", title: "人格を装備する", body: "左側の「ビルド」を開き、「人格」タブでカードを一度押すと詳細が表示され、同じカードをもう一度押すと装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。手動編集は上の「はじめに：人格を選ぶ・作る」を参照してください。" },
   { group: "prepare", icon: "persona", title: "公式人格を手動編集して所持ビルドに保存する", body: "人格を装備して「◈ 同期化して手動編集」を押します。これはステータス・パッシブ・スキル・固有バフの編集モードで、ゲーム上の同期ランク（0・00・000）や同期MAXの設定とは別です。編集を終えるときは「✓ 編集を終了（内容は保持）」を押します。所持人格の保存ビルドとして変更を残すには、変更後に「装備解除」を押し、確認画面でOK（変更を所持人格へ保存して装備解除）を選びます。キャンセルすると装備を継続し、変更は現在の状態に残ります。同期ランクと同期MAXは別設定です。同期ランクは「記録」の所持人格詳細で設定でき、同期MAXはそこに加えて装備中の人格パネルからも切り替えられます。" },
   { group: "prepare", icon: "ego", title: "E.G.Oをランク枠に装備・解析する", body: "ビルド内の「E.G.O」タブでZAYINからALEPHまでの各ランク枠に装備します。装備済み枠を押すと右側に簡易詳細が表示されます。全文の確認・編集は、その詳細で「解析を開始」を押します。終えるときは「解析を終了」を押すと内容を保持して終了します。未解析のE.G.Oは、必要な自我の欠片が不足していると解析を開始できません。" },
@@ -688,7 +688,7 @@ function exportRoster(state) {
 /* T26: セーブデータのカテゴリ定義（部分ロード用）。
    各カテゴリはトップレベル state フィールドの集合。 */
 const IMPORT_GROUPS = [
-  { key: "persona", label: "\u88C5\u5099\u4EBA\u683C\u30FB\u57FA\u672C\u60C5\u5831", fields: ["charName","plName","imgUrls","shareImageData","color","initiative","personaMode","personaNo","personaSrc","syncedManual","hp","san","speed","bullets","resS","resP","resB"] },
+  { key: "persona", label: "\u88C5\u5099\u4EBA\u683C\u30FB\u57FA\u672C\u60C5\u5831", fields: ["charName","plName","imgUrls","externalUrl","shareImageData","color","initiative","personaMode","personaNo","personaSrc","syncedManual","hp","san","speed","bullets","resS","resP","resB"] },
   { key: "skills", label: "\u30B9\u30AD\u30EB\uFF08\u6D3E\u751F\u542B\u3080\uFF09", fields: ["skills"] },
   { key: "passive", label: "\u30D1\u30C3\u30B7\u30D6", fields: ["pas","pas2Enabled","pas2","extraPassives"] },
   { key: "support", label: "\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6\uFF08\u6B7B\u4EA1\u5F8C\u542B\u3080\uFF09", fields: ["supports","deathSupport"] },
