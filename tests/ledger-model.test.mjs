@@ -223,6 +223,31 @@ test("PATCH_ENTRYからの帰属変更も所持サポート・精神と同期す
   assert.equal(movedSpirit.roster.spirits[0].resultId, null);
 });
 
+test("帰属先に存在しないリザルトIDは所持・明細へ設定しない", () => {
+  const state = {
+    ...baseState(),
+    results: [{ id: "res-valid" }],
+    entries: [
+      { id: "support-entry", resultId: "res-valid", ref: { kind: "rosterSupport", uid: "support-1" } },
+      { id: "spirit-entry", resultId: "res-valid", ref: { kind: "rosterSpirit", uid: "spirit-1" } }
+    ],
+    roster: {
+      personas: [], egos: [],
+      supports: [{ uid: "support-1", name: "支援", resultId: "res-valid" }],
+      spirits: [{ uid: "spirit-1", name: "精神", resultId: "res-valid" }]
+    }
+  };
+  assert.strictEqual(reducer(state, { type: "SET_ROSTER_SUPPORT_RESULT", uid: "support-1", resultId: "deleted-result" }), state);
+  assert.strictEqual(reducer(state, { type: "SET_ROSTER_SPIRIT_RESULT", uid: "spirit-1", resultId: "deleted-result" }), state);
+  assert.strictEqual(reducer(state, { type: "SET_ENTRY_RESULT", id: "support-entry", resultId: "deleted-result" }), state);
+
+  const unclassified = reducer(state, { type: "SET_ENTRY_RESULT", id: "support-entry", resultId: null });
+  assert.equal(unclassified.entries.find((entry) => entry.id === "support-entry").resultId, null,
+    "明示的な未分類指定は許可する");
+  assert.equal(unclassified.roster.supports[0].resultId, null,
+    "所持側も同時に未分類へ戻す");
+});
+
 test("所持側からのサポート・精神の帰属変更も対応する購入明細へ同期する", () => {
   const state = {
     ...baseState(),
