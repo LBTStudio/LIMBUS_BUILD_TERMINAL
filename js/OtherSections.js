@@ -6981,6 +6981,7 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
 const BasicCcfOutputPreview = ({ state, dispatch }) => {
   const h = React.createElement;
   const [failedImages, setFailedImages] = React.useState([]);
+  const [imageDimensions, setImageDimensions] = React.useState({});
   const [copyStatus, setCopyStatus] = React.useState("");
   const generator = window.LBT_gen;
   const built = React.useMemo(() => {
@@ -7005,6 +7006,22 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
   };
   const imageUrl = String(data.iconUrl || data.faces?.find((face) => face?.iconUrl)?.iconUrl
     || (state.imgUrls || "").split("\n").map((url) => url.trim()).find(Boolean) || "");
+  const rawPieceSize = Number(state.ui?.tokenPreviewSize);
+  const pieceSizeCells = Number.isSafeInteger(rawPieceSize) && rawPieceSize >= 1 && rawPieceSize <= 8
+    ? rawPieceSize : 4;
+  const pieceSizeCellPx = 48;
+  const pieceLongSidePx = pieceSizeCells * pieceSizeCellPx;
+  const activeImageDimensions = imageDimensions[imageUrl];
+  const activeImageRatio = activeImageDimensions?.width > 0 && activeImageDimensions?.height > 0
+    ? activeImageDimensions.width / activeImageDimensions.height : 1;
+  const pieceImageWidth = Math.max(1, Math.round(activeImageRatio >= 1 ? pieceLongSidePx : pieceLongSidePx * activeImageRatio));
+  const pieceImageHeight = Math.max(1, Math.round(activeImageRatio >= 1 ? pieceLongSidePx / activeImageRatio : pieceLongSidePx));
+  const pieceImageWrapperStyle = { width: pieceImageWidth + "px", height: pieceImageHeight + "px" };
+  const pieceImageContentStyle = { width: "100%", height: "100%", maxWidth: "none", maxHeight: "none", objectFit: "contain" };
+  const setPieceSizeCells = (value) => {
+    const next = Math.max(1, Math.min(8, Math.round(Number(value) || 4)));
+    dispatch({ type: "SET_UI", ui: { tokenPreviewSize: next } });
+  };
   const color = /^#[0-9a-f]{6}$/i.test(String(data.color || state.color || ""))
     ? String(data.color || state.color) : "#c8a84b";
   const name = String(data.name || state.charName || "キャラクター");
@@ -7014,11 +7031,23 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
   const statuses = Array.isArray(data.status) ? data.status : [];
   const params = Array.isArray(data.params) ? data.params : [];
   const faces = Array.isArray(data.faces) ? data.faces.filter((face) => face && face.iconUrl) : [];
-  const renderImage = (src, className, alt) => {
+  const renderImage = (src, className, alt, options = {}) => {
     const failed = !src || failedImages.includes(src);
-    return h("div", { className },
+    const wrapperProps = options.wrapperProps || {};
+    return h("div", { className, ...wrapperProps, style: options.wrapperStyle },
       src && !failed
-        ? h("img", { src, alt, onError: () => setFailedImages((current) => current.includes(src) ? current : [...current, src]) })
+        ? h("img", {
+            src, alt,
+            style: options.imageStyle,
+            onLoad: (event) => {
+              const width = Number(event.currentTarget.naturalWidth) || 0;
+              const height = Number(event.currentTarget.naturalHeight) || 0;
+              if (!width || !height) return;
+              setImageDimensions((current) => current[src]?.width === width && current[src]?.height === height
+                ? current : { ...current, [src]: { width, height } });
+            },
+            onError: () => setFailedImages((current) => current.includes(src) ? current : [...current, src])
+          })
         : h("span", { className: "pv-ccfolia-empty-media", role: "img", "aria-label": alt + "：画像なし" }, "画像なし")
     );
   };
@@ -7069,21 +7098,40 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
     id: "basic-ccfolia-panel-board", className: "basic-preview-panel piece-preview-view", "data-preview-view": "board",
     role: "tabpanel", "aria-labelledby": "basic-ccfolia-tab-board"
   },
+    h("div", { className: "piece-board-preview-controls" },
+      h("label", { className: "piece-size-control" },
+        h("span", null, "駒サイズ（画像の長辺）"),
+        h("select", {
+          value: String(pieceSizeCells),
+          onChange: (event) => setPieceSizeCells(event.target.value),
+          "aria-label": "盤面プレビューの駒サイズ（マス数）"
+        }, ...Array.from({ length: 8 }, (_, index) => index + 1).map((size) =>
+          h("option", { key: size, value: String(size) }, size + " マス")
+        ))
+      ),
+      h("small", { className: "piece-size-note" },
+        "長辺 " + pieceSizeCells + " マス（" + pieceLongSidePx + "px）。画像の縦横比は維持します。サイズはこのプレビュー専用で、JSONには含まれません。"
+      )
+    ),
     h("div", { className: "pv-ccfolia-board-layout piece-board-layout" },
       h("section", { className: "pv-ccfolia-map-wrap piece-board-stage", "aria-label": "盤面の表示例" },
         h("div", { className: "pv-ccfolia-map piece-board-canvas" },
           h("div", { className: "pv-ccfolia-map-grid piece-board-grid", "aria-hidden": "true" }),
           h("div", { className: "pv-ccfolia-map-token piece-board-token-group", style: { "--pv-ccfolia-color": color } },
-            renderImage(imageUrl, "pv-ccfolia-map-avatar piece-board-avatar", name + "の駒画像"),
+            renderImage(imageUrl, "pv-ccfolia-map-avatar piece-board-avatar", name + "の駒画像", {
+              wrapperStyle: pieceImageWrapperStyle,
+              imageStyle: pieceImageContentStyle,
+              wrapperProps: { "data-piece-size-cells": pieceSizeCells }
+            }),
             h("span", { className: "pv-ccfolia-map-name piece-board-nameplate" }, name),
             h("span", { className: "basic-preview-initiative piece-board-init" }, "INIT " + initiative)
           )
         ),
         h("div", { className: "basic-preview-board-caption piece-board-caption" },
           h("span", null, "盤面 / TOKEN"),
-          h("span", { style: { color } }, color)
+          h("span", { style: { color } }, "長辺 " + pieceSizeCells + " マス")
         ),
-        h("p", { className: "pv-ccfolia-map-note piece-inspector-note" }, "駒の色・名前・行動順は現在の出力データから表示しています。盤面位置やマス設定はルーム側で決まります。")
+        h("p", { className: "pv-ccfolia-map-note piece-inspector-note" }, "駒画像は長辺を指定マス数に合わせ、縦横比を保って表示しています。実際の背景・配置・ルームのズームはCCFOLIA側で決まります。")
       ),
       h("section", { className: "pv-ccfolia-roster piece-board-inspector", "aria-label": "選択した駒のインスペクター" },
         h("header", { className: "pv-ccfolia-roster-head piece-inspector-title" },
@@ -7120,7 +7168,7 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
     h("section", { className: "pv-ccfolia-editor piece-sheet-mock" },
       h("div", { className: "pv-ccfolia-editor-top" },
         h("div", { className: "pv-ccfolia-editor-images" },
-          renderImage(imageUrl, "pv-ccfolia-editor-main-image", name + "の立ち絵"),
+          renderImage(imageUrl, "pv-ccfolia-editor-main-image piece-sheet-main-image", name + "の立ち絵"),
           faces.length > 1
             ? h("div", { className: "pv-ccfolia-face-strip", "aria-label": "出力する差分画像" },
                 faces.map((face, index) => h("div", {
