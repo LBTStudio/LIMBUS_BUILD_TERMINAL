@@ -3099,13 +3099,32 @@ function purchaseCostOf(state, action) {
   }
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
-    const name = String(action.spp?.name || "");
+    const name = String(action.spp?.name || "").trim();
+    if (!name) return null;
     const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    const catalog = slot === "death" ? (window.DB?.death_passives || []) : (window.DB?.support_passives || []);
+    const definition = catalog.find((entry) => String(entry?.name || "").trim() === name);
+    if (!definition) return null;
+    const rawPrice = slot === "death" ? definition.shards : definition.lp;
+    const hasPositivePrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "" && Number.isFinite(Number(rawPrice.replace(/,/g, ""))) && Number(rawPrice.replace(/,/g, "")) > 0);
+    if (!hasPositivePrice) return null;
+    const cost = priceSupport(name, slot);
+    const amount = slot === "death" ? cost?.shards : cost?.lp;
+    return Number.isSafeInteger(amount) && amount > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "").trim();
+    if (!name) return null;
+    const definition = (window.DB?.spirits || []).find((entry) => String(entry?.name || "").trim() === name);
+    if (!definition) return null;
+    const rawPrice = definition.price;
+    const hasPositivePrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "" && Number.isFinite(Number(rawPrice.replace(/,/g, ""))) && Number(rawPrice.replace(/,/g, "")) > 0);
+    if (!hasPositivePrice) return null;
+    const cost = priceSpirit(name);
+    return Number.isSafeInteger(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
