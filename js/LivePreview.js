@@ -131,7 +131,7 @@ const LivePreview = ({ state, dispatch }) => {
   }, [json]);
   const tokenImage = String(tokenData.iconUrl || tokenData.faces?.[0]?.iconUrl || "");
   const rawTokenSize = Number(state.ui.tokenPreviewSize);
-  const tokenSizeCells = Number.isSafeInteger(rawTokenSize) && rawTokenSize >= 1 && rawTokenSize <= 8 ? rawTokenSize : 4;
+  const tokenSizeCells = Number.isSafeInteger(rawTokenSize) && rawTokenSize >= 1 && rawTokenSize <= 6 ? rawTokenSize : 4;
   const tokenLongSidePx = tokenSizeCells * 48;
   const [tokenImageDimensions, setTokenImageDimensions] = React.useState({});
   const tokenNaturalSize = tokenImageDimensions[tokenImage];
