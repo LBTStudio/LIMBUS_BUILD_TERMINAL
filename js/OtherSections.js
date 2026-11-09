@@ -124,6 +124,7 @@ const BaseSection = ({ state, dispatch }) => {
                     ? "URLが正しいか確認してください（https:// で始まる文字列）"
                     : "「立ち絵URL・差分を編集」から設定できます")
                 ),
+            React.createElement("span", { className: "piece-art-zoom-help" }, "ホイールで拡大・縮小"),
             React.createElement("button", {
               type: "button",
               className: "piece-art-zoom-reset",
