@@ -4471,7 +4471,8 @@ function appReducer(state, action) {
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
     /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO" || action.type === "ADD_ROSTER_SUPPORT" || action.type === "ADD_ROSTER_SPIRIT") && action.purchase !== false && !cost)
+    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
+       || ((action.type === "ADD_ROSTER_SUPPORT" || action.type === "ADD_ROSTER_SPIRIT") && action.purchase !== false && !cost)
        || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
