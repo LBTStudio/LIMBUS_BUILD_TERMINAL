@@ -3808,6 +3808,8 @@ const INIT_STATE = {
   charName: "",
   plName: "",
   imgUrls: "",
+  // CCFOLIA キャラクター編集画面の外部参照URL。立ち絵URLとは別項目。
+  externalUrl: "",
   // Base infoで選択した共有用OGP画像。縮小済みdata URIのみ保存する。
   shareImageData: "",
   // 圧縮後に上限へ収まらなかった直近の画像は、再アップロード成功まで共有発行を停止する。
@@ -4529,7 +4531,7 @@ function appReducer(state, action) {
        未知フィールド・ui は対象外。検証は呼び出し側（import）で実施済み前提だが、
        ここでも配列/オブジェクトの型だけは防御的に確認する。 */
     case "APPLY_PARTIAL": {
-      const ALLOWED = ["charName","plName","imgUrls","shareImageData","color","personaMode","personaNo","personaSrc","syncedManual",
+      const ALLOWED = ["charName","plName","imgUrls","externalUrl","shareImageData","color","personaMode","personaNo","personaSrc","syncedManual",
         "hp","san","initiative","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
         "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
