@@ -162,7 +162,7 @@ const BaseSection = ({ state, dispatch }) => {
               onChange: (event) => setF("imgUrls", event.target.value)
             }),
             React.createElement("div", { className: "piece-hint" },
-              "ココフォリアにアップロードした画像URLを設定します。2行目以降は差分として選べます。表示中の画像とURLの順序を確認してください。"
+              "ここに登録したURLはLBT内の原寸比プレビュー用です。CCFOLIAのJSON貼り付けでは外部画像URLを立ち絵・差分へ設定できません。貼り付け後にCCFOLIA側の画像選択からアップロード済み画像を指定してください。2行目以降は差分の候補です。"
             )
           ),
           React.createElement("div", { className: "piece-share-row" },
@@ -314,7 +314,6 @@ const BaseSection = ({ state, dispatch }) => {
           React.createElement("p", { className: "piece-hint" },
             "CCFOLIAのClipboard APIは外部URLから立ち絵・差分画像を設定できません。JSON貼り付け後、CCFOLIA側の画像選択で画像を指定してください。PL名は独立フィールドではなく共有メモに記載されます。"
           )
-        )
         )
       ),
       React.createElement("div", { className: "info-note" },
