@@ -3956,8 +3956,9 @@ const INIT_STATE = {
   ui: {
     currentSection: "home",
     previewTab: "memo",
-    previewOpen: void 0,
-    // 未設定時はデスクトップで表示、小画面では折り畳み。明示的な開閉選択を優先する。
+    previewOpen: false,
+    // 出力プレビューは常に閉じて起動し、作業中だけ明示的に展開する。
+    tokenPreviewSize: 4,
     codexMode: "n",
     // 'n'|'t'|'roster'|'fav'|'history'
     filterSins: [],
@@ -4457,8 +4458,15 @@ function appReducer(state, action) {
       return ["uniqueBuffs", "customStatuses", "defaultStatuses"].includes(action.field)
         ? normalizeStatusCollections(next) : next;
     }
-    case "SET_UI":
-      return { ...state, ui: { ...state.ui, ...action.ui } };
+    case "SET_UI": {
+      const ui = { ...state.ui, ...action.ui };
+      // ビルド作業面を離れたら右側プレビューは閉じ、別画面に空の列を残さない。
+      if (Object.prototype.hasOwnProperty.call(action.ui || {}, "currentSection")
+          && !["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(ui.currentSection)) {
+        ui.previewOpen = false;
+      }
+      return { ...state, ui };
+    }
     case "PATCH":
       return { ...state, ...action.patch };
     case "CONFIRM_SELF_STATUS_CANDIDATE": {
@@ -4517,13 +4525,13 @@ function appReducer(state, action) {
       return normalizeStateShape({
         ...INIT_STATE,
         ...(window.LBT_accounts?.loadActive?.() || {}),
-        ui: state.ui
+        ui: { ...state.ui, previewOpen: false }
       });
     case "HYDRATE":
       return normalizeStateShape({
         ...INIT_STATE,
         ...action.state,
-        ui: { ...INIT_STATE.ui, ...action.state.ui || {} }
+        ui: { ...INIT_STATE.ui, ...action.state.ui || {}, previewOpen: false }
       });
     /* T26: 部分ロード。許可されたトップレベルフィールドのみ現行 state へマージする。
        未知フィールド・ui は対象外。検証は呼び出し側（import）で実施済み前提だが、
@@ -7454,6 +7462,7 @@ function useAppState() {
             layoutVersion: ui.layoutVersion,
             codexMode: ui.codexMode,
             codexExpanded: ui.codexExpanded,
+            tokenPreviewSize: ui.tokenPreviewSize || 4,
             previewCollapsed: ui.previewCollapsed || {}
           }
         }, window.__LBT_BOOT_ACCOUNT_ID || undefined);
