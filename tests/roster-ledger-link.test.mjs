@@ -16,7 +16,7 @@ import vm from "node:vm";
 
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
 
-function loadReducer() {
+function loadContext() {
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
     window: { DB: db }, console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
@@ -26,7 +26,10 @@ function loadReducer() {
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(source, context);
-  return context.window.appReducer;
+  return context;
+}
+function loadReducer() {
+  return loadContext().window.appReducer;
 }
 
 const base = () => ({
@@ -39,6 +42,61 @@ const base = () => ({
 /* DB 実データから必ず引ける E.G.O を 1 件選ぶ（結果に依存させない）。 */
 const dbEgo = db.egos[0];
 const dbSpirit = db.spirits[0];
+
+test("別々の一括所持追加が同じミリ秒に続いても UID と購入明細を衝突させない", () => {
+  const context = loadContext();
+  const reducer = context.window.appReducer;
+  vm.runInContext("Date.now = () => 1700000000000", context);
+  const personaA = db.normal_personas.find((entry) => Number(entry.no) === 1);
+  const personaB = db.normal_personas.find((entry) => Number(entry.no) === 2);
+  const egoA = db.egos[0];
+  const egoB = db.egos.find((entry) => entry.rank !== egoA.rank || String(entry.no) !== String(egoA.no));
+  assert.ok(personaA && personaB && egoA && egoB, "衝突検査用に異なる人格とE.G.Oを選べる");
+
+  let state = base();
+  state = reducer(state, {
+    type: "ADD_ROSTER_MANY",
+    resultId: "res-a",
+    adds: [{ type: "persona", mode: "n", no: personaA.no, cost: { lp: 20, shards: 0 } }]
+  });
+  state = reducer(state, {
+    type: "ADD_ROSTER_MANY",
+    resultId: "res-b",
+    adds: [{ type: "persona", mode: "n", no: personaB.no, cost: { lp: 20, shards: 0 } }]
+  });
+  state = reducer(state, {
+    type: "ADD_ROSTER_MANY",
+    resultId: "res-a",
+    adds: [{ type: "ego", rank: egoA.rank, no: egoA.no }]
+  });
+  state = reducer(state, {
+    type: "ADD_ROSTER_MANY",
+    resultId: "res-b",
+    adds: [{ type: "ego", rank: egoB.rank, no: egoB.no }]
+  });
+
+  const personaUids = state.roster.personas.map((entry) => entry.uid);
+  const egoUids = state.roster.egos.map((entry) => entry.uid);
+  assert.equal(new Set(personaUids).size, 2, "別バッチ人格のUIDは異なる");
+  assert.equal(new Set(egoUids).size, 2, "別バッチE.G.OのUIDは異なる");
+  for (const entry of state.entries.filter((item) => item.ref?.kind === "rosterPersona")) {
+    assert.ok(personaUids.includes(entry.ref.uid), "人格台帳明細は実在するUIDを参照");
+  }
+  for (const entry of state.entries.filter((item) => item.ref?.kind === "rosterEgo")) {
+    assert.ok(egoUids.includes(entry.ref.uid), "E.G.O台帳明細は実在するUIDを参照");
+  }
+
+  state = reducer(state, { type: "REMOVE_ROSTER", uid: personaUids[0] });
+  state = reducer(state, { type: "REMOVE_ROSTER_EGO", uid: egoUids[0], deleteCustomConfirmed: true });
+  assert.equal(state.roster.personas.length, 1, "人格1件だけ削除される");
+  assert.equal(state.roster.egos.length, 1, "E.G.O 1件だけ削除される");
+  assert.equal(state.roster.personas[0].uid, personaUids[1]);
+  assert.equal(state.roster.egos[0].uid, egoUids[1]);
+  assert.equal(state.entries.filter((item) => item.ref?.kind === "rosterPersona").length, 1,
+    "削除した人格の明細だけ外れる");
+  assert.equal(state.entries.filter((item) => item.ref?.kind === "rosterEgo").length, 1,
+    "削除したE.G.Oの明細だけ外れる");
+});
 
 test("E.G.O の所持追加: no を文字列で渡しても名前と価格が引ける", () => {
   const reducer = loadReducer();
