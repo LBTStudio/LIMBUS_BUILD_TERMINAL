@@ -249,7 +249,7 @@ const LivePreview = ({ state, dispatch }) => {
               )
             ),
             h("p", { className: "pv-ccfolia-map-note" },
-              "背景・配置・拡大率は、実際のルーム設定によって変わります。")
+              "長辺 " + tokenSizeCells + " マスの表示例です。画像比率は維持します。背景・配置・ルームのズームは実際のルーム設定で変わります。")
           ),
           h("section", { className: "pv-ccfolia-roster", "aria-label": "キャラクター一覧の表示例" },
             h("header", { className: "pv-ccfolia-roster-head" },
