@@ -28,7 +28,10 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
   assert.match(base, /ASPECT FIT \/ 全体表示/);
   assert.doesNotMatch(base, /piece-token-preview|piece-token-card/, "the old tiny token card must not remain in the appearance panel");
   assert.match(base, /const \[imgZoom, setImgZoom\] = React\.useState\(1\)/);
-  assert.match(base, /onWheel: handleArtWheel/);
+  assert.match(base, /const artFrameRef = React\.useRef\(null\)/);
+  assert.match(base, /frame\.addEventListener\("wheel", handleArtWheel, \{ passive: false \}\)/);
+  assert.match(base, /event\.preventDefault\(\)/);
+  assert.match(base, /frame\.getBoundingClientRect\(\)/);
   assert.match(base, /piece-art-zoom-help/);
   assert.match(base, /ホイールで拡大・縮小/);
   assert.match(base, /transform: "scale\(" \+ imgZoom \+ "\)"/);
