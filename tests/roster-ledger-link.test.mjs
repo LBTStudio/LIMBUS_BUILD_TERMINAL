@@ -177,7 +177,9 @@ test("精神の試着（初期枠）は所持へは入るが購入明細は立�
   const viaPurchase = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: sp.name } });
   assert.equal(viaPurchase.entries.length, 1, "ショップ経由は購入として明細が立つ");
 
-  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [sp.name] });
+  const initialSpirit = db.spirits.find((spirit) => Number(spirit.price) === 0);
+  assert.ok(initialSpirit, "無料の初期精神がDBにある");
+  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [initialSpirit.name] });
   const seeded = reducer(viaInitial, { type: "APPLY_INITIAL_SPIRITS" });
   assert.equal(seeded.roster.spirits.length, 1);
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
