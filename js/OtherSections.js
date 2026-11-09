@@ -3097,7 +3097,21 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       );
     }),
     support: (entries) => entries.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
-      () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
+      () => {
+        const action = { type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true };
+        const cost = window.LBT_purchaseCostOf?.(state, action);
+        const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
+        if (!cost || !affordability) {
+          toast("サポートの購入価格を検証できません。", "assertive");
+          return;
+        }
+        if (!affordability.ok) {
+          toast(affordability.reason || "購入に必要な残高が不足しています。", "assertive");
+          return;
+        }
+        dispatch(action);
+        toast(`「${entry.name}」を所持に購入しました`, "assertive");
+      },
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
     ego: (entries) => entries.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
       () => acquireEgoFromCatalog(state, dispatch, ego),
