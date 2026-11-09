@@ -289,7 +289,6 @@ const BaseSection = ({ state, dispatch }) => {
         ),
         React.createElement("p", { className: "piece-hint piece-preview-link-note" },
           "実際の駒の見え方は下の「ココフォリア駒プレビュー」で、出力データと同じ立ち絵・差分を使って確認できます。"
-        ),
         )
       ),
       React.createElement("div", { className: "info-note" },
