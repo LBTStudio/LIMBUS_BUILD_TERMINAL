@@ -612,3 +612,79 @@
     min-height: 48px;
   }
 }
+
+
+/* Full-size portrait stage: preserve the source dimensions instead of forcing a 3:4 crop. */
+.base-info-panel .piece-art-wrap,
+.piece-art-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.base-info-panel .piece-art-frame,
+.piece-art-frame {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: clamp(320px, 58svh, 760px);
+  max-height: none;
+  height: auto;
+  aspect-ratio: auto;
+  padding: 10px;
+  overflow: hidden;
+}
+.base-info-panel .piece-art,
+.piece-art {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(78svh, 900px);
+  object-fit: contain;
+  object-position: center;
+}
+.piece-art-thumbs {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.piece-art-thumb {
+  flex: 0 0 76px;
+  width: 76px;
+  height: 88px;
+  min-height: 88px;
+}
+.piece-art-thumb .piece-thumb-art,
+.piece-art-thumb img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  margin: auto;
+  object-fit: contain;
+}
+.pc-token-preview-note {
+  display: grid;
+  gap: 8px;
+}
+.pc-token-preview-note p { margin: 0; }
+@media (max-width: 640px) {
+  .base-info-panel .piece-art-frame,
+  .piece-art-frame {
+    min-height: 270px;
+    max-height: 66svh;
+    padding: 6px;
+  }
+  .base-info-panel .piece-art,
+  .piece-art {
+    max-height: 62svh;
+  }
+  .piece-art-thumb { flex-basis: 66px; width: 66px; height: 78px; min-height: 78px; }
+}
