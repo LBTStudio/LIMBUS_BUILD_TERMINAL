@@ -38,7 +38,7 @@ const base = () => ({
 
 /* DB 実データから必ず引ける E.G.O を 1 件選ぶ（結果に依存させない）。 */
 const dbEgo = db.egos[0];
-const dbSpirit = db.spirits[0];
+const dbSpirit = db.spirits.find((spirit) => Number(spirit.price) > 0);
 
 test("E.G.O の所持追加: no を文字列で渡しても名前と価格が引ける", () => {
   const reducer = loadReducer();
@@ -171,15 +171,18 @@ test("精神の初期枠は装備扱いで、明細を立てない", () => {
   assert.equal(again.roster.spirits.length, free.length, "取り込みは冪等");
 });
 
-test("精神の試着（初期枠）は所持へは入るが購入明細は立てない", () => {
+test("有料精神の購入は明細を立て、0価格精神の初期枠は購入明細を立てない", () => {
   const reducer = loadReducer();
-  const sp = db.spirits[0];
-  const viaPurchase = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: sp.name } });
-  assert.equal(viaPurchase.entries.length, 1, "ショップ経由は購入として明細が立つ");
+  const paidSpirit = db.spirits.find((spirit) => Number(spirit.price) > 0);
+  const freeSpirit = db.spirits.find((spirit) => Number(spirit.price) === 0);
+  assert.ok(paidSpirit && freeSpirit, "有料精神と無料初期精神がDBに存在する");
+  const viaPurchase = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: paidSpirit.name } });
+  assert.equal(viaPurchase.entries.length, 1, "有料精神はショップ購入として明細が立つ");
 
-  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [sp.name] });
+  const viaInitial = reducer(base(), { type: "SET_INITIAL_SPIRITS", names: [freeSpirit.name] });
   const seeded = reducer(viaInitial, { type: "APPLY_INITIAL_SPIRITS" });
   assert.equal(seeded.roster.spirits.length, 1);
+  assert.equal(seeded.roster.spirits[0].name, freeSpirit.name);
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
 });
 
