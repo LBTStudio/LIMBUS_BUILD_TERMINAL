@@ -7007,7 +7007,7 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
   const imageUrl = String(data.iconUrl || data.faces?.find((face) => face?.iconUrl)?.iconUrl
     || (state.imgUrls || "").split("\n").map((url) => url.trim()).find(Boolean) || "");
   const rawPieceSize = Number(state.ui?.tokenPreviewSize);
-  const pieceSizeCells = Number.isSafeInteger(rawPieceSize) && rawPieceSize >= 1 && rawPieceSize <= 8
+  const pieceSizeCells = Number.isSafeInteger(rawPieceSize) && rawPieceSize >= 1 && rawPieceSize <= 6
     ? rawPieceSize : 4;
   const pieceSizeCellPx = 48;
   const pieceLongSidePx = pieceSizeCells * pieceSizeCellPx;
@@ -7105,7 +7105,7 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
           value: String(pieceSizeCells),
           onChange: (event) => setPieceSizeCells(event.target.value),
           "aria-label": "盤面プレビューの駒サイズ（マス数）"
-        }, ...Array.from({ length: 8 }, (_, index) => index + 1).map((size) =>
+        }, ...Array.from({ length: 6 }, (_, index) => index + 1).map((size) =>
           h("option", { key: size, value: String(size) }, size + " マス")
         ))
       ),
