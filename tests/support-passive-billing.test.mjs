@@ -132,6 +132,58 @@ test("価格不足の有料取得は所持レコードも購入明細も作ら�
   assert.strictEqual(spirit, empty, "欠片不足なら精神を所持に追加しない");
 });
 
+test("サポート・精神の購入はカタログ価格が解決できない場合に無料登録しない", () => {
+  const initial = base();
+  const unknownSupport = reducer(initial, {
+    type: "ADD_ROSTER_SUPPORT", spp: { name: "DB未登録サポート" }, purchase: true
+  });
+  assert.strictEqual(unknownSupport, initial, "DB未登録サポートを無料購入できない");
+
+  const originalNormal = w.DB.support_passives;
+  const originalDeath = w.DB.death_passives;
+  const originalSpirits = w.DB.spirits;
+  try {
+    w.DB.support_passives = [{ name: "価格なしサポート" }];
+    const missingSupportPrice = reducer(initial, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格なしサポート" }, purchase: true
+    });
+    assert.strictEqual(missingSupportPrice, initial, "LP価格欠落を無料購入として扱わない");
+
+    w.DB.death_passives = [{ name: "価格なし死亡後サポート" }];
+    const missingDeathPrice = reducer(initial, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格なし死亡後サポート" }, purchase: true
+    });
+    assert.strictEqual(missingDeathPrice, initial, "欠片価格欠落を無料購入として扱わない");
+
+    w.DB.spirits = [{ name: "価格なし精神" }];
+    const missingSpiritPrice = reducer(initial, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格なし精神" }, purchase: true
+    });
+    assert.strictEqual(missingSpiritPrice, initial, "価格欠落を無料購入として扱わない");
+
+    w.DB.spirits = [{ name: "無料精神", price: 0 }];
+    const freeAsPaid = reducer(initial, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料精神", price: 0 }, purchase: true
+    });
+    assert.strictEqual(freeAsPaid, initial, "無料初期精神を購入経路から無料購入できない");
+    const freeGrant = reducer(initial, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料精神", price: 0 }, purchase: false
+    });
+    assert.equal(freeGrant.roster.spirits.length, 1, "無料初期精神は配布経路で取得できる");
+    assert.equal(freeGrant.entries.length, 0, "無料配布に購入明細は付かない");
+
+    w.DB.spirits = [{ name: "解析不能精神", price: "価格未確認" }];
+    const malformedSpiritPrice = reducer(initial, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "解析不能精神" }, purchase: true
+    });
+    assert.strictEqual(malformedSpiritPrice, initial, "解析不能な価格を無料扱いしない");
+  } finally {
+    w.DB.support_passives = originalNormal;
+    w.DB.death_passives = originalDeath;
+    w.DB.spirits = originalSpirits;
+  }
+});
+
 test("購入済みサポートを装備し直しても購入と明細を重複しない", () => {
   const purchased = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: PASSIVE }, purchase: true });
   assert.equal(purchased.roster.supports.length, 1);
