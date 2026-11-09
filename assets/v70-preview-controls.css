@@ -205,3 +205,12 @@
     }
   }
 }
+
+
+/* A collapsed preview is removed from layout and accessibility on every viewport.
+   The edge toggle remains outside the panel and is still available to reopen it. */
+@media (max-width: 1099px) {
+  .app.preview-collapsed .preview {
+    display: none !important;
+  }
+}
