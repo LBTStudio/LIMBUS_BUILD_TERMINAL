@@ -33,6 +33,7 @@ const BaseSection = ({ state, dispatch }) => {
   const [imgBroken, setImgBroken] = React.useState(false);
   const [imgZoom, setImgZoom] = React.useState(1);
   const [imgZoomOrigin, setImgZoomOrigin] = React.useState("50% 50%");
+  const artFrameRef = React.useRef(null);
   const [editOpen, setEditOpen] = React.useState(false);
   const activeImg = imgList[imgTab] || "";
   const SHARE_IMAGE_TARGET_BYTES = window.LBT_shareLink?.SHARE_IMAGE_TARGET_BYTES || 32 * 1024;
@@ -82,17 +83,23 @@ const BaseSection = ({ state, dispatch }) => {
     setImgZoom(1);
     setImgZoomOrigin("50% 50%");
   }, [imgList[imgTab]]);
-  const handleArtWheel = (event) => {
-    if (!activeImg || imgBroken) return;
-    const nextZoom = Math.max(1, Math.min(4, imgZoom * Math.exp(-event.deltaY * 0.0015)));
-    if (Math.abs(nextZoom - imgZoom) < 0.001) return;
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
-    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
-    setImgZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
-    setImgZoom(nextZoom);
-  };
+  React.useEffect(() => {
+    const frame = artFrameRef.current;
+    if (!frame) return undefined;
+    const handleArtWheel = (event) => {
+      if (!activeImg || imgBroken) return;
+      const nextZoom = Math.max(1, Math.min(4, imgZoom * Math.exp(-event.deltaY * 0.0015)));
+      if (Math.abs(nextZoom - imgZoom) < 0.001) return;
+      event.preventDefault();
+      const rect = frame.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
+      const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
+      setImgZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
+      setImgZoom(nextZoom);
+    };
+    frame.addEventListener("wheel", handleArtWheel, { passive: false });
+    return () => frame.removeEventListener("wheel", handleArtWheel);
+  }, [activeImg, imgBroken, imgZoom]);
   return React.createElement("div", { className: "piece-hero-grid", "data-ui-reference": "unified-workbench-v4" },
     React.createElement("div", { className: "piece-hero-left" },
       React.createElement("section", { className: "piece-panel piece-art-panel" },
@@ -106,7 +113,7 @@ const BaseSection = ({ state, dispatch }) => {
         React.createElement("div", { className: "piece-art-wrap" },
           React.createElement("div", {
             className: "piece-art-frame",
-            onWheel: handleArtWheel,
+            ref: artFrameRef,
             "aria-label": "立ち絵プレビュー。マウスホイールで拡大・縮小できます。"
           },
             activeImg && !imgBroken
