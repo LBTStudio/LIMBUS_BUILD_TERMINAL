@@ -64,8 +64,9 @@ test("リザルトを削除したらその明細も消える（未分類へ戻�
   const state = read("../js/state.js");
   const removeResult = state.slice(state.indexOf('case "REMOVE_RESULT"'), state.indexOf('case "APPLY_IMPORT_BATCH"'));
   assert.match(removeResult, /entries: \(state\.entries \|\| \[\]\)\.filter\(\(e\) => e\.resultId !== action\.id\)/);
-  /* 支出明細は削除し、残る所持・抽選ログは未分類へ戻す。 */
-  assert.match(removeResult, /entry\.resultId === action\.id \? \{ \.\.\.entry, resultId: null \} : entry/);
+  /* 支出明細は削除し、残る所持レコードと抽選ログは未分類へ戻す。 */
+  assert.match(removeResult, /supports = \(roster\.supports \|\| \[\]\)\.map\(\(entry\) => \([\s\S]*?entry\.resultId === action\.id \? \{ \.\.\.entry, resultId: null \} : entry/);
+  assert.match(removeResult, /spirits = \(roster\.spirits \|\| \[\]\)\.map\(\(entry\) => \([\s\S]*?entry\.resultId === action\.id \? \{ \.\.\.entry, resultId: null \} : entry/);
   assert.match(removeResult, /log\?\.resultId === action\.id[\s\S]*resultId: null, resultAttributionRepairVersion: 2/);
 });
 
