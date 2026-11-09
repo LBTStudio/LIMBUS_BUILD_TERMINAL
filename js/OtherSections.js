@@ -33,6 +33,8 @@ const BaseSection = ({ state, dispatch }) => {
   const [imgBroken, setImgBroken] = React.useState(false);
   const [imgZoom, setImgZoom] = React.useState(1);
   const [imgZoomOrigin, setImgZoomOrigin] = React.useState("50% 50%");
+  const [editOpen, setEditOpen] = React.useState(false);
+  const activeImg = imgList[imgTab] || "";
   const SHARE_IMAGE_TARGET_BYTES = window.LBT_shareLink?.SHARE_IMAGE_TARGET_BYTES || 32 * 1024;
   const shareImageBytes = window.LBT_shareLink?.shareImageBytes || ((value) => {
     const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
@@ -91,8 +93,6 @@ const BaseSection = ({ state, dispatch }) => {
     setImgZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
     setImgZoom(nextZoom);
   };
-  const activeImg = imgList[imgTab] || "";
-  const [editOpen, setEditOpen] = React.useState(false);
   return React.createElement("div", { className: "piece-hero-grid", "data-ui-reference": "unified-workbench-v4" },
     React.createElement("div", { className: "piece-hero-left" },
       React.createElement("section", { className: "piece-panel piece-art-panel" },
@@ -141,7 +141,11 @@ const BaseSection = ({ state, dispatch }) => {
               "aria-label": (index === 0 ? "基本立ち絵" : "差分立ち絵") + " " + (index + 1) + " を表示",
               "aria-pressed": imgTab === index,
               title: (index + 1) + "枚目の立ち絵を表示",
-              onClick: () => setImgTab(index)
+              onClick: () => {
+                setImgTab(index);
+                setImgZoom(1);
+                setImgZoomOrigin("50% 50%");
+              }
             },
               React.createElement("img", { className: "piece-thumb-art", src: url, alt: "", loading: "lazy" }),
               React.createElement("span", { className: "thumb-num" }, String(index + 1))
