@@ -986,3 +986,16 @@
 @media(max-width:560px) {
   .base-info-panel .piece-art-frame { width: min(100%, 390px); }
 }
+.base-info-panel .piece-art-zoom-help {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 4px 7px;
+  border: 1px solid #4b535c;
+  border-radius: 3px;
+  background: #171b20eF;
+  color: #d9dee3;
+  font: 500 9px/1.3 var(--f-body, system-ui, sans-serif);
+  pointer-events: none;
+}
