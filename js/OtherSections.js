@@ -84,7 +84,7 @@ const BaseSection = ({ state, dispatch }) => {
             React.createElement("strong", null, "駒の見た目"),
             React.createElement("small", null, "立ち絵と差分を見ながら選択")
           ),
-          React.createElement("span", { className: "pill" }, "3:4 IMAGE")
+          React.createElement("span", { className: "pill" }, "ORIGINAL RATIO")
         ),
         React.createElement("div", { className: "piece-art-wrap" },
           React.createElement("div", { className: "piece-art-frame" },
@@ -241,7 +241,7 @@ const BaseSection = ({ state, dispatch }) => {
             })
           ),
           React.createElement("div", { className: "piece-input-group span2" },
-            React.createElement("label", { htmlFor: "piece-player-name" }, "プレイヤー名（PL）"),
+            React.createElement("label", { htmlFor: "piece-player-name" }, "PL名（LBTの共有メモ用）"),
             React.createElement("input", {
               id: "piece-player-name",
               className: "piece-input",
@@ -250,6 +250,22 @@ const BaseSection = ({ state, dispatch }) => {
               onChange: (event) => setF("plName", event.target.value),
               "aria-label": "プレイヤー名"
             })
+          ),
+          React.createElement("div", { className: "piece-input-group span2" },
+            React.createElement("label", { htmlFor: "piece-external-url" }, "外部参照URL（任意）"),
+            React.createElement("input", {
+              id: "piece-external-url",
+              className: "piece-input",
+              type: "url",
+              inputMode: "url",
+              value: state.externalUrl || "",
+              placeholder: "https://...",
+              onChange: (event) => setF("externalUrl", event.target.value),
+              "aria-label": "CCFOLIAキャラクターの外部参照URL"
+            }),
+            React.createElement("div", { className: "piece-hint" },
+              "CCFOLIAのキャラクター編集画面にある「外部参照URL」へ出力します。立ち絵URLとは別の項目です。"
+            )
           ),
           React.createElement("div", { className: "piece-input-group" },
             React.createElement("label", { htmlFor: "piece-initiative" }, "イニシアチブ / 行動順"),
@@ -287,28 +303,18 @@ const BaseSection = ({ state, dispatch }) => {
             )
           )
         ),
-        React.createElement("div", { className: "piece-token-preview pc-token-preview" },
+        React.createElement("div", { className: "piece-token-preview pc-token-preview-note" },
           React.createElement("div", { className: "piece-token-preview-head" },
-            React.createElement("span", null, "ココフォリア上の見え方（簡易）"),
-            React.createElement("span", null, "PREVIEW")
+            React.createElement("span", null, "画像とCCFOLIA JSONの扱い"),
+            React.createElement("span", null, "IMPORT NOTE")
           ),
-          React.createElement("div", {
-            className: "piece-token-card",
-            style: { "--piece-color": state.color || "#d6b56b" }
-          },
-            React.createElement("div", { className: "piece-token-avatar" },
-              activeImg && !imgBroken
-                ? React.createElement("img", { src: activeImg, alt: "", loading: "lazy" })
-                : React.createElement("span", { "aria-hidden": "true" }, "◈")
-            ),
-            React.createElement("div", { className: "piece-token-name" },
-              React.createElement("strong", null, String(state.charName || "名称未設定")),
-              React.createElement("small", null,
-                String(state.plName || "PL未設定") + " · 行動順 " + String(state.initiative ?? 0)
-              )
-            ),
-            React.createElement("div", { className: "piece-token-initiative" }, String(state.initiative ?? 0))
+          React.createElement("p", { className: "piece-hint" },
+            "この画面の立ち絵は、元画像の縦横比を保って大きく確認するためのLBT内プレビューです。"
+          ),
+          React.createElement("p", { className: "piece-hint" },
+            "CCFOLIAのClipboard APIは外部URLから立ち絵・差分画像を設定できません。JSON貼り付け後、CCFOLIA側の画像選択で画像を指定してください。PL名は独立フィールドではなく共有メモに記載されます。"
           )
+        )
         )
       ),
       React.createElement("div", { className: "info-note" },
