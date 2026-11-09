@@ -182,6 +182,30 @@ test("一括削除の undo は所持と購入明細を戻す（削除で残高�
   assert.equal(after.lp, before.lp, "削除と復元で残高が動かない");
 });
 
+test("RESTORE_ROSTER_BATCH は同一payload内のUIDと明細ID重複も1件に抑える", () => {
+  const { reducer } = reducerOf();
+  const support = { uid: "support-restore-1", name: "復元サポート", equipped: false, resultId: "res-1" };
+  const ledger = {
+    id: "entry-restore-1", kind: "support", name: "復元サポート",
+    cost: { lp: 3, shards: 0 }, resultId: "res-1",
+    ref: { kind: "rosterSupport", uid: support.uid }
+  };
+  const payload = {
+    type: "RESTORE_ROSTER_BATCH",
+    kind: "supports",
+    items: [support, { ...support }],
+    entries: [ledger, { ...ledger }]
+  };
+  const initial = { ...baseState(), entries: [], results: [{ id: "res-1", income: { lp: 10, shards: 0 } }] };
+  const restored = reducer(initial, payload);
+  assert.equal(restored.roster.supports.length, 1, "同一UIDをpayload内で重複追加しない");
+  assert.equal(restored.entries.length, 1, "同一明細IDをpayload内で重複復元しない");
+
+  const repeated = reducer(restored, payload);
+  assert.equal(repeated.roster.supports.length, 1, "同じ復元actionを再送しても所持は1件");
+  assert.equal(repeated.entries.length, 1, "同じ復元actionを再送しても明細は1件");
+});
+
 test("精神は所持登録してから装備し、未所持の装備操作では取得しない", () => {
   const { reducer } = reducerOf();
   const initial = baseState();
