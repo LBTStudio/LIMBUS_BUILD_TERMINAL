@@ -3109,7 +3109,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           toast(affordability.reason || "購入に必要な残高が不足しています。", "assertive");
           return;
         }
-        dispatch(action);
+        dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true });
         toast(`「${entry.name}」を所持に購入しました`, "assertive");
       },
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
