@@ -32,6 +32,8 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
   assert.match(base, /frame\.addEventListener\("wheel", handleArtWheel, \{ passive: false \}\)/);
   assert.match(base, /event\.preventDefault\(\)/);
   assert.match(base, /frame\.getBoundingClientRect\(\)/);
+  assert.match(base, /frame\.removeEventListener\("wheel", handleArtWheel\)/);
+  assert.match(base, /setImgTab\(index\);[\s\S]*?setImgZoom\(1\)/, "changing face images resets zoom immediately");
   assert.match(base, /piece-art-zoom-help/);
   assert.match(base, /ホイールで拡大・縮小/);
   assert.match(base, /transform: "scale\(" \+ imgZoom \+ "\)"/);
