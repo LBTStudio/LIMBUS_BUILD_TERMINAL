@@ -29,6 +29,8 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
   assert.doesNotMatch(base, /piece-token-preview|piece-token-card/, "the old tiny token card must not remain in the appearance panel");
   assert.match(base, /const \[imgZoom, setImgZoom\] = React\.useState\(1\)/);
   assert.match(base, /onWheel: handleArtWheel/);
+  assert.match(base, /piece-art-zoom-help/);
+  assert.match(base, /ホイールで拡大・縮小/);
   assert.match(base, /transform: "scale\(" \+ imgZoom \+ "\)"/);
   assert.match(base, /setImgZoom\(1\)/, "switching images and the reset control must restore full-fit");
   assert.match(base, /Math\.min\(4, imgZoom \* Math\.exp/);
