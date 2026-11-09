@@ -4004,9 +4004,7 @@ function applyRosterAdds(state, adds, options) {
   const hadPersonaBefore = personas.length > 0;
   const known = new Set(personas.map((p) => `${p.mode}:${p.no}`));
   const knownEgo = new Set(egos.map((e) => `${e.rank}:${e.no}`));
-  const startedAt = Date.now();
   let next = state;
-  let n = 0;
   let gainedPersona = false;
   for (const add of list) {
     /* 1件ごとに価格が違う抽出では、その件の record.cost を優先する。
@@ -4015,18 +4013,19 @@ function applyRosterAdds(state, adds, options) {
     if (add?.type === "ego") {
       if (knownEgo.has(`${add.rank}:${add.no}`)) continue;
       knownEgo.add(`${add.rank}:${add.no}`);
-      egos.push({ uid: `er-${startedAt}-${n}`, no: add.no, rank: add.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
+      const uid = makeOwnedUid("er");
+      egos.push({ uid, no: add.no, rank: add.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
       next = appendLedgerEntry(next, {
         kind: "ego",
         name: `${add.rank} No.${add.no}`,
         cost: own || priceEgo(add.rank, add.no),
         resultId: opts.resultId,
-        ref: { kind: "rosterEgo", uid: `er-${startedAt}-${n}` }
+        ref: { kind: "rosterEgo", uid }
       });
     } else if (add?.type === "persona") {
       if (known.has(`${add.mode}:${add.no}`)) continue;
       known.add(`${add.mode}:${add.no}`);
-      const uid = `pr-${startedAt}-${n}`;
+      const uid = makeOwnedUid("pr");
       personas.push({ uid, no: add.no, mode: add.mode, equipped: false, syncRank: null, syncMax: false, notes: "" });
       const persona = (add.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(add.no));
       next = appendLedgerEntry(next, {
@@ -4038,7 +4037,6 @@ function applyRosterAdds(state, adds, options) {
       });
       gainedPersona = true;
     }
-    n += 1;
   }
   /* 初めて人格を所持したアクションに限り、初期作成用チケットを1枚消す。
      2人目以降の追加では、報酬として受け取った通常チケットに触れない。
