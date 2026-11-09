@@ -130,6 +130,17 @@ const LivePreview = ({ state, dispatch }) => {
     catch (_) { return {}; }
   }, [json]);
   const tokenImage = String(tokenData.iconUrl || tokenData.faces?.[0]?.iconUrl || "");
+  const rawTokenSize = Number(state.ui.tokenPreviewSize);
+  const tokenSizeCells = Number.isSafeInteger(rawTokenSize) && rawTokenSize >= 1 && rawTokenSize <= 8 ? rawTokenSize : 4;
+  const tokenLongSidePx = tokenSizeCells * 48;
+  const [tokenImageDimensions, setTokenImageDimensions] = React.useState({});
+  const tokenNaturalSize = tokenImageDimensions[tokenImage];
+  const tokenRatio = tokenNaturalSize?.width > 0 && tokenNaturalSize?.height > 0
+    ? tokenNaturalSize.width / tokenNaturalSize.height : 1;
+  const tokenWidth = Math.max(1, Math.round(tokenRatio >= 1 ? tokenLongSidePx : tokenLongSidePx * tokenRatio));
+  const tokenHeight = Math.max(1, Math.round(tokenRatio >= 1 ? tokenLongSidePx / tokenRatio : tokenLongSidePx));
+  const tokenImageWrapperStyle = { width: tokenWidth + "px", height: tokenHeight + "px" };
+  const tokenImageContentStyle = { width: "100%", height: "100%", maxWidth: "none", maxHeight: "none", objectFit: "contain" };
   const tokenMode = state.ui.tokenPreviewMode === "sheet" ? "sheet" : "board";
   const setTokenMode = (mode) => dispatch({ type: "SET_UI", ui: { tokenPreviewMode: mode } });
   const [tokenImageFailed, setTokenImageFailed] = React.useState(false);
@@ -139,15 +150,25 @@ const LivePreview = ({ state, dispatch }) => {
   const tokenColor = /^#[0-9a-f]{6}$/i.test(String(tokenData.color || "")) ? tokenData.color : "#c8a84b";
   const tokenStatus = Array.isArray(tokenData.status) ? tokenData.status : [];
   const tokenParams = Array.isArray(tokenData.params) ? tokenData.params : [];
-  const renderPreviewImage = (src, className, alt) => {
+  const renderPreviewImage = (src, className, alt, options = {}) => {
     const failed = src === tokenImage ? tokenImageFailed : failedPreviewImages.includes(src);
     const markFailed = () => {
       if (src === tokenImage) setTokenImageFailed(true);
       else setFailedPreviewImages((current) => current.includes(src) ? current : [...current, src]);
     };
-    return h("div", { className },
+    return h("div", { className, style: options.wrapperStyle, ...(options.wrapperProps || {}) },
       src && !failed
-        ? h("img", { src, alt, onError: markFailed })
+        ? h("img", {
+            src, alt, style: options.imageStyle,
+            onLoad: (event) => {
+              const width = Number(event.currentTarget.naturalWidth) || 0;
+              const height = Number(event.currentTarget.naturalHeight) || 0;
+              if (!width || !height) return;
+              setTokenImageDimensions((current) => current[src]?.width === width && current[src]?.height === height
+                ? current : { ...current, [src]: { width, height } });
+            },
+            onError: markFailed
+          })
         : h("span", { className: "pv-ccfolia-empty-media", role: "img", "aria-label": alt + "：画像なし" }, "画像なし")
     );
   };
@@ -219,7 +240,11 @@ const LivePreview = ({ state, dispatch }) => {
             h("div", { className: "pv-ccfolia-map" },
               h("div", { className: "pv-ccfolia-map-grid", "aria-hidden": "true" }),
               h("div", { className: "pv-ccfolia-map-token", style: { "--pv-ccfolia-color": tokenColor } },
-                renderPreviewImage(tokenImage, "pv-ccfolia-map-avatar", tokenName + "の駒画像"),
+                renderPreviewImage(tokenImage, "pv-ccfolia-map-avatar piece-live-board-avatar", tokenName + "の駒画像", {
+                  wrapperStyle: tokenImageWrapperStyle,
+                  imageStyle: tokenImageContentStyle,
+                  wrapperProps: { "data-piece-size-cells": tokenSizeCells }
+                }),
                 h("span", { className: "pv-ccfolia-map-name" }, tokenName)
               )
             ),
