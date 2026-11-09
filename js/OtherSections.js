@@ -84,7 +84,7 @@ const BaseSection = ({ state, dispatch }) => {
             React.createElement("strong", null, "駒の見た目"),
             React.createElement("small", null, "立ち絵と差分を見ながら選択")
           ),
-          React.createElement("span", { className: "pill" }, "3:4 IMAGE")
+          React.createElement("span", { className: "pill" }, "ASPECT FIT / 全体表示")
         ),
         React.createElement("div", { className: "piece-art-wrap" },
           React.createElement("div", { className: "piece-art-frame" },
@@ -162,7 +162,7 @@ const BaseSection = ({ state, dispatch }) => {
               onChange: (event) => setF("imgUrls", event.target.value)
             }),
             React.createElement("div", { className: "piece-hint" },
-              "ココフォリアにアップロードした画像URLを設定します。2行目以降は差分として選べます。表示中の画像とURLの順序を確認してください。"
+              "ここに登録した画像はこの画面の全体表示プレビューに使います。実際のココフォリア画像・差分は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
             )
           ),
           React.createElement("div", { className: "piece-share-row" },
@@ -287,28 +287,9 @@ const BaseSection = ({ state, dispatch }) => {
             )
           )
         ),
-        React.createElement("div", { className: "piece-token-preview pc-token-preview" },
-          React.createElement("div", { className: "piece-token-preview-head" },
-            React.createElement("span", null, "ココフォリア上の見え方（簡易）"),
-            React.createElement("span", null, "PREVIEW")
-          ),
-          React.createElement("div", {
-            className: "piece-token-card",
-            style: { "--piece-color": state.color || "#d6b56b" }
-          },
-            React.createElement("div", { className: "piece-token-avatar" },
-              activeImg && !imgBroken
-                ? React.createElement("img", { src: activeImg, alt: "", loading: "lazy" })
-                : React.createElement("span", { "aria-hidden": "true" }, "◈")
-            ),
-            React.createElement("div", { className: "piece-token-name" },
-              React.createElement("strong", null, String(state.charName || "名称未設定")),
-              React.createElement("small", null,
-                String(state.plName || "PL未設定") + " · 行動順 " + String(state.initiative ?? 0)
-              )
-            ),
-            React.createElement("div", { className: "piece-token-initiative" }, String(state.initiative ?? 0))
-          )
+        React.createElement("p", { className: "piece-hint piece-preview-link-note" },
+          "実際の駒の見え方は下の「ココフォリア駒プレビュー」で、出力データと同じ立ち絵・差分を使って確認できます。"
+        ),
         )
       ),
       React.createElement("div", { className: "info-note" },
