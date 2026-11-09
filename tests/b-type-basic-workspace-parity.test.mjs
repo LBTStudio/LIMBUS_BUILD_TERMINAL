@@ -27,7 +27,14 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
   ]) assert.ok(sections.includes(required) || base.includes(required), "production must render " + required);
   assert.match(base, /ASPECT FIT \/ 全体表示/);
   assert.doesNotMatch(base, /piece-token-preview|piece-token-card/, "the old tiny token card must not remain in the appearance panel");
+  assert.match(base, /const \[imgZoom, setImgZoom\] = React\.useState\(1\)/);
+  assert.match(base, /onWheel: handleArtWheel/);
+  assert.match(base, /transform: "scale\(" \+ imgZoom \+ "\)"/);
+  assert.match(base, /setImgZoom\(1\)/, "switching images and the reset control must restore full-fit");
+  assert.match(base, /Math\.min\(4, imgZoom \* Math\.exp/);
   assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?object-fit: contain/);
+  assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?aspect-ratio: 3 \/ 4/);
+  assert.match(parity, /\.base-info-panel \.piece-art-zoom-reset/);
   for (const field of ["state.charName", "state.plName", "state.initiative", "state.color", "activeImg", "setImgTab", "state.imgUrls", "state.shareImageData"]) {
     assert.ok(base.includes(field), "Basic workspace must retain live field " + field);
   }
