@@ -3105,10 +3105,6 @@ function purchaseCostOf(state, action) {
     const catalog = slot === "death" ? (window.DB?.death_passives || []) : (window.DB?.support_passives || []);
     const definition = catalog.find((entry) => String(entry?.name || "").trim() === name);
     if (!definition) return null;
-    const rawPrice = slot === "death" ? definition.shards : definition.lp;
-    const hasPositivePrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-      || (typeof rawPrice === "string" && rawPrice.trim() !== "" && Number.isFinite(Number(rawPrice.replace(/,/g, ""))) && Number(rawPrice.replace(/,/g, "")) > 0);
-    if (!hasPositivePrice) return null;
     const cost = priceSupport(name, slot);
     const amount = slot === "death" ? cost?.shards : cost?.lp;
     return Number.isSafeInteger(amount) && amount > 0 ? cost : null;
@@ -3119,10 +3115,6 @@ function purchaseCostOf(state, action) {
     if (!name) return null;
     const definition = (window.DB?.spirits || []).find((entry) => String(entry?.name || "").trim() === name);
     if (!definition) return null;
-    const rawPrice = definition.price;
-    const hasPositivePrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-      || (typeof rawPrice === "string" && rawPrice.trim() !== "" && Number.isFinite(Number(rawPrice.replace(/,/g, ""))) && Number(rawPrice.replace(/,/g, "")) > 0);
-    if (!hasPositivePrice) return null;
     const cost = priceSpirit(name);
     return Number.isSafeInteger(cost?.shards) && cost.shards > 0 ? cost : null;
   }
