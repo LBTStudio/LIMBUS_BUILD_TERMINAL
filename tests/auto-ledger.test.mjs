@@ -105,6 +105,67 @@ test("精神は欠片で記録される", () => {
   assert.equal(s.entries[0].cost.shards, 100);
 });
 
+test("価格表にないサポパ・精神を購入扱いで無料登録できない", () => {
+  const before = baseState();
+  const unknownSupport = reducer(before, {
+    type: "ADD_ROSTER_SUPPORT", spp: { name: "価格表にないサポパ" }, purchase: true
+  });
+  assert.strictEqual(unknownSupport, before, "未知のサポパは価格0として購入できない");
+
+  const unknownSpirit = reducer(before, {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格表にない精神" }, purchase: true
+  });
+  assert.strictEqual(unknownSpirit, before, "未知の精神は価格0として購入できない");
+});
+
+test("価格欠落・0価格の精神は購入扱いにせず、無料初期取得だけを許可する", () => {
+  const before = baseState();
+  const originalSpirits = DB.spirits;
+  try {
+    DB.spirits = [
+      { name: "価格欠落精神" },
+      { name: "無料初期精神", price: 0 }
+    ];
+    const missingPrice = reducer(before, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "価格欠落精神" }, purchase: true
+    });
+    assert.strictEqual(missingPrice, before, "価格欠落を無料購入にしない");
+
+    const freeAsPurchase = reducer(before, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: true
+    });
+    assert.strictEqual(freeAsPurchase, before, "無料初期精神は購入ではなく無料取得経路を使う");
+
+    const freeAsGrant = reducer(before, {
+      type: "ADD_ROSTER_SPIRIT", spirit: { name: "無料初期精神" }, purchase: false
+    });
+    assert.equal(freeAsGrant.roster.spirits.length, 1, "明示的な無料取得は引き続き許可する");
+    assert.equal(freeAsGrant.entries.length, 0, "無料取得では支出を立てない");
+  } finally {
+    DB.spirits = originalSpirits;
+  }
+});
+
+test("価格欠落のサポパを購入扱いにしない", () => {
+  const before = baseState();
+  const original = DB.support_passives;
+  try {
+    DB.support_passives = [{ name: "価格欠落サポパ", cond: "", effect: "" }];
+    const rejected = reducer(before, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格欠落サポパ" }, purchase: true
+    });
+    assert.strictEqual(rejected, before, "価格欠落のサポパは無料購入できない");
+
+    const granted = reducer(before, {
+      type: "ADD_ROSTER_SUPPORT", spp: { name: "価格欠落サポパ" }, purchase: false
+    });
+    assert.equal(granted.roster.supports.length, 1, "報酬・取り込みの無料所持追加は維持する");
+    assert.equal(granted.entries.length, 0);
+  } finally {
+    DB.support_passives = original;
+  }
+});
+
 test("購入ではない精神・サポパの所持追加は明細を立てない", () => {
   const spirit = reducer(baseState(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: "泉水" }, purchase: false });
   assert.equal(spirit.roster.spirits.length, 1, "所持には入る");
