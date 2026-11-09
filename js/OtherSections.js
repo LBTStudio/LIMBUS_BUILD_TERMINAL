@@ -86,43 +86,58 @@ const BaseSection = ({ state, dispatch }) => {
           ),
           React.createElement("span", { className: "pill" }, "3:4 IMAGE")
         ),
-        React.createElement("div", { className: "piece-art-wrap" },
-          React.createElement("div", { className: "piece-art-frame" },
+        React.createElement("details", { className: "piece-art-preview-details" },
+          React.createElement("summary", { className: "piece-art-preview-summary" },
             activeImg && !imgBroken
-              ? React.createElement("img", {
-                  className: "piece-art",
-                  src: activeImg,
-                  alt: "立ち絵 " + (imgTab + 1),
-                  onError: () => setImgBroken(true)
-                })
-              : React.createElement("div", { className: "pc-portrait-empty" },
-                  React.createElement("span", { className: "pc-portrait-empty-mark" }, "◈"),
-                  React.createElement("span", { className: "pc-portrait-empty-text" }, imgBroken ? "画像を読み込めませんでした" : "立ち絵なし"),
-                  React.createElement("span", { className: "pc-portrait-empty-hint" }, imgBroken
-                    ? "URLが正しいか確認してください（https:// で始まる文字列）"
-                    : "「立ち絵URL・差分を編集」から設定できます")
-                )
+              ? React.createElement("img", { className: "piece-art-summary-thumb", src: activeImg, alt: "", loading: "lazy" })
+              : React.createElement("span", { className: "piece-art-summary-placeholder", "aria-hidden": "true" }, "◈"),
+            React.createElement("span", { className: "piece-art-summary-copy" },
+              React.createElement("strong", null, "選択中の立ち絵を大きく表示"),
+              React.createElement("small", null, imgList.length ? (imgTab + 1) + " / " + imgList.length + " 枚目・元画像の縦横比を維持" : "立ち絵は未設定")
+            ),
+            React.createElement("span", { className: "piece-art-summary-action" }, "展開")
           ),
-          React.createElement("div", { className: "piece-art-thumbs", role: "group", "aria-label": "立ち絵と差分" },
-            ...imgList.map((url, index) => React.createElement("button", {
-              key: url + ":" + index,
-              type: "button",
-              className: "piece-art-thumb" + (imgTab === index ? " active" : ""),
-              "aria-label": (index === 0 ? "基本立ち絵" : "差分立ち絵") + " " + (index + 1) + " を表示",
-              "aria-pressed": imgTab === index,
-              title: (index + 1) + "枚目の立ち絵を表示",
-              onClick: () => setImgTab(index)
-            },
-              React.createElement("img", { className: "piece-thumb-art", src: url, alt: "", loading: "lazy" }),
-              React.createElement("span", { className: "thumb-num" }, String(index + 1))
-            )),
-            React.createElement("button", {
-              type: "button",
-              className: "piece-art-thumb",
-              "aria-label": "立ち絵を追加",
-              title: "立ち絵URL・差分を編集",
-              onClick: () => setEditOpen(true)
-            }, "＋")
+          React.createElement("div", { className: "piece-art-preview-content" },
+            React.createElement("div", { className: "piece-art-wrap" },
+              React.createElement("div", { className: "piece-art-frame" },
+                activeImg && !imgBroken
+                  ? React.createElement("img", {
+                      className: "piece-art",
+                      src: activeImg,
+                      alt: "立ち絵 " + (imgTab + 1),
+                      onError: () => setImgBroken(true)
+                    })
+                  : React.createElement("div", { className: "pc-portrait-empty" },
+                      React.createElement("span", { className: "pc-portrait-empty-mark" }, "◈"),
+                      React.createElement("span", { className: "pc-portrait-empty-text" }, imgBroken ? "画像を読み込めませんでした" : "立ち絵なし"),
+                      React.createElement("span", { className: "pc-portrait-empty-hint" }, imgBroken
+                        ? "URLが正しいか確認してください（https:// で始まる文字列）"
+                        : "「立ち絵URL・差分を編集」から設定できます")
+                    )
+              ),
+              React.createElement("div", { className: "piece-art-thumbs", role: "group", "aria-label": "立ち絵と差分" },
+                ...imgList.map((url, index) => React.createElement("button", {
+                  key: url + ":" + index,
+                  type: "button",
+                  className: "piece-art-thumb" + (imgTab === index ? " active" : ""),
+                  "aria-label": (index === 0 ? "基本立ち絵" : "差分立ち絵") + " " + (index + 1) + " を表示",
+                  "aria-pressed": imgTab === index,
+                  title: (index + 1) + "枚目の立ち絵を表示",
+                  onClick: () => setImgTab(index)
+                },
+                  React.createElement("img", { className: "piece-thumb-art", src: url, alt: "", loading: "lazy" }),
+                  React.createElement("span", { className: "thumb-num" }, String(index + 1))
+                )),
+                React.createElement("button", {
+                  type: "button",
+                  className: "piece-art-thumb",
+                  "aria-label": "立ち絵を追加",
+                  title: "立ち絵URL・差分を編集",
+                  onClick: () => setEditOpen(true)
+                }, "＋")
+              )
+            ),
+            React.createElement("p", { className: "piece-art-preview-note" }, "画像全体を表示し、元画像の縦横比を変更しません。画面の高さに収まる範囲で拡大します。")
           )
         ),
         React.createElement("div", { className: "piece-art-actions" },
