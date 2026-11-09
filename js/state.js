@@ -6030,7 +6030,8 @@ case "ADD_CUSTOM_ITEM": {
     case "SET_ROSTER_SUPPORT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = action.resultId ? String(action.resultId) : null;
+      if (resultId && !(state.results || []).some((result) => String(result?.id || "") === resultId)) return state;
       const supports = (roster.supports || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));
@@ -6665,7 +6666,8 @@ case "ADD_ENTRY":
     case "SET_ENTRY_RESULT": {
       const target = (state.entries || []).find((e) => e.id === action.id);
       if (!target) return state;
-      const resultId = action.resultId || null;
+      const resultId = action.resultId ? String(action.resultId) : null;
+      if (resultId && !(state.results || []).some((result) => String(result?.id || "") === resultId)) return state;
       const entries = state.entries.map((e) => (e.id === action.id ? { ...e, resultId } : e));
       /* 所持レコードにも帰属を持つもの（サポパ・精神）は、通帳側の
          付け替えに合わせる。片方だけ動くと、同じ購入が別のリザルトを
@@ -6699,7 +6701,8 @@ case "ADD_ENTRY":
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = action.resultId ? String(action.resultId) : null;
+      if (resultId && !(state.results || []).some((result) => String(result?.id || "") === resultId)) return state;
       const spirits = (roster.spirits || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));
