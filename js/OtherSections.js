@@ -31,6 +31,8 @@ const BaseSection = ({ state, dispatch }) => {
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
   const [imgBroken, setImgBroken] = React.useState(false);
+  const [imgZoom, setImgZoom] = React.useState(1);
+  const [imgZoomOrigin, setImgZoomOrigin] = React.useState("50% 50%");
   const SHARE_IMAGE_TARGET_BYTES = window.LBT_shareLink?.SHARE_IMAGE_TARGET_BYTES || 32 * 1024;
   const shareImageBytes = window.LBT_shareLink?.shareImageBytes || ((value) => {
     const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
@@ -73,7 +75,22 @@ const BaseSection = ({ state, dispatch }) => {
     if (imgTab >= imgList.length) setImgTab(0);
   }, [imgList.length, imgTab]);
   /* 差し替えたら読み込み状態は戻す（前の画像の失敗状態を引き継がない）。 */
-  React.useEffect(() => { setImgBroken(false); }, [imgList[imgTab]]);
+  React.useEffect(() => {
+    setImgBroken(false);
+    setImgZoom(1);
+    setImgZoomOrigin("50% 50%");
+  }, [imgList[imgTab]]);
+  const handleArtWheel = (event) => {
+    if (!activeImg || imgBroken) return;
+    const nextZoom = Math.max(1, Math.min(4, imgZoom * Math.exp(-event.deltaY * 0.0015)));
+    if (Math.abs(nextZoom - imgZoom) < 0.001) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
+    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
+    setImgZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
+    setImgZoom(nextZoom);
+  };
   const activeImg = imgList[imgTab] || "";
   const [editOpen, setEditOpen] = React.useState(false);
   return React.createElement("div", { className: "piece-hero-grid", "data-ui-reference": "unified-workbench-v4" },
@@ -87,12 +104,17 @@ const BaseSection = ({ state, dispatch }) => {
           React.createElement("span", { className: "pill" }, "ASPECT FIT / 全体表示")
         ),
         React.createElement("div", { className: "piece-art-wrap" },
-          React.createElement("div", { className: "piece-art-frame" },
+          React.createElement("div", {
+            className: "piece-art-frame",
+            onWheel: handleArtWheel,
+            "aria-label": "立ち絵プレビュー。マウスホイールで拡大・縮小できます。"
+          },
             activeImg && !imgBroken
               ? React.createElement("img", {
                   className: "piece-art",
                   src: activeImg,
                   alt: "立ち絵 " + (imgTab + 1),
+                  style: { transform: "scale(" + imgZoom + ")", transformOrigin: imgZoomOrigin },
                   onError: () => setImgBroken(true)
                 })
               : React.createElement("div", { className: "pc-portrait-empty" },
@@ -101,7 +123,14 @@ const BaseSection = ({ state, dispatch }) => {
                   React.createElement("span", { className: "pc-portrait-empty-hint" }, imgBroken
                     ? "URLが正しいか確認してください（https:// で始まる文字列）"
                     : "「立ち絵URL・差分を編集」から設定できます")
-                )
+                ),
+            React.createElement("button", {
+              type: "button",
+              className: "piece-art-zoom-reset",
+              disabled: imgZoom <= 1,
+              onClick: () => { setImgZoom(1); setImgZoomOrigin("50% 50%"); },
+              title: "立ち絵全体が収まる表示へ戻す"
+            }, "全体表示 " + Math.round(imgZoom * 100) + "%")
           ),
           React.createElement("div", { className: "piece-art-thumbs", role: "group", "aria-label": "立ち絵と差分" },
             ...imgList.map((url, index) => React.createElement("button", {
