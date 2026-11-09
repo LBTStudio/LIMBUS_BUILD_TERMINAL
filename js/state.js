@@ -5101,8 +5101,14 @@ return appendLedgerEntry(next, {
       const existing = kind === "personas"
         ? normalizeCustomPersonaRosterIdentity(state.roster[kind] || [])
         : (state.roster[kind] || []);
-      const present = new Set(existing.map((entry) => entry.uid));
-      const restoredRows = [...existing, ...(action.items || []).filter((entry) => entry && !present.has(entry.uid))];
+      const present = new Set(existing.map((entry) => String(entry?.uid || "")).filter(Boolean));
+      const restoredRows = existing.slice();
+      for (const entry of action.items || []) {
+        const uid = String(entry?.uid || "");
+        if (!uid || present.has(uid)) continue;
+        present.add(uid);
+        restoredRows.push(entry);
+      }
       const restored = kind === "personas"
         ? normalizeCustomPersonaRosterIdentity(restoredRows)
         : restoredRows;
@@ -5114,8 +5120,14 @@ return appendLedgerEntry(next, {
       };
       /* 削除時に外した購入明細も戻す。所持だけ戻して明細を落とすと、
          支払いが消えて残高が増える（削除が得になる）。 */
-      const entryIds = new Set((withRoster.entries || []).map((entry) => entry.id));
-      const restoredEntries = (action.entries || []).filter((entry) => entry?.id && !entryIds.has(entry.id));
+      const entryIds = new Set((withRoster.entries || []).map((entry) => String(entry?.id || "")).filter(Boolean));
+      const restoredEntries = [];
+      for (const entry of action.entries || []) {
+        const id = String(entry?.id || "");
+        if (!id || entryIds.has(id)) continue;
+        entryIds.add(id);
+        restoredEntries.push(entry);
+      }
       return restoredEntries.length
         ? { ...withRoster, entries: [...(withRoster.entries || []), ...restoredEntries] }
         : withRoster;
