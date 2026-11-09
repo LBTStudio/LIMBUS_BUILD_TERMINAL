@@ -147,9 +147,9 @@ test("所持へ写すとき出典を落とさない（サポート・精神）",
     support_passives: [{ name: "潜撃", cond: "条件", effect: "効果", lp: "50", source: "supplement" }],
     spirits: [{ name: "快撃", morale_effect: "m", source: "supplement" }]
   });
-  const withSupport = w.appReducer(ownedState({}), { type: "ADD_ROSTER_SUPPORT", spp: { name: "潜撃" } });
+  const withSupport = w.appReducer(ownedState({}), { type: "ADD_ROSTER_SUPPORT", spp: { name: "潜撃" }, purchase: false });
   assert.equal(withSupport.roster.supports[0].source, "supplement", "所持サポートが出典を保つ");
-  const withSpirit = w.appReducer(ownedState({}), { type: "ADD_ROSTER_SPIRIT", spirit: { name: "快撃" } });
+  const withSpirit = w.appReducer(ownedState({}), { type: "ADD_ROSTER_SPIRIT", spirit: { name: "快撃" }, purchase: false });
   assert.equal(withSpirit.roster.spirits[0].source, "supplement", "所持精神が出典を保つ");
 });
 

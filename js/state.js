@@ -3100,12 +3100,36 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
-    const slot = isDeathSupportPassiveRecord({ name }) ? "death" : "normal";
-    return priceSupport(name, slot);
+    if (!name) return null;
+    const deathDefinition = (window.DB?.death_passives || []).find((entry) => entry?.name === name);
+    if (deathDefinition) {
+      const rawPrice = deathDefinition.shards;
+      const explicit = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+        || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+      if (!explicit) return null;
+      const cost = priceSupport(name, "death");
+      return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
+    }
+    const definition = (window.DB?.support_passives || []).find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const rawPrice = definition.lp;
+    const explicit = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!explicit) return null;
+    const cost = priceSupport(name, "normal");
+    return Number.isFinite(cost?.lp) && cost.lp > 0 ? cost : null;
   }
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
-    return priceSpirit(String(action.spirit?.name || ""));
+    const name = String(action.spirit?.name || "");
+    const definition = (window.DB?.spirits || []).find((entry) => entry?.name === name);
+    if (!definition) return null;
+    const rawPrice = definition.price;
+    const explicit = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!explicit) return null;
+    const cost = priceSpirit(name);
+    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
@@ -4448,6 +4472,7 @@ function appReducer(state, action) {
     const cost = purchaseCostOf(state, action);
     /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
     if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
+       || ((action.type === "ADD_ROSTER_SUPPORT" || action.type === "ADD_ROSTER_SPIRIT") && action.purchase !== false && !cost)
        || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
