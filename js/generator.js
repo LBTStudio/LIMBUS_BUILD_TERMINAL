@@ -1270,7 +1270,7 @@ window.LBT_splitOutputSections = splitOutputSections;
 function buildCcfoliaJSON(state, opts) {
   const p = stateWithVisibleSupports(state);
   const charName = p.charName || "\u30AD\u30E3\u30E9\u30AF\u30BF\u30FC";
-  const plName = p.plName || "";
+  const externalUrl = String(p.externalUrl || "").trim();
   const color = p.color || "#c8a84b";
   const initiative = Number.isFinite(Number(p.initiative)) ? Number(p.initiative) : 0;
   const _enhBonus = computeEnhancementBonuses(p);
@@ -1430,24 +1430,21 @@ function buildCcfoliaJSON(state, opts) {
   const excl = p.outputExclude || {};
   const commands = filterOutputSections(opts?.palette ?? buildPalette(state), excl.palette);
   const memo = filterOutputSections(opts?.memo ?? buildMemo(state), excl.memo);
-  const imgs = (p.imgUrls || "").split(/\r\n|\r|\n/).map((s) => s.trim()).filter(Boolean);
-  const imgFields = imgs.length ? {
-    iconUrl: imgs[0],
-    faces: imgs.map((u, i) => ({ iconUrl: u, label: i === 0 ? charName : `${charName} \u5DEE\u5206${i}` })),
-    externalUrl: imgs[0]
-  } : {};
+  /* CCFOLIA の Clipboard API は iconUrl / faces[].iconUrl に外部画像URLを設定できない。
+     URLを渡しても立ち絵は反映されないため、画像URLは LBT 内のプレビュー専用とし、
+     貼り付け後に CCFOLIA の画像選択からアップロード済み画像を選んでもらう。
+     externalUrl は画像ではなく、キャラクターの外部参照URLとして独立して出力する。 */
   const obj = {
     kind: "character",
     data: {
       name: charName,
-      playerName: plName,
       color,
       initiative,
       status,
       params,
       commands,
       memo,
-      ...imgFields
+      ...(externalUrl ? { externalUrl } : {})
     }
   };
   return obj;
