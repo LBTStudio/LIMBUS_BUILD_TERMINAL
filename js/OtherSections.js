@@ -4536,10 +4536,12 @@ const LedgerPanel = ({ state, dispatch }) => {
       .map((item) => [String(item.id), item])).values()]
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
-  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
   const [newResultError, setNewResultError] = React.useState("");
   const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
+  const [newResultEgoQuery, setNewResultEgoQuery] = React.useState("");
   const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
+  const [ticketEgoQuery, setTicketEgoQuery] = React.useState("");
   const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
   const [newRewardItemId, setNewRewardItemId] = React.useState("");
   const [newRewardItemName, setNewRewardItemName] = React.useState("");
@@ -4577,6 +4579,37 @@ const LedgerPanel = ({ state, dispatch }) => {
     newResultPersonaQuery,
     newResult.personaAcquisitions || [],
     state.roster?.personas || []
+  );
+  /* E.G.Oはランク+No.で一意に管理する。名前だけの照合は同名・改名で誤帰属し得るため行わない。 */
+  const EGO_RANK_ORDER = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+  const egoOptions = [...new Map((window.DB?.egos || [])
+    .filter((row) => row?.rank && row?.no != null && row?.name)
+    .map((row) => {
+      const rank = String(row.rank).trim().toUpperCase();
+      const no = String(row.no).trim();
+      return [rank + ":" + no, { rank, no, name: String(row.name), value: rank + ":" + no }];
+    })).values()].sort((a, b) =>
+      EGO_RANK_ORDER.indexOf(a.rank) - EGO_RANK_ORDER.indexOf(b.rank)
+      || a.rank.localeCompare(b.rank)
+      || a.no.localeCompare(b.no, "ja", { numeric: true })
+    );
+  const getEgoSearchMatches = (query, selectedEntries, excludedEntries = []) => {
+    const needle = normalizePersonaSearchText(query);
+    if (!needle) return [];
+    const selectedKeys = new Set(
+      [...(Array.isArray(selectedEntries) ? selectedEntries : []), ...(Array.isArray(excludedEntries) ? excludedEntries : [])]
+        .map((entry) => entry?.rank && entry?.no != null ? String(entry.rank).toUpperCase() + ":" + String(entry.no) : "")
+        .filter(Boolean)
+    );
+    return egoOptions.filter((option) => {
+      if (selectedKeys.has(option.value)) return false;
+      return normalizePersonaSearchText([option.name, option.no, "No." + option.no, option.rank].join(" ")).includes(needle);
+    }).slice(0, 8);
+  };
+  const newResultEgoMatches = getEgoSearchMatches(
+    newResultEgoQuery,
+    newResult.egoAcquisitions || [],
+    state.roster?.egos || []
   );
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
@@ -4776,9 +4809,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       },
       rewardItems: Array.isArray(result.rewardItems) ? result.rewardItems.map((item) => ({ ...item })) : [],
       personaAcquisitions: Array.isArray(result.personaAcquisitions) ? result.personaAcquisitions.map((item) => ({ ...item })) : [],
+      egoAcquisitions: Array.isArray(result.egoAcquisitions) ? result.egoAcquisitions.map((item) => ({ ...item })) : [],
       initialPersona: { method: ["selected", "random"].includes(result.initialPersona?.method) ? result.initialPersona.method : "unknown", mode: result.initialPersona?.mode === "t" || result.initialPersona?.mode === "n" ? result.initialPersona.mode : "", no: String(result.initialPersona?.no ?? ""), name: String(result.initialPersona?.name || "") }
     });
     setTicketPersonaQuery("");
+    setTicketEgoQuery("");
     setInitialPersonaQuery("");
     setTicketRewardItemId("");
     setTicketRewardItemName("");
@@ -4820,6 +4855,35 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     });
     setNewResultPersonaQuery("");
   };
+  const addResultDraftEgo = (option) => {
+    if (!ticketDraft || !option) return;
+    setTicketDraft((draft) => {
+      if (!draft) return draft;
+      const current = Array.isArray(draft.egoAcquisitions) ? draft.egoAcquisitions : [];
+      if (current.some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no)) return draft;
+      return { ...draft, egoAcquisitions: [...current, { rank: option.rank, no: option.no, name: option.name, source: "manual" }] };
+    });
+    setTicketEgoQuery("");
+  };
+  const addNewResultEgo = (option) => {
+    if (!option) return;
+    const alreadyOwned = (state.roster?.egos || []).some((entry) =>
+      String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no
+    );
+    if (alreadyOwned) return;
+    setNewResult((draft) => {
+      const current = Array.isArray(draft.egoAcquisitions) ? draft.egoAcquisitions : [];
+      if (current.some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no)) return draft;
+      return { ...draft, egoAcquisitions: [...current, { rank: option.rank, no: option.no, name: option.name, source: "reward" }] };
+    });
+    setNewResultEgoQuery("");
+  };
+  const removeResultDraftEgo = (rank, no) => setTicketDraft((draft) => draft ? {
+    ...draft, egoAcquisitions: (draft.egoAcquisitions || []).filter((entry) =>
+      !(String(entry.rank).toUpperCase() === String(rank).toUpperCase() && String(entry.no) === String(no))
+    )
+  } : draft);
+
   const removeResultDraftPersona = (mode, no) => setTicketDraft((draft) => draft ? {
     ...draft, personaAcquisitions: (draft.personaAcquisitions || []).filter((entry) => !(entry.mode === mode && String(entry.no) === String(no)))
   } : draft);
@@ -4848,6 +4912,16 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       name: String(draft.initialPersona?.name || "")
     };
     const nextAcquisitions = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions.map((entry) => ({ ...entry })) : [];
+    const nextEgoAcquisitions = [];
+    const seenEgoAcquisitions = new Set();
+    for (const entry of Array.isArray(draft.egoAcquisitions) ? draft.egoAcquisitions : []) {
+      const option = egoOptions.find((candidate) =>
+        candidate.rank === String(entry?.rank || "").toUpperCase() && candidate.no === String(entry?.no ?? "")
+      );
+      if (!option || seenEgoAcquisitions.has(option.value)) continue;
+      seenEgoAcquisitions.add(option.value);
+      nextEgoAcquisitions.push({ rank: option.rank, no: option.no, name: option.name, source: String(entry.source || "manual") });
+    }
     if (isInitial && nextInitialPersona.method !== "unknown" && nextInitialPersona.mode && nextInitialPersona.no
       && !nextAcquisitions.some((entry) => entry.mode === nextInitialPersona.mode && String(entry.no) === nextInitialPersona.no)) {
       const option = initialPersonaOptions.find((entry) => entry.value === nextInitialPersona.mode + ":" + nextInitialPersona.no);
@@ -4870,6 +4944,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       },
       rewardItems,
       personaAcquisitions: nextAcquisitions,
+      egoAcquisitions: nextEgoAcquisitions,
       ...(isInitial ? { initialPersona: nextInitialPersona } : {})
     });
     /* 取得履歴を所持ライブラリへ反映する。過去取得は購入扱いにせず、
@@ -4899,6 +4974,14 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         resultId: result.id, via: [name]
       });
     }
+    /* 報酬E.G.Oは取得履歴として保存し、未所持分だけ購入扱いにせず所持へ追加する。 */
+    const existingEgoKeys = new Set((state.roster?.egos || []).map((entry) => String(entry.rank).toUpperCase() + ":" + String(entry.no)));
+    for (const acquisition of nextEgoAcquisitions) {
+      const key = acquisition.rank + ":" + String(acquisition.no);
+      if (existingEgoKeys.has(key)) continue;
+      existingEgoKeys.add(key);
+      dispatch({ type: "ADD_ROSTER_EGO", rank: acquisition.rank, no: acquisition.no, purchase: false, via: [name] });
+    }
     /* 編集開始前から他の人格を所持しているとADD_ROSTERの「初回所持」判定では
        初期チケットが消費されない。初期リザルト上で取得方法が確定した場合は、
        所持追加の有無にかかわらず、専用の冪等actionで初期分を1枚だけ消費する。 */
@@ -4907,7 +4990,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         && !recordedPersonaTicketSpendCoversInitial) {
       dispatch({ type: "CONSUME_INITIAL_PERSONA_TICKET", resultId: result.id });
     }
-    toast("「" + name + "」のリザルトを更新し、取得人格を所持記録へ反映しました");
+    toast("「" + name + "」のリザルトを更新し、取得人格・E.G.Oを所持記録へ反映しました");
     cancelResultEditor();
   };
 
@@ -4920,6 +5003,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       result.name, result.date, result.income?.lp, result.income?.shards, result.note,
       ...(result.rewardItems || []).flatMap((item) => [item.itemName, item.customName, item.itemId]),
       ...(result.personaAcquisitions || []).flatMap((persona) => [persona.name, persona.no, persona.mode]),
+      ...(result.egoAcquisitions || []).flatMap((ego) => [ego.name, ego.no, ego.rank]),
       ...(result.consumedItems || []).flatMap((item) => [item.itemName, item.name, item.itemId, item.reason])
     ].map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
     return searchable.includes(searchNeedle);
@@ -5083,6 +5167,16 @@ const readDragId = (event) => {
       seenPersonaKeys.add(option.value);
       personaAcquisitions.push({ mode: option.mode, no: option.no, name: option.name, source: "reward" });
     }
+    const egoAcquisitions = [];
+    const seenEgoKeys = new Set();
+    for (const entry of Array.isArray(newResult.egoAcquisitions) ? newResult.egoAcquisitions : []) {
+      const option = egoOptions.find((candidate) =>
+        candidate.rank === String(entry?.rank || "").toUpperCase() && candidate.no === String(entry?.no ?? "")
+      );
+      if (!option || seenEgoKeys.has(option.value)) continue;
+      seenEgoKeys.add(option.value);
+      egoAcquisitions.push({ rank: option.rank, no: option.no, name: option.name, source: "reward" });
+    }
     dispatch({
       type: "ADD_RESULT",
       name,
@@ -5093,7 +5187,8 @@ const readDragId = (event) => {
         tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
       },
       rewardItems,
-      personaAcquisitions
+      personaAcquisitions,
+      egoAcquisitions
     });
     /* 報酬人格は購入ではない。新規リザルトへ取得証跡を保存した後、未所持分だけ所持へ追加する。 */
     const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
@@ -5110,9 +5205,17 @@ const readDragId = (event) => {
         via: [name]
       });
     }
+    const existingEgoKeys = new Set((state.roster?.egos || []).map((entry) => String(entry.rank).toUpperCase() + ":" + String(entry.no)));
+    for (const acquisition of egoAcquisitions) {
+      const key = acquisition.rank + ":" + String(acquisition.no);
+      if (existingEgoKeys.has(key)) continue;
+      existingEgoKeys.add(key);
+      dispatch({ type: "ADD_ROSTER_EGO", rank: acquisition.rank, no: acquisition.no, purchase: false, via: [name] });
+    }
     setNewResultError("");
-    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
     setNewResultPersonaQuery("");
+    setNewResultEgoQuery("");
     setNewRewardItemId("");
     setNewRewardItemName("");
     setNewRewardItemQty("1");
@@ -6193,6 +6296,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         const initialPersonaOptionExists = initialPersonaOptions.some((option) => option.value === initialPersonaValue);
         const initialPersonaMatches = getPersonaSearchMatches(initialPersonaQuery, []);
         const ticketPersonaMatches = getPersonaSearchMatches(ticketPersonaQuery, ticketDraft?.personaAcquisitions || []);
+        const ticketEgoMatches = getEgoSearchMatches(ticketEgoQuery, ticketDraft?.egoAcquisitions || []);
         const rows = byResult(result.id);
         const spent = sumOf(rows);
         const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
