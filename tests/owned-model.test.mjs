@@ -30,7 +30,7 @@ const dbStub = () => ({
   egos: [
     { rank: "TETH", no: "001", name: "価格付きE.G.O", shards: "25" },
     { rank: "HE", no: "002", name: "価格欠落E.G.O", shards: "" },
-    { rank: "WAW", no: "003", name: "価格不正E.G.O", shards: "25欠片x" }
+    { rank: "WAW", no: "003", name: "価格不正E.G.O", shards: "価格不明" }
   ],
   normal_enhancements: [],
   special_enhancements: []
