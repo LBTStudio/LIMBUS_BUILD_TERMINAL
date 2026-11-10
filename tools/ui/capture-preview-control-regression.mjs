@@ -101,7 +101,7 @@ async function createDisposableAccount(page,profile) {
     const add=page.locator(".acct-card--add").first();
     if(await visible(add)) {
       await add.click({timeout:5000});
-      const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      const name=page.locator(".acct-gate input[placeholder='キャラクター名']").first();
       await name.waitFor({state:"visible",timeout:5000});
       await name.fill("Preview control QA "+profileName);
       await page.getByRole("button",{name:"作成して開く",exact:true}).click({timeout:5000});
@@ -110,10 +110,10 @@ async function createDisposableAccount(page,profile) {
       await existing.click({timeout:5000});
     }
   }
-  // B-type opens on its command launcher; explicitly selecting Home keeps the capture deterministic.
+  // The app opens on the guided home; explicitly selecting Home keeps the capture deterministic.
   const homeNav = page.locator(".rail-item[title='ホーム']");
   if (await visible(homeNav)) await homeNav.click();
-  await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 10000 });
+  await page.locator(".btype-home-primary").waitFor({ state: "visible", timeout: 10000 });
   const homePath = path.join(OUT, profile.name + "-btype-home.png");
   await page.screenshot({ path: homePath, animations: "disabled" });
   results.screenshots.push({ file: path.relative(ROOT, homePath), profile: profile.name, state: "btype-home" });
@@ -122,14 +122,14 @@ async function createDisposableAccount(page,profile) {
   const mobileBuildNav = page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "ビルド" });
   const oldBuildNav = page.locator(".rail-item[title='ワークベンチ']");
   const homeEyebrow = (await page.locator(".btype-eyebrow").textContent().catch(() => "") || "").trim();
-  const homeAction = (await page.locator(".btype-continue-panel").innerText().catch(() => "") || "").trim();
+  const homeAction = (await page.locator(".btype-home-primary-action").innerText().catch(() => "") || "").trim();
   const buildEntry = profile.width <= 640 ? mobileBuildNav : buildNav;
   const buildBrandingOk = await buildEntry.count() === 1
     && await buildEntry.isVisible()
     && await oldBuildNav.count() === 0
-    && homeEyebrow === "HOME / MULTI-PURPOSE LAUNCHER"
-    && homeAction.includes("ビルドを開く");
-  recordCheck(profile.name + ": B-type launcher and workbench labels match the approved prototype",
+    && homeEyebrow === "LIMBUS BUILD TERMINAL"
+    && (homeAction.includes("次へ：") || homeAction.includes("プレビューを確認する"));
+  recordCheck(profile.name + ": Guided home shows a primary next step and existing build navigation",
     buildBrandingOk, { desktopBuildNavCount: await buildNav.count(), mobileBuildNavCount: await mobileBuildNav.count(), oldBuildNavCount: await oldBuildNav.count(), homeEyebrow, homeAction });
   await buildEntry.waitFor({state:"visible",timeout:10000});
   await buildEntry.click();
@@ -334,8 +334,8 @@ async function runProfile(browser,profile) {
     } else {
       await page.locator(".rail-item[title='ホーム']").click();
     }
-    await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 5000 });
-    await page.locator(".btype-launcher-card[data-task='preview']").click();
+    await page.locator(".btype-home-primary").waitFor({ state: "visible", timeout: 5000 });
+    await page.locator(".btype-home-step.is-preview").click();
     await page.locator("#build-params-panel-preview").waitFor({ state: "visible", timeout: 5000 });
     await page.locator("#basic-ccfolia-panel-board").waitFor({ state: "visible", timeout: 5000 });
     const globalPreviewOpen = await page.locator("#preview-panel").isVisible().catch(() => false);

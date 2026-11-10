@@ -341,6 +341,8 @@ test("ブラウザ監査ハーネスは現在の画面構造と内部タブを�
   assert.match(uiHarness, /for \(let i = 0; i < UI_VIEWS\.length; i\+\+\)/);
   assert.doesNotMatch(uiHarness, /\.rail-item"\)\.nth\(i\)/, "旧画面数を左ナビのボタン数として扱わない");
   assert.match(uiHarness, /enterAuditWorkspace/);
+  assert.match(uiHarness, /placeholder=.キャラクター名./, "初回ゲートの現在のキャラクター名入力を使う");
+  assert.doesNotMatch(uiHarness, /キャラクター名など/, "旧プレースホルダーを参照しない");
 });
 
 test("ショップと記録の内部タブを巡回するときは、カテゴリ／ライブラリの入口へ戻ってから次を開く", () => {
@@ -437,13 +439,13 @@ test("Cloudflare Web Analytics のローカル送信先404はローカル監査�
 });
 
 test("各画面の主見出しを本文領域のH1として定義する", () => {
-  assert.ok(app.includes('h("h1", { id: "home-launcher-title" }, "何から始めますか？")'));
+  assert.ok(app.includes('h("h1", { id: "home-launcher-title" }, charName ? charName + " のシートを仕上げる" : "キャラクターシートを作る")'));
   assert.ok(sharedUi.includes('level = 2'));
   assert.ok(sharedUi.includes('level === 1 ? "h1" : "h2"'));
   assert.ok(sections.includes('level: 1'));
   assert.ok(sections.includes('tab === "inventory" ? "アイテム"'));
   assert.ok(sections.includes('level: 1, title: "SHOP / ショップ"'));
-  assert.ok(workbenchCss.includes(".btype-command-hero :is(h1, h2)"));
+  assert.ok(workbenchCss.includes(".btype-home-primary-copy h1"));
 });
 
 

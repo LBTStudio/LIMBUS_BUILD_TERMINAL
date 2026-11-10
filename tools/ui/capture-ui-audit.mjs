@@ -630,7 +630,7 @@ async function boot() {
     if(await visible(add)) {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
-      const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      const name=page.locator(".acct-gate input[placeholder='キャラクター名']").first();
       if(await visible(name)) await name.fill("UI監査用キャラクター");
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
@@ -643,7 +643,7 @@ async function boot() {
             storageAvailable:A?.storageAvailable?.(), accounts:A?.list?.(), activeId:A?.getActiveId?.(),
             gateText:document.querySelector(".acct-gate")?.innerText?.slice(0,1400)||"",
             visibleNotices:[...document.querySelectorAll('[role="alert"],[aria-live="assertive"],.toast,.toast-message')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;}).map(e=>(e.innerText||"").trim()).filter(Boolean).slice(0,10),
-            nameInput:document.querySelector(".acct-gate input[placeholder='キャラクター名など']")?.value||"",
+            nameInput:document.querySelector(".acct-gate input[placeholder='キャラクター名']")?.value||"",
             buttonState:[...document.querySelectorAll(".acct-gate button")].map(b=>({text:(b.innerText||"").trim(),disabled:b.disabled,cls:b.className})).slice(-8)
           };
         });
@@ -1415,25 +1415,60 @@ async function captureProfile(browser, mode) {
       if(!editCheck.rewardItems.some((item)=>item.itemId===prosthesisId)||editCheck.quantity!==1) throw new Error("既存リザルト編集で標準アイテム報酬が在庫へ反映されません: "+JSON.stringify(editCheck));
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
     });
-    await attempt("home-launcher-review",async()=>{
+    await attempt("home-guided-workflow-review",async()=>{
       await go("ホーム");
-      await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
-      const launcher=page.locator(".btype-launcher-grid");
-      if(!(await visible(launcher))) throw new Error("ホームの目的別ランチャーが表示されません");
-      const actions=launcher.locator("button");
-      const count=await actions.count();
-      if(count<6) throw new Error("ホームの主要アクションが不足しています: "+count);
-      await snap("home-launcher-grid","ホームの主要アクション一覧");
-      const continuePanel=page.locator(".btype-continue-panel").first();
-      if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
-      // Exercise every launcher route against the disposable audit account.
-      for(let i=0;i<count;i++){
+      await snap("home-guided-primary","ホームの主CTA・作成進捗・副導線・折りたたまれたその他機能");
+      const primary=page.locator(".btype-home-primary");
+      const primaryAction=page.locator(".btype-home-primary-action");
+      const progress=page.locator(".btype-home-progress");
+      if(!(await visible(primary))||!(await visible(primaryAction))||!(await visible(progress)))
+        throw new Error("ホームの主導線・進捗・次の操作が表示されません");
+      const primaryLabel=(await primaryAction.innerText()).trim();
+      if(!primaryLabel.includes("次へ：")&&!primaryLabel.includes("プレビューを確認する"))
+        throw new Error("ホームの主CTAが次の未設定項目を案内していません: "+primaryLabel);
+      const steps=page.locator(".btype-home-progress .btype-home-step");
+      const stepCount=await steps.count();
+      if(stepCount!==4) throw new Error("ホームの作成ステップは4項目必要です: "+stepCount);
+      await snap("home-guided-progress","基本情報・人格・スキル・パッシブ・プレビューの進捗");
+      for(let i=0;i<stepCount;i++){
         await go("ホーム");
-        const action=page.locator(".btype-launcher-grid button").nth(i);
-        if(!(await visible(action))) continue;
-        const label=(await action.innerText()).trim();
+        const step=page.locator(".btype-home-progress .btype-home-step").nth(i);
+        if(!(await visible(step))) throw new Error("ホームの作成ステップが表示されません: "+i);
+        const label=(await step.innerText()).trim().split("\\n")[0];
+        await click(step);
+        await snap("home-step-destination-"+i,"ホームの作成ステップから移動："+label);
+        await go("ホーム");
+      }
+
+      const starts=page.locator(".btype-home-start-grid .btype-home-start-card");
+      if(await starts.count()!==2) throw new Error("ホームの別導線は既存データ取込・記録管理の2つが必要です");
+      const importCard=starts.filter({hasText:"既存データを取り込む"}).first();
+      await click(importCard);
+      await snap("home-existing-data-import","ホームから既存データ取込を開いた状態");
+      await closeOverlay();
+      await go("ホーム");
+      const recordCard=starts.filter({hasText:"記録・所持品を管理"}).first();
+      await click(recordCard);
+      await snap("home-record-management","ホームから記録・所持品を開いた状態");
+      await go("ホーム");
+
+      const more=page.locator(".btype-home-more").first();
+      if(await more.getAttribute("open")!==null) throw new Error("その他の機能は初期表示で折りたたむ必要があります");
+      await snap("home-secondary-tools-collapsed","その他の機能を折りたたんだホーム");
+      await click(more.locator("summary"));
+      const utilities=more.locator(".btype-home-utility-list button");
+      if(await utilities.count()!==4) throw new Error("その他の機能にショップ・保存・詳細設定・使い方が必要です");
+      await snap("home-secondary-tools-expanded","その他の機能を展開したホーム");
+      const utilityLabels=[];
+      for(let i=0;i<await utilities.count();i++){
+        await go("ホーム");
+        const disclosure=page.locator(".btype-home-more").first();
+        if(await disclosure.getAttribute("open")===null) await click(disclosure.locator("summary"));
+        const action=disclosure.locator(".btype-home-utility-list button").nth(i);
+        const label=(await action.innerText()).trim().split("\\n")[0];
+        utilityLabels.push(label);
         await click(action);
-        await snap("home-action-destination-"+label,"ホームランチャーからの遷移先："+label);
+        await snap("home-utility-destination-"+i,"折りたたみ内の機能へ移動："+label);
         await closeOverlay();
       }
     });
@@ -1713,14 +1748,14 @@ async function main() {
   audit.overlayAccessibilityScanCount = audit.accessibilityScans.length;
   audit.overlayAccessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
   audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states",
-    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
+    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","guided home primary action, four progress steps, import/record routes and collapsed utility destinations","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクター編集プレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",
      "記録・所持品のカテゴリ：リザルト","記録・所持品のカテゴリ：人格","記録・所持品のカテゴリ：E.G.O","記録・所持品のカテゴリ：サポパ","記録・所持品のカテゴリ：精神","記録・所持品のカテゴリ：アイテム",
-     "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
+     "ホームの主CTA・作成進捗・副導線・折りたたまれたその他機能","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
      "初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
      "過去リザルトへ複数取得人格を追加した編集状態","過去リザルトの取得人格が所持へ反映された状態",
      "硝子の破片とカタログ外の外付け義体を追加した報酬入力欄","報酬アイテムと報酬人格の履歴・所持在庫が一致した状態",
