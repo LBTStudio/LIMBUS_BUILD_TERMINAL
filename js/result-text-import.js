@@ -1265,7 +1265,12 @@
   /* 明細の種別。解決器が种类を返したらそれを優先し、なければ名前から推測した
   ヒントを使う。どれにも当たらないものは手動支出（判断は利用者に残す）。 */
   function kindOf(spend, resolve) {
-    const hit = typeof resolve === "function" ? resolve(spend.name) : null;
+    let hit = typeof resolve === "function" ? resolve(spend.name) : null;
+    /* E.G.O の短縮ログは spend.name から接頭辞が落ちる場合がある。
+       raw に購入種別・ランク・括弧名が残るなら、そちらも照合する。 */
+    if (!hit && spend.kindHint === "ego" && typeof resolve === "function" && spend.raw) {
+      hit = resolve(spend.raw);
+    }
     const kinds = (hit && hit.kinds) || [];
     if (spend.kindHint === "ego") {
       const ego = kinds.find((kind) => kind.kind === "ego");
