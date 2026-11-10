@@ -400,7 +400,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
   const cancelForm = () => { setEditingId(null); setCreating(false); setDraft({ name: "", purpose: "" }); setPendingIcon(""); };
   cancelFormRef.current = cancelForm;
   const requiredName = () => {
-    if (!draft.name.trim()) { toast("アカウント名を入力してください", "assertive"); return false; }
+    if (!draft.name.trim()) { toast("キャラクター名を入力してください", "assertive"); return false; }
     return true;
   };
   const saveEdit = () => {
@@ -563,7 +563,7 @@ const AccountGate = () => {
     if (stored.pending) setPendingIcon(stored.data);
   });
   const create = () => {
-    if (!draft.name.trim()) { toast("アカウント名を入力してください", "assertive"); return; }
+    if (!draft.name.trim()) { toast("キャラクター名を入力してください", "assertive"); return; }
     const created = window.LBT_accounts?.create?.(draft.name.trim(), draft.purpose.trim());
     if (!created) { toast("アカウントを作成できませんでした（保存領域が使用できません）", "assertive"); return; }
     if (pendingIcon) window.LBT_accounts?.setIcon?.(created.id, pendingIcon);
