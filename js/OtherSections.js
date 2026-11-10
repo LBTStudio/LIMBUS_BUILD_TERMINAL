@@ -114,6 +114,13 @@ const BaseSection = ({ state, dispatch }) => {
           React.createElement("div", {
             className: "piece-art-frame",
             ref: artFrameRef,
+            style: {
+              boxSizing: "border-box",
+              width: "min(100%, 390px)",
+              height: "min(62vh, 520px)",
+              maxHeight: "520px",
+              overflow: "hidden"
+            },
             "aria-label": "立ち絵プレビュー。マウスホイールで拡大・縮小できます。"
           },
             activeImg && !imgBroken
@@ -121,7 +128,17 @@ const BaseSection = ({ state, dispatch }) => {
                   className: "piece-art",
                   src: activeImg,
                   alt: "立ち絵 " + (imgTab + 1),
-                  style: { transform: "scale(" + imgZoom + ")", transformOrigin: imgZoomOrigin },
+                  style: {
+                    display: "block",
+                    width: "100%",
+                    height: "100%",
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                    objectPosition: "center",
+                    transform: "scale(" + imgZoom + ")",
+                    transformOrigin: imgZoomOrigin
+                  },
                   onError: () => setImgBroken(true)
                 })
               : React.createElement("div", { className: "pc-portrait-empty" },
