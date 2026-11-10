@@ -289,9 +289,10 @@ async function runProfile(browser,profile) {
     await boardModeTab.click();
     await boardModePanel.waitFor({ state: "visible", timeout: 5000 });
     const boardModeText = (await boardModePanel.innerText()).replace(/\s+/g, " ");
-    recordCheck(profile.name + ": board mode shows real token name, PL, initiative and inspector",
+    recordCheck(profile.name + ": board mode shows the real token, PL, initiative and character list",
       boardModeText.includes("サンプル・フィクサー") && boardModeText.includes("テスト卓")
-      && boardModeText.includes("INIT 12") && boardModeText.includes("選択中の駒"),
+      && boardModeText.includes("イニシアティブ") && boardModeText.includes("12")
+      && boardModeText.includes("キャラクター一覧"),
       { boardModeText });
     const boardModePath = path.join(OUT, profile.name + "-basic-preview-board.png");
     await page.screenshot({ path: boardModePath, animations: "disabled" });
