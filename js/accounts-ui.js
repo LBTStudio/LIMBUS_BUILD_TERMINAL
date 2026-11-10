@@ -446,8 +446,8 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
     h("section", { ref: panelRef, className: "acct-panel", role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-panel-title" },
       h("div", { className: "acct-panel-head" },
         h("div", null,
-          h("div", { className: "acct-kicker", id: "acct-panel-title" }, "◈ SINNER SELECT"),
-          h("p", { className: "acct-lead" }, "キャラクターごとに保存領域が分かれています。選ぶと作業状態・所持データ・お気に入りが入れ替わります。")
+          h("div", { className: "acct-kicker", id: "acct-panel-title" }, "キャラクターを切り替える"),
+          h("p", { className: "acct-lead" }, "選んだキャラクターのビルド・所持品・リザルトが開きます。新しいキャラクターもここから追加できます。")
         ),
         h("button", { type: "button", className: "acct-close", onClick: requestClose, title: "閉じる (Esc)", "aria-label": "アカウント切替を閉じる" }, h(Icon, { name: "x", size: 16 }))
       ),
@@ -475,24 +475,29 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
         })),
         creating ? h("div", { className: "acct-card acct-card--form", style: { "--i": total } },
           h("span", { className: "acct-form-kicker" }, "新規アカウント"),
-          h("label", { className: "acct-field" }, h("span", null, "アカウント名"), h("input", {
-            className: "input", value: draft.name, autoFocus: true, maxLength: 40,
+          h("label", { className: "acct-field acct-primary-name-field" }, h("span", null, "キャラクター名"), h("input", {
+            className: "input", value: draft.name, autoFocus: true, maxLength: 40, placeholder: "キャラクター名",
             onChange: (event) => setDraft({ ...draft, name: event.target.value }),
             onKeyDown: (event) => { if (event.key === "Enter") { event.preventDefault(); saveCreate(); } if (event.key === "Escape") { event.preventDefault(); cancelForm(); } }
           })),
-          h("label", { className: "acct-field" }, h("span", null, "用途タグ"), h("input", {
-            className: "input", value: draft.purpose, maxLength: 40, placeholder: "本番 / 検証 / 配布",
-            onChange: (event) => setDraft({ ...draft, purpose: event.target.value }),
-            onKeyDown: (event) => { if (event.key === "Enter") { event.preventDefault(); saveCreate(); } if (event.key === "Escape") { event.preventDefault(); cancelForm(); } }
-          })),
-          h("div", { className: "acct-icon-row" },
-            h("span", { className: "acct-icon-row-label" }, "アイコン"),
-            h(AccountMark, { icon: pendingIcon, name: draft.name }),
-            h("div", { className: "acct-icon-row-actions" },
-              h("button", { type: "button", className: "acct-upload-btn", onClick: () => iconEditor.startPick(PENDING_ACCOUNT_ID) }, "画像を選択"),
-              pendingIcon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: () => setPendingIcon("") }, "解除") : null
-            ),
-            h("p", { className: "acct-icon-row-note" }, "画像を選んで枠に収める部分を決めます。決定後、256px・最大24KBへ圧縮して端末内に保存します。")
+          h("details", { className: "acct-optional-settings" },
+            h("summary", null, "用途タグ・アイコン（任意）"),
+            h("div", { className: "acct-optional-settings-body" },
+              h("label", { className: "acct-field" }, h("span", null, "用途タグ"), h("input", {
+                className: "input", value: draft.purpose, maxLength: 40, placeholder: "本番 / 検証 / 配布",
+                onChange: (event) => setDraft({ ...draft, purpose: event.target.value }),
+                onKeyDown: (event) => { if (event.key === "Enter") { event.preventDefault(); saveCreate(); } if (event.key === "Escape") { event.preventDefault(); cancelForm(); } }
+              })),
+              h("div", { className: "acct-icon-row" },
+                h("span", { className: "acct-icon-row-label" }, "アイコン"),
+                h(AccountMark, { icon: pendingIcon, name: draft.name }),
+                h("div", { className: "acct-icon-row-actions" },
+                  h("button", { type: "button", className: "acct-upload-btn", onClick: () => iconEditor.startPick(PENDING_ACCOUNT_ID) }, "画像を選択"),
+                  pendingIcon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: () => setPendingIcon("") }, "解除") : null
+                ),
+                h("p", { className: "acct-icon-row-note" }, "アイコン画像は後からでも設定できます。")
+              )
+            )
           ),
           h("div", { className: "acct-form-actions" },
             h(Button, { size: "sm", variant: "primary", icon: "plus", onClick: saveCreate }, "作成して切替"),
@@ -506,7 +511,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
           onClick: () => { setEditingId(null); setCreating(true); setDraft({ name: "", purpose: "" }); }
         },
           h("span", { className: "acct-add-plus", "aria-hidden": "true" }, "+"),
-          h("span", null, "新しいアカウント")
+          h("span", null, "キャラクターを追加")
         ) : null
       ) : null,
       h(window.LBTCloudBackupPanel || "div", { compact: true }),
@@ -573,11 +578,20 @@ const AccountGate = () => {
     h("div", { className: "acct-gate-panel", role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-gate-title" },
       h("header", { className: "acct-panel-head" },
         h("div", null,
-          h("h1", { className: "acct-kicker", id: "acct-gate-title" }, "◈ SINNER SELECT"),
-          h("p", { className: "acct-lead" }, "作業するキャラクター（アカウント）を選んでください。保存領域はキャラクターごとに分かれ、いつでも切替えられます。")
+          h("h1", { className: "acct-kicker acct-gate-title", id: "acct-gate-title" },
+            accounts.length === 0 ? "最初のキャラクターを作る" : "作業するキャラクターを選ぶ"
+          ),
+          h("p", { className: "acct-lead" },
+            accounts.length === 0
+              ? "名前だけで始められます。人格・立ち絵・スキルは作成後に設定できます。"
+              : "キャラクターを選ぶと、そのビルド・所持品・リザルトが開きます。"
+          )
         )
       ),
-      accounts.length === 0 ? h("div", { className: "acct-empty" }, "まずキャラクターを作成してください。") : null,
+      accounts.length === 0 ? h("div", { className: "acct-first-run-note" },
+        h("strong", null, "作成後はこの順で進められます"),
+        h("span", null, "基本情報 → 人格 → スキル・パッシブ → プレビュー")
+      ) : null,
       h("div", { className: "acct-grid" },
         accounts.map((entry, index) => h("div", { key: entry.id, className: `acct-card acct-card--gate${entry.id === info.activeId ? " is-active" : ""}`, style: { "--i": index } },
           h("button", {
@@ -601,25 +615,29 @@ const AccountGate = () => {
           h("span", { className: "acct-gate-cta" }, "このキャラで開く")
         )),
         creating ? h("div", { className: "acct-card acct-card--form", style: { "--i": accounts.length } },
-          h("span", { className: "acct-form-kicker" }, "新しいキャラクター"),
-          h("label", { className: "acct-field" }, h("span", null, "アカウント名"), h("input", {
-            className: "input", value: draft.name, autoFocus: true, maxLength: 40, placeholder: "キャラクター名など",
+          h("label", { className: "acct-field acct-primary-name-field" }, h("span", null, "キャラクター名"), h("input", {
+            className: "input", value: draft.name, autoFocus: true, maxLength: 40, placeholder: "キャラクター名",
             onChange: (event) => setDraft({ ...draft, name: event.target.value }),
             onKeyDown: (event) => { if (event.key === "Enter") { event.preventDefault(); create(); } }
           })),
-          h("label", { className: "acct-field" }, h("span", null, "用途タグ"), h("input", {
-            className: "input", value: draft.purpose, maxLength: 40, placeholder: "本番 / 検証 / 配布",
-            onChange: (event) => setDraft({ ...draft, purpose: event.target.value }),
-            onKeyDown: (event) => { if (event.key === "Enter") { event.preventDefault(); create(); } }
-          })),
-          h("div", { className: "acct-icon-row" },
-            h("span", { className: "acct-icon-row-label" }, "アイコン"),
-            h(AccountMark, { icon: pendingIcon, name: draft.name }),
-            h("div", { className: "acct-icon-row-actions" },
-              h("button", { type: "button", className: "acct-upload-btn", onClick: () => iconEditor.startPick(PENDING_ACCOUNT_ID) }, "画像を選択"),
-              pendingIcon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: () => setPendingIcon("") }, "解除") : null
-            ),
-            h("p", { className: "acct-icon-row-note" }, "画像を選んで枠に収める部分を決めます。決定後、256px・最大24KBへ圧縮して端末内に保存します。")
+          h("details", { className: "acct-optional-settings" },
+            h("summary", null, "用途タグ・アイコン（任意）"),
+            h("div", { className: "acct-optional-settings-body" },
+              h("label", { className: "acct-field" }, h("span", null, "用途タグ"), h("input", {
+                className: "input", value: draft.purpose, maxLength: 40, placeholder: "例：本番 / 検証 / 配布",
+                onChange: (event) => setDraft({ ...draft, purpose: event.target.value }),
+                onKeyDown: (event) => { if (event.key === "Enter") { event.preventDefault(); create(); } }
+              })),
+              h("div", { className: "acct-icon-row" },
+                h("span", { className: "acct-icon-row-label" }, "アイコン"),
+                h(AccountMark, { icon: pendingIcon, name: draft.name }),
+                h("div", { className: "acct-icon-row-actions" },
+                  h("button", { type: "button", className: "acct-upload-btn", onClick: () => iconEditor.startPick(PENDING_ACCOUNT_ID) }, "画像を選択"),
+                  pendingIcon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: () => setPendingIcon("") }, "解除") : null
+                ),
+                h("p", { className: "acct-icon-row-note" }, "アイコン画像は後からでも設定できます。")
+              )
+            )
           ),
           h("div", { className: "acct-form-actions" },
             h(Button, { size: "sm", variant: "primary", icon: "check", onClick: create }, "作成して開く"),
@@ -633,13 +651,13 @@ const AccountGate = () => {
           onClick: () => { setCreating(true); setDraft({ name: "", purpose: "" }); setPendingIcon(""); }
         },
           h("span", { className: "acct-add-plus", "aria-hidden": "true" }, "+"),
-          h("span", null, "新しいキャラクター")
+          h("span", null, accounts.length === 0 ? "キャラクターを作成する" : "キャラクターを追加")
         ) : null
       ),
-      h(window.LBTCloudBackupPanel || "div", { compact: true }),
+      accounts.length > 0 ? h(window.LBTCloudBackupPanel || "div", { compact: true }) : null,
       h("footer", { className: "acct-panel-foot" },
-        h("span", null, accounts.length > 0 ? `${accounts.length}件のアカウント・この端末内に保存` : "保存領域なし"),
-        h("span", { className: "acct-foot-note" }, "ローカル保存はこの端末のブラウザに残ります。オンライン保全を設定した場合は、明示したデータをクラウドにも保存します。初回のみ、旧保存データを1つ目のアカウントへ取り込みます。")
+        h("span", null, accounts.length > 0 ? `${accounts.length}件のキャラクター` : "キャラクター名だけで開始できます"),
+        h("span", { className: "acct-foot-note" }, "データはこのブラウザー内に保存されます。別端末で使う場合は、作成後に保存・共有を設定できます。")
       ),
       iconEditor.editor
     )
