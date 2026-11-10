@@ -647,7 +647,8 @@ test("同期・解析費用のバックフィルは配列末尾でなく表示�
 
   const after = reducer(before, { type: "BACKFILL_SYNC_ENTRIES" });
   assert.equal(after.entries.length, 2, "同期とE.G.O解析の費用を各1件だけ記録する");
-  assert.deepEqual(Array.from(after.entries, (entry) => entry.kind).sort(), ["egoAnalyze", "personaSync"]);
+  assert.equal(after.entries.some((entry) => entry.kind === "egoAnalyze"), true);
+  assert.equal(after.entries.some((entry) => entry.kind === "personaSync"), true);
   assert.ok(after.entries.every((entry) => entry.resultId === "visible-newest"),
     "日付・createdAtによる画面の新しい順を使い、配列末尾の旧リザルトへ誤帰属させない");
   assert.ok(!after.entries.some((entry) => entry.resultId === "array-tail-old"));
