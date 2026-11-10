@@ -234,8 +234,9 @@ test("使い方画面の初期表示をPC／スマホで記録し、QA画像を�
   assert.ok(captureScript.includes('"help-index-" + mode + ".png"'));
   assert.ok(captureWorkflow.includes('if png.stem.startswith("help-index-"):'));
   assert.ok(captureWorkflow.includes('Expected 18 WebP screenshots'));
-  assert.match(captureWorkflow, /permissions:\\s*\\n\\s*contents:\\s*read/);
-  assert.doesNotMatch(captureWorkflow, /git push origin|github-actions\\[bot\\]/,
+  assert.ok(captureWorkflow.includes("permissions:\n  contents: read"));
+  assert.ok(!captureWorkflow.includes("git push origin"));
+  assert.ok(!captureWorkflow.includes("github-actions[bot]"),
     "生成画像はArtifactに保存し、bot tokenでPRブランチへpushしない");
 });
 
