@@ -147,7 +147,17 @@ const LivePreview = ({ state, dispatch }) => {
     };
     return h("div", { className },
       src && !failed
-        ? h("img", { src, alt, onError: markFailed })
+        ? h("img", {
+            src,
+            alt,
+            onLoad: (event) => {
+              const image = event.currentTarget;
+              if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                image.parentElement?.style.setProperty("--pv-preview-ratio", String(image.naturalWidth / image.naturalHeight));
+              }
+            },
+            onError: markFailed
+          })
         : h("span", { className: "pv-ccfolia-empty-media", role: "img", "aria-label": alt + "：画像なし" }, "画像なし")
     );
   };
@@ -224,7 +234,7 @@ const LivePreview = ({ state, dispatch }) => {
               )
             ),
             h("p", { className: "pv-ccfolia-map-note" },
-              "背景・配置・拡大率は、実際のルーム設定によって変わります。")
+              "縮尺例：画像の長辺を4マス相当に合わせ、縦横比を維持しています。実際のマス数・背景・配置はルーム側で調整します。")
           ),
           h("section", { className: "pv-ccfolia-roster", "aria-label": "キャラクター一覧の表示例" },
             h("header", { className: "pv-ccfolia-roster-head" },
@@ -297,7 +307,7 @@ const LivePreview = ({ state, dispatch }) => {
               : h("p", { className: "pv-ccfolia-no-rows" }, "チャットパレットは空です。")
           ),
           h("p", { className: "pv-ccfolia-editor-note" },
-            "ここでは出力データをCCFOLIA風に並べています。サイズ・座標、実際のボタン配置やルーム内の見え方は、CCFOLIA側の設定で変わります。")
+            "出力JSONの画像URL・差分を使った表示例です。盤面の長辺は4マス相当の縮尺例で、実際のマス数・座標・背景・UIはルーム設定に従います。")
         )
   );
   const readiness = window.LBT_getSessionReadiness?.(state) || [];
