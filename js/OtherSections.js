@@ -6580,7 +6580,7 @@ h(Card, { className: "ledger-card" },
                             onClick: () => addResultDraftEgo(option)
                           },
                             h("span", null, option.name),
-                            h("small", null, option.rank + " · No." + option.no),
+                            h("small", null, option.rank + " · No." + option.no + ((state.roster?.egos || []).some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no) ? " · 所持済み" : "")),
                             h("b", null, "追加")
                           ))
                         )
