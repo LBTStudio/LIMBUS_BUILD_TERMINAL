@@ -1417,7 +1417,7 @@ async function captureProfile(browser, mode) {
     });
     await attempt("home-guided-workflow-review",async()=>{
       await go("ホーム");
-      await snap("home-guided-primary","ホームのキャラクターシート作成・次の操作");
+      await snap("home-guided-primary","ホームの主CTA・作成進捗・副導線・折りたたまれたその他機能");
       const primary=page.locator(".btype-home-primary");
       const primaryAction=page.locator(".btype-home-primary-action");
       const progress=page.locator(".btype-home-progress");
