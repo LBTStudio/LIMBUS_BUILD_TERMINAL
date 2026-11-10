@@ -950,6 +950,17 @@ async function captureProfile(browser, mode) {
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
       await page.locator(".build-params-shell.piece-format-panel").waitFor({state:"visible",timeout:5000});
+      /* 監査用の一時アカウントへサンプル立ち絵と差分を登録する。
+         画像未登録の空状態を「全身表示できた」と誤認しない。 */
+      const artDisclosure=page.locator(".piece-image-details > summary").first();
+      await artDisclosure.waitFor({state:"visible",timeout:5000});
+      if(await artDisclosure.evaluate((el)=>el.parentElement?.open!==true)) await click(artDisclosure);
+      const artUrl="http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg";
+      await page.locator("#piece-image-urls").fill(artUrl+"\\n"+artUrl+"?face=1");
+      await page.waitForFunction(()=>{
+        const image=document.querySelector(".piece-art-frame img");
+        return Boolean(image?.naturalWidth&&image?.naturalHeight);
+      },{timeout:10000});
 
       // Source-backed v4 geometry assertions: desktop two-column hero, mobile stack,
       // portrait ratio, and the formatting panel directly below the hero.
@@ -1000,7 +1011,7 @@ async function captureProfile(browser, mode) {
       await page.locator("#build-params-panel-preview").waitFor({state:"visible",timeout:5000});
       const modes=[
         {id:"board",label:"盤面上の駒",note:"ビルド内基本タブの盤面上の駒プレビュー"},
-        {id:"sheet",label:"キャラクターシート",note:"ビルド内基本タブのキャラクターシートプレビュー"},
+        {id:"sheet",label:"キャラクター編集",note:"ビルド内基本タブのキャラクター編集プレビュー"},
         {id:"json",label:"出力データ",note:"ビルド内基本タブの出力データプレビュー"}
       ];
       const modeTabs=page.locator(".basic-preview-mode-tabs [role='tab']");
@@ -1013,7 +1024,7 @@ async function captureProfile(browser, mode) {
         await panel.waitFor({state:"visible",timeout:5000});
         if(await visible(page.locator(".basic-preview-build-error"))) throw new Error("CCFOLIA実データ生成エラー: "+(await page.locator(".basic-preview-build-error").innerText()));
         if(mode.id==="board" && !(await visible(panel.locator(".pv-ccfolia-map")))) throw new Error("盤面プレビューのグリッドがありません");
-        if(mode.id==="sheet" && !(await visible(panel.locator(".pv-ccfolia-editor")))) throw new Error("キャラクターシートの編集表示がありません");
+        if(mode.id==="sheet" && !(await visible(panel.locator(".piece-ccfolia-editor")))) throw new Error("キャラクター編集プレビューの表示がありません");
         if(mode.id==="json"){
           const jsonText=await panel.locator(".basic-preview-json").textContent();
           const parsed=JSON.parse(jsonText||"");
