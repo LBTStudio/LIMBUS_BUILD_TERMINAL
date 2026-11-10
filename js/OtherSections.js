@@ -4608,8 +4608,7 @@ const LedgerPanel = ({ state, dispatch }) => {
   };
   const newResultEgoMatches = getEgoSearchMatches(
     newResultEgoQuery,
-    newResult.egoAcquisitions || [],
-    state.roster?.egos || []
+    newResult.egoAcquisitions || []
   );
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
@@ -4867,10 +4866,6 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   };
   const addNewResultEgo = (option) => {
     if (!option) return;
-    const alreadyOwned = (state.roster?.egos || []).some((entry) =>
-      String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no
-    );
-    if (alreadyOwned) return;
     setNewResult((draft) => {
       const current = Array.isArray(draft.egoAcquisitions) ? draft.egoAcquisitions : [];
       if (current.some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no)) return draft;
@@ -5815,7 +5810,7 @@ const importHeldPersonas = () => {
           h("section", { className: "ledger-reward-item-editor ledger-ego-reward-editor", "aria-label": "報酬E.G.O" },
             h("div", { className: "ledger-reward-item-head" },
               h("span", { className: "t-label" }, "報酬E.G.O"),
-              h("span", { className: "ledger-note" }, "E.G.O DBを名前・ランク・No.で検索。未所持分は購入費用を付けずに所持へ追加します。")
+              h("span", { className: "ledger-note" }, "E.G.O DBを名前・ランク・No.で検索。所持済みでも報酬履歴に記録でき、未所持分だけ購入費用なしで所持へ追加します。")
             ),
             h("div", { className: "ledger-persona-search" },
               h("input", {
@@ -5833,7 +5828,7 @@ const importHeldPersonas = () => {
                       onClick: () => addNewResultEgo(option)
                     },
                       h("span", null, option.name),
-                      h("small", null, option.rank + " · No." + option.no),
+                      h("small", null, option.rank + " · No." + option.no + ((state.roster?.egos || []).some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no) ? " · 所持済み" : "")),
                       h("b", null, "追加")
                     ))
                   )
