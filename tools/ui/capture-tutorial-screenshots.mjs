@@ -329,6 +329,90 @@ async function captureCompactResultDetails(page, mode) {
   }
 }
 
+async function captureCcfFoliaPortraitPreview(page, mode) {
+  await clickNav(page, "ビルド");
+  const basicTab = page.locator(".build-tabs button[role='tab']").filter({ hasText: "基本" }).first();
+  await basicTab.waitFor({ state: "visible", timeout: 12000 });
+  await basicTab.click();
+  const disclosure = page.locator(".piece-image-details > summary").first();
+  await disclosure.waitFor({ state: "visible", timeout: 12000 });
+  const isOpen = await disclosure.evaluate((el) => el.parentElement?.open === true);
+  if (!isOpen) await disclosure.click();
+  const imageField = page.locator("#piece-image-urls");
+  const imageUrl = "http://" + HOST + ":" + PORT + "/tests/fixtures/ccfolia-preview-sample.svg";
+  await imageField.fill(imageUrl + "\n" + imageUrl + "?face=1");
+  await page.locator(".piece-art-frame img").waitFor({ state: "visible", timeout: 12000 });
+  await page.waitForFunction(() => {
+    const main = document.querySelector(".piece-art-frame img");
+    const mini = document.querySelector(".piece-token-avatar-image");
+    return Boolean(main?.naturalWidth && main?.naturalHeight && mini?.naturalWidth && mini?.naturalHeight);
+  }, { timeout: 12000 });
+  const portraitMetrics = await page.evaluate(() => {
+    const main = document.querySelector(".piece-art-frame img");
+    const frame = document.querySelector(".piece-art-frame");
+    const mini = document.querySelector(".piece-token-avatar-image");
+    const miniFrame = document.querySelector(".piece-token-avatar");
+    if (!main || !frame || !mini || !miniFrame) return null;
+    const mainBox = main.getBoundingClientRect();
+    const frameBox = frame.getBoundingClientRect();
+    const miniBox = mini.getBoundingClientRect();
+    return {
+      naturalRatio: main.naturalWidth / main.naturalHeight,
+      mainContained: mainBox.width <= frameBox.width + 1 && mainBox.height <= frameBox.height + 1,
+      miniContained: miniBox.width <= miniFrame.getBoundingClientRect().width + 1 && miniBox.height <= miniFrame.getBoundingClientRect().height + 1
+    };
+  });
+  if (!portraitMetrics?.mainContained || !portraitMetrics?.miniContained || Math.abs(portraitMetrics.naturalRatio - 300 / 520) > .02) {
+    throw new Error("Standing portrait did not retain its full natural aspect ratio: " + JSON.stringify(portraitMetrics));
+  }
+  const portraitName = "ccfolia-portrait-" + mode + ".png";
+  await page.screenshot({ path: path.join(OUT, portraitName), animations: "disabled", fullPage: false });
+  log("captured full portrait and card preview " + portraitName);
+
+  const previewPanel = page.locator("#preview-panel");
+  const previewOpen = await previewPanel.evaluate((el) => el.classList.contains("is-open"));
+  if (!previewOpen) {
+    await page.locator(".preview-edge-toggle").click();
+    await previewPanel.waitFor({ state: "visible", timeout: 12000 });
+  }
+  await page.getByRole("button", { name: "ココフォリア駒プレビュー", exact: true }).click();
+  const ccfoliaPreview = page.locator(".pv-ccfolia-preview");
+  await ccfoliaPreview.waitFor({ state: "visible", timeout: 12000 });
+  await ccfoliaPreview.getByRole("button", { name: "盤面", exact: true }).click();
+  const boardImage = page.locator(".pv-ccfolia-map-avatar img");
+  await boardImage.waitFor({ state: "visible", timeout: 12000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".pv-ccfolia-map-avatar img");
+    return Boolean(image?.naturalWidth && image?.naturalHeight);
+  }, { timeout: 12000 });
+  const boardMetrics = await boardImage.evaluate((image) => ({
+    ratio: image.naturalWidth / image.naturalHeight,
+    width: image.getBoundingClientRect().width,
+    height: image.getBoundingClientRect().height
+  }));
+  if (Math.abs(boardMetrics.ratio - 300 / 520) > .02 || boardMetrics.height < 150) {
+    throw new Error("CCFOLIA board portrait did not render as a full-size figure: " + JSON.stringify(boardMetrics));
+  }
+  const boardName = "ccfolia-board-" + mode + ".png";
+  await page.screenshot({ path: path.join(OUT, boardName), animations: "disabled", fullPage: false });
+  log("captured CCFOLIA board token preview " + boardName);
+
+  await ccfoliaPreview.getByRole("button", { name: "編集画面", exact: true }).click();
+  const editorImage = page.locator(".pv-ccfolia-editor-main-image img");
+  await editorImage.waitFor({ state: "visible", timeout: 12000 });
+  const editorMetrics = await editorImage.evaluate((image) => ({
+    ratio: image.naturalWidth / image.naturalHeight,
+    width: image.getBoundingClientRect().width,
+    height: image.getBoundingClientRect().height
+  }));
+  if (Math.abs(editorMetrics.ratio - 300 / 520) > .02 || editorMetrics.height < 150) {
+    throw new Error("CCFOLIA editor portrait did not preserve its aspect ratio: " + JSON.stringify(editorMetrics));
+  }
+  const editorName = "ccfolia-editor-" + mode + ".png";
+  await page.screenshot({ path: path.join(OUT, editorName), animations: "disabled", fullPage: false });
+  log("captured CCFOLIA editor portrait preview " + editorName);
+}
+
 async function captureViewport(browser, mode) {
   const isMobile = mode === "mobile";
   const context = await browser.newContext({
@@ -345,6 +429,9 @@ async function captureViewport(browser, mode) {
   page.on("pageerror", error => { console.error("[pageerror] " + error.message); });
   try {
     await waitForApp(page);
+
+    // Capture the actual full-figure preview and the CCFOLIA board/editor views first.
+    await captureCcfFoliaPortraitPreview(page, mode);
 
     // Persona draft import: highlight the real button inside the Persona list toolbar.
     await clickNav(page, "ビルド");
