@@ -929,7 +929,7 @@
 @media(max-width:560px) {
   .base-info-panel .piece-art-frame { height: min(62vh, 520px); min-height: 300px; }
   .piece-board-canvas { min-height: 340px; background-size: 40px 40px; }
-  .piece-board-avatar { width: 160px; height: 160px; max-width: min(54vw, 160px); max-height: min(54vw, 160px); }
+  .piece-board-avatar { width: 160px; height: 160px; }
   .piece-board-inspector { padding: 11px; }
   .piece-ccfolia-editor-main { padding: 9px; gap: 9px; }
   .piece-ccfolia-editor-main-image { height: min(56vh, 400px); }
