@@ -713,8 +713,8 @@
   flex: 0 0 auto;
   width: 192px;
   height: 192px;
-  max-width: min(52vw, 192px);
-  max-height: min(52vw, 192px);
+  max-width: none;
+  max-height: none;
   overflow: visible;
   background: transparent;
   border: 0;
