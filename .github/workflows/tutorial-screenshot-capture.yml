@@ -84,8 +84,8 @@ jobs:
               json.dumps(original, ensure_ascii=False, indent=2) + "\\n",
               encoding="utf-8",
           )
-          if len(original["files"]) != 12:
-              raise SystemExit("Expected 12 WebP screenshots, got " + str(len(original["files"])))
+          if len(original["files"]) != 18:
+              raise SystemExit("Expected 18 WebP screenshots, got " + str(len(original["files"])))
           PY
 
       # Screenshots are delivered as a workflow artifact. CI must not push
@@ -96,6 +96,6 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: lbt-tutorial-ui-captures-${{ github.sha }}
-          path: artifacts/tutorial-screenshots/
+          path: |\n            artifacts/tutorial-screenshots/\n            docs/tutorial-captures/
           if-no-files-found: error
           retention-days: 30
