@@ -1183,9 +1183,9 @@ test("DBで一意に解決できるE.G.O指定購入は所持追加と実額の�
   });
   const owned = planned.actions.filter((action) => action.type === "ADD_ROSTER_EGO");
   const entries = planned.actions.filter((action) => action.type === "ADD_ENTRY");
-  assert.deepEqual(owned.map((action) => ({
+  assert.deepEqual(JSON.parse(JSON.stringify(owned.map((action) => ({
     rank: action.rank, no: action.no, purchase: action.purchase
-  })), [{ rank: "TETH", no: "0094", purchase: false }]);
+  }))), [{ rank: "TETH", no: "0094", purchase: false }]);
   assert.equal(entries.length, 1);
   assert.equal(entries[0].kind, "ego");
   assert.equal(entries[0].name, "鬼退治");
@@ -1220,7 +1220,7 @@ test("E.G.O解析費用とDB未解決の購入名は所持E.G.Oを作らない",
   const entries = planned.actions.filter((action) => action.type === "ADD_ENTRY");
   assert.equal(entries.length, 2);
   assert.ok(entries.every((entry) => entry.kind === "ego"));
-  assert.deepEqual(entries.map((entry) => entry.cost.shards), [40, 50]);
+  assert.deepEqual(Array.from(entries, (entry) => entry.cost.shards), [40, 50]);
 });
 
 test("E.G.O と人格は明細の種別を名前から推測する", () => {
