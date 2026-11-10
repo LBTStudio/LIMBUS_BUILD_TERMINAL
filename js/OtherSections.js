@@ -94,7 +94,7 @@ const BaseSection = ({ state, dispatch }) => {
             React.createElement("strong", null, "駒の見た目"),
             React.createElement("small", null, "立ち絵と差分を見ながら選択")
           ),
-          React.createElement("span", { className: "pill" }, "3:4 IMAGE")
+          React.createElement("span", { className: "pill" }, "AUTO FIT")
         ),
         React.createElement("div", { className: "piece-art-wrap" },
           React.createElement("div", {
