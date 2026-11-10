@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-11-10T16:28:19.421Z",
+  "source": "Local LIMBUS BUILD TERMINAL UI rendered by Playwright Chromium",
+  "viewportModes": [
+    "desktop 1440x1000",
+    "mobile 390x844 deviceScaleFactor=2"
+  ],
+  "count": 18,
+  "files": [
+    "account-share-import-desktop.webp",
+    "account-share-import-mobile.webp",
+    "ccfolia-board-desktop.webp",
+    "ccfolia-board-mobile.webp",
+    "ccfolia-editor-desktop.webp",
+    "ccfolia-editor-mobile.webp",
+    "ccfolia-portrait-desktop.webp",
+    "ccfolia-portrait-mobile.webp",
+    "persona-import-desktop.webp",
+    "persona-import-mobile.webp",
+    "result-text-import-desktop.webp",
+    "result-text-import-mobile.webp",
+    "roster-import-desktop.webp",
+    "roster-import-mobile.webp",
+    "save-work-state-desktop.webp",
+    "save-work-state-mobile.webp",
+    "share-sheet-desktop.webp",
+    "share-sheet-mobile.webp"
+  ],
+  "sourceFiles": [
+    "account-share-import-desktop.png",
+    "account-share-import-mobile.png",
+    "ccfolia-board-desktop.png",
+    "ccfolia-board-mobile.png",
+    "ccfolia-editor-desktop.png",
+    "ccfolia-editor-mobile.png",
+    "ccfolia-portrait-desktop.png",
+    "ccfolia-portrait-mobile.png",
+    "help-index-desktop.png",
+    "help-index-mobile.png",
+    "persona-import-desktop.png",
+    "persona-import-mobile.png",
+    "result-text-import-desktop.png",
+    "result-text-import-mobile.png",
+    "roster-import-desktop.png",
+    "roster-import-mobile.png",
+    "save-work-state-desktop.png",
+    "save-work-state-mobile.png",
+    "share-sheet-desktop.png",
+    "share-sheet-mobile.png"
+  ],
+  "qaOnlyFiles": [
+    "help-index-desktop.png",
+    "help-index-mobile.png"
+  ],
+  "format": "WebP, quality 86"
+}\n
