@@ -941,10 +941,10 @@
 .base-info-panel .piece-art-frame {
   box-sizing: border-box;
   width: min(100%, 510px);
-  height: auto;
+  height: clamp(420px, 64vh, 760px);
   min-height: 0;
   max-height: none;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: auto;
   margin-inline: auto;
   padding: 8px;
   overflow: hidden;
@@ -984,7 +984,7 @@
 }
 .base-info-panel .piece-art-frame:after { content: none; }
 @media(max-width:560px) {
-  .base-info-panel .piece-art-frame { width: min(100%, 390px); }
+  .base-info-panel .piece-art-frame { width: min(100%, 390px); height: min(62vh, 520px); min-height: 300px; }
 }
 .base-info-panel .piece-art-zoom-help {
   position: absolute;
