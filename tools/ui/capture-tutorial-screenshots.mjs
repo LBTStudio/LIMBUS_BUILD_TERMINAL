@@ -427,11 +427,22 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
     const frame = image.parentElement;
     const imageBox = image.getBoundingClientRect();
     const frameBox = frame.getBoundingClientRect();
+    const imageStyle = getComputedStyle(image);
+    const availableWidth = frame.clientWidth - Number.parseFloat(getComputedStyle(frame).paddingLeft || "0") - Number.parseFloat(getComputedStyle(frame).paddingRight || "0");
+    const availableHeight = frame.clientHeight - Number.parseFloat(getComputedStyle(frame).paddingTop || "0") - Number.parseFloat(getComputedStyle(frame).paddingBottom || "0");
     return {
       ratio: image.naturalWidth / image.naturalHeight,
       renderedRatio: imageBox.width / imageBox.height,
-      contained: imageBox.width <= frameBox.width + 1 && imageBox.height <= frameBox.height + 1,
-      objectFit: getComputedStyle(image).objectFit
+      imageWidth: imageBox.width,
+      imageHeight: imageBox.height,
+      frameWidth: frameBox.width,
+      frameHeight: frameBox.height,
+      clientWidth: image.clientWidth,
+      clientHeight: image.clientHeight,
+      availableWidth,
+      availableHeight,
+      contained: image.clientWidth <= availableWidth + 2 && image.clientHeight <= availableHeight + 2,
+      objectFit: imageStyle.objectFit
     };
   });
   if (Math.abs(editorMetrics.ratio - 300 / 520) > .02 ||
