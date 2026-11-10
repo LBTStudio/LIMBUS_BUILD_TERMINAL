@@ -46,6 +46,7 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
   assert.match(home, /ready: basicReady/);
   assert.match(home, /ready: personaReady/);
   assert.match(home, /ready: skillReady && passiveReady/);
+  assert.match(home, /navigate\(skillReady \? "passive" : "skill"\)/);
   assert.match(home, /onClick: nextStep\.run/);
   assert.match(home, /次へ：/);
   assert.match(home, /プレビューを確認する/);
