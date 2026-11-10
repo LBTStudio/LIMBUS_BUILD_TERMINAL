@@ -329,15 +329,16 @@ async function captureCompactResultDetails(page, mode) {
   }
 }
 
-async function alignPreviewCapture(page, locator, top = 120) {
+async function alignPreviewCapture(page, locator) {
   await locator.waitFor({ state: "visible", timeout: 12000 });
-  await locator.evaluate((element, targetTop) => {
-    const rect = element.getBoundingClientRect();
-    const absoluteTop = window.scrollY + rect.top;
-    window.scrollTo({ top: Math.max(0, absoluteTop - targetTop), behavior: "auto" });
-  }, top);
+  /* Build workspace scrolls inside its own container on some layouts. scrollIntoView
+     follows the actual scrollable ancestor chain; window.scrollTo alone leaves the
+     target at its stale negative viewport offset. */
+  await locator.evaluate((element) => {
+    element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+  });
   await page.waitForTimeout(100);
-  const geometry = await locator.evaluate((element) => {
+  let geometry = await locator.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return {
       top: rect.top,
@@ -346,32 +347,26 @@ async function alignPreviewCapture(page, locator, top = 120) {
       viewportHeight: window.innerHeight
     };
   });
-  if (geometry.top < 56 || geometry.bottom > geometry.viewportHeight - 12) {
+  if (geometry.top < 48 || geometry.bottom > geometry.viewportHeight - 12) {
     await locator.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      const desiredTop = Math.max(64, (window.innerHeight - rect.height) / 2);
-      window.scrollTo({
-        top: Math.max(0, window.scrollY + rect.top - desiredTop),
-        behavior: "auto"
-      });
+      element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
     });
     await page.waitForTimeout(100);
+    geometry = await locator.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+        viewportHeight: window.innerHeight
+      };
+    });
   }
-  const finalGeometry = await locator.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    return {
-      top: rect.top,
-      bottom: rect.bottom,
-      height: rect.height,
-      viewportHeight: window.innerHeight
-    };
-  });
-  if (finalGeometry.top < 40 || finalGeometry.bottom > finalGeometry.viewportHeight + 2) {
-    throw new Error("Preview capture target is outside the viewport: " + JSON.stringify(finalGeometry));
+  if (geometry.top < 40 || geometry.bottom > geometry.viewportHeight + 2) {
+    throw new Error("Preview capture target is outside the viewport: " + JSON.stringify(geometry));
   }
-  return finalGeometry;
+  return geometry;
 }
-
 async function captureCcfFoliaPortraitPreview(page, mode) {
   await clickNav(page, "ビルド");
   const basicTab = page.locator(".build-tabs button[role='tab']").filter({ hasText: "基本" }).first();
