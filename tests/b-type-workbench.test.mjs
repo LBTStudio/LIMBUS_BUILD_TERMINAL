@@ -20,22 +20,24 @@ test("B-type shell gives non-workbench pages the full canvas and scopes preview 
   assert.match(app, /label: "記録・所持品"/);
 });
 
-test("B-type home has the prototype's command hero, searchable nine-action grid, and resume row", () => {
+test("B-type home guides the next character-sheet action and folds secondary tools", () => {
   const app = read("../js/App.js");
-  assert.match(app, /className: "btype-command-hero"/);
-  assert.match(app, /className: "btype-command-search"/);
-  assert.match(app, /className: "btype-launcher-grid"/);
-  assert.match(app, /className: "btype-continue-panel"/);
-  assert.match(app, /"基本情報・駒整形"/);
-  assert.match(app, /"データを取り込む"/);
-  assert.match(app, /"保存・復元・共有"/);
-  assert.match(app, /onOpenImportRouter: openImportRouter/);
+  assert.match(app, /className: "btype-home-primary"/);
+  assert.match(app, /className: "btype-home-primary-action"/);
+  assert.match(app, /className: "btype-home-progress"/);
+  assert.match(app, /className: "btype-home-start-grid"/);
+  assert.match(app, /className: "btype-home-more"/);
+  assert.match(app, /既存データを取り込む/);
+  assert.match(app, /記録・所持品を管理/);
+  assert.match(app, /その他の機能を探す/);
+  assert.match(app, /onOpenImportRouter/);
 });
 
 test("B-type production styles adapt to tablet and mobile without disabling reduced motion", () => {
   const css = read("../assets/b-type-workbench.css");
-  assert.match(css, /\.btype-command-hero\s*\{/);
-  assert.match(css, /\.btype-launcher-grid\s*\{/);
+  assert.match(css, /\.btype-home-primary\s*\{/);
+  assert.match(css, /\.btype-home-progress\s*\{/);
+  assert.match(css, /\.btype-home-start-card\s*\{/);
   assert.match(css, /@media \(max-width: 850px\)/);
   assert.match(css, /@media \(max-width: 600px\)/);
   assert.match(css, /prefers-reduced-motion/);
@@ -62,7 +64,7 @@ test("UI audit covers desktop, tablet and mobile across Home, settings and all r
   assert.match(audit, /width:320,height:640/);
   assert.match(audit, /記録・所持品の6カテゴリタブが揃っていません/);
   assert.match(audit, /details\.settings-disclosure/);
-  assert.match(audit, /home-launcher-review/);
+  assert.match(audit, /home-guided-workflow-review/);
   assert.match(audit, /import-router-all-destinations/);
   assert.match(audit, /settingsDisclosurePanels/);
   assert.match(audit, /build-editor-operation-paths/);
