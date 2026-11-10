@@ -340,79 +340,94 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
   if (!isOpen) await disclosure.click();
   const imageField = page.locator("#piece-image-urls");
   const imageUrl = "http://" + HOST + ":" + PORT + "/tests/fixtures/ccfolia-preview-sample.svg";
-  await imageField.fill(imageUrl + "\n" + imageUrl + "?face=1");
-  await page.locator(".piece-art-frame img").waitFor({ state: "visible", timeout: 12000 });
+  await imageField.fill(imageUrl + "\\n" + imageUrl + "?face=1");
+  const mainImage = page.locator(".piece-art-frame img");
+  await mainImage.waitFor({ state: "visible", timeout: 12000 });
   await page.waitForFunction(() => {
-    const main = document.querySelector(".piece-art-frame img");
-    const mini = document.querySelector(".piece-token-avatar-image");
-    return Boolean(main?.naturalWidth && main?.naturalHeight && mini?.naturalWidth && mini?.naturalHeight);
+    const image = document.querySelector(".piece-art-frame img");
+    return Boolean(image?.naturalWidth && image?.naturalHeight);
   }, { timeout: 12000 });
-  const portraitMetrics = await page.evaluate(() => {
-    const main = document.querySelector(".piece-art-frame img");
-    const frame = document.querySelector(".piece-art-frame");
-    const mini = document.querySelector(".piece-token-avatar-image");
-    const miniFrame = document.querySelector(".piece-token-avatar");
-    if (!main || !frame || !mini || !miniFrame) return null;
-    const mainBox = main.getBoundingClientRect();
-    const frameBox = frame.getBoundingClientRect();
-    const miniBox = mini.getBoundingClientRect();
+  const portraitMetrics = await mainImage.evaluate((image) => {
+    const frame = image.closest(".piece-art-frame");
+    const imageStyle = getComputedStyle(image);
+    const imageBox = image.getBoundingClientRect();
+    const frameBox = frame?.getBoundingClientRect();
     return {
-      naturalRatio: main.naturalWidth / main.naturalHeight,
-      mainContained: mainBox.width <= frameBox.width + 1 && mainBox.height <= frameBox.height + 1,
-      miniContained: miniBox.width <= miniFrame.getBoundingClientRect().width + 1 && miniBox.height <= miniFrame.getBoundingClientRect().height + 1
+      naturalRatio: image.naturalWidth / image.naturalHeight,
+      objectFit: imageStyle.objectFit,
+      frameRatio: frameBox?.width / frameBox?.height,
+      contained: Boolean(frameBox && imageStyle.objectFit === "contain" &&
+        imageBox.width <= frameBox.width + 1 && imageBox.height <= frameBox.height + 1)
     };
   });
-  if (!portraitMetrics?.mainContained || !portraitMetrics?.miniContained || Math.abs(portraitMetrics.naturalRatio - 300 / 520) > .02) {
-    throw new Error("Standing portrait did not retain its full natural aspect ratio: " + JSON.stringify(portraitMetrics));
+  if (!portraitMetrics?.contained || Math.abs(portraitMetrics.naturalRatio - 300 / 520) > .02) {
+    throw new Error("Standing portrait did not fit its full-image viewport: " + JSON.stringify(portraitMetrics));
   }
   const portraitName = "ccfolia-portrait-" + mode + ".png";
   await page.screenshot({ path: path.join(OUT, portraitName), animations: "disabled", fullPage: false });
-  log("captured full portrait and card preview " + portraitName);
+  log("captured full standing portrait " + portraitName);
 
-  const previewPanel = page.locator("#preview-panel");
-  const previewOpen = await previewPanel.evaluate((el) => el.classList.contains("is-open"));
-  if (!previewOpen) {
-    await page.locator(".preview-edge-toggle").click();
-    await previewPanel.waitFor({ state: "visible", timeout: 12000 });
-  }
-  await page.getByRole("button", { name: "ココフォリア駒プレビュー", exact: true }).click();
-  const ccfoliaPreview = page.locator(".pv-ccfolia-preview");
+  const outputTab = page.locator("#build-params-tab-preview");
+  await outputTab.waitFor({ state: "visible", timeout: 12000 });
+  await outputTab.click();
+  const ccfoliaPreview = page.locator(".basic-ccfolia-preview");
   await ccfoliaPreview.waitFor({ state: "visible", timeout: 12000 });
-  await ccfoliaPreview.getByRole("button", { name: "盤面", exact: true }).click();
-  const boardImage = page.locator(".pv-ccfolia-map-avatar img");
+
+  await ccfoliaPreview.locator("#basic-ccfolia-tab-board").click();
+  const boardImage = ccfoliaPreview.locator(".piece-board-avatar img");
   await boardImage.waitFor({ state: "visible", timeout: 12000 });
   await page.waitForFunction(() => {
-    const image = document.querySelector(".pv-ccfolia-map-avatar img");
-    return Boolean(image?.naturalWidth && image?.naturalHeight);
+    const image = document.querySelector(".piece-board-avatar img");
+    const frame = image?.parentElement;
+    return Boolean(image?.naturalWidth && image?.naturalHeight &&
+      Number.parseFloat(frame?.style.width || "0") > 0 &&
+      Number.parseFloat(frame?.style.height || "0") > 0);
   }, { timeout: 12000 });
-  const boardMetrics = await boardImage.evaluate((image) => ({
-    ratio: image.naturalWidth / image.naturalHeight,
-    width: image.getBoundingClientRect().width,
-    height: image.getBoundingClientRect().height
-  }));
-  if (Math.abs(boardMetrics.ratio - 300 / 520) > .02 || boardMetrics.height < 150) {
-    throw new Error("CCFOLIA board portrait did not render as a full-size figure: " + JSON.stringify(boardMetrics));
+  const boardMetrics = await boardImage.evaluate((image) => {
+    const frame = image.parentElement;
+    const box = frame.getBoundingClientRect();
+    return {
+      ratio: image.naturalWidth / image.naturalHeight,
+      renderedRatio: box.width / box.height,
+      width: box.width,
+      height: box.height,
+      maxSide: Math.max(box.width, box.height),
+      objectFit: getComputedStyle(image).objectFit
+    };
+  });
+  if (Math.abs(boardMetrics.ratio - 300 / 520) > .02 ||
+      Math.abs(boardMetrics.renderedRatio - boardMetrics.ratio) > .02 ||
+      Math.abs(boardMetrics.maxSide - 192) > 1 ||
+      boardMetrics.objectFit !== "contain") {
+    throw new Error("CCFOLIA board token must use a full natural-ratio image with its long side at four grid cells: " + JSON.stringify(boardMetrics));
   }
   const boardName = "ccfolia-board-" + mode + ".png";
   await page.screenshot({ path: path.join(OUT, boardName), animations: "disabled", fullPage: false });
   log("captured CCFOLIA board token preview " + boardName);
 
-  await ccfoliaPreview.getByRole("button", { name: "編集画面", exact: true }).click();
-  const editorImage = page.locator(".pv-ccfolia-editor-main-image img");
+  await ccfoliaPreview.locator("#basic-ccfolia-tab-sheet").click();
+  const editorImage = ccfoliaPreview.locator(".piece-ccfolia-editor-main-image img");
   await editorImage.waitFor({ state: "visible", timeout: 12000 });
-  const editorMetrics = await editorImage.evaluate((image) => ({
-    ratio: image.naturalWidth / image.naturalHeight,
-    width: image.getBoundingClientRect().width,
-    height: image.getBoundingClientRect().height
-  }));
-  if (Math.abs(editorMetrics.ratio - 300 / 520) > .02 || editorMetrics.height < 150) {
-    throw new Error("CCFOLIA editor portrait did not preserve its aspect ratio: " + JSON.stringify(editorMetrics));
+  const editorMetrics = await editorImage.evaluate((image) => {
+    const frame = image.parentElement;
+    const imageBox = image.getBoundingClientRect();
+    const frameBox = frame.getBoundingClientRect();
+    return {
+      ratio: image.naturalWidth / image.naturalHeight,
+      renderedRatio: imageBox.width / imageBox.height,
+      contained: imageBox.width <= frameBox.width + 1 && imageBox.height <= frameBox.height + 1,
+      objectFit: getComputedStyle(image).objectFit
+    };
+  });
+  if (Math.abs(editorMetrics.ratio - 300 / 520) > .02 ||
+      Math.abs(editorMetrics.renderedRatio - editorMetrics.ratio) > .02 ||
+      !editorMetrics.contained || editorMetrics.objectFit !== "contain") {
+    throw new Error("CCFOLIA character editor must preserve the full portrait: " + JSON.stringify(editorMetrics));
   }
   const editorName = "ccfolia-editor-" + mode + ".png";
   await page.screenshot({ path: path.join(OUT, editorName), animations: "disabled", fullPage: false });
-  log("captured CCFOLIA editor portrait preview " + editorName);
+  log("captured CCFOLIA character editor preview " + editorName);
 }
-
 async function captureViewport(browser, mode) {
   const isMobile = mode === "mobile";
   const context = await browser.newContext({
