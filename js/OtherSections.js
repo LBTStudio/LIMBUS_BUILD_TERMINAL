@@ -1522,6 +1522,12 @@ const useEgoResourceFilterControls = (requiredResources, excludedResources, onTo
 };
 function acquireEgoFromCatalog(state, dispatch, ego) {
   if (!ego) return false;
+  const alreadyOwned = (state.roster?.egos || []).some((entry) =>
+    String(entry.rank) === String(ego.rank) && String(entry.no) === String(ego.no));
+  if (alreadyOwned) {
+    toast(`「${ego.name}」は既に所持しています。`, "assertive");
+    return false;
+  }
   const action = { type: "ADD_ROSTER_EGO", rank: ego.rank, no: ego.no, purchase: true };
   const cost = window.LBT_purchaseCostOf?.(state, action);
   const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
@@ -1533,8 +1539,9 @@ function acquireEgoFromCatalog(state, dispatch, ego) {
     toast(affordability.reason || "購入に必要な自我の欠片が不足しています。", "assertive");
     return false;
   }
+  /* dispatch は reducer の採否を返さない。重複などで拒否された可能性を残したまま
+     成功トーストを先に出さず、次の描画でカードが「所持済み」に変わることを成功表示にする。 */
   dispatch(action);
-  toast(`「${ego.name}」を所持に購入しました`, "assertive");
   return true;
 }
 const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
