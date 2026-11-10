@@ -24,10 +24,10 @@ node tools/ui/capture-tutorial-screenshots.mjs
 
 ## GitHub Actions
 
-PRで関連ファイルが変わると `Tutorial UI screenshot capture` が実行され、PNG・WebP・manifestを30日Artifactへ保存します。同一リポジトリ内のPRでは、撮影に成功した18枚のWebPとmanifestをPRブランチの `docs/tutorial-captures/` へ自動コミットします。フォークからのPRは書き込み権限を与えず、Artifactのみで提供します。失敗した撮影画像をガイドへ混ぜないため、撮影・枚数検査に成功した場合だけ公開用画像をコミットします。ワークフローがmainへ入った後は、Actions画面から手動実行もできます。
+PRで関連ファイルが変わると `Tutorial UI screenshot capture` が実行され、PNG・WebP・manifestを30日Artifactへ保存します。ワークフローは読み取り専用で、PRブランチへ画像をpushしません。ガイドへ採用する画像はArtifactを確認し、通常のPR変更として `docs/tutorial-captures/` に追加します。失敗した撮影画像をガイドへ混ぜないため、撮影・枚数検査に成功した場合だけArtifactを採用します。ワークフローがmainへ入った後は、Actions画面から手動実行もできます。
 
 ## ガイドへ反映する
 
-GitHub Actionsを使った同一リポジトリのPRでは、WebP版が `docs/tutorial-captures/` に自動追加されます。使い方ガイドは幅640px以下ではスマートフォン版、広い画面ではデスクトップ版を表示します。ローカルで撮影したPNGを採用する場合は、必要な画像をレビューし、WebPへ変換してから `docs/tutorial-captures/` へ追加し、ガイド側の参照と回帰テストを更新します。フォークからのPRではArtifactから取得して手動追加してください。
+GitHub ActionsのArtifactからレビュー済みWebPを取得し、PRの変更として `docs/tutorial-captures/` に追加します。使い方ガイドは幅640px以下ではスマートフォン版、広い画面ではデスクトップ版を表示します。ローカルで撮影したPNGを採用する場合は、必要な画像をレビューし、WebPへ変換してから `docs/tutorial-captures/` へ追加し、ガイド側の参照と回帰テストを更新します。フォークからのPRではArtifactから取得して手動追加してください。
 
 追加したCCFOLIA画像プレビュー6枚（portrait／board／editor × desktop／mobile）は注釈を付けず、実際の表示を撮影します。縦長の見本画像は撮影専用で、利用者の保存データには含まれません。その他の注釈付き画像は実画面に矢印と説明枠を重ねています。ブラウザー幅やUIの位置が変わったら、スクリプトを再実行してください。ターゲットボタンを見つけられない場合は撮影を失敗させ、古い／誤った画像を静かに生成しないようにしています。
