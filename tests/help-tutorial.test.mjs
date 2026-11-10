@@ -233,7 +233,7 @@ test("使い方画面の初期表示をPC／スマホで記録し、QA画像を�
   assert.ok(captureScript.includes('await clickNav(page, "使い方")'));
   assert.ok(captureScript.includes('"help-index-" + mode + ".png"'));
   assert.ok(captureWorkflow.includes('if png.stem.startswith("help-index-"):'));
-  assert.ok(captureWorkflow.includes('Expected 12 WebP screenshots'));
+  assert.ok(captureWorkflow.includes('Expected 18 WebP screenshots'));
 });
 
 test("複雑な図解は該当する項目を開いた時だけ表示される", () => {
@@ -248,7 +248,7 @@ test("検索可能な索引からアカウント管理とサポート手順に�
   assert.match(appSource, /アカウントを編集・切替・削除する/);
   assert.match(appSource, /パッシブとサポートを確認・編集する/);
   assert.match(appSource, /選択中のカードをもう一度クリック／タップ/);
-  assert.ok(beginnerTutorial.includes("## 6. サポートパッシブを装備する"));
+  assert.ok(beginnerTutorial.includes("## 7. サポートパッシブを装備する"));
   assert.match(beginnerTutorial, /通常スロットへ装備/);
 });
 
