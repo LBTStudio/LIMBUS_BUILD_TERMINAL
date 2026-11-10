@@ -77,7 +77,7 @@ test("CCFOLIAらしい無彩色UIとレスポンシブ構成を持つ", () => {
 });
 
 test("CCFOLIA編集画面の立ち絵は親枠の高さを基準にcontain表示する", () => {
-  const match = css.match(/\.piece-ccfolia-editor-main-image img\s*\{[^}]*\}/);
+  const match = parityCss.match(/\.piece-ccfolia-editor-main-image img\s*\{[^}]*\}/);
   assert.ok(match, "character editor portrait rule exists");
   assert.match(match[0], /height:\s*100%/);
   assert.match(match[0], /max-width:\s*100%/);
