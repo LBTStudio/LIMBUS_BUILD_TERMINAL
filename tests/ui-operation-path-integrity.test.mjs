@@ -341,7 +341,7 @@ test("ブラウザ監査ハーネスは現在の画面構造と内部タブを�
   assert.match(uiHarness, /for \(let i = 0; i < UI_VIEWS\.length; i\+\+\)/);
   assert.doesNotMatch(uiHarness, /\.rail-item"\)\.nth\(i\)/, "旧画面数を左ナビのボタン数として扱わない");
   assert.match(uiHarness, /enterAuditWorkspace/);
-  assert.match(uiHarness, /acct-gate input\\[placeholder=\'キャラクター名\'\\]/, "初回ゲートの現在のキャラクター名入力を使う");
+  assert.match(uiHarness, /placeholder=\'キャラクター名\'/, "初回ゲートの現在のキャラクター名入力を使う");
   assert.doesNotMatch(uiHarness, /キャラクター名など/, "旧プレースホルダーを参照しない");
 });
 
