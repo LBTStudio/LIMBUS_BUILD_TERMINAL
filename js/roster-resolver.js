@@ -130,7 +130,7 @@
      誤解決しないため、E.G.O だけは指定ランク内で一意な場合に限って引く。 */
   function resolveEgoBracketAlias(idx, line) {
     const match = String(line || "").normalize("NFKC").match(
-      /^\s*(?:E\.?\s*G\.?\s*O|エゴ)\s*(?:指定購入|購入|買|解析|分析)\s*[-_：:\s]*(ZAYIN|TETH|HE|WAW|ALEPH)?\s*(?:\[|【|\(|（)\s*(.+?)\s*(?:\]|】|\)|）)\s*$/i
+      /^\s*(?:E\.?\s*G\.?\s*O|エゴ)\s*(?:指定購入|購入|買|解析|分析)\s*[-_：:\s]*(ZAYIN|TETH|HE|WAW|ALEPH)?\s*(?:\[|【|\(|（)\s*(.+?)\s*(?:\]|】|\)|）)\s*(?:[（(][^）)]*[）)])?\s*$/i
     );
     if (!match) return null;
     const requiredRank = String(match[1] || "").toUpperCase();
