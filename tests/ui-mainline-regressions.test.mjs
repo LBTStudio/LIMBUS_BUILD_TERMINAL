@@ -39,7 +39,8 @@ test("Playwright preview audit follows the visible control at each viewport widt
   assert.match(capture, /profile\.mobile\?"\.preview-mobile-toggle":"#lbt-preview-edge-toggle"/);
   assert.match(capture, /async function metrics\(page,profile\)/);
   assert.match(capture, /const toggleSelector=profile\.mobile\?"\.preview-mobile-toggle":"#lbt-preview-edge-toggle"/);
-  assert.match(capture, /await toggle\.waitFor\(\{state:"visible",timeout:10000\}\)/);
+  assert.match(capture, /const toggle=page\.locator\(toggleSelector\)/);
+  assert.match(capture, /const t=await rect\(toggle\), p=await rect\(panel\)/);
   assert.ok(app.includes('"aria-controls": previewOpen ? "preview-panel" : void 0, "aria-expanded": previewOpen'));
 });
 
