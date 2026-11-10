@@ -349,18 +349,33 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
   }, { timeout: 12000 });
   const portraitMetrics = await mainImage.evaluate((image) => {
     const frame = image.closest(".piece-art-frame");
-    const imageStyle = getComputedStyle(image);
-    const imageBox = image.getBoundingClientRect();
+    const style = getComputedStyle(image);
+    const box = image.getBoundingClientRect();
     const frameBox = frame?.getBoundingClientRect();
+    const contentWidth = image.clientWidth - Number.parseFloat(style.paddingLeft || "0") - Number.parseFloat(style.paddingRight || "0");
+    const contentHeight = image.clientHeight - Number.parseFloat(style.paddingTop || "0") - Number.parseFloat(style.paddingBottom || "0");
+    const fitScale = Math.min(contentWidth / image.naturalWidth, contentHeight / image.naturalHeight);
+    const paintedWidth = image.naturalWidth * fitScale;
+    const paintedHeight = image.naturalHeight * fitScale;
     return {
       naturalRatio: image.naturalWidth / image.naturalHeight,
-      objectFit: imageStyle.objectFit,
+      objectFit: style.objectFit,
       frameRatio: frameBox?.width / frameBox?.height,
-      contained: Boolean(frameBox && imageStyle.objectFit === "contain" &&
-        imageBox.width <= frameBox.width + 1 && imageBox.height <= frameBox.height + 1)
+      imageElementFits: Boolean(frameBox && box.width <= frameBox.width + 1 && box.height <= frameBox.height + 1),
+      paintedRatio: paintedWidth / paintedHeight,
+      paintedWidth,
+      paintedHeight,
+      contentWidth,
+      contentHeight,
+      contained: Boolean(frameBox && image.naturalWidth > 0 && image.naturalHeight > 0
+        && style.objectFit === "contain"
+        && paintedWidth <= contentWidth + 1
+        && paintedHeight <= contentHeight + 1
+        && Math.abs(paintedWidth / paintedHeight - image.naturalWidth / image.naturalHeight) < .001)
     };
   });
-  if (!portraitMetrics?.contained || Math.abs(portraitMetrics.naturalRatio - 300 / 520) > .02) {
+  if (!portraitMetrics?.contained || !portraitMetrics.imageElementFits
+    || Math.abs(portraitMetrics.naturalRatio - 300 / 520) > .02) {
     throw new Error("Standing portrait did not fit its full-image viewport: " + JSON.stringify(portraitMetrics));
   }
   const portraitName = "ccfolia-portrait-" + mode + ".png";
