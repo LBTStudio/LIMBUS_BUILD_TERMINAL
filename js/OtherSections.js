@@ -31,6 +31,7 @@ const BaseSection = ({ state, dispatch }) => {
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
   const [imgBroken, setImgBroken] = React.useState(false);
+  const [portraitAspect, setPortraitAspect] = React.useState(3 / 4);
   const SHARE_IMAGE_TARGET_BYTES = window.LBT_shareLink?.SHARE_IMAGE_TARGET_BYTES || 32 * 1024;
   const shareImageBytes = window.LBT_shareLink?.shareImageBytes || ((value) => {
     const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
@@ -72,9 +73,18 @@ const BaseSection = ({ state, dispatch }) => {
   React.useEffect(() => {
     if (imgTab >= imgList.length) setImgTab(0);
   }, [imgList.length, imgTab]);
-  /* 差し替えたら読み込み状態は戻す（前の画像の失敗状態を引き継がない）。 */
-  React.useEffect(() => { setImgBroken(false); }, [imgList[imgTab]]);
+  /* 差し替えたら読み込み状態と縮尺を戻す。画像の実寸比は読み込み後に更新する。 */
+  React.useEffect(() => {
+    setImgBroken(false);
+    setPortraitAspect(3 / 4);
+  }, [imgList[imgTab]]);
   const activeImg = imgList[imgTab] || "";
+  const updatePortraitAspect = (event) => {
+    const image = event.currentTarget;
+    if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+      setPortraitAspect(image.naturalWidth / image.naturalHeight);
+    }
+  };
   const [editOpen, setEditOpen] = React.useState(false);
   return React.createElement("div", { className: "piece-hero-grid", "data-ui-reference": "unified-workbench-v4" },
     React.createElement("div", { className: "piece-hero-left" },
@@ -84,15 +94,19 @@ const BaseSection = ({ state, dispatch }) => {
             React.createElement("strong", null, "駒の見た目"),
             React.createElement("small", null, "立ち絵と差分を見ながら選択")
           ),
-          React.createElement("span", { className: "pill" }, "3:4 IMAGE")
+          React.createElement("span", { className: "pill" }, "AUTO FIT")
         ),
         React.createElement("div", { className: "piece-art-wrap" },
-          React.createElement("div", { className: "piece-art-frame" },
+          React.createElement("div", {
+            className: "piece-art-frame",
+            style: { "--piece-portrait-ratio": String(portraitAspect) }
+          },
             activeImg && !imgBroken
               ? React.createElement("img", {
                   className: "piece-art",
                   src: activeImg,
                   alt: "立ち絵 " + (imgTab + 1),
+                  onLoad: updatePortraitAspect,
                   onError: () => setImgBroken(true)
                 })
               : React.createElement("div", { className: "pc-portrait-empty" },
@@ -289,7 +303,7 @@ const BaseSection = ({ state, dispatch }) => {
         ),
         React.createElement("div", { className: "piece-token-preview pc-token-preview" },
           React.createElement("div", { className: "piece-token-preview-head" },
-            React.createElement("span", null, "ココフォリア上の見え方（簡易）"),
+            React.createElement("span", null, "立ち絵の全体表示・駒カード縮尺例"),
             React.createElement("span", null, "PREVIEW")
           ),
           React.createElement("div", {
@@ -298,7 +312,13 @@ const BaseSection = ({ state, dispatch }) => {
           },
             React.createElement("div", { className: "piece-token-avatar" },
               activeImg && !imgBroken
-                ? React.createElement("img", { src: activeImg, alt: "", loading: "lazy" })
+                ? React.createElement("img", {
+                    className: "piece-token-avatar-image",
+                    src: activeImg,
+                    alt: "立ち絵の全体表示",
+                    loading: "lazy",
+                    onError: () => setImgBroken(true)
+                  })
                 : React.createElement("span", { "aria-hidden": "true" }, "◈")
             ),
             React.createElement("div", { className: "piece-token-name" },

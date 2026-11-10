@@ -2821,12 +2821,14 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   pointer-events: none;
 }
 .pv-ccfolia-map-token {
+  --pv-ccfolia-grid-cell: 48px;
+  --pv-ccfolia-token-cells: 4;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
-  max-width: 130px;
+  max-width: none;
   padding: 5px;
   color: #f0f2f4;
   text-align: center;
@@ -2834,8 +2836,8 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 .pv-ccfolia-map-avatar {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: calc(var(--pv-ccfolia-grid-cell) * var(--pv-ccfolia-token-cells));
+  height: calc(var(--pv-ccfolia-grid-cell) * var(--pv-ccfolia-token-cells));
   min-width: 0;
   min-height: 0;
   overflow: visible;
@@ -2845,11 +2847,12 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 }
 .pv-ccfolia-map-avatar img {
   display: block;
-  max-width: 48px;
-  max-height: 48px;
+  max-width: 100%;
+  max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
+  object-position: center;
   outline: 1px solid color-mix(in srgb, var(--pv-ccfolia-color) 75%, #d6dce2);
   outline-offset: 1px;
 }
@@ -2988,17 +2991,19 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 }
 .pv-ccfolia-editor-top {
   display: grid;
-  grid-template-columns: minmax(108px, 34%) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 42%) minmax(0, 1fr);
   align-items: start;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
 }
 .pv-ccfolia-editor-images { min-width: 0; }
 .pv-ccfolia-editor-main-image {
   display: grid;
   place-items: center;
-  width: 100%;
-  min-height: 150px;
+  width: min(100%, calc(420px * var(--pv-preview-ratio, .75)));
+  aspect-ratio: var(--pv-preview-ratio, .75);
+  max-height: 420px;
+  margin-inline: auto;
   padding: 4px;
   overflow: hidden;
   background: #191d21;
@@ -3008,10 +3013,11 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 .pv-ccfolia-editor-main-image img {
   display: block;
   max-width: 100%;
-  max-height: 200px;
+  max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
+  object-position: center;
 }
 .pv-ccfolia-face-strip {
   display: grid;
@@ -3186,7 +3192,7 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   .pv-ccfolia-map { min-height: 208px; }
   .pv-ccfolia-roster { max-width: none; }
   .pv-ccfolia-editor-top { grid-template-columns: minmax(0, 1fr); }
-  .pv-ccfolia-editor-main-image { min-height: 120px; max-width: 190px; }
+  .pv-ccfolia-editor-main-image { width: min(100%, 340px); max-height: min(60vh, 420px); }
   .pv-ccfolia-editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pv-ccfolia-field.is-memo,
   .pv-ccfolia-field.is-url { grid-column: 1 / -1; }
@@ -3196,9 +3202,9 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   .pv-ccfolia-preview .pv-token-mode-switch { width: 100%; }
   .pv-ccfolia-preview .pv-token-mode-switch button { flex: 1; }
   .pv-ccfolia-board-layout { grid-template-columns: minmax(0, 1fr); }
-  .pv-ccfolia-map { min-height: 200px; }
+  .pv-ccfolia-map { min-height: 250px; }
   .pv-ccfolia-editor-top { grid-template-columns: minmax(0, 1fr); }
-  .pv-ccfolia-editor-main-image { min-height: 120px; max-width: 190px; }
+  .pv-ccfolia-editor-main-image { width: min(100%, calc(min(60vh, 420px) * var(--pv-preview-ratio, .75))); max-height: min(60vh, 420px); }
   .pv-ccfolia-editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pv-ccfolia-field.is-memo,
   .pv-ccfolia-field.is-url { grid-column: 1 / -1; }

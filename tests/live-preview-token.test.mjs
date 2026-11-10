@@ -6,6 +6,8 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").repl
 const preview = read("../js/LivePreview.js");
 const generator = read("../js/generator.js");
 const css = read("../assets/workspace.css");
+const basicCss = read("../assets/b-type-ui-parity.css");
+const basic = read("../js/OtherSections.js");
 const app = read("../js/App.js");
 
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {
@@ -83,14 +85,36 @@ test("プレビューのJSONコピーは重複せず、切替ボタンは明示�
   assert.match(preview, /"aria-pressed": tokenMode === "sheet"/);
 });
 
-test("駒の画像は正方形に切り抜かず、縦横比を維持して枠内へ収める", () => {
+test("基本タブの立ち絵枠と簡易カードは画像の実寸比を使い、全体を表示する", () => {
+  assert.match(basic, /const \[portraitAspect, setPortraitAspect\] = React\.useState\(3 \/ 4\)/);
+  assert.match(basic, /naturalWidth \/ image\.naturalHeight/);
+  assert.match(basic, /--piece-portrait-ratio/);
+  assert.match(basic, /className: "piece-token-avatar-image"/);
+  assert.match(basicCss, /width:min\(100%,calc\(450px \* var\(--piece-portrait-ratio,\.75\)\)\)/);
+  assert.match(basicCss, /aspect-ratio:var\(--piece-portrait-ratio,\.75\)/);
+  assert.match(basicCss, /\.piece-token-avatar-image\{[^}]*max-width:100%;max-height:100%;object-fit:contain/);
+  assert.doesNotMatch(basicCss, /\.piece-token-avatar\{[^}]*overflow:hidden/);
+});
+
+test("CCFOLIA盤面プレビューは48pxグリッド上の長辺4マス縮尺で立ち絵全体を表示する", () => {
   const marker = css.indexOf("/* ============================================================\n   CCFOLIA PREVIEW");
   assert.ok(marker >= 0, "preview styles have a stable section marker");
   const previewStyles = css.slice(marker);
-  assert.match(previewStyles, /max-width: 48px/);
-  assert.match(previewStyles, /max-height: 48px/);
-  assert.match(previewStyles, /width: auto/);
-  assert.match(previewStyles, /height: auto/);
-  assert.match(previewStyles, /object-fit: contain/);
-  assert.doesNotMatch(previewStyles, /object-fit: cover/);
+  const mapToken = previewStyles.slice(previewStyles.indexOf(".pv-ccfolia-map-token"), previewStyles.indexOf(".pv-ccfolia-map-name"));
+  assert.match(mapToken, /--pv-ccfolia-grid-cell:\s*48px/);
+  assert.match(mapToken, /--pv-ccfolia-token-cells:\s*4/);
+  assert.match(mapToken, /width:\s*calc\(var\(--pv-ccfolia-grid-cell\) \* var\(--pv-ccfolia-token-cells\)\)/);
+  assert.match(mapToken, /max-width:\s*100%/);
+  assert.match(mapToken, /max-height:\s*100%/);
+  assert.match(mapToken, /object-fit:\s*contain/);
+  assert.doesNotMatch(mapToken, /max-width:\s*48px|max-height:\s*48px|object-fit:\s*cover/);
+  const editor = previewStyles.slice(previewStyles.indexOf(".pv-ccfolia-editor-main-image"), previewStyles.indexOf(".pv-ccfolia-face-strip"));
+  assert.match(editor, /calc\(420px \* var\(--pv-preview-ratio, \.75\)\)/);
+  assert.match(editor, /max-height:\s*100%/);
+});
+
+test("CCFOLIAプレビューの画像は読み込み後の自然な縦横比を親枠へ伝える", () => {
+  assert.match(preview, /naturalWidth > 0 && image\.naturalHeight > 0/);
+  assert.match(preview, /--pv-preview-ratio/);
+  assert.match(preview, /縦横比を維持しています/);
 });
