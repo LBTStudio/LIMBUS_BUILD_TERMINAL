@@ -7,7 +7,8 @@ const QUICK_SEARCH_SHORTCUT = (() => {
 
 /* V13: 基本機能の説明書（ヘルプ）セクション */
 const HELP_ITEMS = [
-  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ビルド」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・イニシアチブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
+  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ビルド」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・イニシアティブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLはこの画面の全体表示プレビューに使います。画像URLを1行に1つ入力し、複数行なら差分として切り替えます。ここでの登録は画像ファイルをCCFOLIAへアップロードする処理ではありません。実際のCCFOLIAでは画像をルームへアップロードし、キャラクター編集画面から選択してください。" },
+  { group: "output", icon: "eye", title: "立ち絵全体とCCFOLIAの駒サイズを確認する", body: "ビルド → 基本を開き、「出力プレビュー」を押します。「盤面上の駒」では、画像の長辺を4マス相当（48pxグリッドの192px）に合わせ、縦横比を維持した駒を表示します。「キャラクター編集」では立ち絵・差分・名前・イニシアティブ・ステータス・パラメータ・チャットパレットを確認できます。「出力データ」では実際に生成したJSONを確認・コピーできます。画像はCCFOLIAのルームへ別途アップロードしてから、キャラクター編集画面で設定してください。" },
   { group: "prepare", icon: "persona", title: "人格を装備する", body: "左側の「ビルド」を開き、「人格」タブでカードを一度押すと詳細が表示され、同じカードをもう一度押すと装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。手動編集は上の「はじめに：人格を選ぶ・作る」を参照してください。" },
   { group: "prepare", icon: "persona", title: "公式人格を手動編集して所持ビルドに保存する", body: "人格を装備して「◈ 同期化して手動編集」を押します。これはステータス・パッシブ・スキル・固有バフの編集モードで、ゲーム上の同期ランク（0・00・000）や同期MAXの設定とは別です。編集を終えるときは「✓ 編集を終了（内容は保持）」を押します。所持人格の保存ビルドとして変更を残すには、変更後に「装備解除」を押し、確認画面でOK（変更を所持人格へ保存して装備解除）を選びます。キャンセルすると装備を継続し、変更は現在の状態に残ります。同期ランクと同期MAXは別設定です。同期ランクは「記録」の所持人格詳細で設定でき、同期MAXはそこに加えて装備中の人格パネルからも切り替えられます。" },
   { group: "prepare", icon: "ego", title: "E.G.Oをランク枠に装備・解析する", body: "ビルド内の「E.G.O」タブでZAYINからALEPHまでの各ランク枠に装備します。装備済み枠を押すと右側に簡易詳細が表示されます。全文の確認・編集は、その詳細で「解析を開始」を押します。終えるときは「解析を終了」を押すと内容を保持して終了します。未解析のE.G.Oは、必要な自我の欠片が不足していると解析を開始できません。" },
@@ -1422,7 +1423,7 @@ const HomeLauncher = ({
     { id: "import", title: "データを取り込む", desc: "人格本文・リザルト・硝子窓・所持一覧", icon: "upload", terms: "取り込み テキスト URL 硝子窓 所持一覧 リザルト 報酬 購入履歴 人格", run: onOpenImportRouter },
     { id: "records", title: "記録・所持品", desc: "所持ライブラリ、リザルト、収支", icon: "roster", terms: "記録 所持ライブラリ 所持品 人格 EGO E.G.O リザルト 報酬 収支", run: () => navigate("roster", { libraryTab: "home" }) },
     { id: "shop", title: "ショップ", desc: "未所持の人格・E.G.O・サポート等を探す", icon: "item", terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム", run: () => navigate("shop", { shopView: "overview" }) },
-    { id: "preview", title: "CCFOLIA駒プレビュー", desc: "盤面・キャラクターシート・実際の出力JSONを確認", icon: "eye", terms: "駒 プレビュー 盤面 キャラクターシート JSON 出力 ココフォリア", run: () => navigate("baseinfo", { basicFormatTab: "preview", basicPreviewMode: "board", previewOpen: false }) },
+    { id: "preview", title: "CCFOLIA駒プレビュー", desc: "盤面・キャラクター編集画面・実際の出力JSONを確認", icon: "eye", terms: "駒 プレビュー 盤面 キャラクター編集 出力JSON ココフォリア", run: () => navigate("baseinfo", { basicFormatTab: "preview", basicPreviewMode: "board", previewOpen: false }) },
     { id: "utilities", title: "保存・復元・共有", desc: "作業データ、所持ライブラリ、共有シート", icon: "archive", terms: "保存 復元 バックアップ JSON 共有 ライブラリ 作業状態", run: onOpenUtilities },
     { id: "settings", title: "詳細設定", desc: "ステータス、ラベル、出力順、計算式", icon: "settings", terms: "ステータス ラベル 出力順 計算式 詳細設定", run: () => navigate("settings", { settingsView: "overview" }) },
     { id: "help", title: "使い方を探す", desc: "目的や画面名から操作ガイドを検索", icon: "book", terms: "使い方 ヘルプ 操作 ガイド 検索", run: () => navigate("help") }
