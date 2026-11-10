@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   capture:
@@ -101,3 +101,25 @@ jobs:
             docs/tutorial-captures/
           if-no-files-found: error
           retention-days: 30
+
+      # Keep the guide's 18 WebP links live in same-repository PRs.
+      # Fork PRs remain artifact-only and never receive write access.
+      - name: Commit generated guide screenshots to the same-repository PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git fetch origin "$HEAD_REF"
+          git worktree add /tmp/lbt-pr-head "origin/$HEAD_REF"
+          mkdir -p /tmp/lbt-pr-head/docs/tutorial-captures
+          cp docs/tutorial-captures/*.webp /tmp/lbt-pr-head/docs/tutorial-captures/
+          cp docs/tutorial-captures/manifest.json /tmp/lbt-pr-head/docs/tutorial-captures/
+          git -C /tmp/lbt-pr-head config user.name "github-actions[bot]"
+          git -C /tmp/lbt-pr-head config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C /tmp/lbt-pr-head add docs/tutorial-captures/*.webp docs/tutorial-captures/manifest.json
+          if git -C /tmp/lbt-pr-head diff --cached --quiet; then
+            echo "Tutorial screenshots are already up to date."
+          else
+            git -C /tmp/lbt-pr-head commit -m "docs: refresh actual tutorial UI screenshots"
+            git -C /tmp/lbt-pr-head push origin "HEAD:$HEAD_REF"
+          fi
