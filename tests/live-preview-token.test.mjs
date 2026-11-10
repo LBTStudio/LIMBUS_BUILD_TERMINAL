@@ -75,6 +75,15 @@ test("CCFOLIAらしい無彩色UIとレスポンシブ構成を持つ", () => {
   assert.match(app, /id: "lbt-preview-edge-toggle"/);
 });
 
+test("CCFOLIA編集画面の立ち絵は親枠の高さを基準にcontain表示する", () => {
+  const match = css.match(/\.piece-ccfolia-editor-main-image img\s*\{[^}]*\}/);
+  assert.ok(match, "character editor portrait rule exists");
+  assert.match(match[0], /height:\s*100%/);
+  assert.match(match[0], /max-width:\s*100%/);
+  assert.match(match[0], /max-height:\s*100%/);
+  assert.match(match[0], /object-fit:\s*contain/);
+});
+
 test("プレビューのJSONコピーは重複せず、切替ボタンは明示的な押下状態を持つ", () => {
   assert.match(preview, /\(tab === "memo" \|\| tab === "palette"\) &&/);
   assert.match(preview, /onClick: copyJson/);
