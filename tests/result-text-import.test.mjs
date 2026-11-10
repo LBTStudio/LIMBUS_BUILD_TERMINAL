@@ -1168,7 +1168,7 @@ test("同一ランクに短縮名が複数あるE.G.Oログは一般部分一致
     egos: [...DB.egos, { ...definition, no: 999, name: "鬼退治：別個体" }]
   };
   const ambiguousIndex = R.buildNameIndex(ambiguousDb, {});
-  assert.deepEqual(R.resolveCandidates(ambiguousIndex, "EGO購入-TETH[鬼退治]"), [],
+  assert.equal(R.resolveCandidates(ambiguousIndex, "EGO購入-TETH[鬼退治]").length, 0,
     "短縮名が複数候補に一致する場合、別E.G.Oへ推測登録しない");
 });
 
