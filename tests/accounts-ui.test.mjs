@@ -162,7 +162,7 @@ test("未作成アカウントのアイコンは保留して作成後に適用�
 test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
   assert.match(ui, /const AccountGate = \(\) => \{/);
   assert.match(ui, /h\("main", \{ className: "acct-gate" \}/, "ゲート表示中は本体が出ないので main ランドマークになる");
-  assert.match(ui, /h\("h1", \{ className: "acct-kicker", id: "acct-gate-title" \}/, "見出しはh1（本体が無いため）");
+  assert.match(ui, /h\("h1", \{ className: "acct-kicker acct-gate-title", id: "acct-gate-title" \}/, "見出しは初回と既存選択で変わるh1（本体が無いため）");
   assert.match(ui, /role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-gate-title"/);
   /* 選んだアカウントで開く。ここで location.reload() すると常時ゲートと
      競合して「選んでもう一度ゲート」のループになるので使わない。 */
@@ -170,6 +170,13 @@ test("アクセス時のアカウント選択ゲートは毎回出て、選ん�
   assert.match(ui, /const ACCOUNTS_ENTERED_EVENT = "lbt:accounts-entered";/);
   assert.match(gateSource, /const choose = \(id\) => \{[\s\S]*?window\.LBT_accounts\?\.switch\?\.\(id\)[\s\S]*?window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_ENTERED_EVENT, \{ detail: \{ id \} \}\)\)/, "選択は切替+通知");
   assert.match(gateSource, /CustomEvent\(ACCOUNTS_ENTERED_EVENT, \{ detail: \{ id: created\.id \} \}\)/, "作成も切替+通知");
+  assert.match(gateSource, /最初のキャラクターを作る/, "初回は何をする画面かを日本語で案内");
+  assert.match(gateSource, /名前だけで始められます/, "初回作成に任意項目を要求しない");
+  assert.match(gateSource, /className: "acct-first-run-note"/, "作成後の流れを見せる");
+  assert.match(gateSource, /className: "acct-optional-settings"/, "用途タグとアイコンを折りたたむ");
+  assert.match(gateSource, /placeholder: "キャラクター名"/, "入力対象を明示する");
+  assert.match(gateSource, /accounts\.length > 0 \? h\(window\.LBTCloudBackupPanel/, "初回はクラウド保全設定よりキャラクター作成を優先する");
+
   assert.doesNotMatch(gateSource, /location\.reload\(\)/, "ゲート内で再読込に逃げない（常時ゲートとループする）");
   /* App は通知を受けて state を作り直し、保存の束縛先も差し替える。 */
   assert.match(app, /window\.addEventListener\("lbt:accounts-entered", onAccountsEntered\)/);
@@ -195,6 +202,9 @@ test("アイコンUIとゲートのCSSがトークンのみで定義されてい
   assert.match(css, /\.acct-gate \{/, "アクセス時のゲート");
   assert.match(css, /\.acct-card--gate \{/, "ゲート内のカード");
   assert.match(css, /\.acct-gate-cta \{/, "開く旨の導線");
+  assert.match(css, /\.acct-first-run-note/, "初回作成後の流れ");
+  assert.match(css, /\.acct-optional-settings/, "任意設定の折りたたみ");
+  assert.match(css, /\.acct-gate-panel > \.acct-grid:has\(\.acct-card--add:only-child\)/, "初回作成ボタンを主CTAとして表示");
   assert.match(css, /\.acct-gate\s*\{[^}]*z-index:\s*10060;/s, "ゲートは背景レイヤーに残す");
   assert.match(css, /\.acct-overlay\s*\{[^}]*z-index:\s*10065;/s, "ゲートから開いた編集オーバーレイはゲートより前面");
 });
