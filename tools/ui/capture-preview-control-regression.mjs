@@ -127,8 +127,8 @@ async function createDisposableAccount(page,profile) {
   const buildBrandingOk = await buildEntry.count() === 1
     && await buildEntry.isVisible()
     && await oldBuildNav.count() === 0
-    && homeEyebrow === "HOME / MULTI-PURPOSE LAUNCHER"
-    && homeAction.includes("ビルドを開く");
+    && homeEyebrow === "LIMBUS BUILD TERMINAL"
+    && (homeAction.includes("次へ：") || homeAction.includes("プレビューを確認する"));
   recordCheck(profile.name + ": Guided home shows a primary next step and existing build navigation",
     buildBrandingOk, { desktopBuildNavCount: await buildNav.count(), mobileBuildNavCount: await mobileBuildNav.count(), oldBuildNavCount: await oldBuildNav.count(), homeEyebrow, homeAction });
   await buildEntry.waitFor({state:"visible",timeout:10000});
