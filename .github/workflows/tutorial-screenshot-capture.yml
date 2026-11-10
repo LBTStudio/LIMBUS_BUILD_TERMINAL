@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   capture:
@@ -88,9 +88,8 @@ jobs:
               raise SystemExit("Expected 18 WebP screenshots, got " + str(len(original["files"])))
           PY
 
-      # Screenshots are delivered as a workflow artifact. CI must not push
-      # generated images back into a PR branch: that creates a second PR event
-      # under the bot identity and can require manual workflow approval.
+      # Screenshots are delivered as an artifact. Committed guide images are
+      # reviewed and updated as normal PR file changes, never pushed by the bot.
       - name: Upload screenshots and manifest
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -102,27 +101,4 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Keep the guide's 18 WebP links live in same-repository PRs.
-      # Fork PRs remain artifact-only and never receive write access.
-      - name: Commit generated guide screenshots to the same-repository PR
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-        run: |
-          git fetch origin "$HEAD_REF"
-          mkdir -p /tmp/lbt-tutorial-captures
-          cp docs/tutorial-captures/*.webp /tmp/lbt-tutorial-captures/
-          cp docs/tutorial-captures/manifest.json /tmp/lbt-tutorial-captures/
-          git checkout -B "$HEAD_REF" "origin/$HEAD_REF"
-          mkdir -p docs/tutorial-captures
-          cp /tmp/lbt-tutorial-captures/*.webp docs/tutorial-captures/
-          cp /tmp/lbt-tutorial-captures/manifest.json docs/tutorial-captures/
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/tutorial-captures/*.webp docs/tutorial-captures/manifest.json
-          if git diff --cached --quiet; then
-            echo "Tutorial screenshots are already up to date."
-          else
-            git commit -m "docs: refresh actual tutorial UI screenshots"
-            git push origin "HEAD:$HEAD_REF"
-          fi
+
