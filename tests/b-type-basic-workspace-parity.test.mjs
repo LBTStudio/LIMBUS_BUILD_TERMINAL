@@ -22,7 +22,7 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
     'class="piece-control-grid"', 'class="piece-token-preview"', '.piece-format-panel{'
   ]) assert.ok(reference.includes(required), "reference must preserve " + required);
   for (const required of [
-    'className: "piece-hero-grid"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
+    'className: "piece-hero-grid base-info-panel"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
     'className: "piece-control-grid"', 'className: "piece-art-frame"', 'piece-format-panel'
   ]) assert.ok(sections.includes(required) || base.includes(required), "production must render " + required);
   assert.match(base, /ASPECT FIT \/ 全体表示/);
