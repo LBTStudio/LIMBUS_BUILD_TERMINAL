@@ -100,7 +100,7 @@ const BaseSection = ({ state, dispatch }) => {
     frame.addEventListener("wheel", handleArtWheel, { passive: false });
     return () => frame.removeEventListener("wheel", handleArtWheel);
   }, [activeImg, imgBroken, imgZoom]);
-  return React.createElement("div", { className: "piece-hero-grid", "data-ui-reference": "unified-workbench-v4" },
+  return React.createElement("div", { className: "piece-hero-grid base-info-panel", "data-ui-reference": "unified-workbench-v4" },
     React.createElement("div", { className: "piece-hero-left" },
       React.createElement("section", { className: "piece-panel piece-art-panel" },
         React.createElement("div", { className: "piece-panel-head" },
