@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").repl
 const preview = read("../js/LivePreview.js");
 const generator = read("../js/generator.js");
 const css = read("../assets/workspace.css");
+const parityCss = read("../assets/b-type-ui-parity.css");
 const app = read("../js/App.js");
 
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {
