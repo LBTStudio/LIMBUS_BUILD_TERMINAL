@@ -657,7 +657,7 @@ const AccountGate = () => {
       accounts.length > 0 ? h(window.LBTCloudBackupPanel || "div", { compact: true }) : null,
       h("footer", { className: "acct-panel-foot" },
         h("span", null, accounts.length > 0 ? `${accounts.length}件のキャラクター` : "キャラクター名だけで開始できます"),
-        h("span", { className: "acct-foot-note" }, "データはこのブラウザー内に保存されます。別端末で使う場合は、作成後に保存・共有を設定できます。")
+        h("span", { className: "acct-foot-note" }, "ローカル保存はこの端末のブラウザに残ります。別端末で使う場合は、作成後に保存・共有を設定できます。")
       ),
       iconEditor.editor
     )
