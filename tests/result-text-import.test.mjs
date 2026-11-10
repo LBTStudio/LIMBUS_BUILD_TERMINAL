@@ -1160,6 +1160,18 @@ test("ランク付き短縮E.G.Oログは同ランク内のDB名が一意な場�
     "ランクが一致しない候補を別E.G.Oへ誤解決しない");
 });
 
+test("同一ランクに短縮名が複数あるE.G.Oログは一般部分一致へフォールバックしない", () => {
+  const definition = DB.egos.find((ego) => ego.rank === "TETH" && Number(ego.no) === 13);
+  assert.ok(definition);
+  const ambiguousDb = {
+    ...DB,
+    egos: [...DB.egos, { ...definition, no: 999, name: "鬼退治：別個体" }]
+  };
+  const ambiguousIndex = R.buildNameIndex(ambiguousDb, {});
+  assert.deepEqual(R.resolveCandidates(ambiguousIndex, "EGO購入-TETH[鬼退治]"), [],
+    "短縮名が複数候補に一致する場合、別E.G.Oへ推測登録しない");
+});
+
 test("実DBの短縮E.G.O購入ログを所持追加と明示価格の支出へ変換する", () => {
   const parsed = T.parseText([
     "【シナリオA】",
