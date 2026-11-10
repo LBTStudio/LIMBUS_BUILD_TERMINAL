@@ -115,6 +115,7 @@ const BaseSection = ({ state, dispatch }) => {
             className: "piece-art-frame",
             ref: artFrameRef,
             style: {
+              position: "relative",
               boxSizing: "border-box",
               width: "min(100%, 390px)",
               height: "min(62vh, 520px)",
@@ -129,6 +130,8 @@ const BaseSection = ({ state, dispatch }) => {
                   src: activeImg,
                   alt: "立ち絵 " + (imgTab + 1),
                   style: {
+                    position: "absolute",
+                    inset: "0",
                     display: "block",
                     width: "100%",
                     height: "100%",
