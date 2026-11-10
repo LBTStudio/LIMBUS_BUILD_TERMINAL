@@ -41,7 +41,7 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
   assert.match(base, /setImgZoom\(1\)/, "switching images and the reset control must restore full-fit");
   assert.match(base, /Math\.min\(4, imgZoom \* Math\.exp/);
   assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?object-fit: contain/);
-  assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?aspect-ratio: 3 \/ 4/);
+  assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?aspect-ratio:\s*3\s*\/\s*4/);
   assert.match(parity, /\.base-info-panel \.piece-art-zoom-reset/);
   for (const field of ["state.charName", "state.plName", "state.initiative", "state.color", "activeImg", "setImgTab", "state.imgUrls", "state.shareImageData"]) {
     assert.ok(base.includes(field), "Basic workspace must retain live field " + field);
