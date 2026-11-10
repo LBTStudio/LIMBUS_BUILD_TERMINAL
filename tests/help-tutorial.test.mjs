@@ -144,7 +144,10 @@ test("使い方ガイドはPCとスマートフォンの実画面キャプチャ
     "roster-import-desktop.webp", "roster-import-mobile.webp",
     "account-share-import-desktop.webp", "account-share-import-mobile.webp",
     "save-work-state-desktop.webp", "save-work-state-mobile.webp",
-    "share-sheet-desktop.webp", "share-sheet-mobile.webp"
+    "share-sheet-desktop.webp", "share-sheet-mobile.webp",
+    "ccfolia-portrait-desktop.webp", "ccfolia-portrait-mobile.webp",
+    "ccfolia-board-desktop.webp", "ccfolia-board-mobile.webp",
+    "ccfolia-editor-desktop.webp", "ccfolia-editor-mobile.webp"
   ];
   for (const name of captures) {
     const bytes = readFileSync(new URL("../docs/tutorial-captures/" + name, import.meta.url));
@@ -154,6 +157,19 @@ test("使い方ガイドはPCとスマートフォンの実画面キャプチャ
   assert.ok(appSource.includes('secondaryImage: "docs/tutorial-captures/share-sheet-desktop.webp"'));
   assert.match(beginnerTutorial, /スマートフォン版の実画面を見る/);
   assert.match(beginnerTutorial, /tutorial-captures\/share-sheet-mobile\.webp/);
+  assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-board-desktop\.webp/);
+  assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-editor-mobile\.webp/);
+  assert.match(appSource, /立ち絵全体とCCFOLIAの駒サイズを確認する/);
+});
+
+test("CCFOLIA立ち絵プレビューの手順は基本タブ・盤面・編集画面の現行UIを説明する", () => {
+  assert.ok(appSource.includes("立ち絵全体とCCFOLIAの駒サイズを確認する"));
+  assert.match(beginnerTutorial, /## 2\. 立ち絵全体とCCFOLIAでの駒の見え方を確認する/);
+  assert.match(beginnerTutorial, /ビルド → 基本/);
+  assert.match(beginnerTutorial, /駒の見た目/);
+  assert.match(beginnerTutorial, /盤面/);
+  assert.match(beginnerTutorial, /編集画面/);
+  assert.match(beginnerTutorial, /長辺4マス相当/);
 });
 
 test("目的別の操作項目は検索結果から詳細と画面移動へつながる", () => {
