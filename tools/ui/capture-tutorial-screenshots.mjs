@@ -340,7 +340,7 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
   if (!isOpen) await disclosure.click();
   const imageField = page.locator("#piece-image-urls");
   const imageUrl = "http://" + HOST + ":" + PORT + "/tests/fixtures/ccfolia-preview-sample.svg";
-  await imageField.fill(imageUrl + "\\n" + imageUrl + "?face=1");
+  await imageField.fill(imageUrl + "\n" + imageUrl + "?face=1");
   const mainImage = page.locator(".piece-art-frame img");
   await mainImage.waitFor({ state: "visible", timeout: 12000 });
   await page.waitForFunction(() => {
