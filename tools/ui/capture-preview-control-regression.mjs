@@ -113,7 +113,7 @@ async function createDisposableAccount(page,profile) {
   // The app opens on the guided home; explicitly selecting Home keeps the capture deterministic.
   const homeNav = page.locator(".rail-item[title='ホーム']");
   if (await visible(homeNav)) await homeNav.click();
-  await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 10000 });
+  await page.locator(".btype-home-primary").waitFor({ state: "visible", timeout: 10000 });
   const homePath = path.join(OUT, profile.name + "-btype-home.png");
   await page.screenshot({ path: homePath, animations: "disabled" });
   results.screenshots.push({ file: path.relative(ROOT, homePath), profile: profile.name, state: "btype-home" });
