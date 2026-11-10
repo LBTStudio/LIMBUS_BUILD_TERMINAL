@@ -125,8 +125,33 @@
     return tryMatch(idx, packed);
   }
 
+  /* E.G.O 購入・解析ログは「EGO購入-TETH[鬼退治]」のように
+     ランクと短縮名で書かれることがある。一般の部分一致は短すぎる名前を
+     誤解決しないため、E.G.O だけは指定ランク内で一意な場合に限って引く。 */
+  function resolveEgoBracketAlias(idx, line) {
+    const match = String(line || "").normalize("NFKC").match(
+      /^\\s*(?:E\\.?\\s*G\\.?\\s*O|エゴ)\\s*(?:指定購入|購入|買|解析|分析)\\s*[-_：:\\s]*(ZAYIN|TETH|HE|WAW|ALEPH)?\\s*[\\[【(（]\\s*(.+?)\\s*[\\]】)）]\\s*$/i
+    );
+    if (!match) return null;
+    const requiredRank = String(match[1] || "").toUpperCase();
+    const query = fold(match[2] || "");
+    if (query.length < 3) return null;
+    const hits = new Map();
+    for (const { entry } of idx.keys) {
+      const ego = (entry.kinds || []).find((kind) =>
+        kind.kind === "ego" && (!requiredRank || String(kind.rank || "").toUpperCase() === requiredRank));
+      if (!ego || !fold(entry.name).includes(query)) continue;
+      hits.set(String(ego.rank || "") + ":" + String(ego.no ?? ""), entry);
+    }
+    if (hits.size !== 1) return null;
+    const entry = [...hits.values()][0];
+    return { ...entry, confidence: "unique-ego-bracket", probe: match[2] };
+  }
+
   /* 行から名前候補を引き、DB に当てる。 */
   function resolveCandidates(idx, line) {
+    const egoBracketHit = resolveEgoBracketAlias(idx, line);
+    if (egoBracketHit) return [egoBracketHit];
     const cleaned = fold(String(line || "").replace(STANDALONE_EGO, " ").replace(NOISE, " "));
     if (!cleaned) return [];
     const parts = cleaned.split(" ").filter(Boolean);
