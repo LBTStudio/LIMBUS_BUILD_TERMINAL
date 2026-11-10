@@ -329,6 +329,49 @@ async function captureCompactResultDetails(page, mode) {
   }
 }
 
+async function alignPreviewCapture(page, locator, top = 120) {
+  await locator.waitFor({ state: "visible", timeout: 12000 });
+  await locator.evaluate((element, targetTop) => {
+    const rect = element.getBoundingClientRect();
+    const absoluteTop = window.scrollY + rect.top;
+    window.scrollTo({ top: Math.max(0, absoluteTop - targetTop), behavior: "auto" });
+  }, top);
+  await page.waitForTimeout(100);
+  const geometry = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      height: rect.height,
+      viewportHeight: window.innerHeight
+    };
+  });
+  if (geometry.top < 56 || geometry.bottom > geometry.viewportHeight - 12) {
+    await locator.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const desiredTop = Math.max(64, (window.innerHeight - rect.height) / 2);
+      window.scrollTo({
+        top: Math.max(0, window.scrollY + rect.top - desiredTop),
+        behavior: "auto"
+      });
+    });
+    await page.waitForTimeout(100);
+  }
+  const finalGeometry = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      height: rect.height,
+      viewportHeight: window.innerHeight
+    };
+  });
+  if (finalGeometry.top < 40 || finalGeometry.bottom > finalGeometry.viewportHeight + 2) {
+    throw new Error("Preview capture target is outside the viewport: " + JSON.stringify(finalGeometry));
+  }
+  return finalGeometry;
+}
+
 async function captureCcfFoliaPortraitPreview(page, mode) {
   await clickNav(page, "ビルド");
   const basicTab = page.locator(".build-tabs button[role='tab']").filter({ hasText: "基本" }).first();
@@ -378,9 +421,11 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
     || Math.abs(portraitMetrics.naturalRatio - 300 / 520) > .02) {
     throw new Error("Standing portrait did not fit its full-image viewport: " + JSON.stringify(portraitMetrics));
   }
+  const portraitFrame = page.locator(".piece-art-frame").first();
+  const portraitCaptureGeometry = await alignPreviewCapture(page, portraitFrame);
   const portraitName = "ccfolia-portrait-" + mode + ".png";
   await page.screenshot({ path: path.join(OUT, portraitName), animations: "disabled", fullPage: false });
-  log("captured full standing portrait " + portraitName);
+  log("captured full standing portrait " + portraitName + " viewport=" + JSON.stringify(portraitCaptureGeometry));
 
   const outputTab = page.locator("#build-params-tab-preview");
   await outputTab.waitFor({ state: "visible", timeout: 12000 });
@@ -416,9 +461,11 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
       boardMetrics.objectFit !== "contain") {
     throw new Error("CCFOLIA board token must use a full natural-ratio image with its long side at four grid cells: " + JSON.stringify(boardMetrics));
   }
+  const boardStage = ccfoliaPreview.locator(".piece-board-stage").first();
+  const boardCaptureGeometry = await alignPreviewCapture(page, boardStage);
   const boardName = "ccfolia-board-" + mode + ".png";
   await page.screenshot({ path: path.join(OUT, boardName), animations: "disabled", fullPage: false });
-  log("captured CCFOLIA board token preview " + boardName);
+  log("captured CCFOLIA board token preview " + boardName + " viewport=" + JSON.stringify(boardCaptureGeometry));
 
   await ccfoliaPreview.locator("#basic-ccfolia-tab-sheet").click();
   const editorImage = ccfoliaPreview.locator(".piece-ccfolia-editor-main-image img");
@@ -451,9 +498,11 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
       !editorMetrics.contained || editorMetrics.objectFit !== "contain") {
     throw new Error("CCFOLIA character editor must preserve the full portrait: " + JSON.stringify(editorMetrics));
   }
+  const editorFrame = ccfoliaPreview.locator(".piece-ccfolia-editor-main-image").first();
+  const editorCaptureGeometry = await alignPreviewCapture(page, editorFrame);
   const editorName = "ccfolia-editor-" + mode + ".png";
   await page.screenshot({ path: path.join(OUT, editorName), animations: "disabled", fullPage: false });
-  log("captured CCFOLIA character editor preview " + editorName);
+  log("captured CCFOLIA character editor preview " + editorName + " viewport=" + JSON.stringify(editorCaptureGeometry));
 }
 async function captureViewport(browser, mode) {
   const isMobile = mode === "mobile";
