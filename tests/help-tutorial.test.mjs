@@ -234,6 +234,9 @@ test("使い方画面の初期表示をPC／スマホで記録し、QA画像を�
   assert.ok(captureScript.includes('"help-index-" + mode + ".png"'));
   assert.ok(captureWorkflow.includes('if png.stem.startswith("help-index-"):'));
   assert.ok(captureWorkflow.includes('Expected 18 WebP screenshots'));
+  assert.match(captureWorkflow, /permissions:\\s*\\n\\s*contents:\\s*read/);
+  assert.doesNotMatch(captureWorkflow, /git push origin|github-actions\\[bot\\]/,
+    "生成画像はArtifactに保存し、bot tokenでPRブランチへpushしない");
 });
 
 test("複雑な図解は該当する項目を開いた時だけ表示される", () => {
