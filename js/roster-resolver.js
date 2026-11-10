@@ -135,7 +135,9 @@
     if (!match) return null;
     const requiredRank = String(match[1] || "").toUpperCase();
     const query = fold(match[2] || "");
-    if (query.length < 3) return null;
+    /* E.G.O表記として認識したが照合が曖昧な場合、一般部分一致へ落とさない。
+       ここで候補を探し直すと、指定ランクや短縮名を無視した誤登録が起こり得る。 */
+    if (query.length < 3) return [];
     const hits = new Map();
     for (const { entry } of idx.keys) {
       const ego = (entry.kinds || []).find((kind) =>
@@ -143,7 +145,7 @@
       if (!ego || !fold(entry.name).includes(query)) continue;
       hits.set(String(ego.rank || "") + ":" + String(ego.no ?? ""), entry);
     }
-    if (hits.size !== 1) return null;
+    if (hits.size !== 1) return [];
     const entry = [...hits.values()][0];
     return { ...entry, confidence: "unique-ego-bracket", probe: match[2] };
   }
@@ -151,6 +153,7 @@
   /* 行から名前候補を引き、DB に当てる。 */
   function resolveCandidates(idx, line) {
     const egoBracketHit = resolveEgoBracketAlias(idx, line);
+    if (Array.isArray(egoBracketHit)) return egoBracketHit;
     if (egoBracketHit) return [egoBracketHit];
     const cleaned = fold(String(line || "").replace(STANDALONE_EGO, " ").replace(NOISE, " "));
     if (!cleaned) return [];
