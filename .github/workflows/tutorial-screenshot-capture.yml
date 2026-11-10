@@ -96,6 +96,8 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: lbt-tutorial-ui-captures-${{ github.sha }}
-          path: |\n            artifacts/tutorial-screenshots/\n            docs/tutorial-captures/
+          path: |
+            artifacts/tutorial-screenshots/
+            docs/tutorial-captures/
           if-no-files-found: error
           retention-days: 30
