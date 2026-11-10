@@ -83,6 +83,12 @@ test("Basic output preview contains board, sheet and generated JSON views from L
   assert.match(component, /"立ち絵全体を縦横比そのままで表示します/);
   assert.match(component, /"キャラクター編集"/);
   assert.doesNotMatch(component, /piece-board-init|piece-board-token-ring|object-fit:\s*cover/);
+  assert.match(component, /const longSide = 192/);
+  assert.match(component, /const scale = longSide \/ Math\.max\(image\.naturalWidth, image\.naturalHeight\)/);
+  assert.match(component, /frame\.style\.width = Math\.max\(1, image\.naturalWidth \* scale\)/);
+  assert.match(component, /frame\.style\.height = Math\.max\(1, image\.naturalHeight \* scale\)/);
+  assert.match(parity, /\.piece-board-avatar\{[\s\S]*?overflow:visible/);
+  assert.doesNotMatch(parity, /\.piece-board-avatar\{[^}]*overflow:hidden/);
   assert.match(parity, /\.piece-board-avatar img[\s\S]*?object-fit: contain/);
   assert.match(parity, /\.piece-ccfolia-editor-main-image img[\s\S]*?object-fit: contain/);
   assert.match(generator, /function buildCcfoliaJSON\(state, opts\)/);
