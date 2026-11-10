@@ -1149,6 +1149,33 @@ test("金額は読めなければ「要確認」で、勝手に 0 埋めしな�
   assert.equal(s.reason, "金額が読めない");
 });
 
+test("ランク付き短縮E.G.Oログは同ランク内のDB名が一意な場合だけ解決する", () => {
+  const hit = R.resolveCandidates(NAME_INDEX, "EGO購入-TETH[鬼退治]")[0];
+  assert.ok(hit, "短縮名「鬼退治」をTETHのDBレコードへ解決する");
+  assert.equal(hit.name, "鬼退治：血迷った鬼殺し");
+  const ego = hit.kinds.find((kind) => kind.kind === "ego");
+  assert.equal(ego.rank, "TETH");
+  assert.equal(String(ego.no), "13");
+  assert.equal(R.resolveCandidates(NAME_INDEX, "EGO購入-ALEPH[鬼退治]").length, 0,
+    "ランクが一致しない候補を別E.G.Oへ誤解決しない");
+});
+
+test("実DBの短縮E.G.O購入ログを所持追加と明示価格の支出へ変換する", () => {
+  const parsed = T.parseText("【シナリオA】\\n購入｜EGO購入-TETH[鬼退治](75欠片)\\n");
+  const planned = T.plan(parsed, {
+    resolve: (name) => R.resolveCandidates(NAME_INDEX, name)[0] || null
+  });
+  const add = planned.actions.find((action) => action.type === "ADD_ROSTER_EGO");
+  const entry = planned.actions.find((action) => action.type === "ADD_ENTRY");
+  assert.ok(add, "一意解決できたE.G.Oは所持へ追加する");
+  assert.equal(add.rank, "TETH");
+  assert.equal(String(add.no), "13");
+  assert.equal(add.purchase, false);
+  assert.equal(entry.kind, "ego");
+  assert.equal(entry.name, "鬼退治：血迷った鬼殺し");
+  assert.equal(entry.cost.shards, 75, "DB価格ではなく当時のログ金額を保存する");
+});
+
 test("DBで一意に解決できるE.G.O指定購入は所持追加と実額の支出を両方記録する", () => {
   const parsed = T.parseText("【シナリオA】\\n購入｜EGO購入-TETH[鬼退治](75欠片)\\n");
   const planned = T.plan(parsed, {
