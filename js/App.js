@@ -1439,7 +1439,7 @@ const HomeLauncher = ({
       title: "スキル・パッシブ",
       description: "戦闘データを整える",
       ready: skillReady && passiveReady,
-      run: () => navigate("skill")
+      run: () => navigate(skillReady ? "passive" : "skill")
     }
   ];
   const completedCount = steps.filter((step) => step.ready).length;
