@@ -24,7 +24,7 @@ node tools/ui/capture-tutorial-screenshots.mjs
 
 ## GitHub Actions
 
-PRで関連ファイルが変わると `Tutorial UI screenshot capture` が実行され、同名のArtifactにPNGとmanifestを30日保存します。完了した実行の **Artifacts** から `lbt-tutorial-ui-captures-...` をダウンロードできます。さらに同一リポジトリ内のPRでは、撮影直後にWebP（品質86）へ圧縮した18枚を `docs/tutorial-captures/` に自動コミットします。フォークからのPRは安全のため自動コミットせず、Artifactを利用します。ワークフローがmainへ入った後は、Actions画面から手動実行もできます。
+PRで関連ファイルが変わると `Tutorial UI screenshot capture` が実行され、同名のArtifactにPNGとmanifestを30日保存します。完了した実行の **Artifacts** から `lbt-tutorial-ui-captures-...` をダウンロードできます。WebP（品質86）へ圧縮した18枚は、撮影PNGとともに同じArtifactへまとめて保存します。CIはPRブランチへ画像を自動コミットしません。採用する場合はArtifactを取得して `docs/tutorial-captures/` に追加し、回帰テストとガイドの参照を一緒に更新します。ワークフローがmainへ入った後は、Actions画面から手動実行もできます。
 
 ## ガイドへ反映する
 
