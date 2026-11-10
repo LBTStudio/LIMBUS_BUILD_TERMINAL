@@ -90,8 +90,8 @@ test("Basic output preview contains board, sheet and generated JSON views from L
   const boardCssStart = parity.indexOf("/* CCFOLIA board: portrait keeps its native aspect ratio.");
   assert.ok(boardCssStart >= 0, "CCFOLIA portrait overrides must be present");
   const boardCss = parity.slice(boardCssStart, parity.indexOf("/* Character editor preview", boardCssStart));
-  assert.match(boardCss, /\\.piece-board-avatar \\{[\\s\\S]*?overflow: visible/);
-  assert.match(boardCss, /\\.piece-board-avatar img \\{[\\s\\S]*?object-fit: contain/);
+  assert.match(boardCss, /\.piece-board-avatar \{[\s\S]*?overflow: visible/);
+  assert.match(boardCss, /\.piece-board-avatar img \{[\s\S]*?object-fit: contain/);
   assert.match(parity, /\.piece-board-avatar img[\s\S]*?object-fit: contain/);
   assert.match(parity, /\.piece-ccfolia-editor-main-image img[\s\S]*?object-fit: contain/);
   assert.match(generator, /function buildCcfoliaJSON\(state, opts\)/);
