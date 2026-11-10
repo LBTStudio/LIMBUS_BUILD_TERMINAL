@@ -280,7 +280,7 @@ async function runProfile(browser,profile) {
       { previewFormatText });
 
     const boardModeTab = page.getByRole("tab", { name: "盤面上の駒", exact: true });
-    const sheetModeTab = page.getByRole("tab", { name: "キャラクターシート", exact: true });
+    const sheetModeTab = page.getByRole("tab", { name: "キャラクター編集", exact: true });
     const jsonModeTab = page.getByRole("tab", { name: "出力データ", exact: true });
     const boardModePanel = page.locator("#basic-ccfolia-panel-board");
     const sheetModePanel = page.locator("#basic-ccfolia-panel-sheet");
