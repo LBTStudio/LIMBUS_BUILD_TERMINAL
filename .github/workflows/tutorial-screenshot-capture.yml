@@ -64,7 +64,7 @@ jobs:
           pngs = sorted(source.glob("*.png"))
           for png in pngs:
               # Keep the help-index screenshots in the expiring QA Artifact only.
-              # The public guide remains a focused set of 12 task screenshots.
+              # The public guide includes 18 focused screenshots across desktop and mobile.
               if png.stem.startswith("help-index-"):
                   continue
               with Image.open(png) as im:
