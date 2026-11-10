@@ -334,8 +334,8 @@ async function runProfile(browser,profile) {
     } else {
       await page.locator(".rail-item[title='ホーム']").click();
     }
-    await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 5000 });
-    await page.locator(".btype-launcher-card[data-task='preview']").click();
+    await page.locator(".btype-home-primary").waitFor({ state: "visible", timeout: 5000 });
+    await page.locator(".btype-home-step.is-preview").click();
     await page.locator("#build-params-panel-preview").waitFor({ state: "visible", timeout: 5000 });
     await page.locator("#basic-ccfolia-panel-board").waitFor({ state: "visible", timeout: 5000 });
     const globalPreviewOpen = await page.locator("#preview-panel").isVisible().catch(() => false);
