@@ -35,8 +35,60 @@
 | 所持人格や保存済みビルドを引き継ぐ | **所持ライブラリを保存** |
 | 共有相手に見せるHTMLを作る | **共有シートを開く** |
 | CCFOLIA用データを取り出す | **CCFOLIA JSONをコピー**、またはプレビューのJSON出力 |
+| 立ち絵が切れないか／CCFOLIAの駒サイズを確認する | **ビルド → 基本 → 駒の見た目**、プレビューの **駒 → 盤面／編集画面** |
 
-## 2. テキスト流し込みは目的別に使い分ける
+## 2. 立ち絵全体とCCFOLIAでの駒の見え方を確認する
+
+<details>
+<summary>PC版：基本タブの立ち絵・全身カードを確認する</summary>
+
+![立ち絵全体と差分、縮尺を保った駒カード](tutorial-captures/ccfolia-portrait-desktop.webp)
+
+</details>
+
+<details>
+<summary>スマートフォン版：基本タブの立ち絵・全身カードを確認する</summary>
+
+![スマートフォン版の立ち絵全体と差分](tutorial-captures/ccfolia-portrait-mobile.webp)
+
+</details>
+
+1. **ビルド → 基本** を開きます。
+2. **駒の見た目** の「立ち絵URL・差分を編集」を開き、画像URLを1行に1枚入力します。1行目が基本画像、2行目以降は表情・差分です。画像自体をトリミングしたり、正方形に変換したりする必要はありません。
+3. サムネイルを押して表示画像を切り替えます。左側の立ち絵枠は読み込んだ画像の実寸比を使って長辺を基準に縮尺を合わせ、頭から足元まで全体を表示します。右側のカードも同じ画像を縦横比を保って表示します。
+4. 画面右側のプレビューを開き、上部の **駒** タブを選びます。**盤面** はグリッド上で駒の大きさを確認する例、**編集画面** は立ち絵・差分・キャラクター名・プレイヤー名・イニシアティブ・ステータス・パラメータ・チャットパレットを確認する例です。
+
+<details>
+<summary>PC版：CCFOLIA盤面プレビュー</summary>
+
+![盤面上で立ち絵全体と駒の長辺4マス相当の縮尺を確認](tutorial-captures/ccfolia-board-desktop.webp)
+
+</details>
+
+<details>
+<summary>スマートフォン版：CCFOLIA盤面プレビュー</summary>
+
+![スマートフォン版の盤面プレビュー](tutorial-captures/ccfolia-board-mobile.webp)
+
+</details>
+
+<details>
+<summary>PC版：CCFOLIA編集画面プレビュー</summary>
+
+![CCFOLIA編集画面風の立ち絵・差分と出力情報](tutorial-captures/ccfolia-editor-desktop.webp)
+
+</details>
+
+<details>
+<summary>スマートフォン版：CCFOLIA編集画面プレビュー</summary>
+
+![スマートフォン版のCCFOLIA編集画面プレビュー](tutorial-captures/ccfolia-editor-mobile.webp)
+
+</details>
+
+盤面プレビューの画像は、グリッド1マス48px・画像の長辺4マス相当という縮尺例です。CCFOLIAでは画像の長辺を設定マス数に合わせ、画像比率を維持して表示します。実際のマス数、背景、座標、ズーム、ルーム内UIはCCFOLIA側で決まるため、ここは出力画像とサイズ感の事前確認に使ってください。画像をCCFOLIAへ渡すには、CCFOLIAで利用できるURLを設定し、最後に **JSON** タブまたは **CCFOLIA JSONをコピー** から出力します。
+
+## 3. テキスト流し込みは目的別に使い分ける
 
 <details>
 <summary>取り込み経路を図で確認する</summary>
