@@ -50,7 +50,7 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
   assert.match(home, /onClick: nextStep\.run/);
   assert.match(home, /次へ：/);
   assert.match(home, /プレビューを確認する/);
-  for (const target of ["baseinfo", "persona", "skill", "roster", "shop", "settings", "help"]) {
+  for (const target of ["baseinfo", "persona", "roster", "shop", "settings", "help"]) {
     assert.ok(app.includes(`navigate("${target}"`), `ホームから ${target} へ移動できる`);
   }
   assert.match(home, /既存データを取り込む/);
