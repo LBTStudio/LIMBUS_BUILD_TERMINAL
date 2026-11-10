@@ -1408,73 +1408,217 @@ const MobileBottomNavigation = ({ current, isBuildWorkspace, dispatch, onOpenImp
 };
 
 const HomeLauncher = ({
-  state, dispatch, saveStatus, onOpenAccounts, onOpenImportFile,
-  onExportState, onExportRoster, onTogglePreview, onCopyJson, onOpenUtilities, onOpenImportRouter
+  state, dispatch, saveStatus, onOpenAccounts, onOpenUtilities, onOpenImportRouter
 }) => {
   const h = React.createElement;
   const [query, setQuery] = React.useState("");
   const navigate = (currentSection, extraUI = {}) =>
     dispatch({ type: "SET_UI", ui: { currentSection, ...extraUI } });
-
-  /* Bタイプのホーム構造。カードは既存のアクションへ接続し、機能を複製しない。 */
-  const actions = [
-    { id: "base", title: "基本情報・駒整形", desc: "名前・PL・立ち絵・色・ST・ラベルを整える", icon: "grid", terms: "基本 駒整形 立ち絵 画像 名前 PL 色 行動順 ST ステータス ラベル ココフォリア", run: () => navigate("baseinfo") },
-    { id: "persona", title: "人格・スキルを編集", desc: "人格を装備し、スキルやパッシブを調整", icon: "persona", terms: "人格 スキル パッシブ 強化 EGO E.G.O 精神 アイテム 装備", run: () => navigate("persona") },
-    { id: "import", title: "データを取り込む", desc: "人格本文・リザルト・硝子窓・所持一覧", icon: "upload", terms: "取り込み テキスト URL 硝子窓 所持一覧 リザルト 報酬 購入履歴 人格", run: onOpenImportRouter },
-    { id: "records", title: "記録・所持品", desc: "所持ライブラリ、リザルト、収支", icon: "roster", terms: "記録 所持ライブラリ 所持品 人格 EGO E.G.O リザルト 報酬 収支", run: () => navigate("roster", { libraryTab: "home" }) },
-    { id: "shop", title: "ショップ", desc: "未所持の人格・E.G.O・サポート等を探す", icon: "item", terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム", run: () => navigate("shop", { shopView: "overview" }) },
-    { id: "preview", title: "CCFOLIA駒プレビュー", desc: "盤面・キャラクター編集画面・実際の出力JSONを確認", icon: "eye", terms: "駒 プレビュー 盤面 キャラクター編集 出力JSON ココフォリア", run: () => navigate("baseinfo", { basicFormatTab: "preview", basicPreviewMode: "board", previewOpen: false }) },
-    { id: "utilities", title: "保存・復元・共有", desc: "作業データ、所持ライブラリ、共有シート", icon: "archive", terms: "保存 復元 バックアップ JSON 共有 ライブラリ 作業状態", run: onOpenUtilities },
-    { id: "settings", title: "詳細設定", desc: "ステータス、ラベル、出力順、計算式", icon: "settings", terms: "ステータス ラベル 出力順 計算式 詳細設定", run: () => navigate("settings", { settingsView: "overview" }) },
-    { id: "help", title: "使い方を探す", desc: "目的や画面名から操作ガイドを検索", icon: "book", terms: "使い方 ヘルプ 操作 ガイド 検索", run: () => navigate("help") }
+  const charName = String(state.charName || "").trim();
+  const basicReady = !!charName;
+  const personaReady = !!state.personaSrc;
+  const skillReady = isComplete("skill", state);
+  const passiveReady = isComplete("passive", state);
+  const steps = [
+    {
+      id: "basic",
+      title: "基本情報",
+      description: "キャラクター名・立ち絵・パラメータ",
+      ready: basicReady,
+      run: () => navigate("baseinfo")
+    },
+    {
+      id: "persona",
+      title: "人格",
+      description: "人格を選択・取り込み",
+      ready: personaReady,
+      run: () => navigate("persona")
+    },
+    {
+      id: "battle",
+      title: "スキル・パッシブ",
+      description: "戦闘データを整える",
+      ready: skillReady && passiveReady,
+      run: () => navigate("skill")
+    }
+  ];
+  const completedCount = steps.filter((step) => step.ready).length;
+  const nextStep = steps.find((step) => !step.ready) || {
+    id: "preview",
+    title: "プレビュー・出力",
+    description: "完成したシートを確認",
+    run: () => navigate("baseinfo", {
+      basicFormatTab: "preview",
+      basicPreviewMode: "board",
+      previewOpen: false
+    })
+  };
+  const utilityActions = [
+    {
+      id: "shop", title: "ショップ", description: "人格・E.G.O・サポート・アイテムを探す",
+      terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム",
+      run: () => navigate("shop", { shopView: "overview" })
+    },
+    {
+      id: "save", title: "保存・復元・共有", description: "作業データと所持ライブラリを保全する",
+      terms: "保存 復元 バックアップ JSON 共有 ライブラリ 作業状態",
+      run: onOpenUtilities
+    },
+    {
+      id: "settings", title: "詳細設定", description: "ステータス・ラベル・出力順・計算式",
+      terms: "ステータス ラベル 出力順 計算式 詳細設定",
+      run: () => navigate("settings", { settingsView: "overview" })
+    },
+    {
+      id: "help", title: "使い方", description: "目的や画面名から操作手順を探す",
+      terms: "使い方 ヘルプ 操作 ガイド 検索",
+      run: () => navigate("help")
+    }
   ];
   const needle = query.trim().toLocaleLowerCase("ja");
-  const visibleActions = actions.filter((item) =>
-    !needle || [item.title, item.desc, item.terms].join(" ").toLocaleLowerCase("ja").includes(needle));
-  const chip = (label) => h("span", { className: "btype-result-chip", key: label }, label);
+  const visibleUtilities = utilityActions.filter((item) =>
+    !needle || [item.title, item.description, item.terms].join(" ").toLocaleLowerCase("ja").includes(needle)
+  );
+  const preview = () => navigate("baseinfo", {
+    basicFormatTab: "preview",
+    basicPreviewMode: "board",
+    previewOpen: false
+  });
 
-  return h("section", { className: "home-launcher btype-home", "aria-labelledby": "home-launcher-title" },
-    h("header", { className: "btype-command-hero" },
-      h("div", { className: "btype-eyebrow" }, "HOME / MULTI-PURPOSE LAUNCHER"),
-      h("h1", { id: "home-launcher-title" }, "何から始めますか？"),
-      h("p", { className: "btype-muted" }, "画面名が分からなくても、目的から機能を開けます。編集対象は現在のキャラクターです。"),
-      h("div", { className: "btype-context-chips" },
-        chip("対象：" + String(state.charName || "名称未設定")),
-        chip("自動保存：" + (saveStatus?.phase === "saved" ? "有効" : "処理中")),
-        chip("作業場所：ビルド")),
-      h("div", { className: "btype-command-search" },
-      h(Icon, { name: "search", size: 17 }),
-      h("input", {
-        type: "search", value: query, onChange: (event) => setQuery(event.target.value),
-        placeholder: "例：人格を取り込む／報酬を記録／JSONを出力",
-        "aria-label": "機能を検索"
-      }),
-      query ? h("button", { type: "button", onClick: () => setQuery(""), "aria-label": "検索をクリア" }, "×") : null
+  return h("section", {
+    className: "home-launcher btype-home btype-home-v2",
+    "aria-labelledby": "home-launcher-title"
+  },
+    h("header", { className: "btype-home-primary" },
+      h("div", { className: "btype-home-primary-copy" },
+        h("div", { className: "btype-eyebrow" }, "LIMBUS BUILD TERMINAL"),
+        h("h1", { id: "home-launcher-title" }, charName ? charName + " のシートを仕上げる" : "キャラクターシートを作る"),
+        h("p", { className: "btype-muted" },
+          charName
+            ? "基本情報からプレビューまで、続きの作業をここから進められます。"
+            : "まず基本情報を入力し、人格・スキルを整えて、最後にCCFOLIA用データを確認します。"
+        ),
+        h("div", { className: "btype-home-context" },
+          h("span", null, "対象 ", h("strong", null, charName || "キャラクター名未設定")),
+          h("span", { className: "btype-home-save", "data-save-state": saveStatus?.phase || "saving" },
+            saveStatus?.phase === "saved" ? "自動保存済み" : saveStatus?.phase === "error" ? "保存状態を確認" : "自動保存中"
+          )
+        ),
+        h("button", {
+          type: "button",
+          className: "btype-home-primary-action",
+          onClick: nextStep.run
+        },
+          h("span", null, completedCount === steps.length ? "プレビューを確認する" : "次へ： " + nextStep.title),
+          h("span", { "aria-hidden": "true" }, "→")
+        ),
+        h("p", { className: "btype-home-next-hint" },
+          completedCount === steps.length
+            ? "基本設定・人格・戦闘データが設定されています。出力を確認できます。"
+            : "次の設定は「" + nextStep.title + "」です。ほかの項目はいつでも先に編集できます。"
+        )
+      ),
+      h("section", { className: "btype-home-progress", "aria-label": "シート作成の進み具合" },
+        h("div", { className: "btype-home-progress-head" },
+          h("strong", null, "作成の流れ"),
+          h("span", null, completedCount + " / " + steps.length + " 項目を設定済み")
+        ),
+        h("ol", null, [
+          ...steps.map((step, index) => h("li", { key: step.id },
+            h("button", {
+              type: "button",
+              className: "btype-home-step" + (step.ready ? " is-complete" : "") + (step.id === nextStep.id ? " is-next" : ""),
+              onClick: step.run
+            },
+              h("span", { className: "btype-home-step-number", "aria-hidden": "true" }, step.ready ? "✓" : String(index + 1)),
+              h("span", { className: "btype-home-step-copy" },
+                h("strong", null, step.title),
+                h("small", null, step.description)
+              ),
+              h("span", { className: "btype-home-step-state" }, step.ready ? "設定済み" : step.id === nextStep.id ? "次に設定" : "未設定")
+            )
+          )),
+          h("li", { key: "preview" },
+            h("button", {
+              type: "button",
+              className: "btype-home-step is-preview",
+              onClick: preview
+            },
+              h("span", { className: "btype-home-step-number", "aria-hidden": "true" }, "4"),
+              h("span", { className: "btype-home-step-copy" },
+                h("strong", null, "プレビュー・出力"),
+                h("small", null, "盤面とCCFOLIA JSONを確認")
+              ),
+              h("span", { className: "btype-home-step-state" }, "いつでも確認")
+            )
+          )
+        ])
+      )
     ),
+    h("div", { className: "btype-home-secondary-heading" },
+      h("strong", null, "別の方法から始める"),
+      h("span", null, "作成済みデータやセッション記録がある場合はこちら")
     ),
-    h("div", { className: "btype-section-title" }, "目的から開く"),
-    h("div", { className: "btype-launcher-grid", "data-launcher-grid": "" },
-      visibleActions.map((item) => h("button", {
-        key: item.id, type: "button", className: "btype-launcher-card",
-        onClick: item.run, "data-task": item.id
+    h("div", { className: "btype-home-start-grid" },
+      h("button", {
+        type: "button",
+        className: "btype-home-start-card is-import",
+        onClick: onOpenImportRouter
       },
-        h("span", { className: "btype-launcher-icon", "aria-hidden": "true" }, h(Icon, { name: item.icon, size: 18 })),
-        h("strong", null, item.title),
-        h("small", null, item.desc),
-        h("span", { className: "btype-launcher-arrow", "aria-hidden": "true" }, "→")
-      )),
+        h("span", { className: "btype-home-start-icon", "aria-hidden": "true" }, h(Icon, { name: "upload", size: 19 })),
+        h("span", null,
+          h("strong", null, "既存データを取り込む"),
+          h("small", null, "人格本文・硝子窓・リザルト・所持一覧")
+        ),
+        h("span", { className: "btype-home-card-arrow", "aria-hidden": "true" }, "→")
+      ),
+      h("button", {
+        type: "button",
+        className: "btype-home-start-card",
+        onClick: () => navigate("roster", { libraryTab: "home" })
+      },
+        h("span", { className: "btype-home-start-icon", "aria-hidden": "true" }, h(Icon, { name: "roster", size: 19 })),
+        h("span", null,
+          h("strong", null, "記録・所持品を管理"),
+          h("small", null, "リザルト・報酬・抽出・購入履歴")
+        ),
+        h("span", { className: "btype-home-card-arrow", "aria-hidden": "true" }, "→")
+      )
     ),
-    visibleActions.length === 0 ? h("p", { className: "btype-empty" }, "該当する操作がありません。別の言葉で検索してください。") : null,
-    h("section", { className: "btype-continue-panel" },
-      h("div", { className: "btype-continue-heading" },
-        h("strong", null, "続きから"),
-        h("span", null, "作業を再開")),
-      h("button", { type: "button", className: "btype-task-row", onClick: () => navigate("baseinfo") },
-        h("span", { className: "btype-task-glyph", "aria-hidden": "true" }, h(Icon, { name: "grid", size: 18 })),
-        h("span", { className: "btype-task-copy" },
-          h("strong", null, "ビルドを開く"),
-          h("small", null, "基本設定・ビルド・プレビューを一つの作業領域で編集")),
-        h("span", { className: "btype-task-chevron", "aria-hidden": "true" }, "›"))
+    h("section", { className: "btype-home-footer-actions" },
+      h("button", { type: "button", onClick: () => navigate("shop", { shopView: "overview" }) },
+        h(Icon, { name: "item", size: 15 }), " ショップから探す"
+      ),
+      h("button", { type: "button", onClick: onOpenAccounts },
+        h(Icon, { name: "users", size: 15 }), " キャラクターを切り替える"
+      ),
+      h("button", { type: "button", onClick: onOpenUtilities },
+        h(Icon, { name: "archive", size: 15 }), " 保存・共有"
+      )
+    ),
+    h("details", { className: "btype-home-more" },
+      h("summary", null, "その他の機能を探す"),
+      h("div", { className: "btype-home-more-content" },
+        h("label", { className: "btype-command-search" },
+          h(Icon, { name: "search", size: 16 }),
+          h("input", {
+            type: "search",
+            value: query,
+            onChange: (event) => setQuery(event.target.value),
+            placeholder: "例：ステータス、計算式、使い方",
+            "aria-label": "その他の機能を検索"
+          }),
+          query ? h("button", { type: "button", onClick: () => setQuery(""), "aria-label": "検索をクリア" }, "×") : null
+        ),
+        h("div", { className: "btype-home-utility-list" },
+          visibleUtilities.map((item) => h("button", { key: item.id, type: "button", onClick: item.run },
+            h("strong", null, item.title),
+            h("small", null, item.description),
+            h("span", { "aria-hidden": "true" }, "→")
+          ))
+        ),
+        visibleUtilities.length === 0 ? h("p", { className: "btype-empty" }, "一致する機能がありません。別の言葉で検索してください。") : null
+      )
     )
   );
 };
