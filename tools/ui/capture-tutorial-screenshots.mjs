@@ -329,6 +329,176 @@ async function captureCompactResultDetails(page, mode) {
   }
 }
 
+async function alignPreviewCapture(page, locator) {
+  await locator.waitFor({ state: "visible", timeout: 12000 });
+  /* Build workspace scrolls inside its own container on some layouts. scrollIntoView
+     follows the actual scrollable ancestor chain; window.scrollTo alone leaves the
+     target at its stale negative viewport offset. */
+  await locator.evaluate((element) => {
+    element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+  });
+  await page.waitForTimeout(100);
+  let geometry = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      height: rect.height,
+      viewportHeight: window.innerHeight
+    };
+  });
+  if (geometry.top < 48 || geometry.bottom > geometry.viewportHeight - 12) {
+    await locator.evaluate((element) => {
+      element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    });
+    await page.waitForTimeout(100);
+    geometry = await locator.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+        viewportHeight: window.innerHeight
+      };
+    });
+  }
+  if (geometry.top < 40 || geometry.bottom > geometry.viewportHeight + 2) {
+    throw new Error("Preview capture target is outside the viewport: " + JSON.stringify(geometry));
+  }
+  return geometry;
+}
+async function captureCcfFoliaPortraitPreview(page, mode) {
+  await clickNav(page, "ビルド");
+  const basicTab = page.locator(".build-tabs button[role='tab']").filter({ hasText: "基本" }).first();
+  await basicTab.waitFor({ state: "visible", timeout: 12000 });
+  await basicTab.click();
+  const disclosure = page.locator(".piece-image-details > summary").first();
+  await disclosure.waitFor({ state: "visible", timeout: 12000 });
+  const isOpen = await disclosure.evaluate((el) => el.parentElement?.open === true);
+  if (!isOpen) await disclosure.click();
+  const imageField = page.locator("#piece-image-urls");
+  const imageUrl = "http://" + HOST + ":" + PORT + "/tests/fixtures/ccfolia-preview-sample.svg";
+  await imageField.fill(imageUrl + "\n" + imageUrl + "?face=1");
+  const mainImage = page.locator(".piece-art-frame img");
+  await mainImage.waitFor({ state: "visible", timeout: 12000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-art-frame img");
+    return Boolean(image?.naturalWidth && image?.naturalHeight);
+  }, { timeout: 12000 });
+  const portraitMetrics = await mainImage.evaluate((image) => {
+    const frame = image.closest(".piece-art-frame");
+    const style = getComputedStyle(image);
+    const box = image.getBoundingClientRect();
+    const frameBox = frame?.getBoundingClientRect();
+    const contentWidth = image.clientWidth - Number.parseFloat(style.paddingLeft || "0") - Number.parseFloat(style.paddingRight || "0");
+    const contentHeight = image.clientHeight - Number.parseFloat(style.paddingTop || "0") - Number.parseFloat(style.paddingBottom || "0");
+    const fitScale = Math.min(contentWidth / image.naturalWidth, contentHeight / image.naturalHeight);
+    const paintedWidth = image.naturalWidth * fitScale;
+    const paintedHeight = image.naturalHeight * fitScale;
+    return {
+      naturalRatio: image.naturalWidth / image.naturalHeight,
+      objectFit: style.objectFit,
+      frameRatio: frameBox?.width / frameBox?.height,
+      imageElementFits: Boolean(frameBox && box.width <= frameBox.width + 1 && box.height <= frameBox.height + 1),
+      paintedRatio: paintedWidth / paintedHeight,
+      paintedWidth,
+      paintedHeight,
+      contentWidth,
+      contentHeight,
+      contained: Boolean(frameBox && image.naturalWidth > 0 && image.naturalHeight > 0
+        && style.objectFit === "contain"
+        && paintedWidth <= contentWidth + 1
+        && paintedHeight <= contentHeight + 1
+        && Math.abs(paintedWidth / paintedHeight - image.naturalWidth / image.naturalHeight) < .001)
+    };
+  });
+  if (!portraitMetrics?.contained || !portraitMetrics.imageElementFits
+    || Math.abs(portraitMetrics.naturalRatio - 300 / 520) > .02) {
+    throw new Error("Standing portrait did not fit its full-image viewport: " + JSON.stringify(portraitMetrics));
+  }
+  const portraitFrame = page.locator(".piece-art-frame").first();
+  const portraitCaptureGeometry = await alignPreviewCapture(page, portraitFrame);
+  const portraitName = "ccfolia-portrait-" + mode + ".png";
+  await page.screenshot({ path: path.join(OUT, portraitName), animations: "disabled", fullPage: false });
+  log("captured full standing portrait " + portraitName + " viewport=" + JSON.stringify(portraitCaptureGeometry));
+
+  const outputTab = page.locator("#build-params-tab-preview");
+  await outputTab.waitFor({ state: "visible", timeout: 12000 });
+  await outputTab.click();
+  const ccfoliaPreview = page.locator(".basic-ccfolia-preview");
+  await ccfoliaPreview.waitFor({ state: "visible", timeout: 12000 });
+
+  await ccfoliaPreview.locator("#basic-ccfolia-tab-board").click();
+  const boardImage = ccfoliaPreview.locator(".piece-board-avatar img");
+  await boardImage.waitFor({ state: "visible", timeout: 12000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-board-avatar img");
+    const frame = image?.parentElement;
+    return Boolean(image?.naturalWidth && image?.naturalHeight &&
+      Number.parseFloat(frame?.style.width || "0") > 0 &&
+      Number.parseFloat(frame?.style.height || "0") > 0);
+  }, { timeout: 12000 });
+  const boardMetrics = await boardImage.evaluate((image) => {
+    const frame = image.parentElement;
+    const box = frame.getBoundingClientRect();
+    return {
+      ratio: image.naturalWidth / image.naturalHeight,
+      renderedRatio: box.width / box.height,
+      width: box.width,
+      height: box.height,
+      maxSide: Math.max(box.width, box.height),
+      objectFit: getComputedStyle(image).objectFit
+    };
+  });
+  if (Math.abs(boardMetrics.ratio - 300 / 520) > .02 ||
+      Math.abs(boardMetrics.renderedRatio - boardMetrics.ratio) > .02 ||
+      Math.abs(boardMetrics.maxSide - 192) > 1 ||
+      boardMetrics.objectFit !== "contain") {
+    throw new Error("CCFOLIA board token must use a full natural-ratio image with its long side at four grid cells: " + JSON.stringify(boardMetrics));
+  }
+  const boardStage = ccfoliaPreview.locator(".piece-board-stage").first();
+  const boardCaptureGeometry = await alignPreviewCapture(page, boardStage);
+  const boardName = "ccfolia-board-" + mode + ".png";
+  await page.screenshot({ path: path.join(OUT, boardName), animations: "disabled", fullPage: false });
+  log("captured CCFOLIA board token preview " + boardName + " viewport=" + JSON.stringify(boardCaptureGeometry));
+
+  await ccfoliaPreview.locator("#basic-ccfolia-tab-sheet").click();
+  const editorImage = ccfoliaPreview.locator(".piece-ccfolia-editor-main-image img");
+  await editorImage.waitFor({ state: "visible", timeout: 12000 });
+  const editorMetrics = await editorImage.evaluate((image) => {
+    const frame = image.parentElement;
+    const frameBox = frame.getBoundingClientRect();
+    const imageStyle = getComputedStyle(image);
+    const frameStyle = getComputedStyle(frame);
+    const availableWidth = frame.clientWidth - Number.parseFloat(frameStyle.paddingLeft || "0") - Number.parseFloat(frameStyle.paddingRight || "0");
+    const availableHeight = frame.clientHeight - Number.parseFloat(frameStyle.paddingTop || "0") - Number.parseFloat(frameStyle.paddingBottom || "0");
+    const scale = Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight);
+    const paintedWidth = image.naturalWidth * scale;
+    const paintedHeight = image.naturalHeight * scale;
+    return {
+      ratio: image.naturalWidth / image.naturalHeight,
+      paintedRatio: paintedWidth / paintedHeight,
+      paintedWidth,
+      paintedHeight,
+      frameWidth: frameBox.width,
+      frameHeight: frameBox.height,
+      availableWidth,
+      availableHeight,
+      contained: paintedWidth <= availableWidth + 1 && paintedHeight <= availableHeight + 1,
+      objectFit: imageStyle.objectFit
+    };
+  });
+  if (Math.abs(editorMetrics.ratio - 300 / 520) > .02 ||
+      Math.abs(editorMetrics.paintedRatio - editorMetrics.ratio) > .002 ||
+      !editorMetrics.contained || editorMetrics.objectFit !== "contain") {
+    throw new Error("CCFOLIA character editor must preserve the full portrait: " + JSON.stringify(editorMetrics));
+  }
+  const editorFrame = ccfoliaPreview.locator(".piece-ccfolia-editor-main-image").first();
+  const editorCaptureGeometry = await alignPreviewCapture(page, editorFrame);
+  const editorName = "ccfolia-editor-" + mode + ".png";
+  await page.screenshot({ path: path.join(OUT, editorName), animations: "disabled", fullPage: false });
+  log("captured CCFOLIA character editor preview " + editorName + " viewport=" + JSON.stringify(editorCaptureGeometry));
+}
 async function captureViewport(browser, mode) {
   const isMobile = mode === "mobile";
   const context = await browser.newContext({
@@ -345,6 +515,9 @@ async function captureViewport(browser, mode) {
   page.on("pageerror", error => { console.error("[pageerror] " + error.message); });
   try {
     await waitForApp(page);
+
+    // Capture the actual full-figure preview and the CCFOLIA board/editor views first.
+    await captureCcfFoliaPortraitPreview(page, mode);
 
     // Persona draft import: highlight the real button inside the Persona list toolbar.
     await clickNav(page, "ビルド");

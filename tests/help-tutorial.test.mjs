@@ -144,7 +144,10 @@ test("使い方ガイドはPCとスマートフォンの実画面キャプチャ
     "roster-import-desktop.webp", "roster-import-mobile.webp",
     "account-share-import-desktop.webp", "account-share-import-mobile.webp",
     "save-work-state-desktop.webp", "save-work-state-mobile.webp",
-    "share-sheet-desktop.webp", "share-sheet-mobile.webp"
+    "share-sheet-desktop.webp", "share-sheet-mobile.webp",
+    "ccfolia-portrait-desktop.webp", "ccfolia-portrait-mobile.webp",
+    "ccfolia-board-desktop.webp", "ccfolia-board-mobile.webp",
+    "ccfolia-editor-desktop.webp", "ccfolia-editor-mobile.webp"
   ];
   for (const name of captures) {
     const bytes = readFileSync(new URL("../docs/tutorial-captures/" + name, import.meta.url));
@@ -154,6 +157,24 @@ test("使い方ガイドはPCとスマートフォンの実画面キャプチャ
   assert.ok(appSource.includes('secondaryImage: "docs/tutorial-captures/share-sheet-desktop.webp"'));
   assert.match(beginnerTutorial, /スマートフォン版の実画面を見る/);
   assert.match(beginnerTutorial, /tutorial-captures\/share-sheet-mobile\.webp/);
+  assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-board-desktop\.webp/);
+  assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-editor-mobile\.webp/);
+  assert.match(appSource, /立ち絵全体とCCFOLIAの駒サイズを確認する/);
+});
+
+test("CCFOLIA立ち絵プレビューの手順は基本タブ・盤面・編集画面の現行UIを説明する", () => {
+  assert.ok(appSource.includes("立ち絵全体とCCFOLIAの駒サイズを確認する"));
+  assert.match(beginnerTutorial, /## 2\. 立ち絵全体とCCFOLIAでの駒の見え方を確認する/);
+  assert.match(beginnerTutorial, /ビルド → 基本/);
+  assert.match(beginnerTutorial, /駒の見た目/);
+  assert.match(beginnerTutorial, /盤面/);
+  assert.match(beginnerTutorial, /編集画面/);
+  assert.match(beginnerTutorial, /長辺4マス相当/);
+});
+
+test("CCFOLIAガイドの段落区切りはMarkdownの実改行で保持し、エスケープ文字を表示しない", () => {
+  assert.ok(beginnerTutorial.includes("長辺基準の縮尺を確認してください。\n\nこの画面に画像URL"));
+  assert.ok(!beginnerTutorial.includes("\\n\\nこの画面に画像URL"));
 });
 
 test("目的別の操作項目は検索結果から詳細と画面移動へつながる", () => {
@@ -217,7 +238,11 @@ test("使い方画面の初期表示をPC／スマホで記録し、QA画像を�
   assert.ok(captureScript.includes('await clickNav(page, "使い方")'));
   assert.ok(captureScript.includes('"help-index-" + mode + ".png"'));
   assert.ok(captureWorkflow.includes('if png.stem.startswith("help-index-"):'));
-  assert.ok(captureWorkflow.includes('Expected 12 WebP screenshots'));
+  assert.ok(captureWorkflow.includes('Expected 18 WebP screenshots'));
+  assert.ok(captureWorkflow.includes("permissions:\n  contents: read"));
+  assert.ok(!captureWorkflow.includes("git push origin"));
+  assert.ok(!captureWorkflow.includes("github-actions[bot]"),
+    "生成画像はArtifactに保存し、bot tokenでPRブランチへpushしない");
 });
 
 test("複雑な図解は該当する項目を開いた時だけ表示される", () => {
@@ -232,7 +257,7 @@ test("検索可能な索引からアカウント管理とサポート手順に�
   assert.match(appSource, /アカウントを編集・切替・削除する/);
   assert.match(appSource, /パッシブとサポートを確認・編集する/);
   assert.match(appSource, /選択中のカードをもう一度クリック／タップ/);
-  assert.ok(beginnerTutorial.includes("## 6. サポートパッシブを装備する"));
+  assert.ok(beginnerTutorial.includes("## 7. サポートパッシブを装備する"));
   assert.match(beginnerTutorial, /通常スロットへ装備/);
 });
 

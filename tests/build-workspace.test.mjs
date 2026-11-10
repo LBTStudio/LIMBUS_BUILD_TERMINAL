@@ -995,8 +995,12 @@ test("人格の所持化は取得方法を選べるワンボタンになり、�
 test("ショップの E.G.O 購入だけ明細を立て、装備からの自動登録では二重請求しない", () => {
   const state = read("../js/state.js");
   const egoCase = state.slice(state.indexOf('case "ADD_ROSTER_EGO"'), state.indexOf('case "REMOVE_ROSTER_EGO"'));
-  assert.match(egoCase, /function priceEgo|priceEgo\(rank, no\)/);
-  assert.match(egoCase, /if \(!action\.purchase\) return next;/, "purchase:true のときだけ明細を立てる");
+  assert.match(egoCase, /purchaseCost = purchaseCostOf\(state, \{ type: "ADD_ROSTER_EGO"/,
+    "DBで定義された価格をreducer境界で解決する");
+  assert.match(egoCase, /!purchaseCost \|\| !purchaseAffordability\(state, purchaseCost\)\.ok/,
+    "未知番号・価格欠落・残高不足なら所持追加も明細作成も行わない");
+  assert.match(egoCase, /if \(!action\.purchase\) return next;/, "購入でない登録は二重請求しない");
+  assert.match(egoCase, /cost: purchaseCost/);
   assert.match(egoCase, /kind: "ego"/);
   assert.match(egoCase, /ref: \{ kind: "rosterEgo", uid \}/);
   /* 所持から外したら同額の支出を戻す。 */

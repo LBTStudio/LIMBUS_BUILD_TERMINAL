@@ -950,6 +950,17 @@ async function captureProfile(browser, mode) {
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
       await page.locator(".build-params-shell.piece-format-panel").waitFor({state:"visible",timeout:5000});
+      /* 監査用の一時アカウントへサンプル立ち絵と差分を登録する。
+         画像未登録の空状態を「全身表示できた」と誤認しない。 */
+      const artDisclosure=page.locator(".piece-image-details > summary").first();
+      await artDisclosure.waitFor({state:"visible",timeout:5000});
+      if(await artDisclosure.evaluate((el)=>el.parentElement?.open!==true)) await click(artDisclosure);
+      const artUrl="http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg";
+      await page.locator("#piece-image-urls").fill(artUrl+"\n"+artUrl+"?face=1");
+      await page.waitForFunction(()=>{
+        const image=document.querySelector(".piece-art-frame img");
+        return Boolean(image?.naturalWidth&&image?.naturalHeight);
+      },{timeout:10000});
 
       // Source-backed v4 geometry assertions: desktop two-column hero, mobile stack,
       // portrait ratio, and the formatting panel directly below the hero.
@@ -1000,7 +1011,7 @@ async function captureProfile(browser, mode) {
       await page.locator("#build-params-panel-preview").waitFor({state:"visible",timeout:5000});
       const modes=[
         {id:"board",label:"盤面上の駒",note:"ビルド内基本タブの盤面上の駒プレビュー"},
-        {id:"sheet",label:"キャラクターシート",note:"ビルド内基本タブのキャラクターシートプレビュー"},
+        {id:"sheet",label:"キャラクター編集",note:"ビルド内基本タブのキャラクター編集プレビュー"},
         {id:"json",label:"出力データ",note:"ビルド内基本タブの出力データプレビュー"}
       ];
       const modeTabs=page.locator(".basic-preview-mode-tabs [role='tab']");
@@ -1013,7 +1024,7 @@ async function captureProfile(browser, mode) {
         await panel.waitFor({state:"visible",timeout:5000});
         if(await visible(page.locator(".basic-preview-build-error"))) throw new Error("CCFOLIA実データ生成エラー: "+(await page.locator(".basic-preview-build-error").innerText()));
         if(mode.id==="board" && !(await visible(panel.locator(".pv-ccfolia-map")))) throw new Error("盤面プレビューのグリッドがありません");
-        if(mode.id==="sheet" && !(await visible(panel.locator(".pv-ccfolia-editor")))) throw new Error("キャラクターシートの編集表示がありません");
+        if(mode.id==="sheet" && !(await visible(panel.locator(".piece-ccfolia-editor")))) throw new Error("キャラクター編集プレビューの表示がありません");
         if(mode.id==="json"){
           const jsonText=await panel.locator(".basic-preview-json").textContent();
           const parsed=JSON.parse(jsonText||"");
@@ -1704,7 +1715,7 @@ async function main() {
   audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states",
     "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
-    "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
+    "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクター編集プレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",

@@ -21,12 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-981539a3";
+const CACHE_NAME = "lbt-a0f4c115";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/b-type-ui-parity.css?v=903829a8",
+  "assets/b-type-ui-parity.css?v=b9f92e60",
   "assets/b-type-workbench.css?v=f227875f",
   "assets/cloud-backup.css?v=ffae2d4f",
   "assets/design-system.css?v=910f9485",
@@ -53,12 +53,12 @@ const PRECACHE_URLS = [
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=078f598a",
+  "js/App.js?v=03b76b26",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=24531623",
   "js/ItemCodex.js?v=3c394422",
   "js/LivePreview.js?v=69b4d6d2",
-  "js/OtherSections.js?v=c9d4986f",
+  "js/OtherSections.js?v=b6710a27",
   "js/PersonaCodex.js?v=0600d6f2",
   "js/SkillDeck.js?v=f176d667",
   "js/accounts-ui.js?v=58168a76",
@@ -81,11 +81,11 @@ const PRECACHE_URLS = [
   "js/persona-draft-import.js?v=36d1c28a",
   "js/persona-inventory-audit.js?v=4e2ed017",
   "js/result-log-parser.js?v=e1bc2df5",
-  "js/result-text-import.js?v=64c4b159",
-  "js/roster-resolver.js?v=01dce5a2",
+  "js/result-text-import.js?v=025e4edc",
+  "js/roster-resolver.js?v=bb84f9f2",
   "js/share-link.js?v=61e00b15",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=00e5a35e",
+  "js/state.js?v=0a360a49",
   "js/ui.js?v=f6ef7d76",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",

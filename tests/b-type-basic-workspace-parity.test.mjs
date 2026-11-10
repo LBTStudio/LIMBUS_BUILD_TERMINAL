@@ -22,9 +22,27 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
     'class="piece-control-grid"', 'class="piece-token-preview"', '.piece-format-panel{'
   ]) assert.ok(reference.includes(required), "reference must preserve " + required);
   for (const required of [
-    'className: "piece-hero-grid"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
-    'className: "piece-control-grid"', 'className: "piece-token-card"', 'piece-format-panel'
+    'className: "piece-hero-grid base-info-panel"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
+    'className: "piece-control-grid"', 'className: "piece-art-frame"', 'piece-format-panel'
   ]) assert.ok(sections.includes(required) || base.includes(required), "production must render " + required);
+  assert.match(base, /ASPECT FIT \/ 全体表示/);
+  assert.match(base, /className: "piece-hero-grid base-info-panel"/, "portrait styles must attach to the rendered Basic workspace root");
+  assert.doesNotMatch(base, /piece-token-preview|piece-token-card/, "the old tiny token card must not remain in the appearance panel");
+  assert.match(base, /const \[imgZoom, setImgZoom\] = React\.useState\(1\)/);
+  assert.match(base, /const artFrameRef = React\.useRef\(null\)/);
+  assert.match(base, /frame\.addEventListener\("wheel", handleArtWheel, \{ passive: false \}\)/);
+  assert.match(base, /event\.preventDefault\(\)/);
+  assert.match(base, /frame\.getBoundingClientRect\(\)/);
+  assert.match(base, /frame\.removeEventListener\("wheel", handleArtWheel\)/);
+  assert.match(base, /setImgTab\(index\);[\s\S]*?setImgZoom\(1\)/, "changing face images resets zoom immediately");
+  assert.match(base, /piece-art-zoom-help/);
+  assert.match(base, /ホイールで拡大・縮小/);
+  assert.match(base, /transform: "scale\(" \+ imgZoom \+ "\)"/);
+  assert.match(base, /setImgZoom\(1\)/, "switching images and the reset control must restore full-fit");
+  assert.match(base, /Math\.min\(4, imgZoom \* Math\.exp/);
+  assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?object-fit: contain/);
+  assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?aspect-ratio:\s*3\s*\/\s*4/);
+  assert.match(parity, /\.base-info-panel \.piece-art-zoom-reset/);
   for (const field of ["state.charName", "state.plName", "state.initiative", "state.color", "activeImg", "setImgTab", "state.imgUrls", "state.shareImageData"]) {
     assert.ok(base.includes(field), "Basic workspace must retain live field " + field);
   }
@@ -53,13 +71,30 @@ test("Basic output preview contains board, sheet and generated JSON views from L
   const end = sections.indexOf("const BuildParamsPanel =", start);
   assert.ok(start >= 0 && end > start, "the real three-view output preview exists before BuildParamsPanel");
   const component = sections.slice(start, end);
-  for (const label of ["盤面上の駒", "キャラクターシート", "出力データ"]) assert.ok(component.includes(label), "missing view " + label);
+  for (const label of ["盤面上の駒", "キャラクター編集", "出力データ"]) assert.ok(component.includes(label), "missing view " + label);
   for (const mode of ["board", "sheet", "json"]) assert.ok(component.includes('id: "' + "basic-ccfolia-panel-" + mode + '"'), "missing mode panel " + mode);
   assert.match(component, /generator\.buildCcfoliaJSON\(state, \{ palette, memo \}\)/);
   assert.match(component, /JSON\.stringify\(object, null, 2\)/);
   assert.match(component, /navigator\.clipboard\?\.writeText/);
   assert.match(component, /await navigator\.clipboard\.writeText\(built\.json\)/);
   assert.doesNotMatch(component, /const sample|mockData|サンプル・フィクサー/);
+  assert.match(component, /piece-board-avatar/);
+  assert.match(component, /piece-ccfolia-editor-main-image/);
+  assert.match(component, /"盤面 \/ キャラクター駒"/);
+  assert.match(component, /"立ち絵全体を縦横比そのままで表示します/);
+  assert.match(component, /"キャラクター編集"/);
+  assert.doesNotMatch(component, /piece-board-init|piece-board-token-ring|object-fit:\s*cover/);
+  assert.match(component, /const longSide = 192/);
+  assert.match(component, /const scale = longSide \/ Math\.max\(image\.naturalWidth, image\.naturalHeight\)/);
+  assert.match(component, /frame\.style\.width = Math\.max\(1, image\.naturalWidth \* scale\)/);
+  assert.match(component, /frame\.style\.height = Math\.max\(1, image\.naturalHeight \* scale\)/);
+  const boardCssStart = parity.indexOf("/* CCFOLIA board: portrait keeps its native aspect ratio.");
+  assert.ok(boardCssStart >= 0, "CCFOLIA portrait overrides must be present");
+  const boardCss = parity.slice(boardCssStart, parity.indexOf("/* Character editor preview", boardCssStart));
+  assert.match(boardCss, /\.piece-board-avatar \{[\s\S]*?overflow: visible/);
+  assert.match(boardCss, /\.piece-board-avatar img \{[\s\S]*?object-fit: contain/);
+  assert.match(parity, /\.piece-board-avatar img[\s\S]*?object-fit: contain/);
+  assert.match(parity, /\.piece-ccfolia-editor-main-image img[\s\S]*?object-fit: contain/);
   assert.match(generator, /function buildCcfoliaJSON\(state, opts\)/);
 });
 

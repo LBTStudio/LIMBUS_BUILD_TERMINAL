@@ -137,20 +137,97 @@ async function createDisposableAccount(page,profile) {
   await page.getByLabel("プレイヤー名").fill("テスト卓");
   await page.getByLabel("駒の行動順").fill("12");
   await page.getByLabel("駒の色（16進数）").fill("#697887");
-  const imageDetails = page.locator("details.pc-edit");
-  await imageDetails.locator("summary").click();
-  await imageDetails.locator("textarea").fill("http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg");
-  await page.waitForTimeout(200);
-  await page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle").waitFor({state:"visible",timeout:10000});
-  const tokenPreview = page.locator(".pc-token-preview");
-  await tokenPreview.waitFor({ state: "visible", timeout: 5000 });
-  const tokenPreviewText = (await tokenPreview.innerText()).replace(/\s+/g, " ");
-  recordCheck(profile.name + ": Basic token preview reflects edited character data",
-    tokenPreviewText.includes("サンプル・フィクサー") && tokenPreviewText.includes("テスト卓") && tokenPreviewText.includes("行動順 12"),
-    { tokenPreviewText });
+  const basicTab = page.locator(".build-tabs button[role='tab']").filter({ hasText: "基本" }).first();
+  await basicTab.waitFor({ state: "visible", timeout: 10000 });
+  await basicTab.click();
+  const imageDetails = page.locator(".piece-image-details > summary").first();
+  await imageDetails.waitFor({ state: "visible", timeout: 10000 });
+  if (!await imageDetails.evaluate((node) => node.parentElement?.open === true)) await imageDetails.click();
+  const imageField = page.locator("#piece-image-urls");
+  const imageUrl = "http://" + HOST + ":" + PORT + "/tests/fixtures/ccfolia-preview-sample.svg";
+  await imageField.fill(imageUrl);
+  const portrait = page.locator(".piece-art-frame img").first();
+  await portrait.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-art-frame img");
+    return Boolean(image?.naturalWidth && image?.naturalHeight);
+  }, { timeout: 10000 });
+  const portraitMetrics = await portrait.evaluate((image) => {
+    const frame = image.closest(".piece-art-frame");
+    const style = getComputedStyle(image);
+    const box = image.getBoundingClientRect();
+    const frameBox = frame?.getBoundingClientRect();
+    const contentWidth = image.clientWidth - Number.parseFloat(style.paddingLeft || "0") - Number.parseFloat(style.paddingRight || "0");
+    const contentHeight = image.clientHeight - Number.parseFloat(style.paddingTop || "0") - Number.parseFloat(style.paddingBottom || "0");
+    const scale = Math.min(contentWidth / image.naturalWidth, contentHeight / image.naturalHeight);
+    const paintedWidth = image.naturalWidth * scale;
+    const paintedHeight = image.naturalHeight * scale;
+    return {
+      naturalRatio: image.naturalWidth / image.naturalHeight,
+      objectFit: style.objectFit,
+      frameRatio: frameBox?.width / frameBox?.height,
+      elementFits: Boolean(frameBox && box.width <= frameBox.width + 1 && box.height <= frameBox.height + 1),
+      paintedFits: paintedWidth <= contentWidth + 1 && paintedHeight <= contentHeight + 1,
+      paintedRatio: paintedWidth / paintedHeight
+    };
+  });
+  recordCheck(profile.name + ": Basic portrait viewport shows the complete standing art",
+    portraitMetrics.objectFit === "contain" && portraitMetrics.elementFits && portraitMetrics.paintedFits
+      && Math.abs(portraitMetrics.paintedRatio - portraitMetrics.naturalRatio) < .001,
+    { portraitMetrics });
+
+  const previewTab = page.locator("#build-params-tab-preview");
+  await previewTab.waitFor({ state: "visible", timeout: 10000 });
+  await previewTab.click();
+  const preview = page.locator(".basic-ccfolia-preview");
+  await preview.waitFor({ state: "visible", timeout: 10000 });
+
+  await preview.locator("#basic-ccfolia-tab-board").click();
+  const boardImage = preview.locator(".piece-board-avatar img");
+  await boardImage.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-board-avatar img");
+    const frame = image?.parentElement;
+    return Boolean(image?.naturalWidth && image?.naturalHeight
+      && Number.parseFloat(frame?.style.width || "0") > 0
+      && Number.parseFloat(frame?.style.height || "0") > 0);
+  }, { timeout: 10000 });
+  const boardMetrics = await boardImage.evaluate((image) => {
+    const frame = image.parentElement;
+    const box = frame.getBoundingClientRect();
+    return {
+      sourceRatio: image.naturalWidth / image.naturalHeight,
+      renderedRatio: box.width / box.height,
+      longEdge: Math.max(box.width, box.height),
+      objectFit: getComputedStyle(image).objectFit
+    };
+  });
+  recordCheck(profile.name + ": CCFOLIA board token keeps the portrait ratio and four-cell long edge",
+    Math.abs(boardMetrics.sourceRatio - boardMetrics.renderedRatio) < .02
+      && Math.abs(boardMetrics.longEdge - 192) < 1
+      && boardMetrics.objectFit === "contain",
+    { boardMetrics });
+  const boardPath = path.join(OUT, profile.name + "-ccfolia-board-preview.png");
+  await page.screenshot({ path: boardPath, animations: "disabled" });
+  results.screenshots.push({ file: path.relative(ROOT, boardPath), profile: profile.name, state: "ccfolia-board-preview" });
+
+  await preview.locator("#basic-ccfolia-tab-sheet").click();
+  const editorPanel = preview.locator("#basic-ccfolia-panel-sheet");
+  await editorPanel.waitFor({ state: "visible", timeout: 10000 });
+  const editorImage = editorPanel.locator(".piece-ccfolia-editor-main-image img");
+  await editorImage.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-ccfolia-editor-main-image img");
+    return Boolean(image?.naturalWidth && image?.naturalHeight);
+  }, { timeout: 10000 });
+  const editorText = (await editorPanel.innerText()).replace(/\\s+/g, " ");
+  recordCheck(profile.name + ": CCFOLIA editor preview shows the complete portrait and edited character data",
+    editorText.includes("サンプル・フィクサー") && editorText.includes("テスト卓")
+      && editorText.includes("12") && await editorImage.isVisible(),
+    { editorText });
   const tokenPreviewPath = path.join(OUT, profile.name + "-basic-token-preview.png");
   await page.screenshot({ path: tokenPreviewPath, animations: "disabled" });
-  results.screenshots.push({ file: path.relative(ROOT, tokenPreviewPath), profile: profile.name, state: "basic-token-preview" });
+  results.screenshots.push({ file: path.relative(ROOT, tokenPreviewPath), profile: profile.name, state: "ccfolia-editor-preview" });
 }
 async function runProfile(browser,profile) {
   const context=await browser.newContext({
@@ -203,7 +280,7 @@ async function runProfile(browser,profile) {
       { previewFormatText });
 
     const boardModeTab = page.getByRole("tab", { name: "盤面上の駒", exact: true });
-    const sheetModeTab = page.getByRole("tab", { name: "キャラクターシート", exact: true });
+    const sheetModeTab = page.getByRole("tab", { name: "キャラクター編集", exact: true });
     const jsonModeTab = page.getByRole("tab", { name: "出力データ", exact: true });
     const boardModePanel = page.locator("#basic-ccfolia-panel-board");
     const sheetModePanel = page.locator("#basic-ccfolia-panel-sheet");
@@ -212,9 +289,10 @@ async function runProfile(browser,profile) {
     await boardModeTab.click();
     await boardModePanel.waitFor({ state: "visible", timeout: 5000 });
     const boardModeText = (await boardModePanel.innerText()).replace(/\s+/g, " ");
-    recordCheck(profile.name + ": board mode shows real token name, PL, initiative and inspector",
+    recordCheck(profile.name + ": board mode shows the real token, PL, initiative and character list",
       boardModeText.includes("サンプル・フィクサー") && boardModeText.includes("テスト卓")
-      && boardModeText.includes("INIT 12") && boardModeText.includes("選択中の駒"),
+      && boardModeText.includes("イニシアティブ") && boardModeText.includes("12")
+      && boardModeText.includes("キャラクター一覧"),
       { boardModeText });
     const boardModePath = path.join(OUT, profile.name + "-basic-preview-board.png");
     await page.screenshot({ path: boardModePath, animations: "disabled" });
@@ -442,6 +520,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*13) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*14) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});

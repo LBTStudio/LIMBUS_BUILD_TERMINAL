@@ -64,7 +64,7 @@ jobs:
           pngs = sorted(source.glob("*.png"))
           for png in pngs:
               # Keep the help-index screenshots in the expiring QA Artifact only.
-              # The public guide remains a focused set of 12 task screenshots.
+              # The public guide includes 18 focused screenshots across desktop and mobile.
               if png.stem.startswith("help-index-"):
                   continue
               with Image.open(png) as im:
@@ -84,18 +84,21 @@ jobs:
               json.dumps(original, ensure_ascii=False, indent=2) + "\\n",
               encoding="utf-8",
           )
-          if len(original["files"]) != 12:
-              raise SystemExit("Expected 12 WebP screenshots, got " + str(len(original["files"])))
+          if len(original["files"]) != 18:
+              raise SystemExit("Expected 18 WebP screenshots, got " + str(len(original["files"])))
           PY
 
-      # Screenshots are delivered as a workflow artifact. CI must not push
-      # generated images back into a PR branch: that creates a second PR event
-      # under the bot identity and can require manual workflow approval.
+      # Screenshots are delivered as an artifact. Committed guide images are
+      # reviewed and updated as normal PR file changes, never pushed by the bot.
       - name: Upload screenshots and manifest
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: lbt-tutorial-ui-captures-${{ github.sha }}
-          path: artifacts/tutorial-screenshots/
+          path: |
+            artifacts/tutorial-screenshots/
+            docs/tutorial-captures/
           if-no-files-found: error
           retention-days: 30
+
+

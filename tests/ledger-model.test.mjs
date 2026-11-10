@@ -23,8 +23,16 @@ function loadContext() {
         support_passives: [],
         death_passives: [],
         spirits: [],
+        normal_personas: [{ no: "0001", name: "試験人格" }],
+        tokui_personas: [],
+        egos: [{ rank: "TETH", no: "0001", name: "試験E.G.O" }],
         normal_enhancements: [],
         special_enhancements: []
+      },
+      LBT_operationCost: (operation) => {
+        if (operation === "sync") return { lp: 0, shards: 7 };
+        if (operation === "analyze") return { lp: 0, shards: 11 };
+        return null;
       }
     },
     console,
@@ -618,4 +626,33 @@ test("共有所持の明示数量は厳密に検証し、不正文字列を部�
   assert.equal(decimal.inventory.length, 0, "小数も無視する");
   const legacy = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage" });
   assert.equal(legacy.inventory[0].quantity, 1, "未指定数量は従来どおり1個");
+});
+
+
+test("同期・解析費用のバックフィルは配列末尾でなく表示上の最新リザルトへ帰属する", () => {
+  const before = {
+    ...baseState(),
+    results: [
+      { id: "visible-newest", name: "第12回", date: "2026-11-08", createdAt: 100, income: { shards: 100 } },
+      { id: "array-tail-old", name: "第3回", date: "2026-10-01", createdAt: 999999, income: { shards: 100 } }
+    ],
+    roster: {
+      personas: [{ uid: "persona-sync-1", mode: "n", no: "0001", syncRank: "000", syncMax: false }],
+      egos: [{ uid: "ego-analyze-1", rank: "TETH", no: "0001", analyzed: true, analyzeMax: false }],
+      supports: [],
+      spirits: []
+    },
+    entries: []
+  };
+
+  const after = reducer(before, { type: "BACKFILL_SYNC_ENTRIES" });
+  assert.equal(after.entries.length, 2, "同期とE.G.O解析の費用を各1件だけ記録する");
+  assert.equal(after.entries.some((entry) => entry.kind === "egoAnalyze"), true);
+  assert.equal(after.entries.some((entry) => entry.kind === "personaSync"), true);
+  assert.ok(after.entries.every((entry) => entry.resultId === "visible-newest"),
+    "日付・createdAtによる画面の新しい順を使い、配列末尾の旧リザルトへ誤帰属させない");
+  assert.ok(!after.entries.some((entry) => entry.resultId === "array-tail-old"));
+
+  const again = reducer(after, { type: "BACKFILL_SYNC_ENTRIES" });
+  assert.equal(again.entries.length, 2, "同じUID・費用種別のバックフィルを二重計上しない");
 });

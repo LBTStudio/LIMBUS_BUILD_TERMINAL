@@ -1149,6 +1149,101 @@ test("金額は読めなければ「要確認」で、勝手に 0 埋めしな�
   assert.equal(s.reason, "金額が読めない");
 });
 
+test("ランク付き短縮E.G.Oログは同ランク内のDB名が一意な場合だけ解決する", () => {
+  const hit = R.resolveCandidates(NAME_INDEX, "EGO購入-TETH[鬼退治]")[0];
+  assert.ok(hit, "短縮名「鬼退治」をTETHのDBレコードへ解決する");
+  assert.equal(hit.name, "鬼退治：血迷った鬼殺し");
+  const ego = hit.kinds.find((kind) => kind.kind === "ego");
+  assert.equal(ego.rank, "TETH");
+  assert.equal(String(ego.no), "13");
+  assert.equal(R.resolveCandidates(NAME_INDEX, "EGO購入-ALEPH[鬼退治]").length, 0,
+    "ランクが一致しない候補を別E.G.Oへ誤解決しない");
+});
+
+test("同一ランクに短縮名が複数あるE.G.Oログは一般部分一致へフォールバックしない", () => {
+  const definition = DB.egos.find((ego) => ego.rank === "TETH" && Number(ego.no) === 13);
+  assert.ok(definition);
+  const ambiguousDb = {
+    ...DB,
+    egos: [...DB.egos, { ...definition, no: 999, name: "鬼退治：別個体" }]
+  };
+  const ambiguousIndex = R.buildNameIndex(ambiguousDb, {});
+  assert.equal(R.resolveCandidates(ambiguousIndex, "EGO購入-TETH[鬼退治]").length, 0,
+    "短縮名が複数候補に一致する場合、別E.G.Oへ推測登録しない");
+});
+
+test("実DBの短縮E.G.O購入ログを所持追加と明示価格の支出へ変換する", () => {
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜EGO購入-TETH[鬼退治](75欠片)"
+  ].join("\n"));
+  const planned = T.plan(parsed, {
+    resolve: (name) => R.resolveCandidates(NAME_INDEX, name)[0] || null
+  });
+  const add = planned.actions.find((action) => action.type === "ADD_ROSTER_EGO");
+  const entry = planned.actions.find((action) => action.type === "ADD_ENTRY");
+  assert.ok(add, "一意解決できたE.G.Oは所持へ追加する");
+  assert.equal(add.rank, "TETH");
+  assert.equal(String(add.no), "13");
+  assert.equal(add.purchase, false);
+  assert.equal(entry.kind, "ego");
+  assert.equal(entry.name, "鬼退治：血迷った鬼殺し");
+  assert.equal(entry.cost.shards, 75, "DB価格ではなく当時のログ金額を保存する");
+});
+
+test("DBで一意に解決できるE.G.O指定購入は所持追加と実額の支出を両方記録する", () => {
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜EGO購入-TETH[鬼退治](75欠片)"
+  ].join("\n"));
+  const planned = T.plan(parsed, {
+    resolve: () => ({ name: "鬼退治", kinds: [{ kind: "ego", rank: "TETH", no: "0094" }] })
+  });
+  const owned = planned.actions.filter((action) => action.type === "ADD_ROSTER_EGO");
+  const entries = planned.actions.filter((action) => action.type === "ADD_ENTRY");
+  assert.deepEqual(JSON.parse(JSON.stringify(owned.map((action) => ({
+    rank: action.rank, no: action.no, purchase: action.purchase
+  })))), [{ rank: "TETH", no: "0094", purchase: false }]);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].kind, "ego");
+  assert.equal(entries[0].name, "鬼退治");
+  assert.deepEqual(JSON.parse(JSON.stringify(entries[0].cost)), { lp: 0, shards: 75 },
+    "過去ログに明記された購入額を保持し、現在の価格で上書きしない");
+});
+
+test("すでに所持しているE.G.Oの購入履歴は支出だけを残して二重登録しない", () => {
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜E.G.O購入-TETH[鬼退治](75欠片)"
+  ].join("\n"));
+  const planned = T.plan(parsed, {
+    ownedEgos: new Set(["TETH:13"]),
+    resolve: () => ({ name: "鬼退治：血迷った鬼殺し", kinds: [{ kind: "ego", rank: "TETH", no: 13 }] })
+  });
+  assert.equal(planned.actions.some((action) => action.type === "ADD_ROSTER_EGO"), false);
+  const entry = planned.actions.find((action) => action.type === "ADD_ENTRY");
+  assert.equal(entry.kind, "ego");
+  assert.equal(entry.cost.shards, 75);
+});
+
+test("E.G.O解析費用とDB未解決の購入名は所持E.G.Oを作らない", () => {
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜EGO解析-TETH[鬼退治](40欠片)/EGO購入-未知のE.G.O(50欠片)"
+  ].join("\n"));
+  const planned = T.plan(parsed, {
+    resolve: (name) => name.includes("鬼退治")
+      ? { name: "鬼退治", kinds: [{ kind: "ego", rank: "TETH", no: "0094" }] }
+      : null
+  });
+  assert.equal(planned.actions.some((action) => action.type === "ADD_ROSTER_EGO"), false,
+    "解析と番号を解決できない購入名は所有権へ反映しない");
+  const entries = planned.actions.filter((action) => action.type === "ADD_ENTRY");
+  assert.equal(entries.length, 2);
+  assert.ok(entries.every((entry) => entry.kind === "ego"));
+  assert.deepEqual(Array.from(entries, (entry) => entry.cost.shards), [40, 50]);
+});
+
 test("E.G.O と人格は明細の種別を名前から推測する", () => {
   const s = T.parseText(SAMPLE).records[0].spends;
   assert.equal(s[1].kindHint, "persona", "人格の同期化");

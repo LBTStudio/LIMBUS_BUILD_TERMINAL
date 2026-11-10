@@ -27,6 +27,11 @@ const dbStub = () => ({
   spirits: [
     { name: "泉水", price: "50", always_effect: "常時A", morale_effect: "士気M", confuse_effect: "混乱C" }
   ],
+  egos: [
+    { rank: "TETH", no: "001", name: "価格付きE.G.O", shards: "25" },
+    { rank: "HE", no: "002", name: "価格欠落E.G.O", shards: "" },
+    { rank: "WAW", no: "003", name: "価格不正E.G.O", shards: "価格不明" }
+  ],
   normal_enhancements: [],
   special_enhancements: []
 });
@@ -352,4 +357,39 @@ test("手動サポート（空名）も所持へ追加でき、空名同士は�
   assert.equal(s.supports.length, 1, "装備される");
   s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "" } });
   assert.equal(s.roster.supports.length, 2, "空名は同名扱いで弾かない");
+});
+
+
+test("E.G.O指定購入は未知番号・価格欠落・不正価格・残高不足をreducer境界で拒否する", () => {
+  const { reducer } = reducerOf();
+  const initial = { ...baseState(), results: [], entries: [] };
+  for (const action of [
+    { type: "ADD_ROSTER_EGO", rank: "ALEPH", no: "999", purchase: true },
+    { type: "ADD_ROSTER_EGO", rank: "HE", no: "002", purchase: true },
+    { type: "ADD_ROSTER_EGO", rank: "WAW", no: "003", purchase: true }
+  ]) {
+    assert.strictEqual(reducer(initial, action), initial, "DB不明・価格欠落・不正価格は状態を変更しない");
+  }
+
+  const short = reducer(initial, { type: "ADD_RESULT", name: "一欠片不足", income: { shards: 24 } });
+  const rejected = reducer(short, { type: "ADD_ROSTER_EGO", rank: "TETH", no: "001", purchase: true });
+  assert.strictEqual(rejected, short, "価格25に対して残高24なら所持も支出も変えない");
+
+  const funded = reducer(initial, { type: "ADD_RESULT", name: "必要額", income: { shards: 25 } });
+  const accepted = reducer(funded, { type: "ADD_ROSTER_EGO", rank: "TETH", no: "001", purchase: true });
+  assert.equal(accepted.roster.egos.length, 1);
+  assert.equal(accepted.entries.filter((entry) => entry.kind === "ego").length, 1);
+  assert.equal(accepted.entries.find((entry) => entry.kind === "ego").cost.shards, 25);
+});
+
+test("E.G.Oショップは重複所持を成功扱いせず、reducer採否不明のsuccess toastを出さない", () => {
+  const ui = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const start = ui.indexOf("function acquireEgoFromCatalog");
+  const end = ui.indexOf("\nconst EgoSection", start);
+  const helper = ui.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(helper, /alreadyOwned/);
+  assert.match(helper, /既に所持しています/);
+  assert.match(helper, /dispatch\(action\)/);
+  assert.doesNotMatch(helper, /toast\(.*購入しました/);
 });

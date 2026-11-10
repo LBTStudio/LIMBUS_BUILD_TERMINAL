@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").repl
 const preview = read("../js/LivePreview.js");
 const generator = read("../js/generator.js");
 const css = read("../assets/workspace.css");
+const parityCss = read("../assets/b-type-ui-parity.css");
 const app = read("../js/App.js");
 
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {
@@ -73,6 +74,15 @@ test("CCFOLIAらしい無彩色UIとレスポンシブ構成を持つ", () => {
   assert.match(css, /@container \(max-width: 560px\)[\s\S]*?\.pv-ccfolia-board-layout \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.pv-ccfolia-editor-top \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(app, /id: "lbt-preview-edge-toggle"/);
+});
+
+test("CCFOLIA編集画面の立ち絵は親枠の高さを基準にcontain表示する", () => {
+  const match = parityCss.match(/\.piece-ccfolia-editor-main-image img\s*\{[^}]*\}/);
+  assert.ok(match, "character editor portrait rule exists");
+  assert.match(match[0], /height:\s*100%/);
+  assert.match(match[0], /max-width:\s*100%/);
+  assert.match(match[0], /max-height:\s*100%/);
+  assert.match(match[0], /object-fit:\s*contain/);
 });
 
 test("プレビューのJSONコピーは重複せず、切替ボタンは明示的な押下状態を持つ", () => {

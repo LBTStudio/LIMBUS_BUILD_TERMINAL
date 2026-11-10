@@ -1265,12 +1265,26 @@
   /* 明細の種別。解決器が种类を返したらそれを優先し、なければ名前から推測した
   ヒントを使う。どれにも当たらないものは手動支出（判断は利用者に残す）。 */
   function kindOf(spend, resolve) {
-    const hit = typeof resolve === "function" ? resolve(spend.name) : null;
+    let hit = typeof resolve === "function" ? resolve(spend.name) : null;
+    /* E.G.O の短縮ログは spend.name から接頭辞が落ちる場合がある。
+       raw に購入種別・ランク・括弧名が残るなら、そちらも照合する。 */
+    if (!hit && spend.kindHint === "ego" && typeof resolve === "function" && spend.raw) {
+      hit = resolve(spend.raw);
+    }
     const kinds = (hit && hit.kinds) || [];
+    if (spend.kindHint === "ego") {
+      const ego = kinds.find((kind) => kind.kind === "ego");
+      return {
+        kind: "ego",
+        dbName: ego ? (hit.dbName || hit.name || spend.name) : spend.name,
+        ...(ego && ego.rank != null && ego.no != null
+          ? { rank: String(ego.rank), no: String(ego.no) }
+          : {})
+      };
+    }
     const priced = kinds.find((k) => k.kind === "spirit") || kinds.find((k) => k.kind === "enhancement")
       || kinds.find((k) => k.kind === "deathSupport") || kinds.find((k) => k.kind === "support");
     if (priced) return { kind: priced.kind === "deathSupport" ? "deathSupport" : priced.kind, dbName: (hit && (hit.dbName || hit.name)) || spend.name };
-    if (spend.kindHint === "ego") return { kind: "ego", dbName: spend.name };
     if (spend.kindHint === "persona") return { kind: "persona", dbName: spend.name };
     return { kind: "expense", dbName: spend.name };
   }
@@ -1635,7 +1649,26 @@
         /* 数値キーは最初のリザルトだけ旧形式として後方互換を保つ。 */
         if (excluded.has(exclusionKey) || (recordIndex === 0 && excluded.has(index))) return;
         if (spend.needsDecision) { skipped.push({ text: spend.raw || spend.name, reason: spend.reason || "要確認" }); return; }
-        const { kind, dbName } = kindOf(spend, opts.resolve);
+        const resolved = kindOf(spend, opts.resolve);
+        const { kind, dbName } = resolved;
+        /* E.G.Oの指定購入は、DB名・ランク・番号を一意に解決できた場合だけ所持へ反映する。
+           過去ログの記録なので purchase:false とし、当時の明細価格をそのまま残す。
+           解析費用や未解決名は所持追加にせず、E.G.O種別の支出記録だけを作る。 */
+        const isEgoPurchase = kind === "ego"
+          && /(?:購入|買)/.test(String(spend.name || "") + " " + String(spend.raw || ""));
+        if (isEgoPurchase && resolved.rank && resolved.no != null) {
+          const egoKey = resolved.rank + ":" + resolved.no;
+          if (!ownedEgos.has(egoKey) && !importedEgoKeys.has(egoKey)) {
+            importedEgoKeys.add(egoKey);
+            actions.push({
+              type: "ADD_ROSTER_EGO",
+              rank: resolved.rank,
+              no: resolved.no,
+              purchase: false,
+              via: title ? [title] : []
+            });
+          }
+        }
         actions.push({ type: "ADD_ENTRY", kind, name: dbName, cost: { lp: spend.cost.lp, shards: spend.cost.shards } });
       });
     }
