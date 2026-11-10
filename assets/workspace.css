@@ -3202,7 +3202,7 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   .pv-ccfolia-preview .pv-token-mode-switch { width: 100%; }
   .pv-ccfolia-preview .pv-token-mode-switch button { flex: 1; }
   .pv-ccfolia-board-layout { grid-template-columns: minmax(0, 1fr); }
-  .pv-ccfolia-map { min-height: 200px; }
+  .pv-ccfolia-map { min-height: 250px; }
   .pv-ccfolia-editor-top { grid-template-columns: minmax(0, 1fr); }
   .pv-ccfolia-editor-main-image { width: min(100%, calc(min(60vh, 420px) * var(--pv-preview-ratio, .75))); max-height: min(60vh, 420px); }
   .pv-ccfolia-editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
