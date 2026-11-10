@@ -75,7 +75,7 @@ test("新ホームは狭い画面でも縦一列になり、キーボード操�
   assert.match(bTypeCss, /\.btype-home-step:focus-visible/);
   assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-home-start-grid,[\s\S]*?\.btype-home-utility-list \{ grid-template-columns: minmax\(0,1fr\); \}/);
   assert.match(bTypeCss, /\.btype-home-primary \{[\s\S]*?grid-template-columns: minmax\(0,1fr\);/);
-});;
+});
 
 test("Bタイプのナビは制作・データ管理・補助を区別し、取り込み先を選べる", () => {
   for (const label of ["ワークスペース", "データ管理", "補助"]) assert.ok(app.includes(`label: "${label}"`));
