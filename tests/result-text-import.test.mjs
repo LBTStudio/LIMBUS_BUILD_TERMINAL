@@ -1161,7 +1161,10 @@ test("ランク付き短縮E.G.Oログは同ランク内のDB名が一意な場�
 });
 
 test("実DBの短縮E.G.O購入ログを所持追加と明示価格の支出へ変換する", () => {
-  const parsed = T.parseText("【シナリオA】\\n購入｜EGO購入-TETH[鬼退治](75欠片)\\n");
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜EGO購入-TETH[鬼退治](75欠片)"
+  ].join("\n"));
   const planned = T.plan(parsed, {
     resolve: (name) => R.resolveCandidates(NAME_INDEX, name)[0] || null
   });
@@ -1177,7 +1180,10 @@ test("実DBの短縮E.G.O購入ログを所持追加と明示価格の支出へ�
 });
 
 test("DBで一意に解決できるE.G.O指定購入は所持追加と実額の支出を両方記録する", () => {
-  const parsed = T.parseText("【シナリオA】\\n購入｜EGO購入-TETH[鬼退治](75欠片)\\n");
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜EGO購入-TETH[鬼退治](75欠片)"
+  ].join("\n"));
   const planned = T.plan(parsed, {
     resolve: () => ({ name: "鬼退治", kinds: [{ kind: "ego", rank: "TETH", no: "0094" }] })
   });
@@ -1194,7 +1200,10 @@ test("DBで一意に解決できるE.G.O指定購入は所持追加と実額の�
 });
 
 test("すでに所持しているE.G.Oの購入履歴は支出だけを残して二重登録しない", () => {
-  const parsed = T.parseText("【シナリオA】\\n購入｜E.G.O購入-TETH[鬼退治](75欠片)\\n");
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜E.G.O購入-TETH[鬼退治](75欠片)"
+  ].join("\n"));
   const planned = T.plan(parsed, {
     ownedEgos: new Set(["TETH:0094"]),
     resolve: () => ({ name: "鬼退治", kinds: [{ kind: "ego", rank: "TETH", no: "0094" }] })
@@ -1209,7 +1218,7 @@ test("E.G.O解析費用とDB未解決の購入名は所持E.G.Oを作らない",
   const parsed = T.parseText([
     "【シナリオA】",
     "購入｜EGO解析-TETH[鬼退治](40欠片)/EGO購入-未知のE.G.O(50欠片)"
-  ].join("\\n"));
+  ].join("\n"));
   const planned = T.plan(parsed, {
     resolve: (name) => name.includes("鬼退治")
       ? { name: "鬼退治", kinds: [{ kind: "ego", rank: "TETH", no: "0094" }] }
