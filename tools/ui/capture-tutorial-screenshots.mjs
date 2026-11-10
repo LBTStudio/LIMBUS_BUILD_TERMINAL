@@ -425,28 +425,29 @@ async function captureCcfFoliaPortraitPreview(page, mode) {
   await editorImage.waitFor({ state: "visible", timeout: 12000 });
   const editorMetrics = await editorImage.evaluate((image) => {
     const frame = image.parentElement;
-    const imageBox = image.getBoundingClientRect();
     const frameBox = frame.getBoundingClientRect();
     const imageStyle = getComputedStyle(image);
-    const availableWidth = frame.clientWidth - Number.parseFloat(getComputedStyle(frame).paddingLeft || "0") - Number.parseFloat(getComputedStyle(frame).paddingRight || "0");
-    const availableHeight = frame.clientHeight - Number.parseFloat(getComputedStyle(frame).paddingTop || "0") - Number.parseFloat(getComputedStyle(frame).paddingBottom || "0");
+    const frameStyle = getComputedStyle(frame);
+    const availableWidth = frame.clientWidth - Number.parseFloat(frameStyle.paddingLeft || "0") - Number.parseFloat(frameStyle.paddingRight || "0");
+    const availableHeight = frame.clientHeight - Number.parseFloat(frameStyle.paddingTop || "0") - Number.parseFloat(frameStyle.paddingBottom || "0");
+    const scale = Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight);
+    const paintedWidth = image.naturalWidth * scale;
+    const paintedHeight = image.naturalHeight * scale;
     return {
       ratio: image.naturalWidth / image.naturalHeight,
-      renderedRatio: imageBox.width / imageBox.height,
-      imageWidth: imageBox.width,
-      imageHeight: imageBox.height,
+      paintedRatio: paintedWidth / paintedHeight,
+      paintedWidth,
+      paintedHeight,
       frameWidth: frameBox.width,
       frameHeight: frameBox.height,
-      clientWidth: image.clientWidth,
-      clientHeight: image.clientHeight,
       availableWidth,
       availableHeight,
-      contained: image.clientWidth <= availableWidth + 2 && image.clientHeight <= availableHeight + 2,
+      contained: paintedWidth <= availableWidth + 1 && paintedHeight <= availableHeight + 1,
       objectFit: imageStyle.objectFit
     };
   });
   if (Math.abs(editorMetrics.ratio - 300 / 520) > .02 ||
-      Math.abs(editorMetrics.renderedRatio - editorMetrics.ratio) > .02 ||
+      Math.abs(editorMetrics.paintedRatio - editorMetrics.ratio) > .002 ||
       !editorMetrics.contained || editorMetrics.objectFit !== "contain") {
     throw new Error("CCFOLIA character editor must preserve the full portrait: " + JSON.stringify(editorMetrics));
   }
