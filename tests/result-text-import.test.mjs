@@ -1205,8 +1205,8 @@ test("すでに所持しているE.G.Oの購入履歴は支出だけを残して
     "購入｜E.G.O購入-TETH[鬼退治](75欠片)"
   ].join("\n"));
   const planned = T.plan(parsed, {
-    ownedEgos: new Set(["TETH:0094"]),
-    resolve: () => ({ name: "鬼退治", kinds: [{ kind: "ego", rank: "TETH", no: "0094" }] })
+    ownedEgos: new Set(["TETH:13"]),
+    resolve: () => ({ name: "鬼退治：血迷った鬼殺し", kinds: [{ kind: "ego", rank: "TETH", no: 13 }] })
   });
   assert.equal(planned.actions.some((action) => action.type === "ADD_ROSTER_EGO"), false);
   const entry = planned.actions.find((action) => action.type === "ADD_ENTRY");
