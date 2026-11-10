@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-e19b6fe0";
+const CACHE_NAME = "lbt-54f55c52";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -53,12 +53,12 @@ const PRECACHE_URLS = [
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=054d56a3",
+  "js/App.js?v=03b76b26",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=24531623",
   "js/ItemCodex.js?v=3c394422",
   "js/LivePreview.js?v=69b4d6d2",
-  "js/OtherSections.js?v=1c87b4b0",
+  "js/OtherSections.js?v=b6710a27",
   "js/PersonaCodex.js?v=0600d6f2",
   "js/SkillDeck.js?v=f176d667",
   "js/accounts-ui.js?v=58168a76",
@@ -81,7 +81,7 @@ const PRECACHE_URLS = [
   "js/persona-draft-import.js?v=36d1c28a",
   "js/persona-inventory-audit.js?v=4e2ed017",
   "js/result-log-parser.js?v=e1bc2df5",
-  "js/result-text-import.js?v=64c4b159",
+  "js/result-text-import.js?v=80847b50",
   "js/roster-resolver.js?v=715177b2",
   "js/share-link.js?v=61e00b15",
   "js/share-viewer.js?v=71f2da96",
