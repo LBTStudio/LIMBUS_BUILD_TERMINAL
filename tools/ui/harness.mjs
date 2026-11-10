@@ -143,7 +143,7 @@ export async function enterAuditWorkspace(page, accountName = "UI監査用キャ
     const add = page.locator(".acct-card--add").first();
     if (await add.isVisible().catch(() => false)) {
       await activateAuditTarget(page, add);
-      const name = page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      const name = page.locator(".acct-gate input[placeholder='キャラクター名']").first();
       await name.waitFor({ state: "visible", timeout: 5000 });
       await name.fill(accountName);
       const create = page.getByRole("button", { name: "作成して開く", exact: true });
