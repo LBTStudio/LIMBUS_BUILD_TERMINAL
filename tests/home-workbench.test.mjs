@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const app = read("../js/App.js");
+const accounts = read("../js/accounts-ui.js");
+const accountsCss = read("../assets/v66-accounts.css");
 const ui = read("../js/ui.js");
 const sections = read("../js/OtherSections.js");
 const persona = read("../js/PersonaCodex.js");
@@ -40,11 +42,11 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
   const end = app.indexOf("const ImportRouterDialog =", start);
   const home = app.slice(start, end);
   assert.match(home, /const steps = \[/);
-  assert.match(home, /const nextStep = steps\\.find/);
+  assert.match(home, /const nextStep = steps\.find/);
   assert.match(home, /ready: basicReady/);
   assert.match(home, /ready: personaReady/);
   assert.match(home, /ready: skillReady && passiveReady/);
-  assert.match(home, /onClick: nextStep\\.run/);
+  assert.match(home, /onClick: nextStep\.run/);
   assert.match(home, /次へ：/);
   assert.match(home, /プレビューを確認する/);
   for (const target of ["baseinfo", "persona", "skill", "roster", "shop", "settings", "help"]) {
@@ -57,7 +59,9 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
   assert.match(app, /openPersonaDraftImport: true/);
   assert.match(app, /recordImportTarget: "text"/);
   assert.match(app, /recordImportTarget: "held"/);
-});test("ホームの取り込みショートカットは既存の取込フォームを使う", () => {
+});
+
+test("ホームの取り込みショートカットは既存の取込フォームを使う", () => {
   assert.match(persona, /ui\.openPersonaDraftImport !== true/);
   assert.match(persona, /setDraftImportOpen\(true\)/);
   assert.match(persona, /openPersonaDraftImport: false/);
@@ -66,11 +70,12 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
   assert.match(sections, /recordImportTarget: null/);
 });
 
-test("ホームランチャーは狭幅では1列になり、キーボードでも移動できる", () => {
-  assert.match(bTypeCss, /\.btype-launcher-grid \{ display: grid; grid-template-columns: repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-launcher-grid \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
-  assert.match(bTypeCss, /\.btype-launcher-card:focus-visible/);
-});
+test("新ホームは狭い画面でも縦一列になり、キーボード操作を見失わない", () => {
+  assert.match(bTypeCss, /\.btype-home-primary-action:focus-visible/);
+  assert.match(bTypeCss, /\.btype-home-step:focus-visible/);
+  assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-home-start-grid,[\s\S]*?\.btype-home-utility-list \{ grid-template-columns: minmax\(0,1fr\); \}/);
+  assert.match(bTypeCss, /\.btype-home-primary \{[\s\S]*?grid-template-columns: minmax\(0,1fr\);/);
+});;
 
 test("Bタイプのナビは制作・データ管理・補助を区別し、取り込み先を選べる", () => {
   for (const label of ["ワークスペース", "データ管理", "補助"]) assert.ok(app.includes(`label: "${label}"`));
@@ -112,7 +117,7 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
   assert.match(nav, /id: "persona", label: "ビルド"/);
-  assert.match(app, /HOME \/ MULTI-PURPOSE LAUNCHER/);
+  assert.match(app, /LIMBUS BUILD TERMINAL/);
   assert.match(app, /次へ：/);
   assert.match(app, /ワークベンチ/);
   assert.match(capture, /\.rail-item\[title='ビルド'\]/);
@@ -156,12 +161,14 @@ test("初回ホームは作成・取り込み・記録を主導線にし、そ�
 });
 
 test("初回キャラクター作成は名前だけで進め、用途タグとアイコンは任意設定へ畳む", () => {
-  const gate = app.slice(app.indexOf("const AccountGate"));
+  const gate = accounts.slice(accounts.indexOf("const AccountGate"));
   assert.match(gate, /最初のキャラクターを作る/);
   assert.match(gate, /名前だけで始められます/);
   assert.match(gate, /acct-first-run-note/);
   assert.match(gate, /className: "acct-optional-settings"/);
   assert.match(gate, /placeholder: "キャラクター名"/);
   assert.doesNotMatch(gate, /SINNER SELECT/);
-  assert.match(bTypeCss, /\.btype-home-step/);
+  assert.match(accountsCss, /\.acct-first-run-note/);
+  assert.match(accountsCss, /\.acct-optional-settings/);
+  assert.match(accountsCss, /\.acct-gate-panel > \.acct-grid:has\(\.acct-card--add:only-child\)/);
 });
