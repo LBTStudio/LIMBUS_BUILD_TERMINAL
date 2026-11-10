@@ -1185,7 +1185,7 @@ test("DBで一意に解決できるE.G.O指定購入は所持追加と実額の�
   const entries = planned.actions.filter((action) => action.type === "ADD_ENTRY");
   assert.deepEqual(JSON.parse(JSON.stringify(owned.map((action) => ({
     rank: action.rank, no: action.no, purchase: action.purchase
-  }))), [{ rank: "TETH", no: "0094", purchase: false }]);
+  })))), [{ rank: "TETH", no: "0094", purchase: false }]);
   assert.equal(entries.length, 1);
   assert.equal(entries[0].kind, "ego");
   assert.equal(entries[0].name, "鬼退治");
