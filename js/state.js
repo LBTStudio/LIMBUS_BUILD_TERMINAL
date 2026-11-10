@@ -5044,19 +5044,27 @@ function appReducer(state, action) {
        自動登録では明細を立てない（購入と二重請求になるため）。 */
     case "ADD_ROSTER_EGO": {
       const { rank, no } = action;
-      if ((state.roster.egos || []).some((e) => e.rank === rank && String(e.no) === String(no))) return state;
+      const roster = state.roster || {};
+      if ((roster.egos || []).some((e) => e.rank === rank && String(e.no) === String(no))) return state;
+      let purchaseCost = null;
+      if (action.purchase) {
+        /* 購入は所持追加より先に価格と残高を検証する。
+           UI側の事前確認だけでは、別経路dispatchや二重送信を防げない。 */
+        purchaseCost = purchaseCostOf(state, { type: "ADD_ROSTER_EGO", rank, no, purchase: true });
+        if (!purchaseCost || !purchaseAffordability(state, purchaseCost).ok) return state;
+      }
       const uid = makeOwnedUid("er");
-      const egos = [...(state.roster.egos || []), { uid, no, rank, analyzed: false, analyzeMax: false, notes: "", build: null, via: normalizeVia(action.via) }];
-      const next = { ...state, roster: { ...state.roster, egos } };
+      const egos = [...(roster.egos || []), { uid, no, rank, analyzed: false, analyzeMax: false, notes: "", build: null, via: normalizeVia(action.via) }];
+      const next = { ...state, roster: { ...roster, egos } };
       if (!action.purchase) return next;
       const ego = (window.DB?.egos || []).find((e) => e.rank === rank && String(e.no) === String(no));
-return appendLedgerEntry(next, {
-      kind: "ego",
-      name: ego?.name || `E.G.O ${rank} No.${no}`,
-      cost: priceEgo(rank, no),
-      resultId: action.resultId,
-      ref: { kind: "rosterEgo", uid }
-    });
+      return appendLedgerEntry(next, {
+        kind: "ego",
+        name: ego?.name || `E.G.O ${rank} No.${no}`,
+        cost: purchaseCost,
+        resultId: action.resultId === undefined ? latestResultId(state) : action.resultId,
+        ref: { kind: "rosterEgo", uid }
+      });
     }
     case "REMOVE_ROSTER_EGO": {
       const entry = (state.roster.egos || []).find((e) => e.uid === action.uid);
