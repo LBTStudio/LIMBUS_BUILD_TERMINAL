@@ -106,7 +106,7 @@ const BaseSection = ({ state, dispatch }) => {
               onChange: (event) => setF("imgUrls", event.target.value)
             }),
             React.createElement("div", { className: "piece-hint" },
-              "ここに登録した画像はこの画面の全体表示プレビューに使います。実際のココフォリア画像・差分は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
+              "ここに登録した画像は右側のプレビューに表示します。格納中は作業画面に画像を残しません。実際のココフォリア画像・差分は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
             )
           ),
           React.createElement("div", { className: "piece-share-row" },
@@ -7193,7 +7193,7 @@ const BuildParamsPanel = ({ state, dispatch }) => {
         h("strong", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
         h("div", { className: "piece-hint", style: { marginTop: 4 } }, "ステータスとラベルを整理し、並び順と出力先を管理します。")
       ),
-      h("button", { type: "button", className: "secondary", onClick: () => dispatch({ type: "SET_UI", ui: { previewOpen: true } }) }, "プレビューを開く")
+      h("button", { type: "button", className: "secondary", onClick: () => dispatch({ type: "SET_UI", ui: { previewOpen: true, previewTab: "token" } }) }, "プレビューを開く")
     ),
     h("div", { className: "build-params-tabs piece-tabs", role: "tablist", "aria-label": "ココフォリア駒の整形項目" },
       [
