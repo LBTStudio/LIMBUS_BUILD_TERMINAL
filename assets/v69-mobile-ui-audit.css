@@ -367,3 +367,467 @@
 .acct-panel:has(> .acct-grid.is-editing) > .lbt-cloud-panel {
   display: none;
 }
+
+
+/* -------------------------------------------------------------------------
+   Mobile account gate + result entry/editing
+   Keep the first-run selector proportional to a phone viewport and turn the
+   result form into labeled, predictable sections instead of placeholder-only
+   controls packed into a narrow grid.
+------------------------------------------------------------------------- */
+
+.ledger-result-entry-card,
+.ledger-result-entry-body,
+.ledger-result-entry-section,
+.ledger-result-entry-ticket-section {
+  min-width: 0;
+}
+.ledger-result-entry-card > .ledger-result-entry-card-head {
+  align-items: center;
+  gap: 10px;
+}
+.ledger-result-entry-body {
+  display: grid;
+  gap: 14px;
+}
+.ledger-result-entry-section,
+.ledger-result-entry-ticket-section {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--line-dim, #494033);
+  border-radius: var(--r-md, 8px);
+  background: var(--surface-inset, #171512);
+}
+.ledger-result-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.ledger-result-section-heading > .t-label {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ledger-result-input-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.ledger-result-input-field > span {
+  color: var(--tx-2, #d0c8ba);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.ledger-result-input-field .ledger-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 9px 11px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.ledger-result-entry-section .ledger-result-income-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(150px, 1fr) repeat(2, minmax(92px, .7fr));
+  gap: 9px;
+  align-items: end;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-inputs {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-inputs > .t-label {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field > span {
+  min-width: 0;
+  color: var(--tx-2, #d0c8ba);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field .ledger-input,
+.ledger-result-entry-ticket-section .ledger-ticket-field .select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 8px;
+  font-size: 14px;
+}
+.ledger-result-entry-card .ledger-result-reward-disclosure {
+  min-width: 0;
+}
+.ledger-result-entry-card .ledger-result-reward-disclosure > summary {
+  min-height: 50px;
+  padding: 11px 13px;
+  line-height: 1.5;
+}
+.ledger-result-entry-card .ledger-result-reward-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.ledger-result-entry-card .ledger-reward-item-editor {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+.ledger-result-entry-card .ledger-reward-item-head {
+  display: grid;
+  gap: 3px;
+  align-items: start;
+}
+.ledger-result-entry-card .ledger-reward-item-head .t-label {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ledger-result-entry-card .ledger-reward-item-head .ledger-note {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.ledger-result-entry-card .ledger-persona-search {
+  min-width: 0;
+}
+.ledger-result-entry-card .ledger-persona-search > .ledger-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 9px 11px;
+  font-size: 15px;
+}
+.ledger-result-entry-card .ledger-reward-item-controls {
+  min-width: 0;
+}
+.ledger-result-entry-footer {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.ledger-result-entry-footer .ledger-error-note {
+  overflow-wrap: anywhere;
+}
+.ledger-result-entry-footer .ledger-result-submit {
+  justify-content: stretch;
+}
+.ledger-result-entry-footer .ledger-result-submit > * {
+  width: 100%;
+  min-width: 0;
+}
+.ledger-result-entry-footer .ledger-result-submit .btn {
+  width: 100%;
+  min-height: 48px;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* Existing result cards use the same touch-friendly field rhythm when edited. */
+.ledger-card-wrap.is-editing .ledger-card .card-header.is-editing {
+  min-width: 0;
+  align-items: stretch;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-head-fields {
+  min-width: 0;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-head-field {
+  min-width: 0;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-inline {
+  min-width: 0;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-field .ledger-input,
+.ledger-card-wrap.is-editing .ledger-card-edit-inline .ledger-input,
+.ledger-card-wrap.is-editing .ledger-card-edit-inline .select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Account selection: one horizontal card pattern and one scrollable list. */
+@media (max-width: 640px) {
+  main.acct-gate {
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+  .acct-gate-panel {
+    box-sizing: border-box;
+    width: min(100%, 520px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 16px;
+  }
+  .acct-gate-panel > .acct-panel-head {
+    flex: 0 0 auto;
+    padding: 15px 15px 12px;
+  }
+  .acct-gate-panel > .acct-panel-head .acct-kicker {
+    font-size: 15px;
+    letter-spacing: .1em;
+    line-height: 1.4;
+  }
+  .acct-gate-panel > .acct-panel-head .acct-lead {
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .acct-gate-panel > .acct-grid {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+    gap: 9px;
+    padding: 11px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .acct-gate-panel > .acct-grid > .acct-card--gate {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    min-width: 0;
+    min-height: 94px;
+    height: auto;
+    padding: 11px 12px;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-card-body {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    justify-items: start;
+    gap: 2px 10px;
+    min-width: 0;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-mark {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    width: 44px;
+    height: 44px;
+  }
+  .acct-gate-panel .acct-card--gate .acct-name {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.35;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-purpose {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    font-size: 10px;
+  }
+  .acct-gate-panel .acct-card--gate .acct-meta {
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+    font-size: 10px;
+    line-height: 1.35;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  .acct-gate-panel .acct-card--gate .acct-gate-cta {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+    justify-self: start;
+    margin: 7px 80px 0 0;
+    font-size: 10px;
+    line-height: 1.3;
+    letter-spacing: .04em;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-gate-edit-btn {
+    top: auto;
+    right: 10px;
+    bottom: 9px;
+    box-sizing: border-box;
+    min-width: 64px;
+    min-height: 40px;
+    padding-inline: 8px;
+  }
+  .acct-gate-panel > .acct-grid > .acct-card--add {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 62px;
+    padding: 10px 12px;
+  }
+  .acct-gate-panel:has(.acct-card--form) > .acct-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+  }
+  .acct-gate-panel:has(.acct-card--form) .acct-card--form {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+  }
+  .acct-gate-panel > .acct-panel-foot {
+    flex: 0 0 auto;
+    display: grid;
+    gap: 5px;
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+  .acct-gate-panel > .acct-panel-foot .acct-foot-note {
+    max-width: none;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+
+  .ledger-result-entry-body { gap: 11px; }
+  .ledger-result-entry-section,
+  .ledger-result-entry-ticket-section { padding: 11px; gap: 9px; }
+  .ledger-result-entry-section .ledger-result-income-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .ledger-result-input-field--name { grid-column: 1 / -1; }
+  .ledger-result-input-field > span { font-size: 12px; }
+  .ledger-result-entry-ticket-section .ledger-ticket-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .ledger-result-entry-card .ledger-result-reward-disclosure > summary {
+    min-height: 48px;
+    padding: 10px 11px;
+    font-size: 13px;
+  }
+  .ledger-result-entry-card .ledger-reward-item-editor { padding: 10px; }
+  .ledger-result-entry-card .ledger-reward-item-controls {
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 8px;
+  }
+  .ledger-result-entry-card .ledger-reward-item-controls > :first-child,
+  .ledger-result-entry-card .ledger-reward-item-controls > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .ledger-result-entry-card .ledger-reward-item-controls > :last-child {
+    grid-column: 2;
+    min-height: 44px;
+  }
+  .ledger-result-entry-card .ledger-reward-item-chip {
+    max-width: 100%;
+    min-height: 40px;
+    align-items: center;
+    flex-wrap: wrap;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+  }
+  .ledger-result-entry-card .ledger-reward-item-chip button {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .ledger-result-entry-footer .ledger-result-submit .btn {
+    min-height: 50px;
+    font-size: 14px;
+  }
+
+  .ledger-card-wrap.is-editing .ledger-card .card-header.is-editing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-fields {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+    gap: 8px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-field > span {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-field .ledger-input {
+    min-height: 44px;
+    height: auto;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: stretch;
+    gap: 8px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-save,
+  .ledger-card-wrap.is-editing .ledger-card-edit-cancel {
+    flex: 1 1 120px;
+    min-height: 44px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-income {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-field .ledger-input,
+  .ledger-card-wrap.is-editing .ledger-card-edit-inline .ledger-input,
+  .ledger-card-wrap.is-editing .ledger-card-edit-inline .select {
+    min-height: 44px;
+    height: auto;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-ticket-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ledger-card-wrap.is-editing .ledger-history-editor {
+    padding: 11px;
+  }
+}
+@media (max-width: 380px) {
+  .acct-gate-panel > .acct-panel-head { padding: 13px 13px 10px; }
+  .acct-gate-panel > .acct-grid { padding: 9px; }
+  .acct-gate-panel > .acct-grid > .acct-card--gate { padding: 10px; }
+  .ledger-result-entry-section,
+  .ledger-result-entry-ticket-section { padding: 9px; }
+  .ledger-result-entry-card .ledger-result-reward-content { gap: 8px; }
+}
+
+@media (max-width: 360px) {
+  /* Native date controls need more room than a half-width field on narrow phones. */
+  .ledger-result-input-field:has(.ledger-input--date) {
+    grid-column: 1 / -1;
+  }
+}
