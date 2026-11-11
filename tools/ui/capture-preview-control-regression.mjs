@@ -151,7 +151,7 @@ async function createDisposableAccount(page,profile) {
     toggleExpanded: await toggle.getAttribute("aria-expanded"),
     previewPanelCount: await page.locator("#preview-panel").count(),
     inlinePortraitCount: await page.locator(".piece-art-frame, .piece-art-wrap, .piece-art-thumbs").count(),
-    inlineCcfBoardCount: await page.locator(".basic-ccfolia-preview, .build-params-panel-preview, #build-params-tab-preview").count()
+    inlineCcfBoardCount: await page.locator(".basic-ccfolia-preview, .build-params-panel-preview, #build-params-tab-preview, .btype-workbench-preview-panel, .preview-lines, .btype-preflight-note").count()
   };
   const closedClean = closedState.toggleExpanded === "false"
     && closedState.previewPanelCount === 0
