@@ -1361,8 +1361,13 @@ async function captureProfile(browser, mode) {
       await snap("ledger-historical-persona-saved","過去リザルトの取得人格・E.G.Oが所持へ反映された状態");
 
       const name="QA報酬アイテム・人格入力テスト";
+      const entryCard=page.locator(".ledger-result-entry-card").first();
+      if(!(await visible(entryCard))) throw new Error("新規リザルトの入力フォームが表示されていません");
+      await entryCard.evaluate(el=>el.scrollIntoView({block:"start",inline:"nearest",behavior:"instant"}));
+      await page.waitForTimeout(80);
       const entryLayout=await page.evaluate(()=>{
         const card=document.querySelector(".ledger-result-entry-card");
+        const cardRect=card?.getBoundingClientRect();
         const section=card?.querySelector(".ledger-result-entry-section");
         const body=card?.querySelector(".ledger-result-entry-body");
         const labels=[...(section?.querySelectorAll(".ledger-result-input-field")||[])].map(label=>{
@@ -1381,6 +1386,9 @@ async function captureProfile(browser, mode) {
         const ticketColumns=ticketGrid?getComputedStyle(ticketGrid).gridTemplateColumns.trim().split(/\s+/).length:0;
         return {
           exists:!!card,
+          cardTop:cardRect?.top??null,
+          viewportHeight:innerHeight,
+          topbarBottom:document.querySelector(".topbar")?.getBoundingClientRect().bottom??48,
           viewportWidth:innerWidth,
           documentWidth:document.documentElement.scrollWidth,
           bodyWidth:body?.getBoundingClientRect().width||0,
@@ -1388,7 +1396,8 @@ async function captureProfile(browser, mode) {
           ticketColumns
         };
       });
-      if(!entryLayout.exists || entryLayout.labels.length!==4
+      if(!entryLayout.exists || entryLayout.cardTop===null || entryLayout.cardTop<entryLayout.topbarBottom-1
+        || entryLayout.cardTop>entryLayout.viewportHeight-120 || entryLayout.labels.length!==4
         || entryLayout.labels.some(field=>!field.visible || !field.label || field.inputWidth<80)
         || (view.startsWith("mobile") && (entryLayout.documentWidth>entryLayout.viewportWidth+2
           || entryLayout.labels.some(field=>field.inputLeft<0 || field.inputRight>entryLayout.viewportWidth+1)
