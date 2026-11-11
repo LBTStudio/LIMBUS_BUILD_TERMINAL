@@ -56,6 +56,6 @@ test("collapsed preview has no residual portrait or miniature CCFOLIA preview in
     assert.ok(!otherSections.includes(selector), "collapsed workspace must not contain " + selector);
   }
   assert.ok(otherSections.includes("立ち絵URL・差分を編集"));
-  assert.ok(otherSections.includes("previewOpen: true"));
+  assert.ok(otherSections.includes('previewOpen: true, previewTab: "token"'));
   assert.ok(app.includes("isBuildWorkspace && previewOpen ? React.createElement(LivePreview"));
 });
