@@ -52,7 +52,7 @@ test("result import routes scroll their selected panel into view", () => {
 });
 
 test("collapsed preview has no residual portrait or miniature CCFOLIA preview in the Basic workspace", () => {
-  for (const selector of ["piece-art-frame", "piece-art-wrap", "piece-art-thumbs", "basic-ccfolia-preview", "BasicCcfOutputPreview"]) {
+  for (const selector of ["piece-art-frame", "piece-art-wrap", "piece-art-thumbs", "basic-ccfolia-preview", "BasicCcfOutputPreview", "btype-workbench-preview-panel", "preview-lines", "btype-preflight-note"]) {
     assert.ok(!otherSections.includes(selector), "collapsed workspace must not contain " + selector);
   }
   assert.ok(otherSections.includes("立ち絵URL・差分を編集"));
