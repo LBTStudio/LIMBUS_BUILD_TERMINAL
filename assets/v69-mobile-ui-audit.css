@@ -824,3 +824,10 @@
   .ledger-result-entry-ticket-section { padding: 9px; }
   .ledger-result-entry-card .ledger-result-reward-content { gap: 8px; }
 }
+
+@media (max-width: 360px) {
+  /* Native date controls need more room than a half-width field on narrow phones. */
+  .ledger-result-input-field:has(.ledger-input--date) {
+    grid-column: 1 / -1;
+  }
+}
