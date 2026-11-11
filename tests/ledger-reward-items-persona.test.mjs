@@ -12,7 +12,11 @@ const db = {
   items,
   specialItems,
   normal_personas: [{ no: 1, name: "通常人格A" }, { no: 2, name: "通常人格B" }],
-  tokui_personas: [{ no: 7, name: "特異人格A" }]
+  tokui_personas: [{ no: 7, name: "特異人格A" }],
+  egos: [
+    { rank: "TETH", no: 1, name: "報酬E.G.O A" },
+    { rank: "HE", no: 2, name: "報酬E.G.O B" }
+  ]
 };
 
 function createReducer() {
@@ -23,7 +27,7 @@ function createReducer() {
     crypto: { randomUUID: () => "qa-" + (++uid) }
   };
   vm.createContext(context);
-  vm.runInContext(stateSource + "\nwindow.__testReducer = appReducer;", context);
+  vm.runInContext(stateSource + "\nwindow.__testReducer = appReducer; window.__testApplyDrawBatchEffects = applyDrawBatchEffects;", context);
   return { reducer: window.__testReducer, window };
 }
 function baseState() {
@@ -261,7 +265,7 @@ test("新規リザルトの報酬人格は取得証跡へ保存し、未所持�
   const start = otherSections.indexOf("const addResult =");
   const end = otherSections.indexOf("/* 硝子窓の読み込み結果", start);
   const block = otherSections.slice(start, end);
-  assert.match(block, /^\s*personaAcquisitions\s*$/m, "ADD_RESULT receives the canonical acquisition array via object shorthand");
+  assert.match(block, /^\s*personaAcquisitions\s*,?\s*$/m, "ADD_RESULT receives the canonical acquisition array via object shorthand");
   assert.match(block, /type:\s*"ADD_ROSTER"/);
   assert.match(block, /purchase:\s*false/);
   assert.match(block, /skipInitialTicketConsumption:\s*true/);
@@ -326,4 +330,99 @@ test("既に人格を所持していても初期リザルトの確定は初期�
   assert.equal(first.entries.filter((entry) => entry.ref?.kind === "initialPersonaTicket").length, 1);
   const repeated = reducer(first, { type: "CONSUME_INITIAL_PERSONA_TICKET", resultId: "res-initial" });
   assert.equal(repeated.entries.length, first.entries.length, "同じ初期記録の保存を繰り返しても二重消費しない");
+});
+
+
+test("リザルトの報酬E.G.Oはrank/noで正規化され、追加・更新・部分更新で保持する", () => {
+  const { reducer } = createReducer();
+  let state = reducer(baseState(), {
+    type: "ADD_RESULT",
+    name: "E.G.O報酬",
+    egoAcquisitions: [
+      { rank: "teth", no: 1, name: "旧名", source: "reward" },
+      { rank: "TETH", no: 1, name: "重複", source: "manual" },
+      { rank: "INVALID", no: 2, name: "不正" },
+      { rank: "HE", no: "bad no", name: "不正No" }
+    ]
+  });
+  const id = state.results[0].id;
+  assert.deepEqual(
+    Array.from(state.results[0].egoAcquisitions, (entry) => [entry.rank, entry.no, entry.name]),
+    [["TETH", "1", "旧名"]],
+    "ランクを正規化し、重複と不正なランク・Noを除外する"
+  );
+
+  state = reducer(state, {
+    type: "UPDATE_RESULT", id,
+    egoAcquisitions: [{ rank: "HE", no: 2, name: "報酬E.G.O B", source: "manual" }]
+  });
+  assert.deepEqual(
+    Array.from(state.results[0].egoAcquisitions, (entry) => [entry.rank, entry.no]),
+    [["HE", "2"]]
+  );
+
+  state = reducer(state, {
+    type: "PATCH_RESULT", id,
+    patch: { egoAcquisitions: [{ rank: "TETH", no: 1, name: "報酬E.G.O A" }] }
+  });
+  assert.deepEqual(
+    Array.from(state.results[0].egoAcquisitions, (entry) => [entry.rank, entry.no]),
+    [["TETH", "1"]]
+  );
+});
+
+test("リザルト編集の報酬E.G.O所持追加は購入明細を作らず、重複所持を増やさない", () => {
+  const { reducer } = createReducer();
+  let state = reducer(baseState(), {
+    type: "ADD_RESULT", name: "シナリオ報酬",
+    egoAcquisitions: [{ rank: "TETH", no: 1, name: "報酬E.G.O A", source: "reward" }]
+  });
+  state = reducer(state, {
+    type: "ADD_ROSTER_EGO", rank: "TETH", no: 1,
+    purchase: false, via: ["シナリオ報酬"]
+  });
+  assert.equal(state.roster.egos.length, 1);
+  assert.equal(state.roster.egos[0].rank, "TETH");
+  assert.equal(state.roster.egos[0].via[0], "シナリオ報酬");
+  assert.equal(state.entries.length, 0, "報酬での所持追加は購入支出を作らない");
+
+  const unchanged = reducer(state, {
+    type: "ADD_ROSTER_EGO", rank: "TETH", no: 1,
+    purchase: false, via: ["シナリオ報酬"]
+  });
+  assert.equal(unchanged.roster.egos.length, 1, "同じE.G.Oは二重登録しない");
+  assert.equal(unchanged.entries.length, 0);
+});
+
+test("ガチャ抽出バッチのE.G.Oは所持と抽出費用明細へ自動反映される", () => {
+  const { window } = createReducer();
+  const batch = {
+    commit: "qa-ego-draw-commit",
+    batchHash: "qa-ego-draw-hash",
+    records: [{
+      kind: "ego",
+      item: { kind: "ego", rank: "TETH", no: 1, name: "報酬E.G.O A" },
+      cost: { lp: 0, shards: 50 },
+      duplicate: false,
+      grantedShards: 0
+    }]
+  };
+  const next = window.__testApplyDrawBatchEffects(baseState(), batch, "res-gacha", {});
+  assert.equal(next.roster.egos.length, 1);
+  assert.equal(next.roster.egos[0].rank, "TETH");
+  assert.equal(String(next.roster.egos[0].no), "1");
+  assert.equal(next.entries.length, 1, "抽出費用の明細が1件だけ自動作成される");
+  assert.equal(next.entries[0].kind, "ego");
+  assert.equal(next.entries[0].cost.shards, 50);
+  assert.equal(next.entries[0].resultId, "res-gacha");
+});
+
+test("報酬E.G.Oの検索・保存・表示は新規と既存リザルトの両方に配線され、報酬欄は既定で折りたたむ", () => {
+  assert.match(otherSections, /egoAcquisitions:\s*nextEgoAcquisitions/);
+  assert.match(otherSections, /type:\s*"ADD_ROSTER_EGO"[\s\S]{0,240}purchase:\s*false/);
+  assert.match(otherSections, /newResultEgoMatches/);
+  assert.match(otherSections, /ticketEgoMatches/);
+  assert.match(otherSections, /報酬E\.G\.O/);
+  assert.match(otherSections, /ledger-result-reward-disclosure/);
+  assert.match(otherSections, /result\.egoAcquisitions/);
 });

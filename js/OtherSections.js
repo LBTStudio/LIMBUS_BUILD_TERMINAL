@@ -4536,10 +4536,12 @@ const LedgerPanel = ({ state, dispatch }) => {
       .map((item) => [String(item.id), item])).values()]
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
-  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
   const [newResultError, setNewResultError] = React.useState("");
   const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
+  const [newResultEgoQuery, setNewResultEgoQuery] = React.useState("");
   const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
+  const [ticketEgoQuery, setTicketEgoQuery] = React.useState("");
   const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
   const [newRewardItemId, setNewRewardItemId] = React.useState("");
   const [newRewardItemName, setNewRewardItemName] = React.useState("");
@@ -4577,6 +4579,36 @@ const LedgerPanel = ({ state, dispatch }) => {
     newResultPersonaQuery,
     newResult.personaAcquisitions || [],
     state.roster?.personas || []
+  );
+  /* E.G.Oはランク+No.で一意に管理する。名前だけの照合は同名・改名で誤帰属し得るため行わない。 */
+  const EGO_RANK_ORDER = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+  const egoOptions = [...new Map((window.DB?.egos || [])
+    .filter((row) => row?.rank && row?.no != null && row?.name)
+    .map((row) => {
+      const rank = String(row.rank).trim().toUpperCase();
+      const no = String(row.no).trim();
+      return [rank + ":" + no, { rank, no, name: String(row.name), value: rank + ":" + no }];
+    })).values()].sort((a, b) =>
+      EGO_RANK_ORDER.indexOf(a.rank) - EGO_RANK_ORDER.indexOf(b.rank)
+      || a.rank.localeCompare(b.rank)
+      || a.no.localeCompare(b.no, "ja", { numeric: true })
+    );
+  const getEgoSearchMatches = (query, selectedEntries, excludedEntries = []) => {
+    const needle = normalizePersonaSearchText(query);
+    if (!needle) return [];
+    const selectedKeys = new Set(
+      [...(Array.isArray(selectedEntries) ? selectedEntries : []), ...(Array.isArray(excludedEntries) ? excludedEntries : [])]
+        .map((entry) => entry?.rank && entry?.no != null ? String(entry.rank).toUpperCase() + ":" + String(entry.no) : "")
+        .filter(Boolean)
+    );
+    return egoOptions.filter((option) => {
+      if (selectedKeys.has(option.value)) return false;
+      return normalizePersonaSearchText([option.name, option.no, "No." + option.no, option.rank].join(" ")).includes(needle);
+    }).slice(0, 8);
+  };
+  const newResultEgoMatches = getEgoSearchMatches(
+    newResultEgoQuery,
+    newResult.egoAcquisitions || []
   );
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
@@ -4776,9 +4808,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       },
       rewardItems: Array.isArray(result.rewardItems) ? result.rewardItems.map((item) => ({ ...item })) : [],
       personaAcquisitions: Array.isArray(result.personaAcquisitions) ? result.personaAcquisitions.map((item) => ({ ...item })) : [],
+      egoAcquisitions: Array.isArray(result.egoAcquisitions) ? result.egoAcquisitions.map((item) => ({ ...item })) : [],
       initialPersona: { method: ["selected", "random"].includes(result.initialPersona?.method) ? result.initialPersona.method : "unknown", mode: result.initialPersona?.mode === "t" || result.initialPersona?.mode === "n" ? result.initialPersona.mode : "", no: String(result.initialPersona?.no ?? ""), name: String(result.initialPersona?.name || "") }
     });
     setTicketPersonaQuery("");
+    setTicketEgoQuery("");
     setInitialPersonaQuery("");
     setTicketRewardItemId("");
     setTicketRewardItemName("");
@@ -4820,6 +4854,31 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     });
     setNewResultPersonaQuery("");
   };
+  const addResultDraftEgo = (option) => {
+    if (!ticketDraft || !option) return;
+    setTicketDraft((draft) => {
+      if (!draft) return draft;
+      const current = Array.isArray(draft.egoAcquisitions) ? draft.egoAcquisitions : [];
+      if (current.some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no)) return draft;
+      return { ...draft, egoAcquisitions: [...current, { rank: option.rank, no: option.no, name: option.name, source: "manual" }] };
+    });
+    setTicketEgoQuery("");
+  };
+  const addNewResultEgo = (option) => {
+    if (!option) return;
+    setNewResult((draft) => {
+      const current = Array.isArray(draft.egoAcquisitions) ? draft.egoAcquisitions : [];
+      if (current.some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no)) return draft;
+      return { ...draft, egoAcquisitions: [...current, { rank: option.rank, no: option.no, name: option.name, source: "reward" }] };
+    });
+    setNewResultEgoQuery("");
+  };
+  const removeResultDraftEgo = (rank, no) => setTicketDraft((draft) => draft ? {
+    ...draft, egoAcquisitions: (draft.egoAcquisitions || []).filter((entry) =>
+      !(String(entry.rank).toUpperCase() === String(rank).toUpperCase() && String(entry.no) === String(no))
+    )
+  } : draft);
+
   const removeResultDraftPersona = (mode, no) => setTicketDraft((draft) => draft ? {
     ...draft, personaAcquisitions: (draft.personaAcquisitions || []).filter((entry) => !(entry.mode === mode && String(entry.no) === String(no)))
   } : draft);
@@ -4848,6 +4907,16 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       name: String(draft.initialPersona?.name || "")
     };
     const nextAcquisitions = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions.map((entry) => ({ ...entry })) : [];
+    const nextEgoAcquisitions = [];
+    const seenEgoAcquisitions = new Set();
+    for (const entry of Array.isArray(draft.egoAcquisitions) ? draft.egoAcquisitions : []) {
+      const option = egoOptions.find((candidate) =>
+        candidate.rank === String(entry?.rank || "").toUpperCase() && candidate.no === String(entry?.no ?? "")
+      );
+      if (!option || seenEgoAcquisitions.has(option.value)) continue;
+      seenEgoAcquisitions.add(option.value);
+      nextEgoAcquisitions.push({ rank: option.rank, no: option.no, name: option.name, source: String(entry.source || "manual") });
+    }
     if (isInitial && nextInitialPersona.method !== "unknown" && nextInitialPersona.mode && nextInitialPersona.no
       && !nextAcquisitions.some((entry) => entry.mode === nextInitialPersona.mode && String(entry.no) === nextInitialPersona.no)) {
       const option = initialPersonaOptions.find((entry) => entry.value === nextInitialPersona.mode + ":" + nextInitialPersona.no);
@@ -4870,6 +4939,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       },
       rewardItems,
       personaAcquisitions: nextAcquisitions,
+      egoAcquisitions: nextEgoAcquisitions,
       ...(isInitial ? { initialPersona: nextInitialPersona } : {})
     });
     /* 取得履歴を所持ライブラリへ反映する。過去取得は購入扱いにせず、
@@ -4899,6 +4969,14 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         resultId: result.id, via: [name]
       });
     }
+    /* 報酬E.G.Oは取得履歴として保存し、未所持分だけ購入扱いにせず所持へ追加する。 */
+    const existingEgoKeys = new Set((state.roster?.egos || []).map((entry) => String(entry.rank).toUpperCase() + ":" + String(entry.no)));
+    for (const acquisition of nextEgoAcquisitions) {
+      const key = acquisition.rank + ":" + String(acquisition.no);
+      if (existingEgoKeys.has(key)) continue;
+      existingEgoKeys.add(key);
+      dispatch({ type: "ADD_ROSTER_EGO", rank: acquisition.rank, no: acquisition.no, purchase: false, via: [name] });
+    }
     /* 編集開始前から他の人格を所持しているとADD_ROSTERの「初回所持」判定では
        初期チケットが消費されない。初期リザルト上で取得方法が確定した場合は、
        所持追加の有無にかかわらず、専用の冪等actionで初期分を1枚だけ消費する。 */
@@ -4907,7 +4985,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         && !recordedPersonaTicketSpendCoversInitial) {
       dispatch({ type: "CONSUME_INITIAL_PERSONA_TICKET", resultId: result.id });
     }
-    toast("「" + name + "」のリザルトを更新し、取得人格を所持記録へ反映しました");
+    toast("「" + name + "」のリザルトを更新し、取得人格・E.G.Oを所持記録へ反映しました");
     cancelResultEditor();
   };
 
@@ -4920,6 +4998,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       result.name, result.date, result.income?.lp, result.income?.shards, result.note,
       ...(result.rewardItems || []).flatMap((item) => [item.itemName, item.customName, item.itemId]),
       ...(result.personaAcquisitions || []).flatMap((persona) => [persona.name, persona.no, persona.mode]),
+      ...(result.egoAcquisitions || []).flatMap((ego) => [ego.name, ego.no, ego.rank]),
       ...(result.consumedItems || []).flatMap((item) => [item.itemName, item.name, item.itemId, item.reason])
     ].map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
     return searchable.includes(searchNeedle);
@@ -5083,6 +5162,16 @@ const readDragId = (event) => {
       seenPersonaKeys.add(option.value);
       personaAcquisitions.push({ mode: option.mode, no: option.no, name: option.name, source: "reward" });
     }
+    const egoAcquisitions = [];
+    const seenEgoKeys = new Set();
+    for (const entry of Array.isArray(newResult.egoAcquisitions) ? newResult.egoAcquisitions : []) {
+      const option = egoOptions.find((candidate) =>
+        candidate.rank === String(entry?.rank || "").toUpperCase() && candidate.no === String(entry?.no ?? "")
+      );
+      if (!option || seenEgoKeys.has(option.value)) continue;
+      seenEgoKeys.add(option.value);
+      egoAcquisitions.push({ rank: option.rank, no: option.no, name: option.name, source: "reward" });
+    }
     dispatch({
       type: "ADD_RESULT",
       name,
@@ -5093,7 +5182,8 @@ const readDragId = (event) => {
         tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
       },
       rewardItems,
-      personaAcquisitions
+      personaAcquisitions,
+      egoAcquisitions
     });
     /* 報酬人格は購入ではない。新規リザルトへ取得証跡を保存した後、未所持分だけ所持へ追加する。 */
     const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
@@ -5110,9 +5200,17 @@ const readDragId = (event) => {
         via: [name]
       });
     }
+    const existingEgoKeys = new Set((state.roster?.egos || []).map((entry) => String(entry.rank).toUpperCase() + ":" + String(entry.no)));
+    for (const acquisition of egoAcquisitions) {
+      const key = acquisition.rank + ":" + String(acquisition.no);
+      if (existingEgoKeys.has(key)) continue;
+      existingEgoKeys.add(key);
+      dispatch({ type: "ADD_ROSTER_EGO", rank: acquisition.rank, no: acquisition.no, purchase: false, via: [name] });
+    }
     setNewResultError("");
-    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
     setNewResultPersonaQuery("");
+    setNewResultEgoQuery("");
     setNewRewardItemId("");
     setNewRewardItemName("");
     setNewRewardItemQty("1");
@@ -5667,82 +5765,126 @@ const importHeldPersonas = () => {
           setPackPick: setNewResultPack,
           onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
         }),
-        h("section", { className: "ledger-reward-item-editor ledger-persona-reward-editor", "aria-label": "報酬人格" },
-          h("div", { className: "ledger-reward-item-head" },
-            h("span", { className: "t-label" }, "報酬人格"),
-            h("span", { className: "ledger-note" }, "人格DBを名前またはNo.で検索して追加します。複数の人格を登録できます。")
+        h("details", { className: "ledger-result-reward-disclosure" },
+          h("summary", null,
+            "報酬を追加（人格 " + (newResult.personaAcquisitions || []).length + " / E.G.O " + (newResult.egoAcquisitions || []).length + " / アイテム " + (newResult.rewardItems || []).length + "）"
           ),
-          h("div", { className: "ledger-persona-search" },
-            h("input", {
-              className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
-              "aria-label": "報酬人格をDBから検索",
-              placeholder: "人格名またはNo.で検索…",
-              value: newResultPersonaQuery,
-              onChange: (event) => setNewResultPersonaQuery(event.target.value)
-            }),
-            newResultPersonaMatches.length > 0
-              ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬人格の検索候補", "aria-live": "polite" },
-                  newResultPersonaMatches.map((option) => h("button", {
-                    key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
-                    "aria-label": option.name + "（" + (option.mode === "t" ? "特異" : "通常") + "）を報酬人格に追加",
-                    onClick: () => addNewResultPersona(option)
-                  },
-                    h("span", null, option.name),
-                    h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
-                    h("b", null, "追加")
-                  ))
-                )
-              : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
-                  newResultPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます（最大8件）。"
-                )
-          ),
-          (newResult.personaAcquisitions || []).length > 0
-            ? h("div", { className: "ledger-reward-item-list" }, newResult.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
-                h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
-                h("small", null, entry.mode === "t" ? "特異" : "通常"),
-                h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬人格から外す", onClick: () => setNewResult((current) => ({ ...current, personaAcquisitions: (current.personaAcquisitions || []).filter((item) => !(item.mode === entry.mode && String(item.no) === String(entry.no))) })) }, "×")
-              )))
-            : h("p", { className: "ledger-empty-note" }, "報酬人格はまだ登録されていません。")
-        ),
-        h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
-          h("div", { className: "ledger-reward-item-head" },
-            h("span", { className: "t-label" }, "報酬アイテム"),
-            h("span", { className: "ledger-note" }, "硝子の破片・通常アイテム・カスタム品を記録できます。自我の欠片は上の欠片欄へ。")
-          ),
-          h("div", { className: "ledger-reward-item-controls" },
-            h("select", {
-              className: "select", "aria-label": "報酬アイテムのカタログ選択",
-              value: newRewardItemId,
-              onChange: (event) => { setNewRewardItemId(event.target.value); setNewRewardItemName(""); }
-            },
-              h("option", { value: "" }, "カタログから選択…"),
-              rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
+          h("div", { className: "ledger-result-reward-content stack-2" },
+          h("section", { className: "ledger-reward-item-editor ledger-persona-reward-editor", "aria-label": "報酬人格" },
+            h("div", { className: "ledger-reward-item-head" },
+              h("span", { className: "t-label" }, "報酬人格"),
+              h("span", { className: "ledger-note" }, "人格DBを名前またはNo.で検索して追加します。複数の人格を登録できます。")
             ),
-            h("input", {
-              className: "ledger-input", "aria-label": "カタログにない報酬アイテム名",
-              placeholder: "またはカタログにない品名を入力",
-              value: newRewardItemName,
-              onChange: (event) => { setNewRewardItemName(event.target.value); setNewRewardItemId(""); }
-            }),
-            h("input", {
-              className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
-              "aria-label": "報酬アイテム数量", value: newRewardItemQty,
-              onChange: (event) => setNewRewardItemQty(event.target.value)
-            }),
-            h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
-              const rewardItems = appendRewardItemDraft(newResult.rewardItems || [], newRewardItemId, newRewardItemName, newRewardItemQty);
-              if (rewardItems !== newResult.rewardItems) {
-                setNewResult((current) => ({ ...current, rewardItems }));
-                setNewRewardItemId(""); setNewRewardItemName(""); setNewRewardItemQty("1");
-              }
-            } }, "追加")
+            h("div", { className: "ledger-persona-search" },
+              h("input", {
+                className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+                "aria-label": "報酬人格をDBから検索",
+                placeholder: "人格名またはNo.で検索…",
+                value: newResultPersonaQuery,
+                onChange: (event) => setNewResultPersonaQuery(event.target.value)
+              }),
+              newResultPersonaMatches.length > 0
+                ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬人格の検索候補", "aria-live": "polite" },
+                    newResultPersonaMatches.map((option) => h("button", {
+                      key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                      "aria-label": option.name + "（" + (option.mode === "t" ? "特異" : "通常") + "）を報酬人格に追加",
+                      onClick: () => addNewResultPersona(option)
+                    },
+                      h("span", null, option.name),
+                      h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
+                      h("b", null, "追加")
+                    ))
+                  )
+                : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                    newResultPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます（最大8件）。"
+                  )
+            ),
+            (newResult.personaAcquisitions || []).length > 0
+              ? h("div", { className: "ledger-reward-item-list" }, newResult.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
+                  h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
+                  h("small", null, entry.mode === "t" ? "特異" : "通常"),
+                  h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬人格から外す", onClick: () => setNewResult((current) => ({ ...current, personaAcquisitions: (current.personaAcquisitions || []).filter((item) => !(item.mode === entry.mode && String(item.no) === String(entry.no))) })) }, "×")
+                )))
+              : h("p", { className: "ledger-empty-note" }, "報酬人格はまだ登録されていません。")
           ),
-          (newResult.rewardItems || []).length > 0
-            ? h("div", { className: "ledger-reward-item-list" }, newResult.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
-                h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
-                h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => setNewResult((current) => ({ ...current, rewardItems: removeRewardItemDraft(current.rewardItems || [], index) })) }, "×")
-              )))
-            : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
+          h("section", { className: "ledger-reward-item-editor ledger-ego-reward-editor", "aria-label": "報酬E.G.O" },
+            h("div", { className: "ledger-reward-item-head" },
+              h("span", { className: "t-label" }, "報酬E.G.O"),
+              h("span", { className: "ledger-note" }, "E.G.O DBを名前・ランク・No.で検索。所持済みでも報酬履歴に記録でき、未所持分だけ購入費用なしで所持へ追加します。")
+            ),
+            h("div", { className: "ledger-persona-search" },
+              h("input", {
+                className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+                "aria-label": "報酬E.G.OをDBから検索",
+                placeholder: "E.G.O名・ランク・No.で検索…",
+                value: newResultEgoQuery,
+                onChange: (event) => setNewResultEgoQuery(event.target.value)
+              }),
+              newResultEgoMatches.length > 0
+                ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬E.G.Oの検索候補", "aria-live": "polite" },
+                    newResultEgoMatches.map((option) => h("button", {
+                      key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                      "aria-label": option.name + "（" + option.rank + " No." + option.no + "）を報酬E.G.Oに追加",
+                      onClick: () => addNewResultEgo(option)
+                    },
+                      h("span", null, option.name),
+                      h("small", null, option.rank + " · No." + option.no + ((state.roster?.egos || []).some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no) ? " · 所持済み" : "")),
+                      h("b", null, "追加")
+                    ))
+                  )
+                : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                    newResultEgoQuery.trim() ? "DB内に一致するE.G.Oがありません。表記を変えて検索してください。" : "E.G.O名・ランク・No.を入力すると候補が表示されます（最大8件）。"
+                  )
+            ),
+            (newResult.egoAcquisitions || []).length > 0
+              ? h("div", { className: "ledger-reward-item-list" }, newResult.egoAcquisitions.map((entry) => h("div", { key: entry.rank + ":" + entry.no, className: "ledger-reward-item-chip" },
+                  h("span", null, entry.name || (entry.rank + " No." + entry.no)),
+                  h("small", null, entry.rank),
+                  h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬E.G.Oから外す", onClick: () => setNewResult((current) => ({ ...current, egoAcquisitions: (current.egoAcquisitions || []).filter((item) => !(String(item.rank).toUpperCase() === String(entry.rank).toUpperCase() && String(item.no) === String(entry.no))) })) }, "×")
+                )))
+              : h("p", { className: "ledger-empty-note" }, "報酬E.G.Oはまだ登録されていません。")
+          ),
+          h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
+            h("div", { className: "ledger-reward-item-head" },
+              h("span", { className: "t-label" }, "報酬アイテム"),
+              h("span", { className: "ledger-note" }, "硝子の破片・通常アイテム・カスタム品を記録できます。自我の欠片は上の欠片欄へ。")
+            ),
+            h("div", { className: "ledger-reward-item-controls" },
+              h("select", {
+                className: "select", "aria-label": "報酬アイテムのカタログ選択",
+                value: newRewardItemId,
+                onChange: (event) => { setNewRewardItemId(event.target.value); setNewRewardItemName(""); }
+              },
+                h("option", { value: "" }, "カタログから選択…"),
+                rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
+              ),
+              h("input", {
+                className: "ledger-input", "aria-label": "カタログにない報酬アイテム名",
+                placeholder: "またはカタログにない品名を入力",
+                value: newRewardItemName,
+                onChange: (event) => { setNewRewardItemName(event.target.value); setNewRewardItemId(""); }
+              }),
+              h("input", {
+                className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
+                "aria-label": "報酬アイテム数量", value: newRewardItemQty,
+                onChange: (event) => setNewRewardItemQty(event.target.value)
+              }),
+              h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
+                const rewardItems = appendRewardItemDraft(newResult.rewardItems || [], newRewardItemId, newRewardItemName, newRewardItemQty);
+                if (rewardItems !== newResult.rewardItems) {
+                  setNewResult((current) => ({ ...current, rewardItems }));
+                  setNewRewardItemId(""); setNewRewardItemName(""); setNewRewardItemQty("1");
+                }
+              } }, "追加")
+            ),
+            (newResult.rewardItems || []).length > 0
+              ? h("div", { className: "ledger-reward-item-list" }, newResult.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
+                  h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
+                  h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => setNewResult((current) => ({ ...current, rewardItems: removeRewardItemDraft(current.rewardItems || [], index) })) }, "×")
+                )))
+              : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
+          ),
+          )
         ),
         newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
         h("div", { className: "ledger-result-submit" },
@@ -6193,6 +6335,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         const initialPersonaOptionExists = initialPersonaOptions.some((option) => option.value === initialPersonaValue);
         const initialPersonaMatches = getPersonaSearchMatches(initialPersonaQuery, []);
         const ticketPersonaMatches = getPersonaSearchMatches(ticketPersonaQuery, ticketDraft?.personaAcquisitions || []);
+        const ticketEgoMatches = getEgoSearchMatches(ticketEgoQuery, ticketDraft?.egoAcquisitions || []);
         const rows = byResult(result.id);
         const spent = sumOf(rows);
         const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
@@ -6379,10 +6522,10 @@ h(Card, { className: "ledger-card" },
                   : null
               ),
               isEditing && h("details", { className: "ledger-history-editor-disclosure" },
-                h("summary", null, "取得人格・報酬アイテムを編集（過去リザルトにも複数登録できます）"),
-                h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得人格と報酬アイテムの編集" },
+                h("summary", null, "取得人格・E.G.O・報酬アイテムを編集（過去リザルトにも複数登録できます）"),
+                h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得人格・E.G.Oと報酬アイテムの編集" },
                 h("div", { className: "ledger-reward-item-head" },
-                  h("span", { className: "t-label" }, "取得人格・報酬アイテム"),
+                  h("span", { className: "t-label" }, "取得人格・E.G.O・報酬アイテム"),
                   h("span", { className: "ledger-note" }, "古いリザルトも複数の取得人格を登録できます。保存すると不足している人格は所持へ追加します。")
                 ),
                 h("div", { className: "ledger-persona-search" },
@@ -6416,6 +6559,43 @@ h(Card, { className: "ledger-card" },
                       h("button", { type: "button", "aria-label": (entry.name || entry.no) + " の取得記録を外す", onClick: () => removeResultDraftPersona(entry.mode, entry.no) }, "×")
                     )))
                   : h("p", { className: "ledger-empty-note" }, "取得人格はまだ登録されていません。初期作成の最初の人格は上の欄から記録できます。"),
+                h("section", { className: "ledger-reward-item-editor ledger-ego-reward-editor", "aria-label": "取得E.G.O" },
+                  h("div", { className: "ledger-reward-item-head" },
+                    h("span", { className: "t-label" }, "取得E.G.O"),
+                    h("span", { className: "ledger-note" }, "過去リザルトの取得記録を追加できます。未所持分は購入費用なしで所持へ追加します。")
+                  ),
+                  h("div", { className: "ledger-persona-search" },
+                    h("input", {
+                      className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+                      "aria-label": "このリザルトで取得したE.G.OをDBから検索",
+                      placeholder: "E.G.O名・ランク・No.で検索して追加…",
+                      value: ticketEgoQuery,
+                      onChange: (event) => setTicketEgoQuery(event.target.value)
+                    }),
+                    ticketEgoMatches.length > 0
+                      ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "取得E.G.Oの検索候補", "aria-live": "polite" },
+                          ticketEgoMatches.map((option) => h("button", {
+                            key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                            "aria-label": option.name + "（" + option.rank + " No." + option.no + "）を取得E.G.Oに追加",
+                            onClick: () => addResultDraftEgo(option)
+                          },
+                            h("span", null, option.name),
+                            h("small", null, option.rank + " · No." + option.no + ((state.roster?.egos || []).some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no) ? " · 所持済み" : "")),
+                            h("b", null, "追加")
+                          ))
+                        )
+                      : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                          ticketEgoQuery.trim() ? "DB内に一致するE.G.Oがありません。表記を変えて検索してください。" : "E.G.O名・ランク・No.を入力すると候補が表示されます（最大8件）。"
+                        )
+                  ),
+                  (ticketDraft.egoAcquisitions || []).length > 0
+                    ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.egoAcquisitions.map((entry) => h("div", { key: entry.rank + ":" + entry.no, className: "ledger-reward-item-chip" },
+                        h("span", null, entry.name || (entry.rank + " No." + entry.no)),
+                        h("small", null, entry.rank),
+                        h("button", { type: "button", "aria-label": (entry.name || entry.no) + " の取得E.G.O記録を外す", onClick: () => removeResultDraftEgo(entry.rank, entry.no) }, "×")
+                      )))
+                    : h("p", { className: "ledger-empty-note" }, "取得E.G.Oはまだ登録されていません。")
+                ),
                 h("div", { className: "ledger-reward-item-head" },
                   h("span", { className: "t-label" }, "報酬アイテム"),
                   h("span", { className: "ledger-note" }, "硝子の破片や通常アイテムを登録できます。報酬分は所持数へ加算し、過去履歴の数量を減らしても消費済みの在庫は自動で戻しません。")
@@ -6470,7 +6650,7 @@ h(Card, { className: "ledger-card" },
               ),
               !isEditing && h("details", { className: "ledger-result-details" },
                 h("summary", { className: "ledger-result-summary" },
-                  "明細 " + rows.length + "件 · 報酬品 " + (result.rewardItems || []).length + "種 · 取得人格 " + (result.personaAcquisitions || []).length + "名 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
+                  "明細 " + rows.length + "件 · 報酬品 " + (result.rewardItems || []).length + "種 · 取得人格 " + (result.personaAcquisitions || []).length + "名 · E.G.O " + (result.egoAcquisitions || []).length + "種 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
                 ),
                 h("div", { className: "ledger-result-detail-content stack-2" },
                   h("div", { className: "ledger-detail-group" },
@@ -6486,6 +6666,12 @@ h(Card, { className: "ledger-card" },
                   Array.isArray(result.personaAcquisitions) && result.personaAcquisitions.length > 0 && h("div", { className: "ledger-detail-group ledger-card-acquisitions" },
                     h("span", { className: "t-label" }, "取得人格"),
                     result.personaAcquisitions.map((entry) => h("span", { key: entry.mode + ":" + entry.no, className: "gacha-held-ticket" }, String(entry.name || (entry.mode.toUpperCase() + " No." + entry.no)) + (entry.mode === "t" ? "（特異）" : "（通常）")))
+                  ),
+                  Array.isArray(result.egoAcquisitions) && result.egoAcquisitions.length > 0 && h("div", { className: "ledger-detail-group ledger-card-acquisitions" },
+                    h("span", { className: "t-label" }, "報酬E.G.O"),
+                    result.egoAcquisitions.map((entry) => h("span", { key: entry.rank + ":" + entry.no, className: "gacha-held-ticket" },
+                      String(entry.name || (entry.rank + " No." + entry.no)) + "（" + entry.rank + "）"
+                    ))
                   ),
                   Array.isArray(result.financialReviews) && result.financialReviews.length > 0 && h("section", {
                     className: "ledger-held-result ledger-financial-review",

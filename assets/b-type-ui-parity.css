@@ -450,14 +450,16 @@
   background: var(--gold-tint);
 }
 .ledger-persona-audit-disclosure,
-.ledger-history-editor-disclosure {
+.ledger-history-editor-disclosure,
+.ledger-result-reward-disclosure {
   min-width: 0;
   border: 1px solid var(--line-dim, #494033);
   border-radius: var(--r-md, 8px);
   background: var(--surface-1, #1b1814);
 }
 .ledger-persona-audit-disclosure > summary,
-.ledger-history-editor-disclosure > summary {
+.ledger-history-editor-disclosure > summary,
+.ledger-result-reward-disclosure > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -471,18 +473,22 @@
   list-style: none;
 }
 .ledger-persona-audit-disclosure > summary::-webkit-details-marker,
-.ledger-history-editor-disclosure > summary::-webkit-details-marker { display: none; }
+.ledger-history-editor-disclosure > summary::-webkit-details-marker,
+.ledger-result-reward-disclosure > summary::-webkit-details-marker { display: none; }
 .ledger-persona-audit-disclosure > summary::after,
-.ledger-history-editor-disclosure > summary::after {
+.ledger-history-editor-disclosure > summary::after,
+.ledger-result-reward-disclosure > summary::after {
   content: "＋";
   flex: 0 0 auto;
   color: var(--gold);
   font-size: 15px;
 }
 .ledger-persona-audit-disclosure[open] > summary::after,
-.ledger-history-editor-disclosure[open] > summary::after { content: "−"; }
+.ledger-history-editor-disclosure[open] > summary::after,
+.ledger-result-reward-disclosure[open] > summary::after { content: "−"; }
 .ledger-persona-audit-disclosure[open] > summary,
-.ledger-history-editor-disclosure[open] > summary {
+.ledger-history-editor-disclosure[open] > summary,
+.ledger-result-reward-disclosure[open] > summary {
   border-bottom: 1px solid var(--line-dim);
 }
 .ledger-persona-audit-disclosure .ledger-persona-audit-card {
@@ -492,7 +498,8 @@
 .ledger-persona-audit-disclosure .ledger-persona-audit-card .card-body {
   padding: 10px 12px;
 }
-.ledger-history-editor-disclosure[open] > .ledger-history-editor {
+.ledger-history-editor-disclosure[open] > .ledger-history-editor,
+.ledger-result-reward-disclosure[open] > .ledger-result-reward-content {
   margin: 8px;
 }
 .ledger-result-detail-group,
@@ -533,7 +540,8 @@
   .ledger-empty-note,
   .settings-section-note { font-size: 14px; line-height: 1.7; }
   .ledger-persona-audit-disclosure > summary,
-  .ledger-history-editor-disclosure > summary { min-height: 46px; padding: 9px 10px; }
+  .ledger-history-editor-disclosure > summary,
+  .ledger-result-reward-disclosure > summary { min-height: 46px; padding: 9px 10px; }
 }
 
 

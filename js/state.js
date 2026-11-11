@@ -46,6 +46,7 @@ function makeInitialResult(options) {
     note: "ルールブックPDF p.14 の初期資源（30LP・自我の欠片10個）。この直後の獲得はここに帰属します。",
     initialPersona: { method: "unknown", mode: "", no: "", name: "" },
     personaAcquisitions: [],
+    egoAcquisitions: [],
     createdAt: Date.now()
   };
 }
@@ -66,6 +67,20 @@ function normalizePersonaAcquisitions(value) {
     const no = String(entry.no ?? "").trim().slice(0, 64);
     if (!mode || !no || !/^[A-Za-z0-9_-]+$/.test(no)) return [];
     return [{ mode, no, name: String(entry.name || "").trim().slice(0, 160), source: String(entry.source || "").trim().slice(0, 80) }];
+  });
+}
+function normalizeEgoAcquisitions(value) {
+  if (!Array.isArray(value)) return [];
+  const allowedRanks = new Set(["ZAYIN", "TETH", "HE", "WAW", "ALEPH"]);
+  const seen = new Set();
+  return value.slice(0, 1000).flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const rank = String(entry.rank || "").trim().toUpperCase();
+    const no = String(entry.no ?? "").trim().slice(0, 64);
+    const key = rank + ":" + no;
+    if (!allowedRanks.has(rank) || !no || !/^[A-Za-z0-9_-]+$/.test(no) || seen.has(key)) return [];
+    seen.add(key);
+    return [{ rank, no, name: String(entry.name || "").trim().slice(0, 160), source: String(entry.source || "").trim().slice(0, 80) }];
   });
 }
 
@@ -6217,6 +6232,7 @@ case "ADD_CUSTOM_ITEM": {
           ...(action.rewardItems !== undefined ? { rewardItems: nextRewardItems } : {}),
           ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
           ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
+          ...(action.egoAcquisitions !== undefined ? { egoAcquisitions: normalizeEgoAcquisitions(action.egoAcquisitions) } : {}),
           ...(action.financialReviews !== undefined
             ? { financialReviews: mergedReviews }
             : {}),
@@ -6364,6 +6380,7 @@ case "ADD_CUSTOM_ITEM": {
         rewardItems: normalizeRewardItems(action.rewardItems, state),
         initialPersona: normalizeInitialPersona(action.initialPersona),
         personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
+        egoAcquisitions: normalizeEgoAcquisitions(action.egoAcquisitions),
         financialReviews: normalizeFinancialReviewCandidates(action.financialReviews),
         ...(String(action.importSourceKey || "").trim()
           ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
@@ -6392,6 +6409,7 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.rewardItems !== void 0 ? { rewardItems: normalizeRewardItems(action.patch.rewardItems, state) } : {}),
               ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
               ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
+              ...(action.patch?.egoAcquisitions !== void 0 ? { egoAcquisitions: normalizeEgoAcquisitions(action.patch.egoAcquisitions) } : {}),
               ...(action.patch?.financialReviews !== void 0
                 ? { financialReviews: mergeFinancialReviewCandidates(r.financialReviews, action.patch.financialReviews) }
                 : {}),
