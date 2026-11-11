@@ -5904,9 +5904,11 @@ const importHeldPersonas = () => {
           )
           )
         ),
-        newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
-        h("div", { className: "ledger-result-submit" },
-          h(Button, { size: "md", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "入力した内容をまとめて記録")
+        h("div", { className: "ledger-result-entry-footer" },
+          newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
+          h("div", { className: "ledger-result-submit" },
+            h(Button, { size: "md", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "入力した内容をまとめて記録")
+          )
         )
       )
     ),
