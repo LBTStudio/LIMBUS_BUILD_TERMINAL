@@ -1284,6 +1284,28 @@ async function captureProfile(browser, mode) {
       const historicalEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
       await historicalEditorCard.waitFor({state:"visible",timeout:5000});
       await click(historicalEditorCard.locator(".ledger-history-editor-disclosure > summary"));
+      const historicalEgoCandidate=await page.evaluate(()=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const record=(saved.results||[]).find(result=>result.id==="ui-audit-result-1");
+        const recorded=new Set((record?.egoAcquisitions||[]).map(entry=>String(entry.rank||"").toUpperCase()+":"+String(entry.no)));
+        const rows=[...new Map((window.DB?.egos||[])
+          .filter(row=>row?.rank&&row?.no!=null&&row?.name)
+          .map(row=>{
+            const rank=String(row.rank).trim().toUpperCase();
+            const no=String(row.no).trim();
+            return [rank+":"+no,{rank,no,name:String(row.name)}];
+          })).values()];
+        return rows.find(row=>row.rank&&row.no&&row.name&&!recorded.has(row.rank+":"+row.no))||null;
+      });
+      if(!historicalEgoCandidate) throw new Error("過去リザルトE.G.Oテスト用の未記録DB候補を取得できません");
+      const historicalLedgerEntryCount=await page.evaluate(()=>((window.LBT_accounts?.loadActive?.()||{}).entries||[]).length);
+      const historicalEgoSearch=historicalEditorCard.locator('[aria-label="このリザルトで取得したE.G.OをDBから検索"]');
+      await historicalEgoSearch.fill("No."+historicalEgoCandidate.no);
+      const historicalEgoOption=historicalEditorCard.locator(".ledger-persona-search-results .ledger-persona-search-result")
+        .filter({hasText:historicalEgoCandidate.rank})
+        .filter({hasText:"No."+historicalEgoCandidate.no}).first();
+      await historicalEgoOption.waitFor({state:"visible",timeout:5000});
+      await click(historicalEgoOption);
       const historicalCandidate=audit.seed?.sample?.historicalPersonaCandidate;
       if(!historicalCandidate?.mode || !historicalCandidate?.no) throw new Error("履歴人格QA候補をseedから取得できません");
       const historicalPersonaSearch=historicalEditorCard.locator('[aria-label="このリザルトで取得した人格をDBから検索"]');
@@ -1295,16 +1317,29 @@ async function captureProfile(browser, mode) {
       await snap("ledger-historical-persona-draft","過去リザルトへ複数取得人格を追加した編集状態");
       await click(historicalEditorCard.getByRole("button",{name:"UI監査用セッション の変更を保存",exact:true}));
       await page.waitForTimeout(450);
-      const historicalCheck=await page.evaluate((candidate)=>{
+      const historicalCheck=await page.evaluate(({candidate,egoCandidate})=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
         const record=(saved.results||[]).find((result)=>result.id==="ui-audit-result-1");
         const owned=(saved.roster?.personas||[]).some((entry)=>entry.mode===candidate.mode&&String(entry.no)===String(candidate.no));
-        return {owned,acquisitions:record?.personaAcquisitions||[]};
-      },historicalCandidate);
+        const egoOwned=(saved.roster?.egos||[]).some(entry=>String(entry.rank).toUpperCase()===egoCandidate.rank&&String(entry.no)===egoCandidate.no);
+        return {
+          owned,
+          acquisitions:record?.personaAcquisitions||[],
+          egoOwned,
+          egoAcquisitions:record?.egoAcquisitions||[],
+          ledgerEntries:(saved.entries||[]).length
+        };
+      },{candidate:historicalCandidate,egoCandidate:historicalEgoCandidate});
       if(!historicalCheck.owned||!historicalCheck.acquisitions.some((entry)=>entry.mode===historicalCandidate.mode&&String(entry.no)===String(historicalCandidate.no))) {
         throw new Error("過去リザルトの取得人格が所持・取得証跡へ反映されません: "+JSON.stringify(historicalCheck));
       }
-      await snap("ledger-historical-persona-saved","過去リザルトの取得人格が所持へ反映された状態");
+      if(!historicalCheck.egoOwned||!historicalCheck.egoAcquisitions.some(entry=>entry.rank===historicalEgoCandidate.rank&&String(entry.no)===historicalEgoCandidate.no)) {
+        throw new Error("過去リザルトのE.G.O取得が履歴・所持へ反映されません: "+JSON.stringify(historicalCheck));
+      }
+      if(historicalCheck.ledgerEntries!==historicalLedgerEntryCount) {
+        throw new Error("過去リザルトの無償E.G.O追加で購入明細が作成されました: "+JSON.stringify({before:historicalLedgerEntryCount,after:historicalCheck.ledgerEntries}));
+      }
+      await snap("ledger-historical-persona-saved","過去リザルトの取得人格・E.G.Oが所持へ反映された状態");
 
       const name="QA報酬アイテム・人格入力テスト";
       const nameInput=page.getByRole("textbox",{name:"リザルトの名称",exact:true});
@@ -1324,8 +1359,27 @@ async function captureProfile(browser, mode) {
         const balance=window.LBT_computeLedgerBalance?.(saved.results||[],saved.entries||[])||{};
         const ticketIncome=(saved.results||[]).reduce((sum,result)=>sum+(Number(result.income?.tickets?.persona)||0),0);
         const ticketUse=(saved.entries||[]).reduce((sum,entry)=>sum+(Number(entry.tickets?.persona)||0),0);
-        return {lp:Number(balance.lp)||0,shards:Number(balance.shards)||0,personaTickets:Math.max(0,ticketIncome-ticketUse)};
+        return {
+          lp:Number(balance.lp)||0,
+          shards:Number(balance.shards)||0,
+          personaTickets:Math.max(0,ticketIncome-ticketUse),
+          ledgerEntries:(saved.entries||[]).length
+        };
       });
+      await click(page.locator(".ledger-result-reward-disclosure > summary"));
+      const rewardEgoSection=page.locator('section[aria-label="報酬E.G.O"]');
+      const rewardEgoSearch=rewardEgoSection.locator('[aria-label="報酬E.G.OをDBから検索"]');
+      await rewardEgoSearch.fill("No."+historicalEgoCandidate.no);
+      const rewardEgoOption=rewardEgoSection.locator(".ledger-persona-search-results .ledger-persona-search-result")
+        .filter({hasText:historicalEgoCandidate.rank})
+        .filter({hasText:"No."+historicalEgoCandidate.no}).first();
+      await rewardEgoOption.waitFor({state:"visible",timeout:5000});
+      await click(rewardEgoOption);
+      if(await rewardEgoSection.locator(".ledger-persona-search-results .ledger-persona-search-result")
+        .filter({hasText:historicalEgoCandidate.rank})
+        .filter({hasText:"No."+historicalEgoCandidate.no}).count()!==0) {
+        throw new Error("同じリザルトで選択済みのE.G.Oが検索候補に残っています");
+      }
       const rewardPersonaSection=page.locator('section[aria-label="報酬人格"]');
       const rewardPersonaSearch=rewardPersonaSection.locator('[aria-label="報酬人格をDBから検索"]');
       /* 所持済みは候補に出ず、選択した人格も同一リザルト内の候補から消える。 */
@@ -1359,16 +1413,30 @@ async function captureProfile(browser, mode) {
       await snap("ledger-reward-item-draft","硝子の破片とカタログ外の外付け義体を追加した報酬入力欄");
       await click(page.locator(".ledger-result-submit").getByRole("button",{name:"入力した内容をまとめて記録",exact:true}));
       await page.waitForTimeout(500);
-      const rewardCheck=await page.evaluate((name)=>{
+      const rewardCheck=await page.evaluate(({name,egoCandidate})=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
         const record=(saved.results||[]).find((result)=>result.name===name);
         const glass=saved.inventory?.find((item)=>item.itemId==="resource-glass-shard");
         const custom=saved.inventory?.find((item)=>saved.customItems?.some((definition)=>definition.id===item.itemId&&definition.name==="外付け義体"));
-        return {record,glassQuantity:glass?.quantity||0,customQuantity:custom?.quantity||0,customDefinitions:saved.customItems||[]};
-      },name);
+        const egoOwned=(saved.roster?.egos||[]).some(entry=>String(entry.rank).toUpperCase()===egoCandidate.rank&&String(entry.no)===egoCandidate.no);
+        return {
+          record,
+          glassQuantity:glass?.quantity||0,
+          customQuantity:custom?.quantity||0,
+          customDefinitions:saved.customItems||[],
+          egoOwned,
+          ledgerEntries:(saved.entries||[]).length
+        };
+      },{name,egoCandidate:historicalEgoCandidate});
       if(!rewardCheck.record?.rewardItems?.some((item)=>item.itemId==="resource-glass-shard"&&item.quantity===2)) throw new Error("硝子の破片が報酬履歴へ保存されません: "+JSON.stringify(rewardCheck));
       if(!rewardCheck.customDefinitions.some((item)=>item.name==="外付け義体")||rewardCheck.customQuantity!==1) throw new Error("カタログ外の外付け義体がカスタム報酬品として所持へ反映されません: "+JSON.stringify(rewardCheck));
       if(rewardCheck.glassQuantity!==2) throw new Error("硝子の破片が所持在庫へ反映されません: "+JSON.stringify(rewardCheck));
+      if(!rewardCheck.egoOwned||!rewardCheck.record?.egoAcquisitions?.some(entry=>entry.rank===historicalEgoCandidate.rank&&String(entry.no)===historicalEgoCandidate.no&&entry.source==="reward")) {
+        throw new Error("新規リザルトの報酬E.G.Oが既所持品でも履歴へ保存されません: "+JSON.stringify(rewardCheck));
+      }
+      if(rewardCheck.ledgerEntries!==rewardBaseline.ledgerEntries) {
+        throw new Error("報酬E.G.Oの追加で購入明細が作成されました: "+JSON.stringify({before:rewardBaseline.ledgerEntries,after:rewardCheck.ledgerEntries}));
+      }
       const personaRewardCheck=await page.evaluate(({name,rewardCandidate})=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
         const record=(saved.results||[]).find(result=>result.name===name);
@@ -1381,15 +1449,17 @@ async function captureProfile(browser, mode) {
           acquisitions:record?.personaAcquisitions||[],
           lp:Number(balance.lp)||0,
           shards:Number(balance.shards)||0,
-          personaTickets:Math.max(0,ticketIncome-ticketUse)
+          personaTickets:Math.max(0,ticketIncome-ticketUse),
+          ledgerEntries:(saved.entries||[]).length
         };
       },{name,rewardCandidate});
       if(!personaRewardCheck.owned) throw new Error("新規リザルトの報酬人格が所持ライブラリへ追加されません: "+JSON.stringify(personaRewardCheck));
       if(!personaRewardCheck.acquisitions.some(entry=>entry.mode===rewardCandidate.mode&&String(entry.no)===rewardCandidate.no&&entry.source==="reward")) {
         throw new Error("新規リザルトへ報酬人格の取得証跡が保存されません: "+JSON.stringify(personaRewardCheck));
       }
-      if(personaRewardCheck.lp!==rewardBaseline.lp||personaRewardCheck.shards!==rewardBaseline.shards||personaRewardCheck.personaTickets!==rewardBaseline.personaTickets) {
-        throw new Error("無償報酬人格の追加でLP・欠片・人格チケット残高が変化しました: "+JSON.stringify({before:rewardBaseline,after:personaRewardCheck}));
+      if(personaRewardCheck.lp!==rewardBaseline.lp||personaRewardCheck.shards!==rewardBaseline.shards||personaRewardCheck.personaTickets!==rewardBaseline.personaTickets
+        || personaRewardCheck.ledgerEntries!==rewardBaseline.ledgerEntries) {
+        throw new Error("無償報酬人格・E.G.Oの追加でLP・欠片・チケット・支出明細が変化しました: "+JSON.stringify({before:rewardBaseline,after:personaRewardCheck}));
       }
       await snap("ledger-reward-item-saved","報酬アイテムと報酬人格の履歴・所持在庫が一致した状態");
 
