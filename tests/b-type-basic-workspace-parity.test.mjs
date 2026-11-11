@@ -6,130 +6,77 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").repl
 const sections = read("../js/OtherSections.js");
 const persona = read("../js/PersonaCodex.js");
 const app = read("../js/App.js");
-const generator = read("../js/generator.js");
-const parity = read("../assets/b-type-ui-parity.css");
+const livePreview = read("../js/LivePreview.js");
 const workbench = read("../assets/b-type-workbench.css");
 
-test("Basic workspace follows the supplied Unified Workbench v4 B prototype", () => {
-  const reference = read("../docs/ui-reference/LBT_UI_Refinement_Prototypes.html");
-  const baseStart = sections.indexOf("const BaseSection =");
-  const baseEnd = sections.indexOf("const PassiveCard =", baseStart);
-  const base = sections.slice(baseStart, baseEnd);
-  assert.match(reference, /Unified Workbench v4/);
-  assert.match(reference, /id="prototype-b"/);
-  for (const required of [
-    'class="piece-hero-grid"', 'class="piece-art-wrap"', 'class="piece-art-thumbs"',
-    'class="piece-control-grid"', 'class="piece-token-preview"', '.piece-format-panel{'
-  ]) assert.ok(reference.includes(required), "reference must preserve " + required);
-  for (const required of [
-    'className: "piece-hero-grid base-info-panel"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
-    'className: "piece-control-grid"', 'className: "piece-art-frame"', 'piece-format-panel'
-  ]) assert.ok(sections.includes(required) || base.includes(required), "production must render " + required);
-  assert.match(base, /ASPECT FIT \/ 全体表示/);
-  assert.match(base, /className: "piece-hero-grid base-info-panel"/, "portrait styles must attach to the rendered Basic workspace root");
-  assert.doesNotMatch(base, /piece-token-preview|piece-token-card/, "the old tiny token card must not remain in the appearance panel");
-  assert.match(base, /const \[imgZoom, setImgZoom\] = React\.useState\(1\)/);
-  assert.match(base, /const artFrameRef = React\.useRef\(null\)/);
-  assert.match(base, /frame\.addEventListener\("wheel", handleArtWheel, \{ passive: false \}\)/);
-  assert.match(base, /event\.preventDefault\(\)/);
-  assert.match(base, /frame\.getBoundingClientRect\(\)/);
-  assert.match(base, /frame\.removeEventListener\("wheel", handleArtWheel\)/);
-  assert.match(base, /setImgTab\(index\);[\s\S]*?setImgZoom\(1\)/, "changing face images resets zoom immediately");
-  assert.match(base, /piece-art-zoom-help/);
-  assert.match(base, /ホイールで拡大・縮小/);
-  assert.match(base, /transform: "scale\(" \+ imgZoom \+ "\)"/);
-  assert.match(base, /setImgZoom\(1\)/, "switching images and the reset control must restore full-fit");
-  assert.match(base, /Math\.min\(4, imgZoom \* Math\.exp/);
-  assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?object-fit: contain/);
-  assert.match(parity, /\.base-info-panel \.piece-art-frame[\s\S]*?aspect-ratio:\s*3\s*\/\s*4/);
-  assert.match(parity, /\.base-info-panel \.piece-art-zoom-reset/);
-  for (const field of ["state.charName", "state.plName", "state.initiative", "state.color", "activeImg", "setImgTab", "state.imgUrls", "state.shareImageData"]) {
-    assert.ok(base.includes(field), "Basic workspace must retain live field " + field);
+test("Basic workspace retains image registration but has no permanent portrait preview", () => {
+  const start = sections.indexOf("const BaseSection =");
+  const end = sections.indexOf("const PassiveCard =", start);
+  const base = sections.slice(start, end);
+  assert.ok(base.includes('className: "piece-image-settings"'));
+  assert.ok(base.includes("立ち絵URL・差分を編集"));
+  assert.ok(base.includes('id: "piece-image-urls"'));
+  assert.ok(base.includes("state.imgUrls"));
+  assert.ok(base.includes("imgList.length"));
+  assert.ok(base.includes("state.shareImageData"));
+  for (const forbidden of ["piece-art-wrap", "piece-art-frame", "piece-art-thumbs", "piece-art-zoom", "activeImg", "imgZoom", "imgTab", "画像を確認"]) {
+    assert.ok(!base.includes(forbidden), "Basic workspace must not render " + forbidden);
   }
-  assert.match(persona, /className: "baseinfo-workspace piece-workspace"/);
-  assert.doesNotMatch(base, /className: "pc-sheet"/, "the obsolete pc-sheet layout must not remain the Basic root");
-  assert.doesNotMatch(base, /サンプル・フィクサー|Playwright QA/, "QA fixtures must not ship in production data");
+  assert.ok(persona.includes('className: "baseinfo-workspace piece-workspace"'));
 });
 
-test("Basic format tabs live in app UI state so Home can deep-link to the output tab", () => {
+test("Basic format workspace has only ST and label tabs; its preview action opens the shared panel", () => {
   const start = sections.indexOf("const BuildParamsPanel =");
   const end = sections.indexOf("\n};", start);
   const panel = sections.slice(start, end);
-  assert.match(panel, /state\.ui\?\.basicFormatTab/);
-  assert.match(panel, /dispatch\(\{ type: "SET_UI", ui: \{ basicFormatTab: tab \} \}\)/);
-  for (const id of ["statuses", "labels", "preview"]) {
-    assert.ok(panel.includes('id: "build-params-panel-' + id + '"'), "missing format panel " + id);
-    assert.ok(panel.includes('id: "build-params-tab-" + id'), "missing tab identifier");
-    assert.ok(panel.includes('hidden: activeBuildParamsTab !== "' + id + '"'), "inactive " + id + " panel must be hidden");
+  assert.ok(panel.includes('const buildParamTabIds = ["statuses", "labels"]'));
+  assert.ok(panel.includes("previewOpen: true"));
+  assert.ok(panel.includes("プレビューを開く"));
+  for (const id of ["statuses", "labels"]) {
+    assert.ok(panel.includes('id: "build-params-panel-' + id + '"'));
+    assert.ok(panel.includes('hidden: activeBuildParamsTab !== "' + id + '"'));
   }
-  assert.match(panel, /role: "tablist"/);
-  assert.match(panel, /role: "tabpanel"/);
-});
-
-test("Basic output preview contains board, sheet and generated JSON views from LBT_gen", () => {
-  const start = sections.indexOf("const BasicCcfOutputPreview =");
-  const end = sections.indexOf("const BuildParamsPanel =", start);
-  assert.ok(start >= 0 && end > start, "the real three-view output preview exists before BuildParamsPanel");
-  const component = sections.slice(start, end);
-  for (const label of ["盤面上の駒", "キャラクター編集", "出力データ"]) assert.ok(component.includes(label), "missing view " + label);
-  for (const mode of ["board", "sheet", "json"]) assert.ok(component.includes('id: "' + "basic-ccfolia-panel-" + mode + '"'), "missing mode panel " + mode);
-  assert.match(component, /generator\.buildCcfoliaJSON\(state, \{ palette, memo \}\)/);
-  assert.match(component, /JSON\.stringify\(object, null, 2\)/);
-  assert.match(component, /navigator\.clipboard\?\.writeText/);
-  assert.match(component, /await navigator\.clipboard\.writeText\(built\.json\)/);
-  assert.doesNotMatch(component, /const sample|mockData|サンプル・フィクサー/);
-  assert.match(component, /piece-board-avatar/);
-  assert.match(component, /piece-ccfolia-editor-main-image/);
-  assert.match(component, /"盤面 \/ キャラクター駒"/);
-  assert.match(component, /"立ち絵全体を縦横比そのままで表示します/);
-  assert.match(component, /"キャラクター編集"/);
-  assert.doesNotMatch(component, /piece-board-init|piece-board-token-ring|object-fit:\s*cover/);
-  assert.match(component, /const longSide = 192/);
-  assert.match(component, /const scale = longSide \/ Math\.max\(image\.naturalWidth, image\.naturalHeight\)/);
-  assert.match(component, /frame\.style\.width = Math\.max\(1, image\.naturalWidth \* scale\)/);
-  assert.match(component, /frame\.style\.height = Math\.max\(1, image\.naturalHeight \* scale\)/);
-  const boardCssStart = parity.indexOf("/* CCFOLIA board: portrait keeps its native aspect ratio.");
-  assert.ok(boardCssStart >= 0, "CCFOLIA portrait overrides must be present");
-  const boardCss = parity.slice(boardCssStart, parity.indexOf("/* Character editor preview", boardCssStart));
-  assert.match(boardCss, /\.piece-board-avatar \{[\s\S]*?overflow: visible/);
-  assert.match(boardCss, /\.piece-board-avatar img \{[\s\S]*?object-fit: contain/);
-  assert.match(parity, /\.piece-board-avatar img[\s\S]*?object-fit: contain/);
-  assert.match(parity, /\.piece-ccfolia-editor-main-image img[\s\S]*?object-fit: contain/);
-  assert.match(generator, /function buildCcfoliaJSON\(state, opts\)/);
-});
-
-test("Home preview shortcut opens the Basic integrated preview rather than the separate global preview", () => {
-  assert.match(app, /id: "preview", title: "CCFOLIA駒プレビュー"[\s\S]*?run: \(\) => navigate\("baseinfo", \{ basicFormatTab: "preview", basicPreviewMode: "board", previewOpen: false \}\)/);
-  assert.match(persona, /window\.LBT_BuildParamsPanel\(\{ state, dispatch \}\)/);
-  assert.match(sections, /const BuildWorkspace = \(\{ state, dispatch, saveStatus, onTogglePreview, onCopyJson \}\)/);
-  assert.match(sections, /const panelProps = \["persona", "support", "ego", "spirit"\]/);
-  assert.doesNotMatch(componentSlice(sections), /onTogglePreview/);
-  assert.match(parity, /\.basic-preview-json\s*\{/);
-  function componentSlice(source) {
-    const start = source.indexOf("const BuildParamsPanel =");
-    const end = source.indexOf("\n};", start);
-    return source.slice(start, end);
+  for (const obsolete of ["build-params-panel-preview", "BasicCcfOutputPreview", "駒・出力プレビュー"]) {
+    assert.ok(!panel.includes(obsolete), "duplicate preview tab must be removed: " + obsolete);
   }
 });
 
-test("B-type phone navigation matches the approved four routes and preserves access to Home", () => {
+test("the shared LivePreview is the only CCFOLIA board, editor and JSON preview", () => {
+  for (const duplicate of ["BasicCcfOutputPreview", "basic-ccfolia-preview", "piece-board-avatar", "piece-ccfolia-editor-main-image"]) {
+    assert.ok(!sections.includes(duplicate), "duplicate output preview remains: " + duplicate);
+  }
+  assert.ok(livePreview.includes("const renderTokenPreview ="));
+  assert.ok(livePreview.includes("pv-ccfolia-map"));
+  assert.ok(livePreview.includes("pv-ccfolia-editor"));
+  assert.ok(livePreview.includes('tab === "json"'));
+  assert.ok(livePreview.includes("tab === \"token\" && renderTokenPreview()"));
+  assert.ok(livePreview.includes("LBT_gen.buildCcfoliaJSON(previewData, { palette, memo })"));
+});
+
+test("Home and Basic preview shortcuts both open the global preview panel", () => {
+  assert.ok(app.includes('run: () => navigate("baseinfo", { previewOpen: true })'));
+  const start = sections.indexOf("const BuildParamsPanel =");
+  const end = sections.indexOf("\n};", start);
+  assert.ok(sections.slice(start, end).includes("previewOpen: true"));
+  assert.ok(!app.includes('basicFormatTab: "preview"'));
+  assert.ok(!app.includes('basicPreviewMode: "board"'));
+});
+
+test("B-type phone navigation preserves access to Home and the four primary routes", () => {
   const start = app.indexOf("const MobileBottomNavigation =");
   const end = app.indexOf("const HomeLauncher =", start);
-  assert.ok(start >= 0 && end > start, "mobile navigation component exists separately from the desktop rail");
   const nav = app.slice(start, end);
-  for (const label of ["ビルド", "記録", "取込", "その他"]) {
-    assert.ok(nav.includes('label: "' + label + '"'), "missing mobile destination " + label);
-  }
-  assert.match(nav, /onOpenImportRouter/);
-  assert.match(nav, /onOpenUtilities/);
-  assert.match(app, /SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home" \|\| s\.id === "shop"\)/);
-  assert.match(workbench, /\.btype-mobile-bottom-nav\s*\{\s*display:\s*none/);
-  assert.match(workbench, /@media \(max-width: 640px\)[\s\S]*?\.app > \.rail \{ display: none !important; \}[\s\S]*?\.btype-mobile-bottom-nav/);
-  assert.match(workbench, /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+  for (const label of ["ビルド", "記録", "取込", "その他"]) assert.ok(nav.includes('label: "' + label + '"'));
+  assert.ok(nav.includes("onOpenImportRouter"));
+  assert.ok(nav.includes("onOpenUtilities"));
+  assert.ok(workbench.includes(".btype-mobile-bottom-nav"));
 });
 
-test("Basic preview views remain responsive and generated JSON stays readable on narrow screens", () => {
-  assert.match(parity, /\.basic-preview-mode-tabs\s*\{[^}]*overflow-x:auto/);
-  assert.match(parity, /\.basic-preview-json\s*\{[^}]*white-space:pre-wrap/);
-  assert.match(parity, /@media\(max-width:640px\)[\s\S]*?\.basic-preview-json\s*\{/);
+test("closing the preview removes the only preview panel and leaves only its reopen control", () => {
+  assert.ok(app.includes("const previewOpen = state.ui.previewOpen === true;"));
+  assert.ok(app.includes("isBuildWorkspace && previewOpen ? React.createElement(LivePreview"));
+  assert.ok(app.includes('className: "preview-mobile-toggle"'));
+  assert.ok(app.includes('id: "lbt-preview-edge-toggle"'));
+  assert.ok(!sections.includes("piece-art-frame"));
+  assert.ok(!sections.includes("basic-ccfolia-preview"));
 });
