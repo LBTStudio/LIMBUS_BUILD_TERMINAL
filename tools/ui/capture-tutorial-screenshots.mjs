@@ -385,7 +385,7 @@ async function captureCcfFoliaPreview(page, mode) {
   await toggle.waitFor({ state: "visible", timeout: 12000 });
   if (await toggle.getAttribute("aria-expanded") === "true") await toggle.click();
   await page.waitForFunction(() => !document.querySelector("#preview-panel"), { timeout: 12000 });
-  const residualSelectors = [".piece-art-frame", ".piece-art-wrap", ".piece-art-thumbs", ".basic-ccfolia-preview"];
+  const residualSelectors = [".piece-art-frame", ".piece-art-wrap", ".piece-art-thumbs", ".basic-ccfolia-preview", ".btype-workbench-preview-panel", ".preview-lines", ".btype-preflight-note"];
   for (const selector of residualSelectors) {
     if (await page.locator(selector).count()) {
       throw new Error("Collapsed Basic workspace still contains preview content: " + selector);
