@@ -47,6 +47,7 @@ test("既存リザルト編集もスマホでは見出し・収入・チケッ�
 
 test("スマホのSINNER SELECTは安全領域内に収まり、カード一覧を単独スクロールする", () => {
   assert.match(mobileCss, /main\.acct-gate\s*\{[^}]*env\(safe-area-inset-top\)/s);
+  assert.match(mobileCss, /main\.acct-gate\s*\{[^}]*align-items:\s*center/s);
   assert.match(mobileCss, /\.acct-gate-panel\s*\{[^}]*max-height: calc\(100dvh/s);
   assert.match(mobileCss, /\.acct-gate-panel\s*\{[^}]*overflow: hidden/s);
   assert.match(mobileCss, /\.acct-gate-panel > \.acct-grid\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/s);
