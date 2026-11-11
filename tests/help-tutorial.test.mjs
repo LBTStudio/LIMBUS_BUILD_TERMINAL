@@ -179,7 +179,7 @@ test("CCFOLIA preview is consolidated in the right-side panel and disappears com
 });
 
 test("CCFOLIAガイドの段落区切りはMarkdownの実改行で保持し、エスケープ文字を表示しない", () => {
-  assert.ok(beginnerTutorial.includes("長辺基準の縮尺を確認してください。\n\nこの画面に画像URL"));
+  assert.ok(beginnerTutorial.includes("JSONをコピーするときも、別の簡易プレビューへ移動する必要はありません。\n\n右側プレビューは"));
   assert.ok(!beginnerTutorial.includes("\\n\\nこの画面に画像URL"));
 });
 
