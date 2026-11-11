@@ -53,6 +53,18 @@ test("the shared LivePreview is the only CCFOLIA board, editor and JSON preview"
   assert.ok(livePreview.includes("LBT_gen.buildCcfoliaJSON(previewData, { palette, memo })"));
 });
 
+test("Build workspace does not render a miniature preview while the shared preview is closed", () => {
+  const start = sections.indexOf("const BuildWorkspace =");
+  const end = sections.indexOf("const SYNC_RANKS =", start);
+  const build = sections.slice(start, end);
+  assert.ok(start >= 0 && end > start, "BuildWorkspace component boundaries exist");
+  for (const obsolete of ["btype-workbench-preview-panel", "preview-lines", "btype-preflight-note", "プレビューを展開"]) {
+    assert.ok(!build.includes(obsolete), "closed workspace must not retain " + obsolete);
+  }
+  assert.match(build, /className: "btype-work-layout"/);
+  assert.match(workbench, /\.btype-work-layout\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
+});
+
 test("Home and Basic preview shortcuts both open the global preview panel", () => {
   assert.ok(app.includes('run: () => navigate("baseinfo", { previewOpen: true, previewTab: "token" })'));
   const start = sections.indexOf("const BuildParamsPanel =");
