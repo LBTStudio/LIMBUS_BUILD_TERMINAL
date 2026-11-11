@@ -30,7 +30,7 @@ test("チケットと任意報酬を独立セクションに分け、保存操�
 });
 
 test("モバイルの新規リザルト入力は2列以内で、入力・追加操作に44px以上の高さを確保する", () => {
-  assert.match(mobileCss, /\.ledger-result-entry-section\.ledger-result-income-row/);
+  assert.match(mobileCss, /\.ledger-result-entry-section \.ledger-result-income-row/);
   assert.match(mobileCss, /\.ledger-result-entry-section \.ledger-result-income-row\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s);
   assert.match(mobileCss, /\.ledger-result-input-field--name \{ grid-column: 1 \/ -1; \}/);
   assert.match(mobileCss, /\.ledger-result-input-field \.ledger-input\s*\{[^}]*min-height: 44px/s);
