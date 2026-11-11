@@ -5698,7 +5698,7 @@ const importHeldPersonas = () => {
     /* リザルトの追加。
        取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
        開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
-    h(Card, null,
+    h(Card, { className: "ledger-result-entry-card" },
       h("div", { className: "card-header ledger-result-entry-card-head" },
         h("span", { className: "t-label" }, "リザルトを記録"),
         /* 取り込みの入口。3つを畳んで隠す。
