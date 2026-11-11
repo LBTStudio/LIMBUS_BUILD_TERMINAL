@@ -3336,7 +3336,7 @@ tab !== "item" ? h(Button, {
         : h("div", { className: "shop-grid", "data-tab": tab }, shownList)
   );
 };
-const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJson }) => {
+const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
@@ -3389,7 +3389,6 @@ const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJs
   const saveLabel = saveStatus?.phase === "saved" ? "自動保存済み"
     : saveStatus?.phase === "error" ? "ファイル保存を推奨"
     : "自動保存中";
-  const previewOpen = state.ui?.previewOpen === true;
   return h("div", { className: "build-workspace b-workbench btype-build-page" },
     h("header", { className: "btype-page-heading btype-build-heading" },
       h("div", null,
@@ -3422,40 +3421,6 @@ const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJs
           )
         ),
         h("div", { className: "build-tabpanel btype-build-tabpanel" }, panes)
-      ),
-      h("aside", {
-        className: "btype-workbench-preview-panel",
-        "aria-label": "ビルドの出力プレビュー概要",
-        hidden: previewOpen
-      },
-        h("div", { className: "preview-label" },
-          h("span", null, "プレビュー"),
-          h("span", null, state.personaSrc ? "● 準備中" : "● 待機中")
-        ),
-        h("div", { className: "preview-lines" },
-          "キャラクター名：" + characterName + "\n" +
-          "人格：" + personaName + "\n" +
-          "HP / SAN：" + String(hp) + " / " + String(san) + "\n\n" +
-          (state.personaSrc
-            ? "編集内容を反映した出力を確認できます。"
-            : "人格を選ぶと、HP・SAN・スキルなどがここへ反映されます。")
-        ),
-        h("div", { className: "preview-actions" },
-          h("button", {
-            type: "button", className: "secondary", onClick: onTogglePreview,
-            "aria-controls": previewOpen ? "preview-panel" : void 0, "aria-expanded": !!previewOpen
-          }, "プレビューを展開"),
-          h("button", {
-            type: "button", className: "primary", onClick: onCopyJson,
-            title: "現在のビルドからCCFOLIA JSONをコピー"
-          }, "CCFOLIA JSON")
-        ),
-        h("div", { className: "btype-preflight-note" },
-          h("strong", null, "出力前チェック"),
-          h("span", null, (state.personaSrc ? "✓" : "○") + " 人格"),
-          h("span", null, ((state.skills || []).length ? "✓" : "○") + " スキル"),
-          h("span", null, ((state.supports || []).length || (state.extraPassives || []).length ? "✓" : "○") + " パッシブ")
-        )
       )
     )
   );
