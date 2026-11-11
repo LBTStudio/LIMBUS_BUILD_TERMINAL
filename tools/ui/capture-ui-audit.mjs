@@ -220,6 +220,9 @@ async function readMetrics() {
   });
 }
 async function snap(name, note) {
+  /* A success toast is transient (1.8s) but can cover the form on a phone.
+     Wait for it to leave before taking the visual evidence. */
+  await page.locator(".toast.is-show").waitFor({ state: "hidden", timeout: 2600 }).catch(() => {});
   await page.waitForTimeout(180);
   await page.evaluate(async()=>{ if(document.fonts&&document.fonts.ready) await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,700))]); });
   const base=view+"-"+String(audit.screenshots.length+1).padStart(3,"0")+"-"+slug(name);
