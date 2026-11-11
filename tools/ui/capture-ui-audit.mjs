@@ -1385,7 +1385,23 @@ async function captureProfile(browser, mode) {
       const name="QA報酬アイテム・人格入力テスト";
       const entryCard=page.locator(".ledger-result-entry-card").first();
       if(!(await visible(entryCard))) throw new Error("新規リザルトの入力フォームが表示されていません");
-      await entryCard.evaluate(el=>el.scrollIntoView({block:"start",inline:"nearest",behavior:"instant"}));
+      await entryCard.evaluate(el=>{
+        el.scrollIntoView({block:"start",inline:"nearest",behavior:"instant"});
+        const topbarBottom=document.querySelector(".topbar")?.getBoundingClientRect().bottom??48;
+        const rect=el.getBoundingClientRect();
+        const shift=topbarBottom+12-rect.top;
+        if(shift<=0)return;
+        let parent=el.parentElement;
+        while(parent&&parent!==document.body){
+          const style=getComputedStyle(parent);
+          if(/auto|scroll/.test(style.overflowY)&&parent.scrollHeight>parent.clientHeight+1){
+            parent.scrollTop=Math.max(0,parent.scrollTop-shift);
+            return;
+          }
+          parent=parent.parentElement;
+        }
+        window.scrollBy(0,-shift);
+      });
       await page.waitForTimeout(80);
       const entryLayout=await page.evaluate(()=>{
         const card=document.querySelector(".ledger-result-entry-card");
@@ -1418,7 +1434,7 @@ async function captureProfile(browser, mode) {
           ticketColumns
         };
       });
-      if(!entryLayout.exists || entryLayout.cardTop===null || entryLayout.cardTop<entryLayout.topbarBottom-1
+      if(!entryLayout.exists || entryLayout.cardTop===null || entryLayout.cardTop<entryLayout.topbarBottom+8
         || entryLayout.cardTop>entryLayout.viewportHeight-120 || entryLayout.labels.length!==4
         || entryLayout.labels.some(field=>!field.visible || !field.label || field.inputWidth<80)
         || (view.startsWith("mobile") && (entryLayout.documentWidth>entryLayout.viewportWidth+2
