@@ -27,15 +27,9 @@ const EgoResourceChips = ({ resources, className = "" }) => {
 const BaseSection = ({ state, dispatch }) => {
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
   const imgList = (state.imgUrls || "").split("\n").map((s) => s.trim()).filter(Boolean);
-  const [imgTab, setImgTab] = React.useState(0);
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
-  const [imgBroken, setImgBroken] = React.useState(false);
-  const [imgZoom, setImgZoom] = React.useState(1);
-  const [imgZoomOrigin, setImgZoomOrigin] = React.useState("50% 50%");
-  const artFrameRef = React.useRef(null);
   const [editOpen, setEditOpen] = React.useState(false);
-  const activeImg = imgList[imgTab] || "";
   const SHARE_IMAGE_TARGET_BYTES = window.LBT_shareLink?.SHARE_IMAGE_TARGET_BYTES || 32 * 1024;
   const shareImageBytes = window.LBT_shareLink?.shareImageBytes || ((value) => {
     const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
@@ -74,132 +68,21 @@ const BaseSection = ({ state, dispatch }) => {
       setShareImageBusy(false);
     }
   };
-  React.useEffect(() => {
-    if (imgTab >= imgList.length) setImgTab(0);
-  }, [imgList.length, imgTab]);
-  /* 差し替えたら読み込み状態は戻す（前の画像の失敗状態を引き継がない）。 */
-  React.useEffect(() => {
-    setImgBroken(false);
-    setImgZoom(1);
-    setImgZoomOrigin("50% 50%");
-  }, [imgList[imgTab]]);
-  React.useEffect(() => {
-    const frame = artFrameRef.current;
-    if (!frame) return undefined;
-    const handleArtWheel = (event) => {
-      if (!activeImg || imgBroken) return;
-      const nextZoom = Math.max(1, Math.min(4, imgZoom * Math.exp(-event.deltaY * 0.0015)));
-      if (Math.abs(nextZoom - imgZoom) < 0.001) return;
-      event.preventDefault();
-      const rect = frame.getBoundingClientRect();
-      const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
-      const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
-      setImgZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
-      setImgZoom(nextZoom);
-    };
-    frame.addEventListener("wheel", handleArtWheel, { passive: false });
-    return () => frame.removeEventListener("wheel", handleArtWheel);
-  }, [activeImg, imgBroken, imgZoom]);
   return React.createElement("div", { className: "piece-hero-grid base-info-panel", "data-ui-reference": "unified-workbench-v4" },
     React.createElement("div", { className: "piece-hero-left" },
-      React.createElement("section", { className: "piece-panel piece-art-panel" },
+      React.createElement("section", { className: "piece-panel piece-art-panel piece-image-settings" },
         React.createElement("div", { className: "piece-panel-head" },
           React.createElement("div", null,
-            React.createElement("strong", null, "駒の見た目"),
-            React.createElement("small", null, "立ち絵と差分を見ながら選択")
+            React.createElement("strong", null, "駒の画像設定"),
+            React.createElement("small", null, "立ち絵URL・差分を登録します。画像表示は右側のプレビューに集約しています。")
           ),
-          React.createElement("span", { className: "pill" }, "ASPECT FIT / 全体表示")
+          React.createElement("span", { className: "pill" }, imgList.length + "枚登録")
         ),
-        React.createElement("div", { className: "piece-art-wrap" },
-          React.createElement("div", {
-            className: "piece-art-frame",
-            ref: artFrameRef,
-            style: {
-              position: "relative",
-              boxSizing: "border-box",
-              width: "min(100%, 390px)",
-              height: "min(62vh, 520px)",
-              maxHeight: "520px",
-              overflow: "hidden"
-            },
-            "aria-label": "立ち絵プレビュー。マウスホイールで拡大・縮小できます。"
-          },
-            activeImg && !imgBroken
-              ? React.createElement("img", {
-                  className: "piece-art",
-                  src: activeImg,
-                  alt: "立ち絵 " + (imgTab + 1),
-                  style: {
-                    position: "absolute",
-                    inset: "0",
-                    display: "block",
-                    width: "100%",
-                    height: "100%",
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    objectFit: "contain",
-                    objectPosition: "center",
-                    transform: "scale(" + imgZoom + ")",
-                    transformOrigin: imgZoomOrigin
-                  },
-                  onError: () => setImgBroken(true)
-                })
-              : React.createElement("div", { className: "pc-portrait-empty" },
-                  React.createElement("span", { className: "pc-portrait-empty-mark" }, "◈"),
-                  React.createElement("span", { className: "pc-portrait-empty-text" }, imgBroken ? "画像を読み込めませんでした" : "立ち絵なし"),
-                  React.createElement("span", { className: "pc-portrait-empty-hint" }, imgBroken
-                    ? "URLが正しいか確認してください（https:// で始まる文字列）"
-                    : "「立ち絵URL・差分を編集」から設定できます")
-                ),
-            React.createElement("span", { className: "piece-art-zoom-help" }, "ホイールで拡大・縮小"),
-            React.createElement("button", {
-              type: "button",
-              className: "piece-art-zoom-reset",
-              disabled: imgZoom <= 1,
-              onClick: () => { setImgZoom(1); setImgZoomOrigin("50% 50%"); },
-              title: "立ち絵全体が収まる表示へ戻す"
-            }, "全体表示 " + Math.round(imgZoom * 100) + "%")
-          ),
-          React.createElement("div", { className: "piece-art-thumbs", role: "group", "aria-label": "立ち絵と差分" },
-            ...imgList.map((url, index) => React.createElement("button", {
-              key: url + ":" + index,
-              type: "button",
-              className: "piece-art-thumb" + (imgTab === index ? " active" : ""),
-              "aria-label": (index === 0 ? "基本立ち絵" : "差分立ち絵") + " " + (index + 1) + " を表示",
-              "aria-pressed": imgTab === index,
-              title: (index + 1) + "枚目の立ち絵を表示",
-              onClick: () => {
-                setImgTab(index);
-                setImgZoom(1);
-                setImgZoomOrigin("50% 50%");
-              }
-            },
-              React.createElement("img", { className: "piece-thumb-art", src: url, alt: "", loading: "lazy" }),
-              React.createElement("span", { className: "thumb-num" }, String(index + 1))
-            )),
-            React.createElement("button", {
-              type: "button",
-              className: "piece-art-thumb",
-              "aria-label": "立ち絵を追加",
-              title: "立ち絵URL・差分を編集",
-              onClick: () => setEditOpen(true)
-            }, "＋")
-          )
+        React.createElement("p", { className: "piece-hint" },
+          "プレビューを格納している間は画像も簡易表示も出しません。必要なときだけ右端の「展開」から開いてください。"
         ),
         React.createElement("div", { className: "piece-art-actions" },
-          React.createElement("button", {
-            type: "button",
-            className: "secondary",
-            onClick: () => setEditOpen(true)
-          }, "立ち絵URL・差分を編集"),
-          React.createElement("button", {
-            type: "button",
-            className: "quiet-btn",
-            disabled: !activeImg || imgBroken,
-            onClick: () => {
-              if (activeImg && !imgBroken) window.open(activeImg, "_blank", "noopener,noreferrer");
-            }
-          }, "画像を確認")
+          React.createElement("button", { type: "button", className: "secondary", onClick: () => setEditOpen(true) }, "立ち絵URL・差分を編集")
         )
       ),
       React.createElement("details", {
@@ -348,9 +231,6 @@ const BaseSection = ({ state, dispatch }) => {
             )
           )
         ),
-        React.createElement("p", { className: "piece-hint piece-preview-link-note" },
-          "実際の駒の見え方は下の「ココフォリア駒プレビュー」で、出力データと同じ立ち絵・差分を使って確認できます。"
-        )
       ),
       React.createElement("div", { className: "info-note" },
         "HP・SAN・速度などの人格由来データは「ビルド」の人格タブで整え、ここではココフォリア駒の見た目と出力欄を整えます。",
@@ -7230,261 +7110,9 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
 };
 /* 駒整形の組み立て設定。ステータス一覧とラベル一覧はここが唯一の場所。
    設定側に同じ面を残すと、どちらで直したかを选民が追えなくなる。 */
-/* Basic-tab CCFOLIA preview. All three views share the real JSON generated by LBT_gen. */
-const BasicCcfOutputPreview = ({ state, dispatch }) => {
-  const h = React.createElement;
-  const [failedImages, setFailedImages] = React.useState([]);
-  const [copyStatus, setCopyStatus] = React.useState("");
-  const generator = window.LBT_gen;
-  const built = React.useMemo(() => {
-    try {
-      if (!generator || typeof generator.buildCcfoliaJSON !== "function") {
-        throw new Error("CCFOLIA出力生成器が読み込まれていません");
-      }
-      const memo = generator.buildMemo(state);
-      const palette = generator.buildPalette(state);
-      const object = generator.buildCcfoliaJSON(state, { palette, memo });
-      return { object, data: object?.data || {}, json: JSON.stringify(object, null, 2), error: "" };
-    } catch (error) {
-      return { object: null, data: {}, json: "", error: error?.message || "出力データを生成できませんでした" };
-    }
-  }, [state, generator]);
-  const data = built.data;
-  const mode = ["board", "sheet", "json"].includes(state.ui?.basicPreviewMode)
-    ? state.ui.basicPreviewMode : "board";
-  const setMode = (nextMode) => {
-    setCopyStatus("");
-    dispatch({ type: "SET_UI", ui: { basicPreviewMode: nextMode } });
-  };
-  const imageUrl = String(data.iconUrl || data.faces?.find((face) => face?.iconUrl)?.iconUrl
-    || (state.imgUrls || "").split(/\r\n|\r|\n/).map((url) => url.trim()).find(Boolean) || "");
-  const color = /^#[0-9a-f]{6}$/i.test(String(data.color || state.color || ""))
-    ? String(data.color || state.color) : "#c8a84b";
-  const name = String(data.name || state.charName || "キャラクター");
-  const playerName = String(data.playerName ?? state.plName ?? "");
-  const initiative = Number.isFinite(Number(data.initiative ?? state.initiative))
-    ? Number(data.initiative ?? state.initiative) : 0;
-  const memo = String(data.memo || "");
-  const statuses = Array.isArray(data.status) ? data.status : [];
-  const params = Array.isArray(data.params) ? data.params : [];
-  const faces = Array.isArray(data.faces) ? data.faces.filter((face) => face && face.iconUrl) : [];
-  const renderImage = (src, className, alt) => {
-    const failed = !src || failedImages.includes(src);
-    return h("div", { className },
-      src && !failed
-        ? h("img", {
-            src, alt,
-            onLoad: (event) => {
-              const image = event.currentTarget;
-              const frame = image.parentElement;
-              if (!frame || !image.naturalWidth || !image.naturalHeight) return;
-              if (frame.classList.contains("piece-board-avatar")) {
-                const longSide = 192;
-                const scale = longSide / Math.max(image.naturalWidth, image.naturalHeight);
-                frame.style.width = Math.max(1, image.naturalWidth * scale).toFixed(2) + "px";
-                frame.style.height = Math.max(1, image.naturalHeight * scale).toFixed(2) + "px";
-              }
-            },
-            onError: () => setFailedImages((current) => current.includes(src) ? current : [...current, src])
-          })
-        : h("span", { className: "pv-ccfolia-empty-media", role: "img", "aria-label": alt + "：画像なし" }, "画像なし")
-    );
-  };
-  const field = (label, value, extraClass = "") => h("div", { className: "pv-ccfolia-field " + extraClass },
-    h("div", { className: "pv-ccfolia-field-label" }, label),
-    h("div", { className: "pv-ccfolia-field-value" }, value == null || value === "" ? "（未設定）" : String(value))
-  );
-  const statusRow = (entry, index) => h("div", {
-    key: String(entry.label || "ST") + ":" + index,
-    className: "pv-ccfolia-edit-status-row"
-  },
-    h("span", { className: "pv-ccfolia-edit-status-label" }, String(entry.label || "ST")),
-    h("span", { className: "pv-ccfolia-edit-status-value" }, String(entry.value ?? "—")),
-    h("span", { className: "pv-ccfolia-edit-status-max" }, entry.max == null ? "—" : String(entry.max))
-  );
-  const paramRow = (entry, index) => h("div", {
-    key: String(entry.label || "パラメータ") + ":" + index,
-    className: "pv-ccfolia-edit-param-row"
-  },
-    h("span", null, String(entry.label || "ラベル")),
-    h("span", null, String(entry.value ?? "—"))
-  );
-  const modeTabs = [
-    { id: "board", label: "盤面上の駒" },
-    { id: "sheet", label: "キャラクター編集" },
-    { id: "json", label: "出力データ" }
-  ];
-  const copyJson = async () => {
-    if (!built.json) {
-      setCopyStatus(built.error || "JSONを生成できませんでした");
-      return;
-    }
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error("このブラウザーではクリップボードを利用できません");
-      await navigator.clipboard.writeText(built.json);
-      setCopyStatus("現在のCCFOLIA JSONをコピーしました");
-      if (typeof toast === "function") toast("CCFOLIA JSONをコピー");
-    } catch (error) {
-      setCopyStatus("コピーできません。下のJSONを選択してコピーしてください。");
-      if (typeof toast === "function") toast("JSONをコピーできませんでした", "assertive");
-    }
-  };
-  const boardView = () => h("div", {
-    id: "basic-ccfolia-panel-board", className: "basic-preview-panel piece-preview-view", "data-preview-view": "board",
-    role: "tabpanel", "aria-labelledby": "basic-ccfolia-tab-board"
-  },
-    h("div", { className: "pv-ccfolia-board-layout piece-board-layout" },
-      h("section", { className: "pv-ccfolia-map-wrap piece-board-stage", "aria-label": "ココフォリア盤面の表示例" },
-        h("div", { className: "pv-ccfolia-map piece-board-canvas" },
-          h("div", { className: "pv-ccfolia-map-grid piece-board-grid", "aria-hidden": "true" }),
-          h("div", { className: "piece-board-token", style: { "--pv-ccfolia-color": color } },
-            renderImage(imageUrl, "piece-board-avatar", name + "の立ち絵"),
-            h("span", { className: "piece-board-nameplate" }, name)
-          )
-        ),
-        h("div", { className: "piece-board-caption" },
-          h("span", null, "盤面 / キャラクター駒"),
-          h("span", null, "画像の長辺を約4マス相当で表示")
-        ),
-        h("p", { className: "pv-ccfolia-map-note piece-inspector-note" },
-          "立ち絵全体を縦横比そのままで表示します。盤面の拡大率・位置・マス設定はルーム側の設定に従います。"
-        )
-      ),
-      h("section", { className: "pv-ccfolia-roster piece-board-inspector", "aria-label": "ココフォリアのキャラクター一覧の表示例" },
-        h("header", { className: "pv-ccfolia-roster-head piece-inspector-title" },
-          h("strong", null, "キャラクター一覧"),
-          h("span", null, "CHARACTER")
-        ),
-        h("article", { className: "pv-ccfolia-roster-character piece-inspector-identity" },
-          renderImage(imageUrl, "pv-ccfolia-roster-avatar piece-inspector-icon", name + "のアイコン"),
-          h("div", { className: "pv-ccfolia-roster-main piece-inspector-name" },
-            h("strong", { className: "pv-ccfolia-roster-name" }, name),
-            h("small", null, playerName || "PL未設定")
-          )
-        ),
-        h("div", { className: "piece-board-list-facts" },
-          field("イニシアティブ", initiative),
-          field("ステータス", statuses.length + " 件")
-        ),
-        h("div", { className: "pv-ccfolia-roster-statuses piece-inspector-statuses" },
-          statuses.length
-            ? statuses.map(statusRow)
-            : h("p", { className: "pv-ccfolia-no-rows" }, "出力するステータスはありません。")
-        )
-      )
-    )
-  );
-  const sheetView = () => h("div", {
-    id: "basic-ccfolia-panel-sheet", className: "basic-preview-panel piece-preview-view", "data-preview-view": "sheet",
-    role: "tabpanel", "aria-labelledby": "basic-ccfolia-tab-sheet"
-  },
-    h("section", { className: "piece-ccfolia-editor" },
-      h("header", { className: "piece-ccfolia-editor-head" },
-        h("strong", null, "キャラクター編集"),
-        h("span", null, "現在の出力データ")
-      ),
-      h("div", { className: "piece-ccfolia-editor-main" },
-        h("aside", { className: "piece-ccfolia-editor-media" },
-          renderImage(imageUrl, "piece-ccfolia-editor-main-image", name + "の立ち絵"),
-          faces.length > 1
-            ? h("div", { className: "piece-ccfolia-face-list", "aria-label": "登録された差分画像" },
-                faces.map((face, index) => h("div", {
-                  key: String(face.iconUrl) + ":" + index,
-                  className: "piece-ccfolia-face-item"
-                },
-                  renderImage(face.iconUrl, "piece-ccfolia-face-image", String(face.label || name + "の差分画像")),
-                  h("span", null, String(face.label || "差分" + (index + 1)))
-                ))
-              )
-            : h("p", { className: "piece-ccfolia-help" }, "差分画像は未登録です。")
-        ),
-        h("div", { className: "piece-ccfolia-editor-fields" },
-          field("キャラクター名", name),
-          field("プレイヤー名", playerName),
-          field("イニシアティブ", initiative),
-          field("サイズ", "ルーム側の既定サイズ"),
-          field("メモ", memo, "is-memo"),
-          field("参照URL", data.externalUrl, "is-url")
-        )
-      ),
-      h("section", { className: "piece-ccfolia-editor-section" },
-        h("header", { className: "piece-ccfolia-editor-section-head" },
-          h("strong", null, "ステータス"),
-          h("span", null, "ラベル / 現在値 / 最大値")
-        ),
-        h("div", { className: "piece-ccfolia-edit-status-table" },
-          statuses.length ? statuses.map(statusRow) : h("p", { className: "pv-ccfolia-no-rows" }, "出力するステータスはありません。")
-        )
-      ),
-      h("section", { className: "piece-ccfolia-editor-section" },
-        h("header", { className: "piece-ccfolia-editor-section-head" },
-          h("strong", null, "パラメータ"),
-          h("span", null, "ラベル / 値")
-        ),
-        h("div", { className: "piece-ccfolia-edit-param-table" },
-          params.length ? params.map(paramRow) : h("p", { className: "pv-ccfolia-no-rows" }, "出力するパラメータはありません。")
-        )
-      ),
-      h("details", { className: "piece-ccfolia-editor-section piece-ccfolia-commands" },
-        h("summary", null, "チャットパレット（commands）"),
-        data.commands
-          ? h("pre", null, String(data.commands))
-          : h("p", { className: "pv-ccfolia-no-rows" }, "チャットパレットは空です。")
-      ),
-      h("p", { className: "piece-ccfolia-editor-note" },
-        "ここは出力JSONのプレビューです。立ち絵・差分画像はCCFOLIAのルームへアップロードしたうえで、実際のキャラクター編集画面から画像を選択してください。"
-      )
-    )
-  );
-  const jsonView = () => h("div", {
-    id: "basic-ccfolia-panel-json", className: "basic-preview-panel piece-preview-view", "data-preview-view": "json",
-    role: "tabpanel", "aria-labelledby": "basic-ccfolia-tab-json"
-  },
-    h("section", { className: "basic-preview-json-panel piece-json-shell" },
-      h("header", { className: "basic-preview-json-head piece-json-toolbar" },
-        h("div", null,
-          h("strong", null, "CCFOLIA CHARACTER JSON"),
-          h("p", null, "現在のキャラクター状態から実際の出力関数で生成したJSON")
-        ),
-        h("button", { type: "button", className: "btn btn-sm", onClick: copyJson, disabled: !built.json }, "JSONをコピー")
-      ),
-      built.error
-        ? h("div", { className: "basic-preview-json-error", role: "alert" }, built.error)
-        : h("pre", { className: "basic-preview-json piece-json-code", "aria-label": "実際のCCFOLIA出力JSON" }, built.json),
-      h("p", { className: "basic-preview-copy-status", role: "status" }, copyStatus)
-    )
-  );
-  return h("section", { className: "basic-ccfolia-preview pv-token-preview pv-ccfolia-preview piece-output-shell", "aria-label": "駒・出力プレビュー" },
-    h("header", { className: "pv-ccfolia-preview-head piece-output-header" },
-      h("div", null,
-        h("div", { className: "piece-preview-eyebrow" }, "COCOFOLIA / PIECE INSPECTOR"),
-        h("h3", null, "ココフォリア駒プレビュー"),
-        h("p", null, "出力JSONを元に、盤面上の駒・キャラクター編集画面・実際のJSONを確認します。")
-      ),
-      h("span", { className: "piece-live-indicator" },
-        h("i", null),
-        "入力に連動"
-      )
-    ),
-    h("div", { className: "pv-token-mode-switch basic-preview-mode-tabs piece-preview-tabs", role: "tablist", "aria-label": "駒・出力プレビューの表示" },
-      modeTabs.map((entry) => h("button", {
-        key: entry.id,
-        id: "basic-ccfolia-tab-" + entry.id,
-        type: "button",
-        role: "tab",
-        "aria-selected": mode === entry.id,
-        "aria-controls": "basic-ccfolia-panel-" + entry.id,
-        className: "piece-preview-tab" + (mode === entry.id ? " is-active active" : ""),
-        onClick: () => setMode(entry.id)
-      }, entry.label))
-    ),
-    built.error ? h("p", { className: "basic-preview-build-error", role: "alert" }, built.error) : null,
-    mode === "board" ? boardView() : mode === "sheet" ? sheetView() : jsonView()
-  );
-};
 const BuildParamsPanel = ({ state, dispatch }) => {
   const h = React.createElement;
-  const buildParamTabIds = ["statuses", "labels", "preview"];
+  const buildParamTabIds = ["statuses", "labels"];
   const activeBuildParamsTab = buildParamTabIds.includes(state.ui?.basicFormatTab) ? state.ui.basicFormatTab : "statuses";
   const setActiveBuildParamsTab = (tab) => dispatch({ type: "SET_UI", ui: { basicFormatTab: tab } });
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
@@ -7565,13 +7193,12 @@ const BuildParamsPanel = ({ state, dispatch }) => {
         h("strong", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
         h("div", { className: "piece-hint", style: { marginTop: 4 } }, "ステータスとラベルを整理し、並び順と出力先を管理します。")
       ),
-      h("button", { type: "button", className: "secondary", onClick: () => setActiveBuildParamsTab("preview") }, "出力プレビュー")
+      h("button", { type: "button", className: "secondary", onClick: () => dispatch({ type: "SET_UI", ui: { previewOpen: true } }) }, "プレビューを開く")
     ),
     h("div", { className: "build-params-tabs piece-tabs", role: "tablist", "aria-label": "ココフォリア駒の整形項目" },
       [
         ["statuses", "ステータス（ST）"],
-        ["labels", "ラベル（パラメータ）"],
-        ["preview", "駒・出力プレビュー"]
+        ["labels", "ラベル（パラメータ）"]
       ].map(([id, label]) => h("button", {
         key: id,
         type: "button",
@@ -7602,9 +7229,6 @@ const BuildParamsPanel = ({ state, dispatch }) => {
                 (state.customStatuses || []).filter((item) => (item.place || "status") === "none").length ? h("div", { className: "settings-hidden-custom-list" }, (state.customStatuses || []).filter((item) => (item.place || "status") === "none").map(hiddenCustomRow)) : h("div", { className: "empty", style: { padding: "var(--s-3)" } }, "出力しない項目はありません")
               ))
             )
-          ),
-          h("section", { className: "build-params-pane build-params-preview", id: "build-params-panel-preview", role: "tabpanel", "aria-labelledby": "build-params-tab-preview", hidden: activeBuildParamsTab !== "preview" },
-            h(BasicCcfOutputPreview, { state, dispatch })
           ),
         )
   );
