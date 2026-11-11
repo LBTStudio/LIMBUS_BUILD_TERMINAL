@@ -633,6 +633,7 @@ async function boot() {
       const cardCount=grid?.querySelectorAll(".acct-card--gate").length||0;
       return {
         viewportHeight:innerHeight,
+        viewportWidth:innerWidth,
         panelTop:panelRect?.top??null,
         panelBottom:panelRect?.bottom??null,
         panelCenterY:panelRect?(panelRect.top+panelRect.bottom)/2:null,
@@ -644,7 +645,7 @@ async function boot() {
     if(initialGateLayout.accountCount===0 && (initialGateLayout.panelCenterY===null
       || Math.abs(initialGateLayout.panelCenterY-initialGateLayout.viewportHeight/2)>3
       || initialGateLayout.panelTop<0 || initialGateLayout.panelBottom>initialGateLayout.viewportHeight+1
-      || initialGateLayout.documentWidth>innerWidth+2)) {
+      || initialGateLayout.documentWidth>initialGateLayout.viewportWidth+2)) {
       throw new Error("空のSINNER SELECTがスマホ画面中央に収まっていません: "+JSON.stringify(initialGateLayout));
     }
     const add=page.locator(".acct-card--add").first();
