@@ -626,6 +626,27 @@ async function boot() {
   await page.waitForTimeout(700);
   if(await visible(page.locator(".acct-gate"))) {
     await snap("account-gate-initial","起動時のSINNER SELECT");
+    const initialGateLayout=await page.evaluate(()=>{
+      const panel=document.querySelector(".acct-gate-panel");
+      const grid=panel?.querySelector(":scope > .acct-grid");
+      const panelRect=panel?.getBoundingClientRect();
+      const cardCount=grid?.querySelectorAll(".acct-card--gate").length||0;
+      return {
+        viewportHeight:innerHeight,
+        panelTop:panelRect?.top??null,
+        panelBottom:panelRect?.bottom??null,
+        panelCenterY:panelRect?(panelRect.top+panelRect.bottom)/2:null,
+        accountCount:cardCount,
+        documentWidth:document.documentElement.scrollWidth
+      };
+    });
+    audit.accountGateInitialLayout=initialGateLayout;
+    if(initialGateLayout.accountCount===0 && (initialGateLayout.panelCenterY===null
+      || Math.abs(initialGateLayout.panelCenterY-initialGateLayout.viewportHeight/2)>3
+      || initialGateLayout.panelTop<0 || initialGateLayout.panelBottom>initialGateLayout.viewportHeight+1
+      || initialGateLayout.documentWidth>innerWidth+2)) {
+      throw new Error("空のSINNER SELECTがスマホ画面中央に収まっていません: "+JSON.stringify(initialGateLayout));
+    }
     const add=page.locator(".acct-card--add").first();
     if(await visible(add)) {
       await click(add);
