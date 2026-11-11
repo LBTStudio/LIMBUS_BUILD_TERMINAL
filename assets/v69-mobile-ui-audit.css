@@ -570,7 +570,7 @@
 @media (max-width: 640px) {
   main.acct-gate {
     box-sizing: border-box;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
     padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
   }
