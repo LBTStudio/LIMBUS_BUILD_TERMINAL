@@ -13,7 +13,7 @@ test("Basic workspace retains image registration but has no permanent portrait p
   const start = sections.indexOf("const BaseSection =");
   const end = sections.indexOf("const PassiveCard =", start);
   const base = sections.slice(start, end);
-  assert.ok(base.includes('className: "piece-image-settings"'));
+  assert.ok(base.includes('className: "piece-panel piece-art-panel piece-image-settings"'));
   assert.ok(base.includes("立ち絵URL・差分を編集"));
   assert.ok(base.includes('id: "piece-image-urls"'));
   assert.ok(base.includes("state.imgUrls"));
