@@ -52,7 +52,7 @@ test("スマホのSINNER SELECTは安全領域内に収まり、カード一覧�
   assert.match(mobileCss, /\.acct-gate-panel > \.acct-grid\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/s);
   assert.match(mobileCss, /\.acct-gate-panel > \.acct-grid\s*\{[^}]*overflow-y: auto/s);
   assert.match(mobileCss, /\.acct-gate-panel \.acct-card--gate \.acct-card-body\s*\{[^}]*grid-template-columns: 44px minmax\(0, 1fr\)/s);
-  assert.match(accountCss, /\.acct-gate-panel > \.acct-grid\s*\{[^}]*overflow-y: auto/s);
+  assert.match(accountCss, /\.acct-panel > \.acct-grid,\s*\.acct-gate-panel > \.acct-grid\s*\{[^}]*overflow-y:\s*auto/s);
 });
 
 test("変更したモバイルスタイルはメインHTMLから読み込まれる", () => {
