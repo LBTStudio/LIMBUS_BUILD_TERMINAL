@@ -664,27 +664,46 @@ async function boot() {
     if(await visible(gate)) {
       await snap("account-gate-multiple-accounts","複数アカウントのSINNER SELECT一覧");
       const gateMetrics = await page.evaluate(() => {
-        const panel=document.querySelector(".acct-gate-panel");
+        const root=document.querySelector("main.acct-gate");
+        const panel=root?.querySelector(".acct-gate-panel");
         const grid=panel?.querySelector(":scope > .acct-grid");
         const cards=grid ? [...grid.querySelectorAll(".acct-card--gate")] : [];
         const heights=cards.map(card=>card.getBoundingClientRect().height).filter(Number.isFinite);
+        const panelRect=panel?.getBoundingClientRect();
+        const gridRect=grid?.getBoundingClientRect();
+        const cardsFit=!!gridRect && cards.every(card=>{
+          const r=card.getBoundingClientRect();
+          return r.left>=gridRect.left-1 && r.right<=gridRect.right+1;
+        });
+        const gridStyle=grid?getComputedStyle(grid):null;
         return {
+          viewportWidth:innerWidth,
+          viewportHeight:innerHeight,
+          documentWidth:document.documentElement.scrollWidth,
           accountCount:cards.length,
           gridClientHeight:grid?.clientHeight||0,
           gridScrollHeight:grid?.scrollHeight||0,
+          gridColumnCount:gridStyle?gridStyle.gridTemplateColumns.trim().split(/\\s+/).length:0,
           minCardHeight:heights.length?Math.min(...heights):0,
           panelHeight:panel?.clientHeight||0,
+          panelWidth:panel?.clientWidth||0,
+          panelInsideViewport:!!panelRect && panelRect.left>=-1 && panelRect.right<=innerWidth+1 && panelRect.top>=-1 && panelRect.bottom<=innerHeight+1,
+          cardsFit,
           onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
-          gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
+          gridOverflowY:gridStyle?.overflowY||"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
         };
       });
       audit.accountGateLayout = audit.accountGateLayout || {};
       audit.accountGateLayout[view] = gateMetrics;
+      const phoneGate=view.startsWith("mobile");
+      const minimumGateCardHeight=phoneGate?92:152;
       if(gateMetrics.accountCount < 8 || gateMetrics.gridClientHeight < 220 || gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1
-        || gateMetrics.minCardHeight < 152 || !gateMetrics.onlineBackupCollapsed
-        || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden") {
-        throw new Error("複数アカウントの起動ゲートで一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(gateMetrics));
+        || gateMetrics.minCardHeight < minimumGateCardHeight || !gateMetrics.onlineBackupCollapsed
+        || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden"
+        || (phoneGate && (gateMetrics.gridColumnCount!==1 || gateMetrics.panelWidth/gateMetrics.viewportWidth<0.85
+          || gateMetrics.documentWidth>gateMetrics.viewportWidth+2 || !gateMetrics.panelInsideViewport || !gateMetrics.cardsFit))) {
+        throw new Error("複数アカウントの起動ゲートでスマホ比率／一覧スクロール／カード配置が期待どおりではありません: " + JSON.stringify(gateMetrics));
       }
       // The edit affordance is a separate target from the card-selection hit area.
       const edit=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).locator(".acct-gate-edit-btn").first();
@@ -1342,6 +1361,41 @@ async function captureProfile(browser, mode) {
       await snap("ledger-historical-persona-saved","過去リザルトの取得人格・E.G.Oが所持へ反映された状態");
 
       const name="QA報酬アイテム・人格入力テスト";
+      const entryLayout=await page.evaluate(()=>{
+        const card=document.querySelector(".ledger-result-entry-card");
+        const section=card?.querySelector(".ledger-result-entry-section");
+        const body=card?.querySelector(".ledger-result-entry-body");
+        const labels=[...(section?.querySelectorAll(".ledger-result-input-field")||[])].map(label=>{
+          const input=label.querySelector("input");
+          const span=label.querySelector("span");
+          const r=input?.getBoundingClientRect();
+          return {
+            label:(span?.textContent||"").trim(),
+            inputWidth:r?.width||0,
+            inputLeft:r?.left??null,
+            inputRight:r?.right??null,
+            visible:!!input&&!!span&&r?.width>0&&r?.height>0
+          };
+        });
+        const ticketGrid=card?.querySelector(".ledger-result-entry-ticket-section .ledger-ticket-grid");
+        const ticketColumns=ticketGrid?getComputedStyle(ticketGrid).gridTemplateColumns.trim().split(/\\s+/).length:0;
+        return {
+          exists:!!card,
+          viewportWidth:innerWidth,
+          documentWidth:document.documentElement.scrollWidth,
+          bodyWidth:body?.getBoundingClientRect().width||0,
+          labels,
+          ticketColumns
+        };
+      });
+      if(!entryLayout.exists || entryLayout.labels.length!==4
+        || entryLayout.labels.some(field=>!field.visible || !field.label || field.inputWidth<80)
+        || (view.startsWith("mobile") && (entryLayout.documentWidth>entryLayout.viewportWidth+2
+          || entryLayout.labels.some(field=>field.inputLeft<0 || field.inputRight>entryLayout.viewportWidth+1)
+          || entryLayout.ticketColumns!==2))) {
+        throw new Error("新規リザルトの基本入力ラベル／スマホ幅の収まりが期待どおりではありません: "+JSON.stringify(entryLayout));
+      }
+      await snap("ledger-result-entry-layout","新規リザルト記録フォームの基本情報・獲得チケット入力欄");
       const nameInput=page.getByRole("textbox",{name:"リザルトの名称",exact:true});
       await nameInput.fill(name);
       const rewardCandidate=await page.evaluate(()=>{
@@ -1783,7 +1837,8 @@ async function main() {
   audit.overlayAccessibilityScanCount = audit.accessibilityScans.length;
   audit.overlayAccessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
   audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states",
-    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
+    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation",
+    "new result entry labels, resource inputs and reward-ticket layout at every viewport","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクター編集プレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
@@ -1793,6 +1848,7 @@ async function main() {
      "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
      "初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
      "過去リザルトへ複数取得人格を追加した編集状態","過去リザルトの取得人格・E.G.Oが所持へ反映された状態",
+     "新規リザルト記録フォームの基本情報・獲得チケット入力欄",
      "硝子の破片とカタログ外の外付け義体を追加した報酬入力欄","報酬アイテムと報酬人格の履歴・所持在庫が一致した状態",
      "既存リザルトへ標準カタログ品を追加する編集画面","既存リザルトへの標準アイテム報酬の反映後",
     "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
