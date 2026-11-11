@@ -7,6 +7,7 @@ const sections = read("../js/OtherSections.js");
 const accountCss = read("../assets/v66-accounts.css");
 const mobileCss = read("../assets/v69-mobile-ui-audit.css");
 const index = read("../index.html");
+const audit = read("../tools/ui/capture-ui-audit.mjs");
 
 test("新規リザルトの基本入力は表示ラベルつきのlabelで構成する", () => {
   const start = sections.indexOf('className: "ledger-result-entry-section"');
@@ -54,6 +55,10 @@ test("スマホのSINNER SELECTは安全領域内に収まり、カード一覧�
   assert.match(mobileCss, /\.acct-gate-panel > \.acct-grid\s*\{[^}]*overflow-y: auto/s);
   assert.match(mobileCss, /\.acct-gate-panel \.acct-card--gate \.acct-card-body\s*\{[^}]*grid-template-columns: 44px minmax\(0, 1fr\)/s);
   assert.match(accountCss, /\.acct-panel > \.acct-grid,\s*\.acct-gate-panel > \.acct-grid\s*\{[^}]*overflow-y:\s*auto/s);
+});
+
+test("画面キャプチャは一時通知が消えてから撮影する", () => {
+  assert.match(audit, /locator\("\.toast\.is-show"\)\.waitFor\(\{ state: "hidden", timeout: 2600 \}\)/);
 });
 
 test("変更したモバイルスタイルはメインHTMLから読み込まれる", () => {
