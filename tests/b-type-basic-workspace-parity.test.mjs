@@ -30,7 +30,7 @@ test("Basic format workspace has only ST and label tabs; its preview action open
   const end = sections.indexOf("\n};", start);
   const panel = sections.slice(start, end);
   assert.ok(panel.includes('const buildParamTabIds = ["statuses", "labels"]'));
-  assert.ok(panel.includes("previewOpen: true"));
+  assert.ok(panel.includes("previewOpen: true, previewTab: \"token\""));
   assert.ok(panel.includes("プレビューを開く"));
   for (const id of ["statuses", "labels"]) {
     assert.ok(panel.includes('id: "build-params-panel-' + id + '"'));
@@ -54,7 +54,7 @@ test("the shared LivePreview is the only CCFOLIA board, editor and JSON preview"
 });
 
 test("Home and Basic preview shortcuts both open the global preview panel", () => {
-  assert.ok(app.includes('run: () => navigate("baseinfo", { previewOpen: true })'));
+  assert.ok(app.includes('run: () => navigate("baseinfo", { previewOpen: true, previewTab: "token" })'));
   const start = sections.indexOf("const BuildParamsPanel =");
   const end = sections.indexOf("\n};", start);
   assert.ok(sections.slice(start, end).includes("previewOpen: true"));
