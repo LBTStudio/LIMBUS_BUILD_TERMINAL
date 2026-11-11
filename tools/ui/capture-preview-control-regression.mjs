@@ -117,7 +117,6 @@ async function createDisposableAccount(page,profile) {
   const homePath = path.join(OUT, profile.name + "-btype-home.png");
   await page.screenshot({ path: homePath, animations: "disabled" });
   results.screenshots.push({ file: path.relative(ROOT, homePath), profile: profile.name, state: "btype-home" });
-  // Assert current branding before entering the Build editor; prevents stale Workbench screenshots.
   const buildNav = page.locator(".rail-item[title='ビルド']");
   const mobileBuildNav = page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "ビルド" });
   const oldBuildNav = page.locator(".rail-item[title='ワークベンチ']");
@@ -146,89 +145,22 @@ async function createDisposableAccount(page,profile) {
   const imageField = page.locator("#piece-image-urls");
   const imageUrl = "http://" + HOST + ":" + PORT + "/tests/fixtures/ccfolia-preview-sample.svg";
   await imageField.fill(imageUrl);
-  const portrait = page.locator(".piece-art-frame img").first();
-  await portrait.waitFor({ state: "visible", timeout: 10000 });
-  await page.waitForFunction(() => {
-    const image = document.querySelector(".piece-art-frame img");
-    return Boolean(image?.naturalWidth && image?.naturalHeight);
-  }, { timeout: 10000 });
-  const portraitMetrics = await portrait.evaluate((image) => {
-    const frame = image.closest(".piece-art-frame");
-    const style = getComputedStyle(image);
-    const box = image.getBoundingClientRect();
-    const frameBox = frame?.getBoundingClientRect();
-    const contentWidth = image.clientWidth - Number.parseFloat(style.paddingLeft || "0") - Number.parseFloat(style.paddingRight || "0");
-    const contentHeight = image.clientHeight - Number.parseFloat(style.paddingTop || "0") - Number.parseFloat(style.paddingBottom || "0");
-    const scale = Math.min(contentWidth / image.naturalWidth, contentHeight / image.naturalHeight);
-    const paintedWidth = image.naturalWidth * scale;
-    const paintedHeight = image.naturalHeight * scale;
-    return {
-      naturalRatio: image.naturalWidth / image.naturalHeight,
-      objectFit: style.objectFit,
-      frameRatio: frameBox?.width / frameBox?.height,
-      elementFits: Boolean(frameBox && box.width <= frameBox.width + 1 && box.height <= frameBox.height + 1),
-      paintedFits: paintedWidth <= contentWidth + 1 && paintedHeight <= contentHeight + 1,
-      paintedRatio: paintedWidth / paintedHeight
-    };
-  });
-  recordCheck(profile.name + ": Basic portrait viewport shows the complete standing art",
-    portraitMetrics.objectFit === "contain" && portraitMetrics.elementFits && portraitMetrics.paintedFits
-      && Math.abs(portraitMetrics.paintedRatio - portraitMetrics.naturalRatio) < .001,
-    { portraitMetrics });
-
-  const previewTab = page.locator("#build-params-tab-preview");
-  await previewTab.waitFor({ state: "visible", timeout: 10000 });
-  await previewTab.click();
-  const preview = page.locator(".basic-ccfolia-preview");
-  await preview.waitFor({ state: "visible", timeout: 10000 });
-
-  await preview.locator("#basic-ccfolia-tab-board").click();
-  const boardImage = preview.locator(".piece-board-avatar img");
-  await boardImage.waitFor({ state: "visible", timeout: 10000 });
-  await page.waitForFunction(() => {
-    const image = document.querySelector(".piece-board-avatar img");
-    const frame = image?.parentElement;
-    return Boolean(image?.naturalWidth && image?.naturalHeight
-      && Number.parseFloat(frame?.style.width || "0") > 0
-      && Number.parseFloat(frame?.style.height || "0") > 0);
-  }, { timeout: 10000 });
-  const boardMetrics = await boardImage.evaluate((image) => {
-    const frame = image.parentElement;
-    const box = frame.getBoundingClientRect();
-    return {
-      sourceRatio: image.naturalWidth / image.naturalHeight,
-      renderedRatio: box.width / box.height,
-      longEdge: Math.max(box.width, box.height),
-      objectFit: getComputedStyle(image).objectFit
-    };
-  });
-  recordCheck(profile.name + ": CCFOLIA board token keeps the portrait ratio and four-cell long edge",
-    Math.abs(boardMetrics.sourceRatio - boardMetrics.renderedRatio) < .02
-      && Math.abs(boardMetrics.longEdge - 192) < 1
-      && boardMetrics.objectFit === "contain",
-    { boardMetrics });
-  const boardPath = path.join(OUT, profile.name + "-ccfolia-board-preview.png");
-  await page.screenshot({ path: boardPath, animations: "disabled" });
-  results.screenshots.push({ file: path.relative(ROOT, boardPath), profile: profile.name, state: "ccfolia-board-preview" });
-
-  await preview.locator("#basic-ccfolia-tab-sheet").click();
-  const editorPanel = preview.locator("#basic-ccfolia-panel-sheet");
-  await editorPanel.waitFor({ state: "visible", timeout: 10000 });
-  const editorImage = editorPanel.locator(".piece-ccfolia-editor-main-image img");
-  await editorImage.waitFor({ state: "visible", timeout: 10000 });
-  await page.waitForFunction(() => {
-    const image = document.querySelector(".piece-ccfolia-editor-main-image img");
-    return Boolean(image?.naturalWidth && image?.naturalHeight);
-  }, { timeout: 10000 });
-  const editorText = (await editorPanel.innerText()).replace(/\\s+/g, " ");
-  recordCheck(profile.name + ": CCFOLIA editor preview shows the complete portrait and edited character data",
-    editorText.includes("サンプル・フィクサー") && editorText.includes("テスト卓")
-      && editorText.includes("12") && await editorImage.isVisible(),
-    { editorText });
-  const tokenPreviewPath = path.join(OUT, profile.name + "-basic-token-preview.png");
-  await page.screenshot({ path: tokenPreviewPath, animations: "disabled" });
-  results.screenshots.push({ file: path.relative(ROOT, tokenPreviewPath), profile: profile.name, state: "ccfolia-editor-preview" });
+  const toggle = page.locator(profile.mobile ? ".preview-mobile-toggle" : "#lbt-preview-edge-toggle");
+  await toggle.waitFor({state:"visible",timeout:10000});
+  const closedState = {
+    toggleExpanded: await toggle.getAttribute("aria-expanded"),
+    previewPanelCount: await page.locator("#preview-panel").count(),
+    inlinePortraitCount: await page.locator(".piece-art-frame, .piece-art-wrap, .piece-art-thumbs").count(),
+    inlineCcfBoardCount: await page.locator(".basic-ccfolia-preview, .build-params-panel-preview, #build-params-tab-preview").count()
+  };
+  const closedClean = closedState.toggleExpanded === "false"
+    && closedState.previewPanelCount === 0
+    && closedState.inlinePortraitCount === 0
+    && closedState.inlineCcfBoardCount === 0;
+  recordCheck(profile.name + ": collapsed Basic workspace contains no preview image, miniature or duplicate panel",
+    closedClean, closedState);
 }
+
 async function runProfile(browser,profile) {
   const context=await browser.newContext({
     viewport:{width:profile.width,height:profile.height},
@@ -254,71 +186,27 @@ async function runProfile(browser,profile) {
     await parameterTabs.waitFor({ state: "visible", timeout: 10000 });
     const statusFormatTab = page.getByRole("tab", { name: "ステータス（ST）", exact: true });
     const labelFormatTab = page.getByRole("tab", { name: "ラベル（パラメータ）", exact: true });
-    const previewFormatTab = page.getByRole("tab", { name: "駒・出力プレビュー", exact: true });
     const statusFormatPanel = page.locator("#build-params-panel-statuses");
     const labelFormatPanel = page.locator("#build-params-panel-labels");
-    const previewFormatPanel = page.locator("#build-params-panel-preview");
+
+    recordCheck(profile.name + ": Basic format has only ST and label tabs, not an embedded preview",
+      await page.locator("#build-params-tab-preview").count() === 0
+      && await page.locator(".basic-ccfolia-preview").count() === 0,
+      { tabCount: await parameterTabs.getByRole("tab").count() });
 
     await statusFormatTab.click();
     recordCheck(profile.name + ": Basic format ST tab shows the existing status editor",
-      await statusFormatPanel.isVisible() && !(await labelFormatPanel.isVisible()) && !(await previewFormatPanel.isVisible()));
+      await statusFormatPanel.isVisible() && !(await labelFormatPanel.isVisible()));
     const statusFormatPath = path.join(OUT, profile.name + "-build-params-status-tab.png");
     await page.screenshot({ path: statusFormatPath, animations: "disabled" });
     results.screenshots.push({ file: path.relative(ROOT, statusFormatPath), profile: profile.name, state: "build-params-status-tab" });
 
     await labelFormatTab.click();
     recordCheck(profile.name + ": Basic format labels tab shows the existing parameter editor",
-      await labelFormatPanel.isVisible() && !(await statusFormatPanel.isVisible()) && !(await previewFormatPanel.isVisible()));
+      await labelFormatPanel.isVisible() && !(await statusFormatPanel.isVisible()));
     const labelFormatPath = path.join(OUT, profile.name + "-build-params-label-tab.png");
     await page.screenshot({ path: labelFormatPath, animations: "disabled" });
     results.screenshots.push({ file: path.relative(ROOT, labelFormatPath), profile: profile.name, state: "build-params-label-tab" });
-
-    await previewFormatTab.click();
-    const previewFormatText = (await previewFormatPanel.innerText()).replace(/\s+/g, " ");
-    recordCheck(profile.name + ": Basic output tab reflects the current character before selecting a view",
-      await previewFormatPanel.isVisible() && previewFormatText.includes("サンプル・フィクサー") && previewFormatText.includes("テスト卓"),
-      { previewFormatText });
-
-    const boardModeTab = page.getByRole("tab", { name: "盤面上の駒", exact: true });
-    const sheetModeTab = page.getByRole("tab", { name: "キャラクター編集", exact: true });
-    const jsonModeTab = page.getByRole("tab", { name: "出力データ", exact: true });
-    const boardModePanel = page.locator("#basic-ccfolia-panel-board");
-    const sheetModePanel = page.locator("#basic-ccfolia-panel-sheet");
-    const jsonModePanel = page.locator("#basic-ccfolia-panel-json");
-
-    await boardModeTab.click();
-    await boardModePanel.waitFor({ state: "visible", timeout: 5000 });
-    const boardModeText = (await boardModePanel.innerText()).replace(/\s+/g, " ");
-    recordCheck(profile.name + ": board mode shows the real token, PL, initiative and character list",
-      boardModeText.includes("サンプル・フィクサー") && boardModeText.includes("テスト卓")
-      && boardModeText.includes("イニシアティブ") && boardModeText.includes("12")
-      && boardModeText.includes("キャラクター一覧"),
-      { boardModeText });
-    const boardModePath = path.join(OUT, profile.name + "-basic-preview-board.png");
-    await page.screenshot({ path: boardModePath, animations: "disabled" });
-    results.screenshots.push({ file: path.relative(ROOT, boardModePath), profile: profile.name, state: "basic-preview-board" });
-
-    await sheetModeTab.click();
-    await sheetModePanel.waitFor({ state: "visible", timeout: 5000 });
-    const sheetModeText = (await sheetModePanel.innerText()).replace(/\s+/g, " ");
-    recordCheck(profile.name + ": character-sheet mode includes the real sheet fields and ST/parameters",
-      sheetModeText.includes("サンプル・フィクサー") && sheetModeText.includes("テスト卓")
-      && sheetModeText.includes("ステータス") && sheetModeText.includes("パラメータ"),
-      { sheetModeText });
-    const sheetModePath = path.join(OUT, profile.name + "-basic-preview-sheet.png");
-    await page.screenshot({ path: sheetModePath, animations: "disabled" });
-    results.screenshots.push({ file: path.relative(ROOT, sheetModePath), profile: profile.name, state: "basic-preview-sheet" });
-
-    await jsonModeTab.click();
-    await jsonModePanel.waitFor({ state: "visible", timeout: 5000 });
-    const generatedJson = await jsonModePanel.locator("pre").innerText();
-    recordCheck(profile.name + ": output mode renders JSON generated from the current character state",
-      generatedJson.includes('"name": "サンプル・フィクサー"') && generatedJson.includes('"initiative": 12')
-      && generatedJson.includes('"status"') && generatedJson.includes('"params"'),
-      { jsonLength: generatedJson.length, hasCharacterName: generatedJson.includes('"name": "サンプル・フィクサー"') });
-    const jsonModePath = path.join(OUT, profile.name + "-basic-preview-json.png");
-    await page.screenshot({ path: jsonModePath, animations: "disabled" });
-    results.screenshots.push({ file: path.relative(ROOT, jsonModePath), profile: profile.name, state: "basic-preview-json" });
 
     // On phones, exercise the approved four-item bottom navigation; Home is reachable from Other.
     if (profile.width <= 640) {
@@ -336,16 +224,19 @@ async function runProfile(browser,profile) {
     }
     await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 5000 });
     await page.locator(".btype-launcher-card[data-task='preview']").click();
-    await page.locator("#build-params-panel-preview").waitFor({ state: "visible", timeout: 5000 });
-    await page.locator("#basic-ccfolia-panel-board").waitFor({ state: "visible", timeout: 5000 });
-    const globalPreviewOpen = await page.locator("#preview-panel").isVisible().catch(() => false);
-    recordCheck(profile.name + ": Home preview shortcut opens the Basic board view, not the global output drawer",
-      !globalPreviewOpen && await page.locator("#build-params-panel-preview").isVisible()
-      && await page.locator("#basic-ccfolia-panel-board").isVisible(),
-      { globalPreviewOpen });
-
+    const globalPreview = page.locator("#preview-panel");
+    await globalPreview.waitFor({ state: "visible", timeout: 5000 });
+    const globalTokenTab = globalPreview.locator(".preview-tabs button[aria-label='ココフォリア駒プレビュー']");
+    await globalTokenTab.waitFor({state:"visible",timeout:5000});
+    const globalTokenSelected = await globalTokenTab.evaluate(el => el.classList.contains("is-active"));
+    recordCheck(profile.name + ": Home preview shortcut opens the shared CCFOLIA tab",
+      await globalPreview.isVisible() && globalTokenSelected
+      && await page.locator(".pv-ccfolia-map").isVisible(),
+      { globalPreviewOpen: await globalPreview.isVisible(), globalTokenSelected });
+    const closePreviewShortcut = page.locator(profile.mobile ? ".preview-mobile-toggle" : "#lbt-preview-edge-toggle");
+    await closePreviewShortcut.click();
+    await page.waitForFunction(() => !document.querySelector("#preview-panel"), { timeout: 5000 });
     await statusFormatTab.click();
-
     /* Capture the actual Build > Basic status editor, not a separate or mocked sample. */
     const statusPanel = page.locator(".settings-order-embedded").first();
     const statusTitle = statusPanel.locator(".settings-status-workspace-head .t-label");
