@@ -683,7 +683,7 @@ async function boot() {
           accountCount:cards.length,
           gridClientHeight:grid?.clientHeight||0,
           gridScrollHeight:grid?.scrollHeight||0,
-          gridColumnCount:gridStyle?gridStyle.gridTemplateColumns.trim().split(/\\s+/).length:0,
+          gridColumnCount:gridStyle?gridStyle.gridTemplateColumns.trim().split(/\s+/).length:0,
           minCardHeight:heights.length?Math.min(...heights):0,
           panelHeight:panel?.clientHeight||0,
           panelWidth:panel?.clientWidth||0,
@@ -1378,7 +1378,7 @@ async function captureProfile(browser, mode) {
           };
         });
         const ticketGrid=card?.querySelector(".ledger-result-entry-ticket-section .ledger-ticket-grid");
-        const ticketColumns=ticketGrid?getComputedStyle(ticketGrid).gridTemplateColumns.trim().split(/\\s+/).length:0;
+        const ticketColumns=ticketGrid?getComputedStyle(ticketGrid).gridTemplateColumns.trim().split(/\s+/).length:0;
         return {
           exists:!!card,
           viewportWidth:innerWidth,
