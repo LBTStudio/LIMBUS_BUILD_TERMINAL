@@ -34,6 +34,7 @@ test("モバイルの新規リザルト入力は2列以内で、入力・追加�
   assert.match(mobileCss, /\.ledger-result-entry-section \.ledger-result-income-row/);
   assert.match(mobileCss, /\.ledger-result-entry-section \.ledger-result-income-row\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s);
   assert.match(mobileCss, /\.ledger-result-input-field--name \{ grid-column: 1 \/ -1; \}/);
+  assert.match(mobileCss, /@media \(max-width: 360px\)\s*\{[^}]*ledger-result-input-field:has\(\.ledger-input--date\)[^}]*grid-column: 1 \/ -1/s);
   assert.match(mobileCss, /\.ledger-result-input-field \.ledger-input\s*\{[^}]*min-height: 44px/s);
   assert.match(mobileCss, /\.ledger-result-entry-ticket-section \.ledger-ticket-grid\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s);
   assert.match(mobileCss, /\.ledger-result-entry-footer \.ledger-result-submit \.btn\s*\{[^}]*min-height: 50px/s);
