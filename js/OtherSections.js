@@ -72,14 +72,8 @@ const BaseSection = ({ state, dispatch }) => {
     React.createElement("div", { className: "piece-hero-left" },
       React.createElement("section", { className: "piece-panel piece-art-panel piece-image-settings" },
         React.createElement("div", { className: "piece-panel-head" },
-          React.createElement("div", null,
-            React.createElement("strong", null, "駒の画像設定"),
-            React.createElement("small", null, "立ち絵URL・差分を登録します。画像表示は右側のプレビューに集約しています。")
-          ),
+          React.createElement("strong", null, "駒の画像設定"),
           React.createElement("span", { className: "pill" }, imgList.length + "枚登録")
-        ),
-        React.createElement("p", { className: "piece-hint" },
-          "プレビューを格納している間は画像も簡易表示も出しません。必要なときだけ右端の「展開」から開いてください。"
         ),
         React.createElement("div", { className: "piece-art-actions" },
           React.createElement("button", { type: "button", className: "secondary", onClick: () => setEditOpen(true) }, "立ち絵URL・差分を編集")
@@ -106,7 +100,7 @@ const BaseSection = ({ state, dispatch }) => {
               onChange: (event) => setF("imgUrls", event.target.value)
             }),
             React.createElement("div", { className: "piece-hint" },
-              "ここに登録した画像は右側のプレビューに表示します。格納中は作業画面に画像を残しません。実際のココフォリア画像・差分は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
+              "画像URLを1行に1枚入力します。1行目が基本画像、2行目以降は表情・差分です。実際のココフォリア画像は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
             )
           ),
           React.createElement("div", { className: "piece-share-row" },
