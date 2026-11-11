@@ -61,5 +61,5 @@ test("collapsed preview has no residual portrait or miniature CCFOLIA preview in
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   assert.match(capture, /collapsed Basic workspace contains no preview image, miniature or duplicate panel/);
   assert.match(capture, /Home preview shortcut opens the shared CCFOLIA tab/);
-  assert.doesNotMatch(capture, /\.piece-art-frame img|#build-params-panel-preview|basic-ccfolia-panel-board/);
+  assert.doesNotMatch(capture, /\.piece-art-frame img|previewFormatTab|previewFormatPanel|basic-ccfolia-panel-board/);
 });
