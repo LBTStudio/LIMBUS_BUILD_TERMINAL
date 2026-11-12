@@ -986,96 +986,57 @@ async function captureProfile(browser, mode) {
         }
       });
     }
-    /* The Basic workspace has its own three CCFOLIA formatting tabs and the
-       preview itself has three real-output views. Capture and validate every
-       layer on both desktop and mobile; the outer Build tab alone is not enough. */
+    /* Basic keeps image URL registration, but deliberately has no always-visible
+       portrait or miniature output. The shared LivePreview is the only preview. */
     await attempt("basic-ccfolia-workspace",async()=>{
       const basicTab=page.locator(".build-tabs").getByRole("tab",{name:"基本",exact:true}).first();
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
       await page.locator(".build-params-shell.piece-format-panel").waitFor({state:"visible",timeout:5000});
-      /* 監査用の一時アカウントへサンプル立ち絵と差分を登録する。
-         画像未登録の空状態を「全身表示できた」と誤認しない。 */
       const artDisclosure=page.locator(".piece-image-details > summary").first();
       await artDisclosure.waitFor({state:"visible",timeout:5000});
-      if(await artDisclosure.evaluate((el)=>el.parentElement?.open!==true)) await click(artDisclosure);
+      if(await artDisclosure.evaluate(el=>el.parentElement?.open!==true)) await click(artDisclosure);
       const artUrl="http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg";
-      await page.locator("#piece-image-urls").fill(artUrl+"\n"+artUrl+"?face=1");
-      await page.waitForFunction(()=>{
-        const image=document.querySelector(".piece-art-frame img");
-        return Boolean(image?.naturalWidth&&image?.naturalHeight);
-      },{timeout:10000});
-
-      // Source-backed v4 geometry assertions: desktop two-column hero, mobile stack,
-      // portrait ratio, and the formatting panel directly below the hero.
-      const hero=page.locator(".piece-hero-grid").first();
-      const artFrame=page.locator(".piece-art-frame").first();
-      const formatPanel=page.locator(".build-params-shell.piece-format-panel").first();
-      const heroLayout=await hero.evaluate((el)=>{
-        const children=[...el.children].map((node)=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};});
-        const r=el.getBoundingClientRect(),s=getComputedStyle(el);
-        return {display:s.display,columns:s.gridTemplateColumns,rect:{x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height},children};
-      });
-      const portraitGeometry=await artFrame.evaluate((el)=>{
-        const r=el.getBoundingClientRect(),s=getComputedStyle(el);
-        return {width:r.width,height:r.height,ratio:r.width/Math.max(1,r.height),aspectRatio:s.aspectRatio};
-      });
-      const formatGeometry=await formatPanel.evaluate((el)=>{
-        const r=el.getBoundingClientRect();return {y:r.y,bottom:r.bottom,height:r.height};
-      });
-      const viewportWidth=page.viewportSize()?.width||1440;
-      if(heroLayout.children.length!==2) throw new Error("v4 Basic hero must contain exactly the portrait and settings columns");
-      if(viewportWidth>820){
-        if(heroLayout.display!=="grid"||heroLayout.children[0].x>=heroLayout.children[1].x||heroLayout.children[0].right>heroLayout.children[1].x+2)
-          throw new Error("v4 desktop Basic hero is not a non-overlapping two-column layout: "+JSON.stringify(heroLayout));
-      }else if(heroLayout.children[0].y>=heroLayout.children[1].y||Math.abs(heroLayout.children[0].x-heroLayout.children[1].x)>2){
-        throw new Error("v4 narrow Basic hero must stack portrait above settings: "+JSON.stringify(heroLayout));
+      const imageUrls=page.locator("#piece-image-urls");
+      await imageUrls.fill(artUrl+"\n"+artUrl+"?face=1");
+      if(await imageUrls.inputValue()!==artUrl+"\n"+artUrl+"?face=1") throw new Error("立ち絵URL・差分の登録値が保持されません");
+      for(const selector of [".piece-art-frame",".piece-art-wrap",".piece-art-thumbs",".basic-ccfolia-preview",".btype-workbench-preview-panel",".preview-lines"]) {
+        if(await page.locator(selector).count()) throw new Error("格納中の基本画面にプレビュー要素が残っています: "+selector);
       }
-      if(portraitGeometry.ratio<0.65||portraitGeometry.ratio>0.85)
-        throw new Error("Basic portrait frame no longer follows the 3:4 portrait ratio: "+JSON.stringify(portraitGeometry));
-      if(formatGeometry.y<heroLayout.rect.bottom-2)
-        throw new Error("Basic ST/label/output formatting area must follow the portrait/settings hero");
-      await snap("basic-workspace-v4-hero","Unified Workbench v4 基本画面：立ち絵・差分と駒設定の左右構成");
-
+      if(await page.locator("#preview-panel").count()) throw new Error("格納中なのに共通プレビューがDOMに残っています");
+      await snap("basic-workspace-preview-collapsed","基本画面：立ち絵・簡易プレビューを表示せず、画像URL編集だけを保持");
       const statusTab=page.locator("#build-params-tab-statuses");
       await click(statusTab);
       if(await statusTab.getAttribute("aria-selected")!=="true") throw new Error("STタブが選択状態になりません");
       await page.locator("#build-params-panel-statuses").waitFor({state:"visible",timeout:5000});
-      await snap("basic-format-statuses","ビルド内基本タブのステータス（ST）編集パネル");
-
+      await snap("basic-format-statuses","基本画面のステータス（ST）編集パネル");
       const labelsTab=page.locator("#build-params-tab-labels");
       await click(labelsTab);
       if(await labelsTab.getAttribute("aria-selected")!=="true") throw new Error("ラベルタブが選択状態になりません");
       await page.locator("#build-params-panel-labels").waitFor({state:"visible",timeout:5000});
-      await snap("basic-format-labels","ビルド内基本タブのラベル（パラメータ）編集パネル");
-
-      const previewTab=page.locator("#build-params-tab-preview");
-      await click(previewTab);
-      if(await previewTab.getAttribute("aria-selected")!=="true") throw new Error("駒・出力プレビュータブが選択状態になりません");
-      await page.locator("#build-params-panel-preview").waitFor({state:"visible",timeout:5000});
-      const modes=[
-        {id:"board",label:"盤面上の駒",note:"ビルド内基本タブの盤面上の駒プレビュー"},
-        {id:"sheet",label:"キャラクター編集",note:"ビルド内基本タブのキャラクター編集プレビュー"},
-        {id:"json",label:"出力データ",note:"ビルド内基本タブの出力データプレビュー"}
-      ];
-      const modeTabs=page.locator(".basic-preview-mode-tabs [role='tab']");
-      if(await modeTabs.count()!==3) throw new Error("CCFOLIAプレビューの表示切替が3種類ではありません");
-      for(const mode of modes){
-        const tab=page.locator("#basic-ccfolia-tab-"+mode.id);
-        await click(tab);
-        if(await tab.getAttribute("aria-selected")!=="true") throw new Error(mode.label+"の選択状態が更新されません");
-        const panel=page.locator("#basic-ccfolia-panel-"+mode.id);
-        await panel.waitFor({state:"visible",timeout:5000});
-        if(await visible(page.locator(".basic-preview-build-error"))) throw new Error("CCFOLIA実データ生成エラー: "+(await page.locator(".basic-preview-build-error").innerText()));
-        if(mode.id==="board" && !(await visible(panel.locator(".pv-ccfolia-map")))) throw new Error("盤面プレビューのグリッドがありません");
-        if(mode.id==="sheet" && !(await visible(panel.locator(".piece-ccfolia-editor")))) throw new Error("キャラクター編集プレビューの表示がありません");
-        if(mode.id==="json"){
-          const jsonText=await panel.locator(".basic-preview-json").textContent();
-          const parsed=JSON.parse(jsonText||"");
-          if(!parsed || typeof parsed!=="object" || !parsed.data) throw new Error("実際のCCFOLIA出力JSONの構造がありません");
-        }
-        await snap("basic-preview-"+mode.id,mode.note);
-      }
+      await snap("basic-format-labels","基本画面のラベル（パラメータ）編集パネル");
+      const toggle=page.locator((page.viewportSize()?.width||1440)<=640?".preview-mobile-toggle":"#lbt-preview-edge-toggle");
+      await toggle.waitFor({state:"visible",timeout:5000});
+      await click(toggle);
+      const preview=page.locator("#preview-panel");
+      await preview.waitFor({state:"visible",timeout:5000});
+      const tokenTab=preview.locator(".preview-tabs button[aria-label='ココフォリア駒プレビュー']");
+      await tokenTab.waitFor({state:"visible",timeout:5000});
+      await click(tokenTab);
+      await preview.locator(".pv-ccfolia-map").waitFor({state:"visible",timeout:5000});
+      await snap("shared-preview-board","共通プレビュー：CCFOLIA盤面");
+      await page.getByRole("button",{name:"編集画面",exact:true}).click();
+      await preview.locator(".pv-ccfolia-editor").waitFor({state:"visible",timeout:5000});
+      await snap("shared-preview-editor","共通プレビュー：CCFOLIAキャラクター編集画面");
+      const jsonTab=preview.locator(".preview-tabs .preview-tab").filter({hasText:"JSON"}).first();
+      await click(jsonTab);
+      const parsed=JSON.parse((await preview.locator(".preview-body").textContent())||"");
+      if(!parsed || typeof parsed!=="object" || !parsed.data) throw new Error("共通プレビューのJSONがCCFOLIA出力形式ではありません");
+      await snap("shared-preview-json","共通プレビュー：実際のCCFOLIA出力JSON");
+      await click(toggle);
+      await page.waitForFunction(()=>!document.querySelector("#preview-panel"),{timeout:5000});
+      if(await page.locator(".piece-art-frame,.basic-ccfolia-preview,.preview-lines").count()) throw new Error("再格納後にプレビュー表示が残っています");
+      await snap("basic-workspace-preview-recollapsed","共通プレビューを再格納し、基本画面の作業領域が戻った状態");
     });
     for(const label of ["ホーム","ショップ","記録","設定","使い方"]) {
       await attempt("section-"+label,async()=>{
