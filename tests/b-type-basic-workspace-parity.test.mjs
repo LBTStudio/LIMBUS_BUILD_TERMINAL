@@ -8,6 +8,8 @@ const persona = read("../js/PersonaCodex.js");
 const app = read("../js/App.js");
 const livePreview = read("../js/LivePreview.js");
 const workbench = read("../assets/b-type-workbench.css");
+const uiAudit = read("../tools/ui/capture-ui-audit.mjs");
+const previewCapture = read("../tools/ui/capture-preview-control-regression.mjs");
 
 test("Basic workspace retains image registration but has no permanent portrait preview", () => {
   const start = sections.indexOf("const BaseSection =");
@@ -89,6 +91,13 @@ test("closing the preview removes the only preview panel and leaves only its reo
   assert.ok(app.includes("isBuildWorkspace && previewOpen ? React.createElement(LivePreview"));
   assert.ok(app.includes('className: "preview-mobile-toggle"'));
   assert.ok(app.includes('id: "lbt-preview-edge-toggle"'));
-  assert.ok(!sections.includes("piece-art-frame"));
-  assert.ok(!sections.includes("basic-ccfolia-preview"));
+  const start = sections.indexOf("const BaseSection =");
+  const end = sections.indexOf("const PassiveCard =", start);
+  const base = sections.slice(start, end);
+  assert.ok(!base.includes("piece-art-frame"));
+  assert.ok(!base.includes("basic-ccfolia-preview"));
+  assert.ok(uiAudit.includes("basic-workspace-preview-collapsed"));
+  assert.ok(uiAudit.includes("shared-preview-board"));
+  assert.ok(!uiAudit.includes("#build-params-tab-preview"));
+  assert.ok(previewCapture.includes("profiles.length*9"));
 });
