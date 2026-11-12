@@ -268,8 +268,8 @@ test("320px幅で上部ツールバーの全操作を表示領域内に収める
 
 test("プレビューを閉じている間は未存在のpreview-panelをaria-controlsで参照しない", () => {
   const target = '"aria-controls": previewOpen ? "preview-panel" : void 0';
-  assert.equal(app.split(target).length - 1, 2);
-  assert.equal(sections.split(target).length - 1, 1);
+  assert.equal(app.split(target).length - 1, 2, "desktop and mobile controls only reference a mounted preview");
+  assert.equal(sections.split(target).length - 1, 0, "the basic workspace no longer owns a duplicate preview control");
 });
 
 test("人格編集フォームに明示ラベルを付け、硝子窓URL取込見出しの階層を整える", () => {

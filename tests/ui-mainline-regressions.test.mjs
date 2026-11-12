@@ -50,3 +50,16 @@ test("result import routes scroll their selected panel into view", () => {
   assert.match(otherSections, /target\?\.scrollIntoView\?\.\(\{ behavior: "auto", block: "start" \}\)/);
   assert.match(otherSections, /\}, \[textPanel, importPanel, heldOpen\]\);/);
 });
+
+test("collapsed preview has no residual portrait or miniature CCFOLIA preview in the Basic workspace", () => {
+  for (const selector of ["piece-art-frame", "piece-art-wrap", "piece-art-thumbs", "basic-ccfolia-preview", "BasicCcfOutputPreview", "btype-workbench-preview-panel", "preview-lines", "btype-preflight-note"]) {
+    assert.ok(!otherSections.includes(selector), "collapsed workspace must not contain " + selector);
+  }
+  assert.ok(otherSections.includes("立ち絵URL・差分を編集"));
+  assert.ok(otherSections.includes('previewOpen: true, previewTab: "token"'));
+  assert.ok(app.includes("isBuildWorkspace && previewOpen ? React.createElement(LivePreview"));
+  const capture = read("../tools/ui/capture-preview-control-regression.mjs");
+  assert.match(capture, /collapsed Basic workspace contains no preview image, miniature or duplicate panel/);
+  assert.match(capture, /Home preview shortcut opens the shared CCFOLIA tab/);
+  assert.doesNotMatch(capture, /\.piece-art-frame img|previewFormatTab|previewFormatPanel|basic-ccfolia-panel-board/);
+});

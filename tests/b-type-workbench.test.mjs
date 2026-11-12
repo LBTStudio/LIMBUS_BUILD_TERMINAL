@@ -41,18 +41,17 @@ test("B-type production styles adapt to tablet and mobile without disabling redu
   assert.match(css, /prefers-reduced-motion/);
 });
 
-test("Basic layout follows v4: portrait and settings share the hero, formatting stays below", () => {
-  const css = read("../assets/b-type-ui-parity.css");
-  const reference = read("../docs/ui-reference/LBT_UI_Refinement_Prototypes.html");
-  assert.match(reference, /Unified Workbench v4/);
-  assert.match(reference, /\.piece-hero-grid\s*\{/);
-  assert.match(css, /\.piece-hero-grid\{display:grid;grid-template-columns:minmax\(230px,\.78fr\) minmax\(0,1\.22fr\)/);
-  assert.match(css, /\.piece-format-panel/);
-  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*?\.piece-hero-grid\{grid-template-columns:minmax\(0,1fr\)\}/);
-  assert.doesNotMatch(css, /\.app\.preview-collapsed \.baseinfo-workspace\s*\{\s*grid-template-columns/, "the obsolete editor/format side-by-side override must stay removed");
+test("Basic workspace keeps image editing but removes inline portrait and duplicate preview", () => {
+  const sections = read("../js/OtherSections.js");
   const audit = read("../tools/ui/capture-ui-audit.mjs");
-  assert.match(audit, /basic-workspace-v4-hero/);
-  assert.match(audit, /portraitGeometry\.ratio/);
+  const previewCapture = read("../tools/ui/capture-preview-control-regression.mjs");
+  const base = sections.slice(sections.indexOf("const BaseSection ="), sections.indexOf("const PassiveCard ="));
+  assert.doesNotMatch(base, /piece-art-frame|piece-art-wrap|piece-art-thumbs|basic-ccfolia-preview/);
+  assert.match(base, /piece-image-urls/);
+  assert.match(previewCapture, /collapsed Basic workspace contains no preview image, miniature or duplicate panel/);
+  assert.match(previewCapture, /previewPanelCount === 0/);
+  assert.doesNotMatch(audit, /basic-workspace-v4-hero|portraitGeometry\.ratio/);
+  assert.match(audit, /preview-panel/);
 });
 
 test("UI audit covers desktop, tablet and mobile across Home, settings and all record tabs", () => {

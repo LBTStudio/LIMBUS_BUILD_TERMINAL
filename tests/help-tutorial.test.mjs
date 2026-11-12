@@ -145,7 +145,6 @@ test("使い方ガイドはPCとスマートフォンの実画面キャプチャ
     "account-share-import-desktop.webp", "account-share-import-mobile.webp",
     "save-work-state-desktop.webp", "save-work-state-mobile.webp",
     "share-sheet-desktop.webp", "share-sheet-mobile.webp",
-    "ccfolia-portrait-desktop.webp", "ccfolia-portrait-mobile.webp",
     "ccfolia-board-desktop.webp", "ccfolia-board-mobile.webp",
     "ccfolia-editor-desktop.webp", "ccfolia-editor-mobile.webp"
   ];
@@ -159,21 +158,28 @@ test("使い方ガイドはPCとスマートフォンの実画面キャプチャ
   assert.match(beginnerTutorial, /tutorial-captures\/share-sheet-mobile\.webp/);
   assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-board-desktop\.webp/);
   assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-editor-mobile\.webp/);
-  assert.match(appSource, /立ち絵全体とCCFOLIAの駒サイズを確認する/);
+  assert.match(appSource, /CCFOLIAの駒プレビューを確認する/);
 });
 
-test("CCFOLIA立ち絵プレビューの手順は基本タブ・盤面・編集画面の現行UIを説明する", () => {
-  assert.ok(appSource.includes("立ち絵全体とCCFOLIAの駒サイズを確認する"));
-  assert.match(beginnerTutorial, /## 2\. 立ち絵全体とCCFOLIAでの駒の見え方を確認する/);
+test("CCFOLIA preview is consolidated in the right-side panel and disappears completely when collapsed", () => {
+  assert.ok(appSource.includes("CCFOLIAの駒プレビューを確認する"));
+  assert.match(beginnerTutorial, /## 2\. 画像を登録し、プレビューは必要なときだけ表示する/);
   assert.match(beginnerTutorial, /ビルド → 基本/);
-  assert.match(beginnerTutorial, /駒の見た目/);
-  assert.match(beginnerTutorial, /盤面/);
-  assert.match(beginnerTutorial, /編集画面/);
-  assert.match(beginnerTutorial, /長辺4マス相当/);
+  assert.match(beginnerTutorial, /右側プレビュー/);
+  assert.match(beginnerTutorial, /画像プレビューは残りません/);
+  assert.match(beginnerTutorial, /\*\*駒\*\* タブ/);
+  assert.match(beginnerTutorial, /\*\*盤面\*\* と \*\*編集画面\*\*/);
+  assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-board-desktop\.webp/);
+  assert.match(beginnerTutorial, /tutorial-captures\/ccfolia-editor-mobile\.webp/);
+  assert.doesNotMatch(beginnerTutorial, /基本タブ内の \*\*出力プレビュー\*\*/);
+  assert.doesNotMatch(sectionsSource, /BasicCcfOutputPreview|basic-ccfolia-preview|piece-art-frame/);
+  assert.match(captureScript, /ccfolia-preview-closed-/);
+  assert.match(captureScript, /Collapsed Basic workspace still contains preview content/);
+  assert.match(captureScript, /\.preview-tabs \.preview-tab/);
 });
 
 test("CCFOLIAガイドの段落区切りはMarkdownの実改行で保持し、エスケープ文字を表示しない", () => {
-  assert.ok(beginnerTutorial.includes("長辺基準の縮尺を確認してください。\n\nこの画面に画像URL"));
+  assert.ok(beginnerTutorial.includes("JSONをコピーするときも、別の簡易プレビューへ移動する必要はありません。\n\n右側プレビューは"));
   assert.ok(!beginnerTutorial.includes("\\n\\nこの画面に画像URL"));
 });
 
