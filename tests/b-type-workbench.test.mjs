@@ -45,7 +45,7 @@ test("Basic workspace keeps image editing but removes inline portrait and duplic
   const sections = read("../js/OtherSections.js");
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   const previewCapture = read("../tools/ui/capture-preview-control-regression.mjs");
-  const base = sections.slice(sections.indexOf("const BaseSection ="), sections.indexOf("const PersonaSection ="));
+  const base = sections.slice(sections.indexOf("const BaseSection ="), sections.indexOf("const PassiveCard ="));
   assert.doesNotMatch(base, /piece-art-frame|piece-art-wrap|piece-art-thumbs|basic-ccfolia-preview/);
   assert.match(base, /piece-image-urls/);
   assert.match(previewCapture, /collapsed Basic workspace contains no preview image, miniature or duplicate panel/);
