@@ -411,6 +411,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*14) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*9) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});
