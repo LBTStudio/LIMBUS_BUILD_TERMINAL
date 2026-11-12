@@ -74,12 +74,12 @@ test("Help opens on the B import entry while retaining searchable guide content"
   assert.match(help, /guide-index-list/);
 });
 
-test("Build keeps the real edit tabs and adds the B-style right preview summary", () => {
+test("Build keeps the real edit tabs and delegates preview to the shared LivePreview", () => {
   const build = sections.slice(sections.indexOf("const BuildWorkspace ="), sections.indexOf("const SYNC_RANKS ="));
   assert.match(build, /className: "btype-work-layout"/);
-  assert.match(build, /className: "btype-workbench-preview-panel"/);
-  assert.match(build, /onClick: onTogglePreview/);
-  assert.match(build, /onClick: onCopyJson/);
+  assert.doesNotMatch(build, /btype-workbench-preview-panel|onTogglePreview|onCopyJson/);
+  assert.match(app, /isBuildWorkspace && previewOpen \? React\.createElement\(LivePreview, \{ state, dispatch \}\)/);
+  assert.match(app, /aria-controls": previewOpen \? "preview-panel" : void 0/);
   assert.match(build, /visitedRef/);
   assert.match(build, /paneCacheRef/);
   const tabDefinitions = sections.slice(sections.indexOf("const BUILD_TABS = ["), sections.indexOf("const OwnedItemsPanel"));
