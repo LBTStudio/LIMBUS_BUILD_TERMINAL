@@ -96,7 +96,8 @@ test("ビルドはB型の作業見出し・状態帯・タブ列・出力プレ�
   assert.match(sections, /h\("strong", null, "保存"\)/);
   assert.match(bTypeCss, /\.btype-build-tabs\{[\s\S]*?overflow-x:auto/);
   assert.match(bTypeCss, /\.btype-build-tablist/);
-  assert.match(bTypeCss, /\.btype-workbench-preview-panel/);
+  assert.doesNotMatch(sections, /btype-workbench-preview-panel/);
+  assert.match(app, /isBuildWorkspace && previewOpen \? React\.createElement\(LivePreview, \{ state, dispatch \}\)/);
   assert.match(css, /\.rail-group \{[\s\S]*?flex-direction: column/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.import-router-options \{ grid-template-columns: minmax\(0, 1fr\); \}/);
 });;
@@ -112,7 +113,7 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
   assert.match(capture, /build-status-editor\.png/);
-  assert.match(capture, /profiles\.length\*14/);
+  assert.match(capture, /profiles\\.length\\*9/);
 });
 
 test("ステータス一覧・編集・出力順はBタイプのビルド画面に一体化している", () => {
