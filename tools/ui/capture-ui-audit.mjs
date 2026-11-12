@@ -46,10 +46,12 @@ async function visible(loc) {
 }
 async function click(loc) {
   if (!(await visible(loc))) throw new Error("target is not visible");
+  const target = loc.first();
+  await target.scrollIntoViewIfNeeded({ timeout: 4000 });
   /* hasTouch:true のスマートフォン検証では mouse.click ではなく実タップ経路を通す。
      これにより touch/pointer の発火と hover 前提でない操作を検証できる。 */
-  if (view.startsWith("mobile")) await loc.first().tap({ timeout: 4000 });
-  else await loc.first().click({ timeout: 4000 });
+  if (view.startsWith("mobile")) await target.tap({ timeout: 4000 });
+  else await target.click({ timeout: 4000 });
   await page.waitForTimeout(250);
 }
 function mainNavigation() {
