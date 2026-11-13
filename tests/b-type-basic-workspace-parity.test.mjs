@@ -106,6 +106,9 @@ test("closing the preview removes the only preview panel and leaves only its reo
   assert.ok(!base.includes("piece-art-frame"));
   assert.ok(!base.includes("basic-ccfolia-preview"));
   assert.ok(uiAudit.includes("basic-workspace-preview-collapsed"));
+  assert.ok(uiAudit.includes('snap("basic-image-preview-loaded"'));
+  assert.ok(uiAudit.includes("naturalWidth>0"));
+  assert.ok(uiAudit.includes("駒の画像設定：登録した基本画像と差分画像を実際に表示"));
   assert.ok(uiAudit.includes("shared-preview-board"));
   assert.ok(!uiAudit.includes("#build-params-tab-preview"));
   assert.ok(previewCapture.includes("profiles.length*9"));
