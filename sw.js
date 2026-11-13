@@ -21,12 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-fb9b360c";
+const CACHE_NAME = "lbt-174a5804";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/b-type-ui-parity.css?v=14428109",
+  "assets/b-type-ui-parity.css?v=4c25256a",
   "assets/b-type-workbench.css?v=65b185a7",
   "assets/cloud-backup.css?v=3f230de2",
   "assets/design-system.css?v=910f9485",
