@@ -52,10 +52,11 @@ test("スマホのSINNER SELECTは安全領域内に収まり、カード一覧�
   assert.match(mobileCss, /main\.acct-gate\s*\{[^}]*align-items:\s*center/s);
   assert.match(mobileCss, /\.acct-gate-panel\s*\{[^}]*max-height: calc\(100dvh/s);
   assert.match(mobileCss, /\.acct-gate-panel\s*\{[^}]*overflow: hidden/s);
-  assert.match(mobileCss, /\.acct-gate-panel > \.acct-grid\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/s);
-  assert.match(mobileCss, /\.acct-gate-panel > \.acct-grid\s*\{[^}]*overflow-y: auto/s);
+  assert.match(mobileCss, /\.acct-gate-panel \.acct-panel-accounts > \.acct-grid--gate\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/s);
+  assert.match(mobileCss, /\.acct-gate-panel \.acct-panel-accounts > \.acct-grid--gate\s*\{[^}]*overflow-y: auto/s);
   assert.match(mobileCss, /\.acct-gate-panel \.acct-card--gate \.acct-card-body\s*\{[^}]*grid-template-columns: 44px minmax\(0, 1fr\)/s);
-  assert.match(accountCss, /\.acct-panel > \.acct-grid,\s*\.acct-gate-panel > \.acct-grid\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.match(accountCss, /\.acct-panel-accounts > \.acct-grid\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.doesNotMatch(mobileCss, /\.acct-gate-panel > \.acct-grid|\.acct-gate-panel:has\(\.acct-card--form\) > \.lbt-cloud-panel/, "旧DOM直下のモバイル指定を残さない");
 });
 
 test("画面キャプチャは一時通知が消えてから撮影する", () => {
