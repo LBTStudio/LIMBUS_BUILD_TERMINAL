@@ -1053,9 +1053,19 @@ async function captureProfile(browser, mode) {
         const stickyBottom=tabs&&getComputedStyle(tabs).position==="sticky"&&tabsRect
           ? Math.max(0,tabsRect.bottom) : 0;
         const frame=el.getBoundingClientRect();
-        const targetTop=window.scrollY+frame.top-stickyBottom-12;
-        window.scrollTo({top:Math.max(0,targetTop),behavior:"instant"});
-        return {stickyBottom,frameTop:frame.top};
+        /* The app's content column (.focus) is the scroll container. window.scrollTo()
+           is a no-op here and left the image behind the sticky tab strip. Move that
+           scroll root by the measured overlap so the whole portrait starts below tabs. */
+        const scrollRoot=document.querySelector(".focus");
+        const targetTop=Math.max(0,(scrollRoot?.scrollTop??window.scrollY)+frame.top-stickyBottom-12);
+        if(scrollRoot) scrollRoot.scrollTo({top:targetTop,behavior:"instant"});
+        else window.scrollTo({top:targetTop,behavior:"instant"});
+        return {
+          scrollRoot:scrollRoot?.className||"document",
+          scrollTop:scrollRoot?.scrollTop??window.scrollY,
+          stickyBottom,
+          frameTop:frame.top
+        };
       });
       await page.waitForTimeout(100);
       const imageGeometry=await page.evaluate(()=>{
