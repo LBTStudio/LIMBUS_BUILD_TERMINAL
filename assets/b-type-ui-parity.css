@@ -1146,3 +1146,17 @@
   .base-info-panel .piece-url-preview-item { flex-basis: 72px; }
   .base-info-panel .piece-url-preview-frame { width: 60px; height: 74px; }
 }
+
+/* Keep the selected pawn image clear of the sticky workbench tabs on short screens.
+   The thumbnail row is a control, not the scroll anchor for the large portrait. */
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview-featured,
+  .base-info-panel .piece-url-preview-list,
+  .base-info-panel .piece-url-preview-item {
+    scroll-margin-block-start: calc(184px + env(safe-area-inset-top, 0px));
+  }
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: clamp(150px, 24vh, 220px);
+    min-height: 150px;
+  }
+}
