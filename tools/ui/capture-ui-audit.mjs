@@ -1044,8 +1044,38 @@ async function captureProfile(browser, mode) {
       const imagePreviewStrip=page.locator(".piece-url-preview-list");
       const featuredImage=page.locator(".piece-url-preview-featured-frame > img");
       await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
-      await imagePreviewStrip.evaluate(el=>el.scrollIntoView({block:"center",inline:"nearest",behavior:"instant"}));
-      await page.waitForTimeout(80);
+      /* The thumbnail row sits below a tall portrait. Centering the strip scrolls
+         the portrait behind the sticky build tabs on phones/tablets. Anchor the
+         large image itself just below the visible tab bar instead. */
+      const imageViewport=await page.locator(".piece-url-preview-featured-frame").evaluate(el=>{
+        const tabs=document.querySelector(".build-tabs.is-b-workbench");
+        const tabsRect=tabs?.getBoundingClientRect();
+        const stickyBottom=tabs&&getComputedStyle(tabs).position==="sticky"&&tabsRect
+          ? Math.max(0,tabsRect.bottom) : 0;
+        const frame=el.getBoundingClientRect();
+        const targetTop=window.scrollY+frame.top-stickyBottom-12;
+        window.scrollTo({top:Math.max(0,targetTop),behavior:"instant"});
+        return {stickyBottom,frameTop:frame.top};
+      });
+      await page.waitForTimeout(100);
+      const imageGeometry=await page.evaluate(()=>{
+        const frame=document.querySelector(".piece-url-preview-featured-frame")?.getBoundingClientRect();
+        const strip=document.querySelector(".piece-url-preview-list")?.getBoundingClientRect();
+        const tabs=document.querySelector(".build-tabs.is-b-workbench")?.getBoundingClientRect();
+        const nav=document.querySelector(".btype-mobile-bottom-nav");
+        const navRect=nav&&getComputedStyle(nav).display!=="none"?nav.getBoundingClientRect():null;
+        return {
+          frameTop:frame?.top??null,frameBottom:frame?.bottom??null,
+          stripTop:strip?.top??null,stripBottom:strip?.bottom??null,
+          stickyTabsBottom:tabs?.bottom??0,navTop:navRect?.top??innerHeight,
+          imageBelowTabs:!!frame&&frame.top>=(tabs?.bottom??0)+6,
+          imageBeforeBottomNav:!!frame&&frame.bottom<=(navRect?.top??innerHeight),
+          controlsBeforeBottomNav:!!strip&&strip.bottom<=(navRect?.top??innerHeight)
+        };
+      });
+      if(!imageGeometry.imageBelowTabs || !imageGeometry.imageBeforeBottomNav || !imageGeometry.controlsBeforeBottomNav) {
+        throw new Error("駒画像の大きなプレビュー／差分選択が固定ナビの表示領域内に収まりません: "+JSON.stringify({imageViewport,imageGeometry}));
+      }
       if(await imagePreviewItems.count()!==faceImageUrls.length) throw new Error("登録した5枚すべての駒画像が選択ボタンとして表示されません");
       await featuredImage.waitFor({state:"visible",timeout:5000});
       const primaryLoaded=await featuredImage.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
@@ -1083,7 +1113,7 @@ async function captureProfile(browser, mode) {
         return Math.max(0,Math.min(strip.bottom,rect.bottom)-Math.max(strip.top,rect.top));
       });
       if(imagePreviewNavOverlap>2) throw new Error("駒画像の差分ボタンがスマホ固定ナビに隠れています: "+imagePreviewNavOverlap+"px");
-      await snap("basic-image-preview-loaded","駒の画像設定：基本画像と差分画像を大きく表示し、差分切替も動作");
+      await snap("basic-image-preview-loaded","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示");
       for(const selector of [".piece-art-frame",".piece-art-wrap",".piece-art-thumbs",".basic-ccfolia-preview",".btype-workbench-preview-panel",".preview-lines"]) {
         if(await page.locator(selector).count()) throw new Error("格納中の基本画面にプレビュー要素が残っています: "+selector);
       }
