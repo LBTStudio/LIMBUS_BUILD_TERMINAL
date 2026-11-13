@@ -383,3 +383,26 @@ textarea:focus-visible {
   }
 }
 
+/* Primary actions stay filled in the flat theme. The earlier blanket removal of
+   gradient images also removed the only fill of legacy .btn-primary controls. */
+.btn-primary {
+  background-color: var(--ui-accent) !important;
+  background-image: none !important;
+  color: var(--ui-bg) !important;
+  border-color: var(--ui-accent) !important;
+}
+.btn-primary:hover:not(:disabled),
+.btn-primary:focus-visible {
+  background-color: var(--ui-accent) !important;
+  color: var(--ui-bg) !important;
+  border-color: var(--ui-accent) !important;
+}
+.btn-primary:disabled,
+.btn:disabled.btn-primary {
+  background-color: var(--ui-surface) !important;
+  background-image: none !important;
+  color: var(--ui-line) !important;
+  border-color: var(--ui-line) !important;
+  opacity: 1;
+  cursor: not-allowed;
+}
