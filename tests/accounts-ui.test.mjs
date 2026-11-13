@@ -413,7 +413,7 @@ test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens
     "PC・タブレットでは184px未満の行トラックを作らずカードを重ねない");
   assert.match(uiAuditSource, /minimumManagerCardHeight = view\.startsWith\("mobile"\) \? 96 : 180/,
     "監査のカード高基準を端末別にする");
-  assert.match(uiAuditSource, /getComputedStyle\(backupPanel\)\.display === "none"/,
+  assert.match(uiAuditSource, /getComputedStyle\(backupPanel\)\.display\s*===\s*"none"/,
     "編集時は復旧ペイン全体の非表示を判定する");
   assert.ok(visualSystem.includes("grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));"),
     "ショップの商品一覧をPCで3列程度に抑える");
