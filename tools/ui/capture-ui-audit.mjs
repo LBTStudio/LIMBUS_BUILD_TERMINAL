@@ -47,7 +47,34 @@ async function visible(loc) {
 async function click(loc) {
   if (!(await visible(loc))) throw new Error("target is not visible");
   const target = loc.first();
-  await target.scrollIntoViewIfNeeded({ timeout: 4000 });
+  /* 固定ボトムナビがある端末では、要素の一部が見えていても中心点がナビの
+     下へ残ることがある。nearest ではなく中央へ寄せ、実際に押せる位置で検証する。 */
+  await target.evaluate((el) => el.scrollIntoView({
+    block: "center", inline: "nearest", behavior: "instant"
+  }));
+  await page.waitForTimeout(60);
+  const hit = await target.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const x = Math.max(0, Math.min(innerWidth - 1, r.left + r.width / 2));
+    const y = Math.max(0, Math.min(innerHeight - 1, r.top + r.height / 2));
+    const at = document.elementFromPoint(x, y);
+    const style = getComputedStyle(el);
+    return {
+      disabled: !!el.disabled || el.getAttribute("aria-disabled") === "true",
+      pointerEvents: style.pointerEvents,
+      center: { x, y },
+      rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+      hitTarget: at ? {
+        tag: at.tagName,
+        className: typeof at.className === "string" ? at.className : "",
+        label: at.getAttribute("aria-label") || (at.innerText || "").trim().slice(0, 48)
+      } : null,
+      centerReachable: !!at && (at === el || el.contains(at))
+    };
+  });
+  if (hit.disabled || hit.pointerEvents === "none" || !hit.centerReachable) {
+    throw new Error("操作対象の中心点がクリック可能ではありません: " + JSON.stringify(hit));
+  }
   /* hasTouch:true のスマートフォン検証では mouse.click ではなく実タップ経路を通す。
      これにより touch/pointer の発火と hover 前提でない操作を検証できる。 */
   if (view.startsWith("mobile")) await target.tap({ timeout: 4000 });
@@ -1857,7 +1884,7 @@ async function main() {
     "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation",
     "new result entry labels, resource inputs and reward-ticket layout at every viewport","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
-    "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクター編集プレビュー","ビルド内基本タブの出力データプレビュー",
+    "基本画面のステータス（ST）編集パネル","基本画面のラベル（パラメータ）編集パネル","共通プレビュー：CCFOLIA盤面","共通プレビュー：CCFOLIAキャラクター編集画面","共通プレビュー：実際のCCFOLIA出力JSON",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",
