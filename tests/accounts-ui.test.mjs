@@ -308,34 +308,23 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
 });
 
 
-test("SINNER SELECT のアカウント一覧はカードを縮めず、一覧だけをスクロールする", () => {
-  const panelStart = css.indexOf(".acct-panel,\n.acct-gate-panel {");
-  assert.notEqual(panelStart, -1, "両方のパネルを同じ制約にする");
-  const panelEnd = css.indexOf("\n}", panelStart);
-  const panelRule = css.slice(panelStart, panelEnd);
-  assert.ok(panelRule.includes("min-height: 0;"), "親 flex の最小高さ制約を解除する");
-  assert.ok(panelRule.includes("overflow: hidden;"), "親パネルでは二重スクロールを作らない");
-
-  const fixedStart = css.indexOf(".acct-panel > .acct-panel-head,");
-  assert.notEqual(fixedStart, -1, "固定する構成要素のルールがある");
-  const fixedEnd = css.indexOf("\n}", fixedStart);
-  const fixedRule = css.slice(fixedStart, fixedEnd);
-  assert.ok(fixedRule.includes("flex: 0 0 auto;"), "見出し・空状態・フッターを縮めない");
-
-  const gridStart = css.indexOf(".acct-panel > .acct-grid,\n.acct-gate-panel > .acct-grid {");
-  assert.notEqual(gridStart, -1, "一覧を両画面で独立させる");
-  const gridEnd = css.indexOf("\n}", gridStart);
-  const gridRule = css.slice(gridStart, gridEnd);
-  for (const declaration of [
-    "flex: 1 1 auto;",
-    "min-height: 0;",
-    "min-width: 0;",
-    "overflow-y: auto;",
-    "align-content: start;"
-  ]) assert.ok(gridRule.includes(declaration), "一覧ルールに " + declaration + " がある");
-
+test("SINNER SELECT はアカウント一覧と復旧操作を独立ペインにし、キー入力中も一覧を残す", () => {
+  assert.equal((ui.match(/className: "acct-panel-layout"/g) || []).length, 2,
+    "起動ゲートと管理画面の両方を二領域レイアウトにする");
+  assert.equal((ui.match(/className: "acct-panel-accounts"/g) || []).length, 2,
+    "アカウント一覧の領域を独立させる");
+  assert.equal((ui.match(/className: "acct-panel-cloud"/g) || []).length, 2,
+    "復旧パネルの領域を独立させる");
+  assert.match(ui, /className: "acct-grid acct-grid--manager"/, "管理画面の一覧を識別する");
+  assert.match(ui, /className: "acct-grid acct-grid--gate"/, "起動ゲートの一覧を識別する");
+  assert.match(css, /\.acct-panel-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) minmax\(300px, 360px\);/);
+  assert.match(css, /\.acct-panel-accounts \{[\s\S]*?min-height: 0;[\s\S]*?overflow: hidden;/);
+  assert.match(css, /\.acct-panel-accounts > \.acct-grid \{[\s\S]*?flex: 1 1 auto;[\s\S]*?min-height: 0;[\s\S]*?overflow-y: auto;/);
+  assert.match(css, /\.acct-panel-cloud \{[\s\S]*?overflow-y: auto;/,
+    "長い照合結果は保全側の領域だけでスクロールする");
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-rows: minmax\(140px, 1fr\) minmax\(112px,/,
+    "狭い画面では上下に並べ、両領域に最低高さを確保する");
 });
-
 
 test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
   const start = cloudPanelSource.indexOf('return h("details", { className: "lbt-cloud-panel"');
@@ -366,7 +355,7 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
     "height: auto;",
     "align-self: start;"
   ]) assert.ok(rule.includes(declaration), "編集中カードに " + declaration + " がある");
-  assert.ok(accountsUiSource.includes('className: "acct-grid" + (editingId || creating ? " is-editing" : "")'),
+  assert.ok(accountsUiSource.includes('className: "acct-grid acct-grid--manager" + (editingId || creating ? " is-editing" : "")'),
     "編集または新規作成中だけ一覧にis-editingクラスを付ける");
   const flexStart = css.indexOf(".acct-grid.is-editing {");
   assert.notEqual(flexStart, -1, "編集時専用のフロー表示がある");
@@ -374,14 +363,14 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
   const flexRule = css.slice(flexStart, flexEnd);
   for (const declaration of ["display: flex;", "flex-direction: column;", "align-items: stretch;"])
     assert.ok(flexRule.includes(declaration), "編集時一覧に " + declaration + " がある");
-  const cardRuleStart = css.indexOf(".acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add)");
+  const cardRuleStart = css.indexOf(".acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add)");
   assert.notEqual(cardRuleStart, -1, "管理画面カードだけに行高を適用する");
   const cardRuleEnd = css.indexOf("\n}", cardRuleStart);
   const cardRule = css.slice(cardRuleStart, cardRuleEnd);
   assert.ok(cardRule.includes("min-height: 184px;"), "管理画面カードは内容と操作が重ならない高さを持つ");
-  const sharedScrollRule = css.lastIndexOf(".acct-panel > .acct-grid," + "\n" + ".acct-gate-panel > .acct-grid {");
-  const managerTrackRule = css.lastIndexOf(".acct-panel > .acct-grid {");
-  const gateTrackRule = css.lastIndexOf(".acct-gate-panel > .acct-grid {");
+  const sharedScrollRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid {");
+  const managerTrackRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid--manager {");
+  const gateTrackRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid--gate {");
   assert.ok(sharedScrollRule >= 0 && managerTrackRule > sharedScrollRule && gateTrackRule > sharedScrollRule,
     "共通スクロール指定の後ろで管理画面・起動ゲートの行トラックを分ける");
   const managerTrack = css.slice(managerTrackRule, css.indexOf("}", managerTrackRule));
