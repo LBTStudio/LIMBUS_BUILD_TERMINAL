@@ -1039,6 +1039,16 @@ async function captureProfile(browser, mode) {
       const imageUrls=page.locator("#piece-image-urls");
       await imageUrls.fill(artUrl+"\n"+artUrl+"?face=1");
       if(await imageUrls.inputValue()!==artUrl+"\n"+artUrl+"?face=1") throw new Error("立ち絵URL・差分の登録値が保持されません");
+      const imagePreviewItems=page.locator(".piece-url-preview-item");
+      await imagePreviewItems.first().waitFor({state:"visible",timeout:5000});
+      if(await imagePreviewItems.count()!==2) throw new Error("基本画像と差分のプレビューが2件表示されません");
+      for(let i=0;i<2;i++) {
+        const image=imagePreviewItems.nth(i).locator("img");
+        await image.waitFor({state:"visible",timeout:5000});
+        const loaded=await image.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
+        if(!loaded) throw new Error("駒画像プレビューを読み込めません: "+i);
+      }
+      await snap("basic-image-preview-loaded","駒の画像設定：登録した基本画像と差分画像を実際に表示");
       for(const selector of [".piece-art-frame",".piece-art-wrap",".piece-art-thumbs",".basic-ccfolia-preview",".btype-workbench-preview-panel",".preview-lines"]) {
         if(await page.locator(selector).count()) throw new Error("格納中の基本画面にプレビュー要素が残っています: "+selector);
       }
