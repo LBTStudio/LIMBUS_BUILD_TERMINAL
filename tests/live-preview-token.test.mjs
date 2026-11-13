@@ -42,6 +42,20 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
   assert.ok(sections.includes('fetchPriority: index === 0 ? "high" : "auto"'));
 });
 
+test("駒画像設定は選択した基本画像・差分を大きく表示し、差分ボタンで切り替える", () => {
+  assert.match(sections, /const \[activeImageIndex, setActiveImageIndex\] = React\.useState\(0\)/);
+  assert.match(sections, /setActiveImageIndex\(0\)/);
+  assert.match(sections, /className: "piece-url-preview-featured"/);
+  assert.match(sections, /src: selectedImagePreviewUrl/);
+  assert.match(sections, /className: "piece-url-preview-list",[\s\S]*?role: "group"/);
+  assert.match(sections, /className: "piece-url-preview-item"[\s\S]*?aria-pressed: selectedImageIndex === index/);
+  assert.match(sections, /onClick: \(\) => setActiveImageIndex\(index\)/);
+  assert.match(sections, /setFailedImageUrls\(\(current\) => current\.includes\(selectedImageUrl\)/);
+  assert.match(parityCss, /\.piece-url-preview-featured-frame > img\s*\{[^}]*object-fit: contain/);
+  assert.match(parityCss, /\.piece-url-preview-item\.is-active\s*\{/);
+  assert.match(parityCss, /\.piece-url-preview-frame > img\s*\{[^}]*object-fit: contain/);
+});
+
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {
   assert.match(preview, /JSON\.parse\(json\)\?\.data/);
   assert.match(preview, /LBT_gen\.buildCcfoliaJSON\(previewData, \{ palette, memo \}\)/);
