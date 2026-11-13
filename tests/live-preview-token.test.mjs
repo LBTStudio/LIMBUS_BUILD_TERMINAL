@@ -33,7 +33,7 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
     "https://img.example/main.png", "https://img.example/face-a.png",
     "https://img.example/face-b.png", "https://img.example/face-c.png"
   ]);
-  assert.ok(sections.includes("window.LBT_gen?.normalizeImageUrls(state.imgUrls)"));
+  assert.ok(sections.includes("window.LBT_gen.normalizeImageUrls(state.imgUrls)"));
   assert.ok(sections.includes("value: imgUrlsText"));
   assert.ok(sections.includes("const markdownImage = raw.match(/^!?\\[[^\\]]*\\]\\((.+)\\)$/);"));
   assert.ok(sections.includes('raw = raw.replace(/&amp;/gi, "&")'));
