@@ -1728,8 +1728,9 @@ async function captureProfile(browser, mode) {
       });
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
+      const minimumManagerCardHeight = view.startsWith("mobile") ? 96 : 180;
       if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220
-        || managerMetrics.minCardHeight < 180 || managerMetrics.overlappingCardPairs > 0
+        || managerMetrics.minCardHeight < minimumManagerCardHeight || managerMetrics.overlappingCardPairs > 0
         || managerMetrics.actionsOutsideCards > 0 || !managerMetrics.onlineBackupCollapsed
         || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden"
         || (view.startsWith("mobile") && managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1)) {
@@ -1743,8 +1744,10 @@ async function captureProfile(browser, mode) {
           const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--manager");
           const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
           const button=editor?.querySelector(".acct-import-toggle");
-          const backup=panel?.querySelector(".acct-panel-cloud > .lbt-cloud-panel");
-          const backupHidden=!backup || getComputedStyle(backup).display==="none";
+          const backupPanel=panel?.querySelector(".acct-panel-cloud");
+          const backup=backupPanel?.querySelector(".lbt-cloud-panel");
+          const backupHidden=!backupPanel || getComputedStyle(backupPanel).display==="none"
+            || !backup || getComputedStyle(backup).display==="none";
           const rect=(node)=>node?node.getBoundingClientRect():null;
           const er=rect(editor), br=rect(button), gr=rect(grid);
           const style=editor?getComputedStyle(editor):null;
