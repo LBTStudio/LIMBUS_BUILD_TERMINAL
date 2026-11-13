@@ -535,3 +535,24 @@ textarea:focus-visible {
   font-size: var(--ui-type-xs);
   white-space: nowrap;
 }
+
+/* Overlay contrast repair: keep small status text readable in dialogs and account cards. */
+.lbt-cloud-panel .lbt-cloud-state {
+  color: var(--ui-accent) !important;
+  opacity: 1 !important;
+}
+.acct-card .acct-meta {
+  color: var(--ui-text) !important;
+  opacity: 1 !important;
+}
+.res-dot[data-res="弱点"],
+.res-dot[data-res="耐性"] {
+  color: var(--ui-bg) !important;
+  text-shadow: none !important;
+}
+.res-dot[data-res="弱点"]::before,
+.res-dot[data-res="耐性"]::before {
+  color: var(--ui-bg) !important;
+  text-shadow: none !important;
+  border-right-color: color-mix(in oklab, var(--ui-bg) 38%, transparent) !important;
+}
