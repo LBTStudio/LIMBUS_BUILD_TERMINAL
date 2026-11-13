@@ -107,31 +107,8 @@ const BaseSection = ({ state, dispatch }) => {
         ),
         React.createElement("div", { className: "piece-art-actions" },
           React.createElement("button", { type: "button", className: "secondary", onClick: () => setEditOpen(true) }, "立ち絵URL・差分を編集")
-        )
-      ),
-      React.createElement("details", {
-        className: "piece-image-details pc-edit",
-        open: editOpen || undefined,
-        onToggle: (event) => setEditOpen(event.currentTarget.open)
-      },
-        React.createElement("summary", null,
-          "立ち絵URL・差分 / 共有シート画像",
-          React.createElement("span", null, "必要なときだけ開く")
         ),
-        React.createElement("div", { className: "piece-image-body" },
-          React.createElement("div", { className: "piece-input-group" },
-            React.createElement("label", { htmlFor: "piece-image-urls" }, "立ち絵URL（1行に1枚、1行目が基本画像）"),
-            React.createElement("textarea", {
-              id: "piece-image-urls",
-              className: "piece-textarea",
-              rows: 4,
-              placeholder: "https://...\nhttps://...",
-              value: imgUrlsText,
-              onChange: (event) => setF("imgUrls", event.target.value)
-            }),
-            React.createElement("div", { className: "piece-hint" },
-              "画像URLを1行に1枚入力します。1行目が基本画像、2行目以降は表情・差分です。実際のココフォリア画像は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
-            ),
+        React.createElement("div", { className: "piece-art-preview-live" },
             React.createElement("div", { className: "piece-url-preview" },
               imgList.length === 0
                 ? React.createElement("div", { className: "piece-url-preview-empty" }, "画像URLを登録すると、ここに基本画像と差分が表示されます。")
@@ -197,7 +174,33 @@ const BaseSection = ({ state, dispatch }) => {
                       })
                     )
                   )
-            )
+            ),
+        )
+      ),
+      React.createElement("details", {
+        className: "piece-image-details pc-edit",
+        open: editOpen || undefined,
+        onToggle: (event) => setEditOpen(event.currentTarget.open)
+      },
+        React.createElement("summary", null,
+          "立ち絵URL・差分 / 共有シート画像",
+          React.createElement("span", null, "必要なときだけ開く")
+        ),
+        React.createElement("div", { className: "piece-image-body" },
+          React.createElement("div", { className: "piece-input-group" },
+            React.createElement("label", { htmlFor: "piece-image-urls" }, "立ち絵URL（1行に1枚、1行目が基本画像）"),
+            React.createElement("textarea", {
+              id: "piece-image-urls",
+              className: "piece-textarea",
+              rows: 4,
+              placeholder: "https://...\nhttps://...",
+              value: imgUrlsText,
+              onChange: (event) => setF("imgUrls", event.target.value)
+            }),
+            React.createElement("div", { className: "piece-hint" },
+              "画像URLを1行に1枚入力します。1行目が基本画像、2行目以降は表情・差分です。実際のココフォリア画像は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
+            ),
+
           ),
           React.createElement("div", { className: "piece-share-row" },
             React.createElement("div", { className: "piece-share-thumb" }, state.shareImageData ? "設定済み" : "共有シート画像"),
