@@ -1,0 +1,335 @@
+/* LBT Unified Visual System v71
+   One restrained visual language: matte dark workbench, warm metal accent,
+   4/8/12/16/24/32 spacing, 4/6/8 radii, hairline borders.
+   Five base colors and five type sizes. No gradients. */
+:root {
+  /* The only five base colors. Legacy semantic tokens below are aliases. */
+  --ui-bg: #11100f;
+  --ui-surface: #1b1916;
+  --ui-line: #49433a;
+  --ui-text: #eee8dc;
+  --ui-accent: #c8a45e;
+
+  --bg: var(--ui-bg);
+  --surface-0: var(--ui-bg);
+  --surface-1: var(--ui-surface);
+  --surface-2: var(--ui-surface);
+  --surface-3: var(--ui-surface);
+  --surface-4: var(--ui-surface);
+  --surface-inset: var(--ui-bg);
+
+  --line-dim: var(--ui-line);
+  --line: var(--ui-line);
+  --line-strong: var(--ui-line);
+  --line-hot: var(--ui-accent);
+
+  --tx: var(--ui-text);
+  --tx-2: var(--ui-text);
+  --tx-dim: var(--ui-text);
+  --tx-mute: var(--ui-text);
+  --tx-inv: var(--ui-bg);
+
+  --gold: var(--ui-accent);
+  --gold-hi: var(--ui-accent);
+  --gold-lo: var(--ui-accent);
+  --gold-line: var(--ui-accent);
+  --gold-glow: var(--ui-accent);
+  --gold-tint: var(--ui-accent);
+
+  --accent: var(--ui-accent);
+  --accent-hi: var(--ui-accent);
+  --accent-lo: var(--ui-accent);
+  --accent-line: var(--ui-accent);
+  --accent-glow: var(--ui-accent);
+  --accent-tint: var(--ui-accent);
+  --amber: var(--ui-accent);
+  --amber-hi: var(--ui-accent);
+  --amber-glow: var(--ui-accent);
+  --amber-tint: var(--ui-accent);
+  --err: var(--ui-accent);
+  --err-ink: var(--ui-accent);
+  --ok: var(--ui-accent);
+  --warn: var(--ui-accent);
+  --ego-influence: var(--ui-accent);
+  --clock-face: var(--ui-surface);
+  --clock-hand: var(--ui-accent);
+  --clock-ring: var(--ui-accent);
+  --neon: var(--ui-accent);
+  --neon-hi: var(--ui-accent);
+  --neon-glow: var(--ui-accent);
+  --neon-tint: var(--ui-accent);
+  --neon-line: var(--ui-accent);
+
+  /* Data remains identifiable by its labels; color is no longer carrying
+     multiple competing meanings. */
+  --sin-憤怒: var(--ui-accent);
+  --sin-色欲: var(--ui-accent);
+  --sin-怠惰: var(--ui-accent);
+  --sin-暴食: var(--ui-accent);
+  --sin-憂鬱: var(--ui-accent);
+  --sin-傲慢: var(--ui-accent);
+  --sin-嫉妬: var(--ui-accent);
+  --sin-特殊: var(--ui-text);
+  --rank-ZAYIN: var(--ui-accent);
+  --rank-TETH: var(--ui-accent);
+  --rank-HE: var(--ui-accent);
+  --rank-WAW: var(--ui-accent);
+  --rank-ALEPH: var(--ui-accent);
+  --res-脆弱: var(--ui-accent);
+  --res-弱点: var(--ui-accent);
+  --res-普通: var(--ui-text);
+  --res-抵抗: var(--ui-text);
+  --res-耐性: var(--ui-text);
+  --res-免疫: var(--ui-text);
+
+  /* One five-step type scale. Existing sizes resolve to these five values. */
+  --ui-type-xs: 11px;
+  --ui-type-sm: 13px;
+  --ui-type-body: 15px;
+  --ui-type-heading: 18px;
+  --ui-type-title: 24px;
+  --fs-9: var(--ui-type-xs);
+  --fs-10: var(--ui-type-xs);
+  --fs-11: var(--ui-type-sm);
+  --fs-12: var(--ui-type-sm);
+  --fs-13: var(--ui-type-body);
+  --fs-14: var(--ui-type-body);
+  --fs-15: var(--ui-type-body);
+  --fs-16: var(--ui-type-body);
+  --fs-18: var(--ui-type-heading);
+  --fs-20: var(--ui-type-heading);
+  --fs-24: var(--ui-type-title);
+  --fs-30: var(--ui-type-title);
+  --fs-40: var(--ui-type-title);
+
+  --f-display: "Noto Sans JP", system-ui, sans-serif;
+  --f-body: "Noto Sans JP", system-ui, sans-serif;
+  --f-serif: "Noto Sans JP", system-ui, sans-serif;
+
+  /* One spacing rhythm, one restrained corner system. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 32px;
+  --s-9: 32px;
+  --s-10: 32px;
+  --r-sm: 4px;
+  --r: 6px;
+  --r-lg: 8px;
+  --r-pill: 8px;
+  --shadow-1: none;
+}
+
+body {
+  background: var(--ui-bg) !important;
+  color: var(--ui-text);
+  font-size: var(--ui-type-body);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--f-body);
+}
+
+button,
+.btn,
+.acct-card,
+.acct-panel,
+.acct-gate-panel,
+.shop-card,
+.home-task-card,
+.lbt-cloud-panel {
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-color: var(--ui-accent);
+}
+
+/* Keep catalog cards scannable: three readable columns on desktop, one on phone. */
+.shop-grid,
+.shop-grid[data-tab="ego"] {
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 12px;
+}
+.shop-card {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+}
+.shop-card-name {
+  font-size: var(--ui-type-body);
+  line-height: 1.4;
+}
+.shop-card-note,
+.shop-card .shop-card-num {
+  font-size: var(--ui-type-xs);
+  line-height: 1.45;
+}
+
+/* Account list: widen desktop cards and stop the recovery disclosure reserving
+   a large empty bottom band on mobile. The list always owns its own scroll area. */
+.acct-panel,
+.acct-gate-panel {
+  background: var(--ui-bg);
+  border-color: var(--ui-line);
+  border-radius: 8px;
+  box-shadow: none !important;
+}
+.acct-panel-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.acct-panel-accounts > .acct-grid--manager {
+  grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+  grid-auto-rows: minmax(160px, max-content);
+  gap: 12px;
+}
+.acct-panel-cloud {
+  background: var(--ui-bg);
+  border-color: var(--ui-line);
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact {
+  background: var(--ui-surface);
+  border-color: var(--ui-line);
+}
+
+/* Editing is a focused task: temporarily remove recovery controls and use the
+   entire dialog width for the form and its save/cancel actions. */
+.acct-panel:has(.acct-card--form) .acct-panel-cloud,
+.acct-panel:has(.acct-card--editing) .acct-panel-cloud,
+.acct-gate-panel:has(.acct-card--form) .acct-panel-cloud,
+.acct-gate-panel:has(.acct-card--editing) .acct-panel-cloud {
+  display: none !important;
+}
+.acct-panel:has(.acct-card--form) .acct-panel-layout,
+.acct-panel:has(.acct-card--editing) .acct-panel-layout,
+.acct-gate-panel:has(.acct-card--form) .acct-panel-layout,
+.acct-gate-panel:has(.acct-card--editing) .acct-panel-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Selected / active cards use the same flat surface as every other card. */
+.acct-card.is-active {
+  background: var(--ui-surface);
+  border-color: var(--ui-accent);
+  box-shadow: none !important;
+}
+.acct-card:hover,
+.acct-card:focus-within {
+  transform: none;
+  box-shadow: none !important;
+  border-color: var(--ui-accent);
+}
+
+@media (max-width: 760px) {
+  .acct-panel-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .acct-panel-cloud {
+    box-sizing: border-box;
+    height: auto;
+    max-height: 104px;
+    padding: 8px 12px;
+    overflow: hidden;
+    border-top: 1px solid var(--ui-line);
+    border-left: 0;
+  }
+  .acct-panel-cloud:has(.lbt-cloud-panel[open]) {
+    max-height: min(34dvh, 224px);
+    overflow: auto;
+  }
+
+  .acct-panel-accounts > .acct-grid--manager {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(108px, max-content);
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+    display: flex;
+    min-height: 108px;
+    height: auto;
+    align-items: stretch;
+    padding: 12px 100px 12px 12px;
+    text-align: left;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-card-body {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    justify-items: start;
+    gap: 2px 10px;
+    min-width: 0;
+    text-align: left;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-mark {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    width: 44px;
+    height: 44px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-name {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    font-size: var(--ui-type-sm);
+    line-height: 1.35;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-purpose {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    font-size: var(--ui-type-xs);
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-meta {
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+    font-size: var(--ui-type-xs);
+    line-height: 1.35;
+    opacity: .72;
+    text-align: left;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-card-actions {
+    right: 8px;
+    bottom: 8px;
+    gap: 4px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-icon-btn {
+    box-sizing: border-box;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-edit-btn {
+    box-sizing: border-box;
+    min-width: 68px;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .shop-grid,
+  .shop-grid[data-tab="ego"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
