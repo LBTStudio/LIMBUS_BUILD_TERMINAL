@@ -26,7 +26,20 @@ const EgoResourceChips = ({ resources, className = "" }) => {
 };
 const BaseSection = ({ state, dispatch }) => {
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
-  const imgList = (state.imgUrls || "").split("\n").map((s) => s.trim()).filter(Boolean);
+  const imgList = (state.imgUrls || "").split(/\r\n|\r|\n/).map((s) => s.trim()).filter(Boolean);
+  const [failedImageUrls, setFailedImageUrls] = React.useState([]);
+  React.useEffect(() => setFailedImageUrls([]), [state.imgUrls]);
+  const safeImagePreviewUrl = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (/^data:image\//i.test(raw)) return raw;
+    try {
+      const parsed = new URL(raw, window.location.href);
+      return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+    } catch (_) {
+      return "";
+    }
+  };
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
   const [editOpen, setEditOpen] = React.useState(false);
@@ -101,6 +114,43 @@ const BaseSection = ({ state, dispatch }) => {
             }),
             React.createElement("div", { className: "piece-hint" },
               "画像URLを1行に1枚入力します。1行目が基本画像、2行目以降は表情・差分です。実際のココフォリア画像は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
+            ),
+            React.createElement("div", {
+              className: "piece-url-preview-list",
+              role: "list",
+              "aria-label": "登録した駒画像のプレビュー"
+            },
+              imgList.length === 0
+                ? React.createElement("div", { className: "piece-url-preview-empty" }, "画像URLを登録すると、ここに基本画像と差分が表示されます。")
+                : imgList.slice(0, 4).map((src, index) => {
+                    const safeSrc = safeImagePreviewUrl(src);
+                    const failed = !safeSrc || failedImageUrls.includes(src);
+                    return React.createElement("figure", {
+                      key: index + ":" + src,
+                      className: "piece-url-preview-item" + (index === 0 ? " is-primary" : ""),
+                      role: "listitem"
+                    },
+                      React.createElement("div", { className: "piece-url-preview-frame" },
+                        safeSrc && !failed
+                          ? React.createElement("img", {
+                              src: safeSrc,
+                              alt: (index === 0 ? "基本画像" : "差分 " + index) + "のプレビュー",
+                              loading: "lazy",
+                              decoding: "async",
+                              onError: () => setFailedImageUrls((current) => current.includes(src) ? current : [...current, src])
+                            })
+                          : React.createElement("span", {
+                              className: "piece-url-preview-fallback",
+                              role: "img",
+                              "aria-label": (index === 0 ? "基本画像" : "差分 " + index) + "を表示できません"
+                            }, failedImageUrls.includes(src) ? "画像を読込めません" : "URL形式を確認")
+                      ),
+                      React.createElement("figcaption", null, index === 0 ? "基本画像" : "差分 " + index)
+                    );
+                  }),
+              imgList.length > 4
+                ? React.createElement("span", { className: "piece-url-preview-more" }, "ほか " + (imgList.length - 4) + " 枚")
+                : null
             )
           ),
           React.createElement("div", { className: "piece-share-row" },
