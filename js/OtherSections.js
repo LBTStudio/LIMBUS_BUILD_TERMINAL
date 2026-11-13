@@ -2066,8 +2066,26 @@ const EnhancementSection = ({ state, dispatch }) => {
         }))
       ),
       state.syncedManual && h("div", { className: "settings-section-note", style: { padding: "0 var(--s-3)" } }, "同期化中：通常人格用の未同期専用強化は選択・出力されません。囚人人格用・特殊強化・同期化人格用強化は通常どおり利用できます。"),
-      h("div", { style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" } },
-        h("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catalogRows.map((entry) => h("div", { key: entry.name, className: "spp-item", onClick: () => addEnh(entry) },
+      h("div", {
+        className: "enhancement-catalog-scroll",
+        role: "region",
+        "aria-label": "強化候補一覧",
+        tabIndex: 0,
+        style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" }
+      },
+        h("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catalogRows.map((entry) => h("div", {
+          key: entry.name,
+          className: "spp-item",
+          role: "button",
+          tabIndex: 0,
+          onClick: () => addEnh(entry),
+          onKeyDown: (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              addEnh(entry);
+            }
+          }
+        },
           h("div", { className: "spp-item-name" }, entry.name, " ", h("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", fontWeight: 400 } }, "欠片", entry.shards)),
           h("div", { className: "spp-item-eff" }, entry.effect)
         )))
