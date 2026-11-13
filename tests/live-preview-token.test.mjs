@@ -51,6 +51,10 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /className: "piece-url-preview-list",[\s\S]*?role: "group"/);
   assert.match(sections, /className: "piece-url-preview-item"[\s\S]*?"aria-pressed": selectedImageIndex === index/);
   assert.match(sections, /onClick: \(\) => setActiveImageIndex\(index\)/);
+  assert.match(sections, /imgList\.map\(\(src, index\) => \{/,
+    "差分選択列は5枚目以降も含む全登録画像を表示する");
+  assert.doesNotMatch(sections, /imgList\.slice\(0, 4\)/,
+    "画像差分を4枚で打ち切らない");
   assert.match(sections, /setFailedImageUrls\(\(current\) => current\.includes\(selectedImageUrl\)/);
   assert.match(parityCss, /\.piece-url-preview-featured-frame > img\s*\{[^}]*object-fit: contain/);
   assert.match(parityCss, /\.piece-url-preview-item\.is-active\s*\{/);
