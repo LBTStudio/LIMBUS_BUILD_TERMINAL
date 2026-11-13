@@ -44,6 +44,16 @@ async function visible(loc) {
     });
   } catch { return false; }
 }
+async function collapsePreviewIfOpen() {
+  const panel=page.locator(".preview.is-open").first();
+  if(!(await visible(panel))) return false;
+  const width=page.viewportSize()?.width||1440;
+  const toggle=page.locator(width<=640?".preview-mobile-toggle":"#lbt-preview-edge-toggle").first();
+  if(!(await visible(toggle))) throw new Error("プレビューを閉じる操作が見つかりません");
+  await click(toggle);
+  await page.waitForFunction(()=>!document.querySelector(".preview.is-open"),null,{timeout:5000});
+  return true;
+}
 async function click(loc) {
   if (!(await visible(loc))) throw new Error("target is not visible");
   const target = loc.first();
@@ -365,7 +375,7 @@ async function snap(name, note) {
 }
 async function attempt(name, fn) {
   try { await fn(); audit.interactions.push({name,status:"captured"}); }
-  catch(e) { const err=String(e&&e.message||e).slice(0,220); audit.failures.push({name,error:err}); audit.interactions.push({name,status:"failed",error:err}); log("skip "+name+": "+err); }
+  catch(e) { const err=String(e&&e.message||e).slice(0,900); audit.failures.push({name,error:err}); audit.interactions.push({name,status:"failed",error:err}); log("skip "+name+": "+err); }
 }
 async function seed() {
   return page.evaluate(() => {
@@ -882,7 +892,7 @@ async function captureProfile(browser, mode) {
       if(await visible(movedToggle)) { await movedToggle.hover().catch(()=>{}); await snap("preview-toggle-open-hover","プレビューを開いた状態で開閉タブをホバー"); await click(movedToggle); await snap("preview-toggled-closed","プレビューを再度閉じた状態"); }
     }
     await snap("build-persona-default","ビルドの初期表示。専用の使い捨てデータを使用");
-    const tabs=page.locator(".build-tabs [role='tab']");
+    const tabs=page.locator(".btype-build-tablist > [role='tab']");
     const count=await tabs.count();
     for(let i=0;i<count;i++) {
       const tab=tabs.nth(i), label=(await tab.innerText()).trim();
@@ -1018,7 +1028,7 @@ async function captureProfile(browser, mode) {
     /* Basic keeps image URL registration, but deliberately has no always-visible
        portrait or miniature output. The shared LivePreview is the only preview. */
     await attempt("basic-ccfolia-workspace",async()=>{
-      const basicTab=page.locator(".build-tabs").getByRole("tab",{name:"基本",exact:true}).first();
+      const basicTab=page.locator("#btab-baseinfo");
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
       await page.locator(".build-params-shell.piece-format-panel").waitFor({state:"visible",timeout:5000});
@@ -1580,6 +1590,8 @@ async function captureProfile(browser, mode) {
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
     });
     await attempt("home-launcher-review",async()=>{
+      await closeOverlay();
+      await collapsePreviewIfOpen();
       await go("ホーム");
       await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
       const launcher=page.locator(".btype-launcher-grid");
@@ -1592,6 +1604,8 @@ async function captureProfile(browser, mode) {
       if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
       // Exercise every launcher route against the disposable audit account.
       for(let i=0;i<count;i++){
+        await closeOverlay();
+        await collapsePreviewIfOpen();
         await go("ホーム");
         const action=page.locator(".btype-launcher-grid button").nth(i);
         if(!(await visible(action))) continue;
@@ -1599,18 +1613,19 @@ async function captureProfile(browser, mode) {
         await click(action);
         await snap("home-action-destination-"+label,"ホームランチャーからの遷移先："+label);
         await closeOverlay();
+        await collapsePreviewIfOpen();
       }
     });
     await attempt("build-editor-operation-paths",async()=>{
       await go("ビルド");
-      const skillTab=page.locator(".build-tabs [role='tab']").filter({hasText:"スキル"}).first();
+      const skillTab=page.locator("#btab-skill");
       if(await visible(skillTab)){
         await click(skillTab);
         await snap("build-skill-editor","スキル編集画面の初期状態");
         const addSkill=page.getByRole("button",{name:/スキル.*追加|追加.*スキル/}).first();
         if(await visible(addSkill)){await click(addSkill);await snap("build-skill-add","スキル追加操作後の編集状態");}
       }
-      const egoTab=page.locator(".build-tabs [role='tab']").filter({hasText:"E.G.O"}).first();
+      const egoTab=page.locator("#btab-ego");
       if(await visible(egoTab)){
         await click(egoTab);
         const create=page.getByRole("button",{name:/E.G.Oを新規作成/}).first();
@@ -1620,12 +1635,12 @@ async function captureProfile(browser, mode) {
           await closeOverlay();
         }
       }
-      const basicTab=page.locator(".build-tabs [role='tab']").filter({hasText:"基本"}).first();
+      const basicTab=page.locator("#btab-baseinfo");
       if(await visible(basicTab)) await click(basicTab);
     });
     await attempt("build-item-picker-search",async()=>{
       await go("ビルド");
-      const itemTab=page.locator(".build-tabs [role='tab']").filter({hasText:"アイテム"}).first();
+      const itemTab=page.locator("#btab-items-build");
       if(!(await visible(itemTab))) throw new Error("Buildのアイテムタブが見つかりません");
       await click(itemTab);
       await snap("build-items-inventory","Buildの所持アイテムと検索・表示設定");
