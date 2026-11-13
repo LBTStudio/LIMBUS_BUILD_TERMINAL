@@ -460,3 +460,78 @@ textarea:focus-visible {
   outline: 2px solid var(--ui-accent);
   outline-offset: 2px;
 }
+
+/* Compact previews live inside the expanded pawn-image settings only. This keeps
+   the closed workbench free of duplicate portrait previews while making URL
+   registration verifiable at the point where it is edited. */
+.piece-url-preview-list {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  overflow-x: auto;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface);
+}
+.piece-url-preview-item {
+  display: flex;
+  flex: 0 0 64px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+}
+.piece-url-preview-item.is-primary {
+  flex-basis: 76px;
+}
+.piece-url-preview-frame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 82px;
+  overflow: hidden;
+  border: 1px solid var(--ui-line);
+  border-radius: 4px;
+  background: var(--ui-bg);
+}
+.piece-url-preview-item:not(.is-primary) .piece-url-preview-frame {
+  height: 68px;
+  margin-top: 7px;
+}
+.piece-url-preview-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.piece-url-preview-item figcaption {
+  overflow: hidden;
+  color: var(--ui-text);
+  font-size: var(--ui-type-xs);
+  line-height: 1.3;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.piece-url-preview-fallback {
+  padding: 4px;
+  color: var(--ui-text);
+  font-size: var(--ui-type-xs);
+  line-height: 1.4;
+  text-align: center;
+}
+.piece-url-preview-empty {
+  color: var(--ui-text);
+  font-size: var(--ui-type-sm);
+  line-height: 1.5;
+}
+.piece-url-preview-more {
+  align-self: center;
+  color: var(--ui-text);
+  font-size: var(--ui-type-xs);
+  white-space: nowrap;
+}
