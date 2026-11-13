@@ -411,4 +411,9 @@ test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens
     "スマホでは管理カードを短い横長行にする");
   assert.match(visualSystem, /grid-template-columns: repeat\(auto-fill, minmax\(min\(320px, 100%\), 1fr\)\)/,
     "ショップの商品一覧をPCで3列程度に抑える");
+  assert.match(visualSystem, /\.acct-panel-layout:has\(\.acct-panel-cloud > \.lbt-cloud-panel:not\(\[open\]\)\)[\\s\\S]*?grid-template-columns: minmax\\(0, 1fr\\);/,
+    "復旧欄を閉じたPC画面では右側に空き列を残さない");
+  assert.match(visualSystem, /\.acct-panel-cloud:has\(> \.lbt-cloud-panel:not\(\[open\]\)\)[\\s\\S]*?border-top: 1px solid var\\(--ui-line\\);/,
+    "折りたたまれた復旧欄は一覧の下に細い行として置く");
+
 });
