@@ -29,8 +29,11 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
   ]);
   assert.match(sections, /window\.LBT_gen\?\.normalizeImageUrls\(state\.imgUrls\)/);
   assert.match(sections, /value: imgUrlsText/);
+  assert.match(sections, /const markdownImage = raw\.match\(\/\^!?\\\\\[\[\^\\\\\]\\\\\*\]\\\\\(\(\.\+\)\\\\\)\$\//);
+  assert.match(sections, /raw = raw\.replace\(\/&amp;\/gi, "&"\)/);
   assert.match(generator, /const imgs = normalizeImageUrls\(p\.imgUrls\)/);
   assert.match(sections, /loading: index === 0 \? "eager" : "lazy"/);
+  assert.match(sections, /fetchPriority: index === 0 \? "high" : "auto"/);
 });
 
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {
