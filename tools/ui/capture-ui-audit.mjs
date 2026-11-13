@@ -1043,6 +1043,35 @@ async function captureProfile(browser, mode) {
       const imagePreviewItems=page.locator(".piece-url-preview-item");
       const imagePreviewStrip=page.locator(".piece-url-preview-list");
       const featuredImage=page.locator(".piece-url-preview-featured-frame > img");
+      /* The image stays in the visible art card even when the URL editor is closed. */
+      await click(artDisclosure);
+      await page.waitForFunction(()=> {
+        const editor=document.querySelector(".piece-image-details");
+        return !editor || !editor.open;
+      },null,{timeout:5000});
+      await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
+      await featuredImage.waitFor({state:"visible",timeout:5000});
+      await page.waitForFunction(()=> {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && image.complete && image.naturalWidth>0 && image.naturalHeight>0;
+      },null,{timeout:5000});
+      if(await imageUrls.isVisible()) throw new Error("画像編集を閉じてもURL入力欄が見えています");
+      const collapsedEditorPreview=await featuredImage.evaluate(el=>({
+        loaded:el.complete&&el.naturalWidth>0&&el.naturalHeight>0,
+        naturalWidth:el.naturalWidth,
+        naturalHeight:el.naturalHeight,
+        visible:!!(el.getBoundingClientRect().width&&el.getBoundingClientRect().height)
+      }));
+      if(!collapsedEditorPreview.loaded||!collapsedEditorPreview.visible) {
+        throw new Error("編集欄を閉じると駒画像が見えなくなります: "+JSON.stringify(collapsedEditorPreview));
+      }
+      await snap("basic-image-preview-visible-with-editor-closed","駒画像：URL編集を閉じても基本画像と差分一覧を常時表示");
+      const editAction=page.locator(".piece-art-actions button").first();
+      await click(editAction);
+      await imageUrls.waitFor({state:"visible",timeout:5000});
+      if(!(await artDisclosure.evaluate(el=>el.parentElement?.open===true))) throw new Error("画像編集ボタンからURL編集欄を再度開けません");
+      await click(artDisclosure);
+      await imageUrls.waitFor({state:"hidden",timeout:5000});
       await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
       /* The thumbnail row sits below a tall portrait. Centering the strip scrolls
          the portrait behind the sticky build tabs on phones/tablets. Anchor the
@@ -1128,7 +1157,7 @@ async function captureProfile(browser, mode) {
         if(await page.locator(selector).count()) throw new Error("格納中の基本画面にプレビュー要素が残っています: "+selector);
       }
       if(await page.locator("#preview-panel").count()) throw new Error("格納中なのに共通プレビューがDOMに残っています");
-      await snap("basic-workspace-preview-collapsed","基本画面：立ち絵・簡易プレビューを表示せず、画像URL編集だけを保持");
+      await snap("basic-workspace-preview-collapsed","共通CCFOLIAプレビューを閉じても、駒画像と差分一覧は画像設定カードに表示");
       const statusTab=page.locator("#build-params-tab-statuses");
       await click(statusTab);
       if(await statusTab.getAttribute("aria-selected")!=="true") throw new Error("STタブが選択状態になりません");
