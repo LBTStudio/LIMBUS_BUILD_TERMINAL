@@ -411,6 +411,19 @@ test("v71 restores visible primary-action fills without reintroducing gradients"
     "フラットなビジュアルにグラデーションを再導入しない");
 });
 
+test("UI audit uses unique build-tab controls and collapses preview before home launcher taps", () => {
+  assert.match(uiAuditSource, /\.btype-build-tablist > \[role='tab'\]/,
+    "ビルドのメインタブだけを直接選択し、子パネル内の同名タブを拾わない");
+  for (const id of ["skill", "ego", "baseinfo", "items-build"]) {
+    assert.ok(uiAuditSource.includes('page.locator("#btab-' + id + '")'),
+      "ビルドタブは一意なIDで操作する: " + id);
+  }
+  assert.match(uiAuditSource, /async function collapsePreviewIfOpen\(\)/,
+    "ランチャー操作の前後にプレビューを閉じる手順を持つ");
+  assert.match(uiAuditSource, /await closeOverlay\(\);\s*await collapsePreviewIfOpen\(\);\s*await go\("ホーム"\)/,
+    "各ランチャー操作の前にダイアログとプレビューを閉じてからホームへ戻る");
+});
+
 test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens mobile account cards", () => {
   assert.match(visualSystem, /grid-template-rows: minmax\(0, 1fr\) auto;/,
     "スマホで復旧欄を閉じたときは内容高だけを確保する");
