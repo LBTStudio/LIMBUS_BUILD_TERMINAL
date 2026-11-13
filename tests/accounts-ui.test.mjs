@@ -416,4 +416,11 @@ test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens
   assert.match(visualSystem, /\.acct-panel-cloud:has\(> \.lbt-cloud-panel:not\(\[open\]\)\)[\\s\\S]*?border-top: 1px solid var\\(--ui-line\\);/,
     "折りたたまれた復旧欄は一覧の下に細い行として置く");
 
+  assert.match(visualSystem, /\.acct-panel-cloud:has\(> \.lbt-cloud-panel:not\(\[open\]\)\)[\\s\\S]*?max-height: 60px;/,
+    "閉じた復旧欄の高さを60pxに制限する");
+  assert.match(visualSystem, /\.lbt-cloud-panel\.is-compact:not\(\[open\]\) \{[\\s\\S]*?margin: 0;[\\s\\S]*?padding: 0;/,
+    "カード本体の余白を折りたたみ時に重ねない");
+  assert.match(visualSystem, /\.lbt-cloud-heading \{[\\s\\S]*?flex-direction: row;[\\s\\S]*?flex-wrap: nowrap;/,
+    "復旧欄のタイトルと保存状態を1行に収める");
+
 });
