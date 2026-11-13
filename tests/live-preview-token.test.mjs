@@ -46,7 +46,7 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /const \[activeImageIndex, setActiveImageIndex\] = React\.useState\(0\)/);
   assert.match(sections, /setActiveImageIndex\(0\)/);
   assert.match(sections, /className: "piece-url-preview-featured"/);
-  const visibleArtPanelIndex = sections.indexOf('className: "piece-art-panel piece-image-settings"');
+  const visibleArtPanelIndex = sections.indexOf('className: "piece-panel piece-art-panel piece-image-settings"');
   const livePreviewIndex = sections.indexOf('className: "piece-url-preview"');
   const editorDisclosureIndex = sections.indexOf('className: "piece-image-details pc-edit"');
   assert.ok(visibleArtPanelIndex >= 0 && livePreviewIndex > visibleArtPanelIndex && livePreviewIndex < editorDisclosureIndex,
