@@ -26,12 +26,21 @@ const EgoResourceChips = ({ resources, className = "" }) => {
 };
 const BaseSection = ({ state, dispatch }) => {
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
-  const imgList = (state.imgUrls || "").split(/\r\n|\r|\n/).map((s) => s.trim()).filter(Boolean);
+  const imgList = window.LBT_gen?.normalizeImageUrls
+    ? window.LBT_gen.normalizeImageUrls(state.imgUrls)
+    : (Array.isArray(state.imgUrls) ? state.imgUrls : String(state.imgUrls || "").split(/\r\n|\r|\n/))
+      .map((entry) => typeof entry === "string" ? entry.trim() : String(entry?.iconUrl || entry?.url || entry?.src || "").trim())
+      .filter(Boolean);
+  const imgUrlsText = imgList.join("\n");
   const [failedImageUrls, setFailedImageUrls] = React.useState([]);
   React.useEffect(() => setFailedImageUrls([]), [state.imgUrls]);
   const safeImagePreviewUrl = (value) => {
-    const raw = String(value || "").trim();
+    let raw = String(value ?? "").trim();
     if (!raw) return "";
+    if (raw.startsWith("<") && raw.endsWith(">")) raw = raw.slice(1, -1).trim();
+    const markdownImage = raw.match(/^!?\[[^\]]*\]\((.+)\)$/);
+    if (markdownImage) raw = markdownImage[1].trim().replace(/^<|>$/g, "");
+    raw = raw.replace(/&amp;/gi, "&");
     if (/^data:image\//i.test(raw)) return raw;
     try {
       const parsed = new URL(raw, window.location.href);
@@ -109,7 +118,7 @@ const BaseSection = ({ state, dispatch }) => {
               className: "piece-textarea",
               rows: 4,
               placeholder: "https://...\nhttps://...",
-              value: state.imgUrls || "",
+              value: imgUrlsText,
               onChange: (event) => setF("imgUrls", event.target.value)
             }),
             React.createElement("div", { className: "piece-hint" },
@@ -135,7 +144,8 @@ const BaseSection = ({ state, dispatch }) => {
                           ? React.createElement("img", {
                               src: safeSrc,
                               alt: (index === 0 ? "基本画像" : "差分 " + index) + "のプレビュー",
-                              loading: "lazy",
+                              loading: index === 0 ? "eager" : "lazy",
+                              fetchPriority: index === 0 ? "high" : "auto",
                               decoding: "async",
                               onError: () => setFailedImageUrls((current) => current.includes(src) ? current : [...current, src])
                             })
