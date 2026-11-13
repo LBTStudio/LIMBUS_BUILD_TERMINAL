@@ -325,6 +325,8 @@ test("SINNER SELECT はアカウント一覧と復旧操作を独立ペインに
     "長い照合結果は保全側の領域だけでスクロールする");
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-rows: minmax\(140px, 1fr\) minmax\(112px,/,
     "狭い画面では上下に並べ、両領域に最低高さを確保する");
+  assert.match(css, /\.acct-panel-accounts > \.acct-grid--manager,[\s\S]*?\.acct-panel-accounts > \.acct-grid--gate \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+    "スマートフォンではアカウントカードを1列表示にする");
   assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-accounts > \.acct-grid--gate"\)/,
     "起動ゲートの監査は分離後の一覧ペインを参照する");
   assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-accounts > \.acct-grid--manager"\)/,
