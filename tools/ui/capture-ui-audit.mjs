@@ -1041,16 +1041,39 @@ async function captureProfile(browser, mode) {
       if(await imageUrls.inputValue()!==artUrl+"\n"+artUrl+"?face=1") throw new Error("立ち絵URL・差分の登録値が保持されません");
       const imagePreviewItems=page.locator(".piece-url-preview-item");
       const imagePreviewStrip=page.locator(".piece-url-preview-list");
+      const featuredImage=page.locator(".piece-url-preview-featured-frame > img");
       await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
       await imagePreviewStrip.evaluate(el=>el.scrollIntoView({block:"center",inline:"nearest",behavior:"instant"}));
       await page.waitForTimeout(80);
-      if(await imagePreviewItems.count()!==2) throw new Error("基本画像と差分のプレビューが2件表示されません");
+      if(await imagePreviewItems.count()!==2) throw new Error("基本画像と差分の選択ボタンが2件表示されません");
+      await featuredImage.waitFor({state:"visible",timeout:5000});
+      const primaryLoaded=await featuredImage.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
+      if(!primaryLoaded || !(await featuredImage.getAttribute("src"))?.endsWith("ccfolia-preview-sample.svg")) {
+        throw new Error("基本画像が大きな選択プレビューに表示されません");
+      }
+      if(await imagePreviewItems.nth(0).getAttribute("aria-pressed")!=="true") {
+        throw new Error("基本画像の選択状態が表示されません");
+      }
       for(let i=0;i<2;i++) {
         const image=imagePreviewItems.nth(i).locator("img");
         await image.waitFor({state:"visible",timeout:5000});
         const loaded=await image.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
-        if(!loaded) throw new Error("駒画像プレビューを読み込めません: "+i);
+        if(!loaded) throw new Error("駒画像の差分サムネイルを読み込めません: "+i);
       }
+      await click(imagePreviewItems.nth(1));
+      if(await imagePreviewItems.nth(1).getAttribute("aria-pressed")!=="true") {
+        throw new Error("差分1を選んでも選択状態が切り替わりません");
+      }
+      await page.waitForFunction(()=> {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && image.getAttribute("src")?.endsWith("?face=1") && image.complete && image.naturalWidth>0;
+      },null,{timeout:5000});
+      await snap("basic-image-preview-face-selected","駒の画像設定：差分を選択し、大きな画像プレビューが差分へ切り替わった状態");
+      await click(imagePreviewItems.nth(0));
+      await page.waitForFunction(()=> {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && image.getAttribute("src")?.endsWith("ccfolia-preview-sample.svg") && image.complete && image.naturalWidth>0;
+      },null,{timeout:5000});
       const imagePreviewNavOverlap=await imagePreviewStrip.evaluate(el=>{
         const strip=el.getBoundingClientRect();
         const nav=document.querySelector(".btype-mobile-bottom-nav");
@@ -1058,8 +1081,8 @@ async function captureProfile(browser, mode) {
         const rect=nav.getBoundingClientRect();
         return Math.max(0,Math.min(strip.bottom,rect.bottom)-Math.max(strip.top,rect.top));
       });
-      if(imagePreviewNavOverlap>2) throw new Error("駒画像のプレビューがスマホ固定ナビに隠れています: "+imagePreviewNavOverlap+"px");
-      await snap("basic-image-preview-loaded","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示");
+      if(imagePreviewNavOverlap>2) throw new Error("駒画像の差分ボタンがスマホ固定ナビに隠れています: "+imagePreviewNavOverlap+"px");
+      await snap("basic-image-preview-loaded","駒の画像設定：基本画像と差分画像を大きく表示し、差分切替も動作");
       for(const selector of [".piece-art-frame",".piece-art-wrap",".piece-art-thumbs",".basic-ccfolia-preview",".btype-workbench-preview-panel",".preview-lines"]) {
         if(await page.locator(selector).count()) throw new Error("格納中の基本画面にプレビュー要素が残っています: "+selector);
       }
