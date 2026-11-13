@@ -381,7 +381,7 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
   assert.ok(cardRule.includes("min-height: 184px;"), "管理画面カードは内容と操作が重ならない高さを持つ");
   const sharedScrollRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid {");
   const managerTrackRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid--manager {");
-  const gateTrackRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid--gate {");
+  const gateTrackRule = css.indexOf(".acct-panel-accounts > .acct-grid--gate {");
   assert.ok(sharedScrollRule >= 0 && managerTrackRule > sharedScrollRule && gateTrackRule > sharedScrollRule,
     "共通スクロール指定の後ろで管理画面・起動ゲートの行トラックを分ける");
   const managerTrack = css.slice(managerTrackRule, css.indexOf("}", managerTrackRule));
