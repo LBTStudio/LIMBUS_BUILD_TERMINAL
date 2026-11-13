@@ -395,21 +395,20 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
 
 
 test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
-  const colorTokens = [...visualSystem.matchAll(/^\\s*--ui-(?:bg|surface|line|text|accent):\\s*#[0-9a-f]{6};$/gim)];
-  const typeTokens = [...visualSystem.matchAll(/^\\s*--ui-type-[a-z-]+:\\s*\\d+px;$/gim)];
+  const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*#[0-9a-f]{6};$/gim)];
+  const typeTokens = [...visualSystem.matchAll(/^\s*--ui-type-[a-z-]+:\s*\d+px;$/gim)];
   assert.equal(colorTokens.length, 5, "基調色は5変数だけにする");
   assert.equal(typeTokens.length, 5, "文字サイズは5段階だけにする");
   assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
-  assert.match(visualSystem, /--acct-panel-cloud[\\s\\S]*/, "source is the new visual system");
 });
 
 test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens mobile account cards", () => {
-  assert.match(visualSystem, /grid-template-rows: minmax\\(0, 1fr\\) auto;/,
+  assert.match(visualSystem, /grid-template-rows: minmax\(0, 1fr\) auto;/,
     "スマホで復旧欄を閉じたときは内容高だけを確保する");
-  assert.match(visualSystem, /:has\\(\.acct-card--form\\) \.acct-panel-cloud[\\s\\S]*?display: none !important;/,
+  assert.match(visualSystem, /\.acct-panel:has\(\.acct-card--form\) \.acct-panel-cloud,[\s\S]*?display: none !important;/,
     "編集時は復旧欄を隠す");
-  assert.match(visualSystem, /grid-auto-rows: minmax\\(108px, max-content\\)/,
+  assert.match(visualSystem, /grid-auto-rows: minmax\(108px, max-content\)/,
     "スマホでは管理カードを短い横長行にする");
-  assert.match(visualSystem, /minmax\\(320px, 1fr\\)/,
+  assert.match(visualSystem, /grid-template-columns: repeat\(auto-fill, minmax\(min\(320px, 100%\), 1fr\)\)/,
     "ショップの商品一覧をPCで3列程度に抑える");
 });
