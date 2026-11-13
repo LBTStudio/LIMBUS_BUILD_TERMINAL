@@ -48,7 +48,7 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /className: "piece-url-preview-featured"/);
   assert.match(sections, /src: selectedImagePreviewUrl/);
   assert.match(sections, /className: "piece-url-preview-list",[\s\S]*?role: "group"/);
-  assert.match(sections, /className: "piece-url-preview-item"[\s\S]*?aria-pressed: selectedImageIndex === index/);
+  assert.match(sections, /className: "piece-url-preview-item"[\s\S]*?"aria-pressed": selectedImageIndex === index/);
   assert.match(sections, /onClick: \(\) => setActiveImageIndex\(index\)/);
   assert.match(sections, /setFailedImageUrls\(\(current\) => current\.includes\(selectedImageUrl\)/);
   assert.match(parityCss, /\.piece-url-preview-featured-frame > img\s*\{[^}]*object-fit: contain/);
