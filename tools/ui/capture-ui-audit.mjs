@@ -1036,16 +1036,17 @@ async function captureProfile(browser, mode) {
       await artDisclosure.waitFor({state:"visible",timeout:5000});
       if(await artDisclosure.evaluate(el=>el.parentElement?.open!==true)) await click(artDisclosure);
       const artUrl="http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg";
+      const faceImageUrls=[artUrl,...Array.from({length:4},(_,index)=>artUrl+"?face="+(index+1))];
       const imageUrls=page.locator("#piece-image-urls");
-      await imageUrls.fill(artUrl+"\n"+artUrl+"?face=1");
-      if(await imageUrls.inputValue()!==artUrl+"\n"+artUrl+"?face=1") throw new Error("立ち絵URL・差分の登録値が保持されません");
+      await imageUrls.fill(faceImageUrls.join("\n"));
+      if(await imageUrls.inputValue()!==faceImageUrls.join("\n")) throw new Error("立ち絵URL・差分の登録値が保持されません");
       const imagePreviewItems=page.locator(".piece-url-preview-item");
       const imagePreviewStrip=page.locator(".piece-url-preview-list");
       const featuredImage=page.locator(".piece-url-preview-featured-frame > img");
       await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
       await imagePreviewStrip.evaluate(el=>el.scrollIntoView({block:"center",inline:"nearest",behavior:"instant"}));
       await page.waitForTimeout(80);
-      if(await imagePreviewItems.count()!==2) throw new Error("基本画像と差分の選択ボタンが2件表示されません");
+      if(await imagePreviewItems.count()!==faceImageUrls.length) throw new Error("登録した5枚すべての駒画像が選択ボタンとして表示されません");
       await featuredImage.waitFor({state:"visible",timeout:5000});
       const primaryLoaded=await featuredImage.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
       if(!primaryLoaded || !(await featuredImage.getAttribute("src"))?.endsWith("ccfolia-preview-sample.svg")) {
@@ -1054,21 +1055,21 @@ async function captureProfile(browser, mode) {
       if(await imagePreviewItems.nth(0).getAttribute("aria-pressed")!=="true") {
         throw new Error("基本画像の選択状態が表示されません");
       }
-      for(let i=0;i<2;i++) {
+      for(let i=0;i<faceImageUrls.length;i++) {
         const image=imagePreviewItems.nth(i).locator("img");
         await image.waitFor({state:"visible",timeout:5000});
         const loaded=await image.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
         if(!loaded) throw new Error("駒画像の差分サムネイルを読み込めません: "+i);
       }
-      await click(imagePreviewItems.nth(1));
-      if(await imagePreviewItems.nth(1).getAttribute("aria-pressed")!=="true") {
-        throw new Error("差分1を選んでも選択状態が切り替わりません");
+      await click(imagePreviewItems.nth(4));
+      if(await imagePreviewItems.nth(4).getAttribute("aria-pressed")!=="true") {
+        throw new Error("5枚目の差分を選んでも選択状態が切り替わりません");
       }
       await page.waitForFunction(()=> {
         const image=document.querySelector(".piece-url-preview-featured-frame > img");
-        return image && image.getAttribute("src")?.endsWith("?face=1") && image.complete && image.naturalWidth>0;
+        return image && image.getAttribute("src")?.endsWith("?face=4") && image.complete && image.naturalWidth>0;
       },null,{timeout:5000});
-      await snap("basic-image-preview-face-selected","駒の画像設定：差分を選択し、大きな画像プレビューが差分へ切り替わった状態");
+      await snap("basic-image-preview-fifth-face-selected","駒の画像設定：5枚目の差分まで選択でき、大きな画像が切り替わる状態");
       await click(imagePreviewItems.nth(0));
       await page.waitForFunction(()=> {
         const image=document.querySelector(".piece-url-preview-featured-frame > img");
