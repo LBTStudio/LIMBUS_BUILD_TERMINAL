@@ -204,6 +204,20 @@ textarea:focus-visible {
   border-color: var(--ui-line);
 }
 
+/* A closed recovery disclosure must not reserve a desktop sidebar. It becomes
+   a slim row under the list; opening it restores the two-column workspace. */
+.acct-panel-layout:has(.acct-panel-cloud > .lbt-cloud-panel:not([open])) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.acct-panel-cloud:has(> .lbt-cloud-panel:not([open])) {
+  max-height: none;
+  padding: 8px 12px;
+  overflow: visible;
+  border-top: 1px solid var(--ui-line);
+  border-left: 0;
+}
+
 /* Editing is a focused task: temporarily remove recovery controls and use the
    entire dialog width for the form and its save/cancel actions. */
 .acct-panel:has(.acct-card--form) .acct-panel-cloud,
