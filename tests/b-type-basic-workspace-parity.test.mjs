@@ -12,7 +12,7 @@ const parityCss = read("../assets/b-type-ui-parity.css");
 const uiAudit = read("../tools/ui/capture-ui-audit.mjs");
 const previewCapture = read("../tools/ui/capture-preview-control-regression.mjs");
 
-test("Basic workspace displays compact URL-backed image previews only inside the expanded image editor", () => {
+test("Basic workspace keeps the pawn image preview visible while the URL editor is collapsed", () => {
   const start = sections.indexOf("const BaseSection =");
   const end = sections.indexOf("const PassiveCard =", start);
   const base = sections.slice(start, end);
@@ -31,8 +31,11 @@ test("Basic workspace displays compact URL-backed image previews only inside the
   assert.ok(base.includes("imgList.map((src, index) => {"), "登録した差分を4枚で打ち切らず、すべて選択できる");
   assert.ok(base.includes("safeImagePreviewUrl(src)"));
   assert.ok(base.includes("onError: () => setFailedImageUrls"));
-  assert.ok(base.indexOf('className: "piece-url-preview-list"') > base.indexOf('className: "piece-image-body"'),
-    "駒画像のプレビューは設定欄を開いたときだけ表示する");
+  const artPanelIndex = base.indexOf('className: "piece-panel piece-art-panel piece-image-settings"');
+  const imagePreviewIndex = base.indexOf('className: "piece-url-preview-list"');
+  const editorDisclosureIndex = base.indexOf('className: "piece-image-details pc-edit"');
+  assert.ok(artPanelIndex >= 0 && imagePreviewIndex > artPanelIndex && imagePreviewIndex < editorDisclosureIndex,
+    "駒画像のプレビューはURL編集を閉じていても画像設定カードに表示する");
   assert.ok(base.includes("URL形式を確認"));
   assert.ok(base.includes("画像を読込めません"));
   assert.ok(base.includes("state.shareImageData"));
