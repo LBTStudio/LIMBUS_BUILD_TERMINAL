@@ -406,3 +406,25 @@ textarea:focus-visible {
   opacity: 1;
   cursor: not-allowed;
 }
+
+/* Accessible blocked/disabled shop actions and keyboard-scrollable enhancement catalog. */
+.shop-card[data-blocked="1"] .btn-primary:not(:disabled) {
+  background-color: var(--ui-accent) !important;
+  background-image: none !important;
+  color: var(--ui-bg) !important;
+  border-color: var(--ui-accent) !important;
+  opacity: 1 !important;
+}
+.btn-primary:disabled,
+.btn:disabled.btn-primary {
+  background-color: var(--ui-surface) !important;
+  background-image: none !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-line) !important;
+  opacity: 1 !important;
+}
+.enhancement-catalog-scroll:focus-visible,
+.spp-item[role="button"]:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
