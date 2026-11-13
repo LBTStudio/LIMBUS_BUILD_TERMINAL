@@ -163,7 +163,7 @@ const BaseSection = ({ state, dispatch }) => {
                       role: "group",
                       "aria-label": "表示する基本画像・差分を選択"
                     },
-                      imgList.slice(0, 4).map((src, index) => {
+                      imgList.map((src, index) => {
                         const safeSrc = safeImagePreviewUrl(src);
                         const failed = !safeSrc || failedImageUrls.includes(src);
                         const label = index === 0 ? "基本画像" : "差分 " + index;
@@ -194,10 +194,7 @@ const BaseSection = ({ state, dispatch }) => {
                           ),
                           React.createElement("span", { className: "piece-url-preview-caption" }, label)
                         );
-                      }),
-                      imgList.length > 4
-                        ? React.createElement("span", { className: "piece-url-preview-more" }, "ほか " + (imgList.length - 4) + " 枚")
-                        : null
+                      })
                     )
                   )
             )
