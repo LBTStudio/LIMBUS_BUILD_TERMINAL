@@ -402,6 +402,15 @@ test("v71 unified visual system uses one five-color palette and one five-step ty
   assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
 });
 
+test("v71 restores visible primary-action fills without reintroducing gradients", () => {
+  assert.match(visualSystem, /\.btn-primary\s*\{[^}]*background-color: var\(--ui-accent\) !important;[^}]*background-image: none !important;[^}]*color: var\(--ui-bg\) !important;/,
+    "主操作はアクセント色のフラットな塗りと背景色に対する文字色を持つ");
+  assert.match(visualSystem, /\.btn:disabled\.btn-primary\s*\{[^}]*background-color: var\(--ui-surface\) !important;[^}]*color: var\(--ui-line\) !important;[^}]*opacity: 1;/,
+    "無効な主操作は暗い面色と境界色で区別し、不透明度で文字を潰さない");
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i,
+    "フラットなビジュアルにグラデーションを再導入しない");
+});
+
 test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens mobile account cards", () => {
   assert.match(visualSystem, /grid-template-rows: minmax\(0, 1fr\) auto;/,
     "スマホで復旧欄を閉じたときは内容高だけを確保する");
