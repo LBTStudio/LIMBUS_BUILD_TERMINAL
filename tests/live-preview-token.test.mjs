@@ -1,13 +1,37 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const preview = read("../js/LivePreview.js");
 const generator = read("../js/generator.js");
+const sections = read("../js/OtherSections.js");
 const css = read("../assets/workspace.css");
 const parityCss = read("../assets/b-type-ui-parity.css");
 const app = read("../js/App.js");
+
+test("駒画像URLは文字列・配列・旧式オブジェクトを共通形式へ正規化する", () => {
+  const helper = generator.match(/function normalizeImageUrls\(value\) \{[\s\S]*?\n\}/)?.[0];
+  assert.ok(helper, "shared image URL normalizer exists");
+  const normalize = vm.runInNewContext("(" + helper.replace(/^function normalizeImageUrls\(value\)/, "function (value)") + ")");
+  assert.deepEqual(Array.from(normalize(" https://img.example/main.png \\r\\nhttps://img.example/face.png ")), [
+    "https://img.example/main.png", "https://img.example/face.png"
+  ]);
+  assert.deepEqual(Array.from(normalize([
+    "https://img.example/main.png",
+    { iconUrl: "https://img.example/face-a.png" },
+    { url: "https://img.example/face-b.png" },
+    { src: "https://img.example/face-c.png" }
+  ])), [
+    "https://img.example/main.png", "https://img.example/face-a.png",
+    "https://img.example/face-b.png", "https://img.example/face-c.png"
+  ]);
+  assert.match(sections, /window\.LBT_gen\?\.normalizeImageUrls\(state\.imgUrls\)/);
+  assert.match(sections, /value: imgUrlsText/);
+  assert.match(generator, /const imgs = normalizeImageUrls\(p\.imgUrls\)/);
+  assert.match(sections, /loading: index === 0 \? "eager" : "lazy"/);
+});
 
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {
   assert.match(preview, /JSON\.parse\(json\)\?\.data/);
