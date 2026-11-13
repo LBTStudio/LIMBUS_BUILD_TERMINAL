@@ -725,10 +725,10 @@ async function boot() {
       audit.accountGateLayout[view] = gateMetrics;
       const phoneGate=view.startsWith("mobile");
       const minimumGateCardHeight=phoneGate?92:152;
-      if(gateMetrics.accountCount < 8 || gateMetrics.gridClientHeight < 220 || gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1
+      if(gateMetrics.accountCount < 8 || gateMetrics.gridClientHeight < 220
         || gateMetrics.minCardHeight < minimumGateCardHeight || !gateMetrics.onlineBackupCollapsed
         || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden"
-        || (phoneGate && (gateMetrics.gridColumnCount!==1 || gateMetrics.panelWidth/gateMetrics.viewportWidth<0.85
+        || (phoneGate && (gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1 || gateMetrics.gridColumnCount!==1 || gateMetrics.panelWidth/gateMetrics.viewportWidth<0.85
           || gateMetrics.documentWidth>gateMetrics.viewportWidth+2 || !gateMetrics.panelInsideViewport || !gateMetrics.cardsFit))) {
         throw new Error("複数アカウントの起動ゲートでスマホ比率／一覧スクロール／カード配置が期待どおりではありません: " + JSON.stringify(gateMetrics));
       }
@@ -1728,10 +1728,11 @@ async function captureProfile(browser, mode) {
       });
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
-      if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
+      if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220
         || managerMetrics.minCardHeight < 180 || managerMetrics.overlappingCardPairs > 0
         || managerMetrics.actionsOutsideCards > 0 || !managerMetrics.onlineBackupCollapsed
-        || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
+        || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden"
+        || (view.startsWith("mobile") && managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1)) {
         throw new Error("複数アカウントの管理画面で一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(managerMetrics));
       }
       const edit=page.locator(".acct-card-actions .acct-edit-btn").first();
