@@ -33,7 +33,11 @@ const BaseSection = ({ state, dispatch }) => {
       .filter(Boolean);
   const imgUrlsText = imgList.join("\n");
   const [failedImageUrls, setFailedImageUrls] = React.useState([]);
-  React.useEffect(() => setFailedImageUrls([]), [state.imgUrls]);
+  const [activeImageIndex, setActiveImageIndex] = React.useState(0);
+  React.useEffect(() => {
+    setFailedImageUrls([]);
+    setActiveImageIndex(0);
+  }, [state.imgUrls]);
   const safeImagePreviewUrl = (value) => {
     let raw = String(value ?? "").trim();
     if (!raw) return "";
@@ -49,6 +53,10 @@ const BaseSection = ({ state, dispatch }) => {
       return "";
     }
   };
+  const selectedImageIndex = imgList.length ? Math.min(activeImageIndex, imgList.length - 1) : 0;
+  const selectedImageUrl = imgList[selectedImageIndex] || "";
+  const selectedImagePreviewUrl = safeImagePreviewUrl(selectedImageUrl);
+  const selectedImageFailed = !selectedImagePreviewUrl || failedImageUrls.includes(selectedImageUrl);
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
   const [editOpen, setEditOpen] = React.useState(false);
@@ -124,43 +132,74 @@ const BaseSection = ({ state, dispatch }) => {
             React.createElement("div", { className: "piece-hint" },
               "画像URLを1行に1枚入力します。1行目が基本画像、2行目以降は表情・差分です。実際のココフォリア画像は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
             ),
-            React.createElement("div", {
-              className: "piece-url-preview-list",
-              role: "list",
-              "aria-label": "登録した駒画像のプレビュー"
-            },
+            React.createElement("div", { className: "piece-url-preview" },
               imgList.length === 0
                 ? React.createElement("div", { className: "piece-url-preview-empty" }, "画像URLを登録すると、ここに基本画像と差分が表示されます。")
-                : imgList.slice(0, 4).map((src, index) => {
-                    const safeSrc = safeImagePreviewUrl(src);
-                    const failed = !safeSrc || failedImageUrls.includes(src);
-                    return React.createElement("figure", {
-                      key: index + ":" + src,
-                      className: "piece-url-preview-item" + (index === 0 ? " is-primary" : ""),
-                      role: "listitem"
-                    },
-                      React.createElement("div", { className: "piece-url-preview-frame" },
-                        safeSrc && !failed
+                : React.createElement(React.Fragment, null,
+                    React.createElement("figure", { className: "piece-url-preview-featured" },
+                      React.createElement("div", { className: "piece-url-preview-featured-frame" },
+                        selectedImagePreviewUrl && !selectedImageFailed
                           ? React.createElement("img", {
-                              src: safeSrc,
-                              alt: (index === 0 ? "基本画像" : "差分 " + index) + "のプレビュー",
-                              loading: index === 0 ? "eager" : "lazy",
-                              fetchPriority: index === 0 ? "high" : "auto",
+                              src: selectedImagePreviewUrl,
+                              alt: (selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex) + "の大きなプレビュー",
+                              loading: "eager",
+                              fetchPriority: "high",
                               decoding: "async",
-                              onError: () => setFailedImageUrls((current) => current.includes(src) ? current : [...current, src])
+                              onError: () => setFailedImageUrls((current) => current.includes(selectedImageUrl) ? current : [...current, selectedImageUrl])
                             })
                           : React.createElement("span", {
                               className: "piece-url-preview-fallback",
                               role: "img",
-                              "aria-label": (index === 0 ? "基本画像" : "差分 " + index) + "を表示できません"
-                            }, failedImageUrls.includes(src) ? "画像を読込めません" : "URL形式を確認")
+                              "aria-label": (selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex) + "を表示できません"
+                            }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認")
                       ),
-                      React.createElement("figcaption", null, index === 0 ? "基本画像" : "差分 " + index)
-                    );
-                  }),
-              imgList.length > 4
-                ? React.createElement("span", { className: "piece-url-preview-more" }, "ほか " + (imgList.length - 4) + " 枚")
-                : null
+                      React.createElement("figcaption", null,
+                        React.createElement("span", null, "表示中"),
+                        React.createElement("strong", null, selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex)
+                      )
+                    ),
+                    React.createElement("div", {
+                      className: "piece-url-preview-list",
+                      role: "group",
+                      "aria-label": "表示する基本画像・差分を選択"
+                    },
+                      imgList.slice(0, 4).map((src, index) => {
+                        const safeSrc = safeImagePreviewUrl(src);
+                        const failed = !safeSrc || failedImageUrls.includes(src);
+                        const label = index === 0 ? "基本画像" : "差分 " + index;
+                        return React.createElement("button", {
+                          key: index + ":" + src,
+                          type: "button",
+                          className: "piece-url-preview-item" + (selectedImageIndex === index ? " is-active" : "") + (index === 0 ? " is-primary" : ""),
+                          "aria-pressed": selectedImageIndex === index,
+                          "aria-label": label + "を大きく表示",
+                          title: label + "をプレビュー",
+                          onClick: () => setActiveImageIndex(index)
+                        },
+                          React.createElement("span", { className: "piece-url-preview-frame" },
+                            safeSrc && !failed
+                              ? React.createElement("img", {
+                                  src: safeSrc,
+                                  alt: "",
+                                  loading: index === selectedImageIndex ? "eager" : "lazy",
+                                  fetchPriority: index === selectedImageIndex ? "high" : "auto",
+                                  decoding: "async",
+                                  onError: () => setFailedImageUrls((current) => current.includes(src) ? current : [...current, src])
+                                })
+                              : React.createElement("span", {
+                                  className: "piece-url-preview-fallback",
+                                  role: "img",
+                                  "aria-label": label + "を表示できません"
+                                }, failedImageUrls.includes(src) ? "読込失敗" : "URL確認")
+                          ),
+                          React.createElement("span", { className: "piece-url-preview-caption" }, label)
+                        );
+                      }),
+                      imgList.length > 4
+                        ? React.createElement("span", { className: "piece-url-preview-more" }, "ほか " + (imgList.length - 4) + " 枚")
+                        : null
+                    )
+                  )
             )
           ),
           React.createElement("div", { className: "piece-share-row" },
