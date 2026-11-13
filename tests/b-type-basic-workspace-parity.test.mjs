@@ -8,6 +8,7 @@ const persona = read("../js/PersonaCodex.js");
 const app = read("../js/App.js");
 const livePreview = read("../js/LivePreview.js");
 const workbench = read("../assets/b-type-workbench.css");
+const parityCss = read("../assets/b-type-ui-parity.css");
 const uiAudit = read("../tools/ui/capture-ui-audit.mjs");
 const previewCapture = read("../tools/ui/capture-preview-control-regression.mjs");
 
