@@ -441,6 +441,20 @@ test("flat UI palette keeps primary and body text above WCAG AA contrast", () =>
     "通常文字と面色のコントラストは4.5:1以上");
 });
 
+test("overlay metadata and resistance badges retain WCAG AA contrast", () => {
+  assert.match(visualSystem, /\.lbt-cloud-panel \.lbt-cloud-state\s*\{[^}]*color: var\(--ui-accent\) !important;[^}]*opacity: 1 !important;/,
+    "ローカル保存状態は背景面に対して読めるアクセント色で表示する");
+  assert.match(visualSystem, /\.acct-card \.acct-meta\s*\{[^}]*color: var\(--ui-text\) !important;[^}]*opacity: 1 !important;/,
+    "アカウントの最終更新表示を薄くしすぎない");
+  for (const level of ["弱点", "耐性"]) {
+    assert.ok(visualSystem.includes('.res-dot[data-res="' + level + '"]'), level + " badge override exists");
+  }
+  assert.match(visualSystem, /\.res-dot\[data-res="弱点"\],[\s\S]*?\.res-dot\[data-res="耐性"\]\s*\{[^}]*color: var\(--ui-bg\) !important;[^}]*text-shadow: none !important;/,
+    "明るい耐性バッジは濃い文字にし、情報を読める状態にする");
+  assert.match(visualSystem, /\.res-dot\[data-res="弱点"\]::before,[\s\S]*?\.res-dot\[data-res="耐性"\]::before\s*\{[^}]*color: var\(--ui-bg\) !important;/,
+    "属性記号も本文と同じ高コントラストを維持する");
+});
+
 test("blocked shop actions and enhancement catalog meet accessibility interaction requirements", () => {
   assert.match(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-image: none !important;[\s\S]*?color: var\(--ui-bg\) !important;[\s\S]*?opacity: 1 !important;/,
     "残高不足カードの購入理由ボタンは不透明なフラット塗りで十分なコントラストを保つ");
