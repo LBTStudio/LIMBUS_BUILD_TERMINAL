@@ -38,8 +38,8 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
   assert.ok(sections.includes("const markdownImage = raw.match(/^!?\\[[^\\]]*\\]\\((.+)\\)$/);"));
   assert.ok(sections.includes('raw = raw.replace(/&amp;/gi, "&")'));
   assert.ok(generator.includes("const imgs = normalizeImageUrls(p.imgUrls)"));
-  assert.ok(sections.includes('loading: index === 0 ? "eager" : "lazy"'));
-  assert.ok(sections.includes('fetchPriority: index === 0 ? "high" : "auto"'));
+  assert.ok(sections.includes('loading: index === selectedImageIndex ? "eager" : "lazy"'));
+  assert.ok(sections.includes('fetchPriority: index === selectedImageIndex ? "high" : "auto"'));
 });
 
 test("駒画像設定は選択した基本画像・差分を大きく表示し、差分ボタンで切り替える", () => {
@@ -47,6 +47,7 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /setActiveImageIndex\(0\)/);
   assert.match(sections, /className: "piece-url-preview-featured"/);
   assert.match(sections, /src: selectedImagePreviewUrl/);
+  assert.match(sections, /loading: "eager"[\\s\\S]*?fetchPriority: "high"/);
   assert.match(sections, /className: "piece-url-preview-list",[\s\S]*?role: "group"/);
   assert.match(sections, /className: "piece-url-preview-item"[\s\S]*?"aria-pressed": selectedImageIndex === index/);
   assert.match(sections, /onClick: \(\) => setActiveImageIndex\(index\)/);
