@@ -402,6 +402,27 @@ test("v71 unified visual system uses one five-color palette and one five-step ty
   assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
 });
 
+test("flat UI palette keeps primary and body text above WCAG AA contrast", () => {
+  const token = (name) => {
+    const match = visualSystem.match(new RegExp("^\\s*--ui-" + name + ":\\s*(#[0-9a-f]{6});", "im"));
+    assert.ok(match, "基調色トークンが存在する: " + name);
+    return match[1];
+  };
+  const luminance = (hex) => {
+    const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
+      .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const contrast = (a, b) => {
+    const values = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (values[0] + 0.05) / (values[1] + 0.05);
+  };
+  assert.ok(contrast(token("accent"), token("bg")) >= 4.5,
+    "主操作の真鍮色と文字背景のコントラストは4.5:1以上");
+  assert.ok(contrast(token("text"), token("surface")) >= 4.5,
+    "通常文字と面色のコントラストは4.5:1以上");
+});
+
 test("blocked shop actions and enhancement catalog meet accessibility interaction requirements", () => {
   assert.match(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-image: none !important;[\s\S]*?color: var\(--ui-bg\) !important;[\s\S]*?opacity: 1 !important;/,
     "残高不足カードの購入理由ボタンは不透明なフラット塗りで十分なコントラストを保つ");
