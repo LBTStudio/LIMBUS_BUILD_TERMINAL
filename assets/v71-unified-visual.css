@@ -383,6 +383,38 @@ textarea:focus-visible {
   }
 }
 
+
+/* Flatten legacy workbench surfaces as well: the theme must not retain older
+   decorative gradients through component styles loaded before v71. Functional
+   CCFOLIA board grid lines and the dedicated extraction FX are content visuals,
+   so they remain separate from ordinary UI surfaces. */
+:where(
+  .focus, .topbar, .rail, .rail-item.is-active, .preview, .pv-sec-head,
+  .chip, .chip.is-active, .deck-thumb, .deck-thumb.is-active, .deck-focus,
+  .deck-card.deck-focus, .detail-actions, .ego-quick-actions,
+  .equipped-summary, .es-badge-sync, .codex-modes button.is-active,
+  .p-card, .detail-head, .spp-item.is-active, .spirit-item.is-active,
+  .share-modal, .share-opt, .focus-preview-toggle, .deck-focus-readonly,
+  .guide-intro, .roster-detail, .utility-sheet-action, .item-codex-intro,
+  .home-hero, .btype-command-hero, .btype-record-task-card,
+  .btype-shop-entry, .btype-help-entry, .btype-shop-category-card,
+  .build-context-strip, .build-tabs.is-b-workbench,
+  .pc-portrait, .pc-identity, .pc-edit, .pc-token-preview,
+  .build-params-preview, .piece-panel, .settings-major, .piece-output-shell,
+  .piece-preview-tab.active, .piece-board-inspector, .piece-sheet-mock,
+  .piece-board-token-ring, .piece-board-avatar, .piece-board-nameplate,
+  .ego-quick-detail, .persona-draft-dialog, main.acct-gate
+) {
+  background-image: none !important;
+}
+:where(
+  .p-card[data-mode="tokui"]::before,
+  .equipped-summary::before,
+  .persona-save-primary::before
+) {
+  background-image: none !important;
+}
+
 /* Primary actions stay filled in the flat theme. The earlier blanket removal of
    gradient images also removed the only fill of legacy .btn-primary controls. */
 .btn-primary {
