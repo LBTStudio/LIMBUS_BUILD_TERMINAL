@@ -409,25 +409,39 @@ test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens
     "編集時は復旧欄を隠す");
   assert.match(visualSystem, /grid-auto-rows: minmax\(108px, max-content\)/,
     "スマホでは管理カードを短い横長行にする");
-  assert.match(visualSystem, /grid-template-columns: repeat\(auto-fill, minmax\(min\(320px, 100%\), 1fr\)\)/,
+  assert.ok(visualSystem.includes("grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));"),
     "ショップの商品一覧をPCで3列程度に抑える");
-  assert.match(visualSystem, /\.acct-panel-layout:has\(\.acct-panel-cloud > \.lbt-cloud-panel:not\(\[open\]\)\)[\\s\\S]*?grid-template-columns: minmax\\(0, 1fr\\);/,
+
+  const closedLayoutStart = visualSystem.indexOf(".acct-panel-layout:has(.acct-panel-cloud > .lbt-cloud-panel:not([open]))");
+  const closedLayoutEnd = visualSystem.indexOf("\n}", closedLayoutStart);
+  const closedLayout = visualSystem.slice(closedLayoutStart, closedLayoutEnd);
+  assert.ok(closedLayoutStart >= 0 && closedLayout.includes("grid-template-columns: minmax(0, 1fr);"),
     "復旧欄を閉じたPC画面では右側に空き列を残さない");
-  assert.match(visualSystem, /\.acct-panel-cloud:has\(> \.lbt-cloud-panel:not\(\[open\]\)\)[\\s\\S]*?border-top: 1px solid var\\(--ui-line\\);/,
+
+  const closedCloudStart = visualSystem.indexOf(".acct-panel-cloud:has(> .lbt-cloud-panel:not([open]))");
+  const closedCloudEnd = visualSystem.indexOf("\n}", closedCloudStart);
+  const closedCloud = visualSystem.slice(closedCloudStart, closedCloudEnd);
+  assert.ok(closedCloudStart >= 0 && closedCloud.includes("max-height: 60px;"),
+    "閉じた復旧欄の高さを60pxに制限する");
+  assert.ok(closedCloud.includes("border-top: 1px solid var(--ui-line);"),
     "折りたたまれた復旧欄は一覧の下に細い行として置く");
 
-  assert.match(visualSystem, /\.acct-panel-cloud:has\(> \.lbt-cloud-panel:not\(\[open\]\)\)[\\s\\S]*?max-height: 60px;/,
-    "閉じた復旧欄の高さを60pxに制限する");
-  assert.match(visualSystem, /\.lbt-cloud-panel\.is-compact:not\(\[open\]\) \{[\\s\\S]*?margin: 0;[\\s\\S]*?padding: 0;/,
+  const compactPanelStart = visualSystem.indexOf(".acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) {");
+  const compactPanelEnd = visualSystem.indexOf("\n}", compactPanelStart);
+  const compactPanel = visualSystem.slice(compactPanelStart, compactPanelEnd);
+  assert.ok(compactPanelStart >= 0 && compactPanel.includes("margin: 0;") && compactPanel.includes("padding: 0;"),
     "カード本体の余白を折りたたみ時に重ねない");
-  assert.match(visualSystem, /\.lbt-cloud-heading \{[\\s\\S]*?flex-direction: row;[\\s\\S]*?flex-wrap: nowrap;/,
+
+  const headingStart = visualSystem.indexOf(".acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-heading {");
+  const headingEnd = visualSystem.indexOf("\n}", headingStart);
+  const heading = visualSystem.slice(headingStart, headingEnd);
+  assert.ok(headingStart >= 0 && heading.includes("flex-direction: row;") && heading.includes("flex-wrap: nowrap;"),
     "復旧欄のタイトルと保存状態を1行に収める");
 
-  assert.match(visualSystem, /grid-template-columns: repeat\\(auto-fill, minmax\\(min\\(260px, 100%\\), 1fr\\)\\)/,
+  assert.ok(visualSystem.includes("grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));"),
     "PCのアカウント一覧は3列程度にして名前を読める幅を確保する");
-  assert.match(visualSystem, /--gold-tint: var\\(--ui-surface\\);/,
+  assert.ok(visualSystem.includes("--gold-tint: var(--ui-surface);"),
     "アクセント文字の背景は文字と同色にしない");
-  assert.match(visualSystem, /--gold-line: var\\(--ui-line\\);/,
+  assert.ok(visualSystem.includes("--gold-line: var(--ui-line);"),
     "アクセント文字と境界線を別の役割にする");
-
-});
+});;
