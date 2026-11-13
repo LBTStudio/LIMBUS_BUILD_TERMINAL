@@ -2084,6 +2084,11 @@ main.acct-gate {
     grid-template-rows: minmax(140px, 1fr) minmax(112px, min(34vh, 260px));
   }
 
+  .acct-panel-accounts > .acct-grid--manager,
+  .acct-panel-accounts > .acct-grid--gate {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .acct-panel-cloud {
     padding: var(--s-2) var(--s-3);
     border-top: 1px solid var(--line-dim);
