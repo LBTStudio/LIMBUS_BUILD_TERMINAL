@@ -21,7 +21,12 @@ test("Basic workspace displays compact URL-backed image previews only inside the
   assert.ok(base.includes("state.imgUrls"));
   assert.ok(base.includes("imgList.length"));
   assert.ok(base.includes('className: "piece-url-preview-list"'));
-  assert.ok(base.includes('role: "list"'));
+  assert.ok(base.includes('role: "group"'));
+  assert.ok(base.includes('"aria-label": "表示する基本画像・差分を選択"'));
+  assert.ok(base.includes('className: "piece-url-preview-featured"'));
+  assert.ok(base.includes('className: "piece-url-preview-featured-frame"'));
+  assert.ok(base.includes('"aria-pressed": selectedImageIndex === index'));
+  assert.ok(base.includes("onClick: () => setActiveImageIndex(index)"));
   assert.ok(base.includes("imgList.slice(0, 4)"));
   assert.ok(base.includes("safeImagePreviewUrl(src)"));
   assert.ok(base.includes("onError: () => setFailedImageUrls"));
