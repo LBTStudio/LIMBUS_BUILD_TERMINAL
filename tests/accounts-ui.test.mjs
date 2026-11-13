@@ -423,4 +423,11 @@ test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens
   assert.match(visualSystem, /\.lbt-cloud-heading \{[\\s\\S]*?flex-direction: row;[\\s\\S]*?flex-wrap: nowrap;/,
     "復旧欄のタイトルと保存状態を1行に収める");
 
+  assert.match(visualSystem, /grid-template-columns: repeat\\(auto-fill, minmax\\(min\\(260px, 100%\\), 1fr\\)\\)/,
+    "PCのアカウント一覧は3列程度にして名前を読める幅を確保する");
+  assert.match(visualSystem, /--gold-tint: var\\(--ui-surface\\);/,
+    "アクセント文字の背景は文字と同色にしない");
+  assert.match(visualSystem, /--gold-line: var\\(--ui-line\\);/,
+    "アクセント文字と境界線を別の役割にする");
+
 });
