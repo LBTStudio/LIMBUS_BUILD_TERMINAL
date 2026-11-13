@@ -15,7 +15,7 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
   const helper = generator.match(/function normalizeImageUrls\(value\) \{[\s\S]*?\n\}/)?.[0];
   assert.ok(helper, "shared image URL normalizer exists");
   const normalize = vm.runInNewContext("(" + helper.replace(/^function normalizeImageUrls\(value\)/, "function (value)") + ")");
-  assert.deepEqual(Array.from(normalize(" https://img.example/main.png \\r\\nhttps://img.example/face.png ")), [
+  assert.deepEqual(Array.from(normalize(" https://img.example/main.png \r\nhttps://img.example/face.png ")), [
     "https://img.example/main.png", "https://img.example/face.png"
   ]);
   assert.deepEqual(Array.from(normalize([
