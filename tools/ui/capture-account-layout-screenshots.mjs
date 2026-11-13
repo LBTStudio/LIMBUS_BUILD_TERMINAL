@@ -69,8 +69,12 @@ function startServer() {
 async function prepare(page) {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => {
-    if (message.type() === "error") errors.push(message.text());
+  page.on("response", response => {
+    const url = new URL(response.url());
+    const ignorable = ["/favicon.ico", "/robots.txt"].includes(url.pathname);
+    if (response.status() >= 400 && !ignorable) {
+      errors.push("http " + response.status() + ": " + url.pathname);
+    }
   });
   await page.route("**/*", async route => {
     const url = route.request().url();
