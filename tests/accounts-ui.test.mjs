@@ -27,6 +27,7 @@ const cloudPanelSource = readFileSync(new URL("../js/cloud-backup.js", import.me
 const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
 const accountsUiSource = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const uiAuditSource = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
   assert.doesNotMatch(ui, /prompt\(/, "prompt は入力のために文脈を消すので使わない");
@@ -324,6 +325,14 @@ test("SINNER SELECT はアカウント一覧と復旧操作を独立ペインに
     "長い照合結果は保全側の領域だけでスクロールする");
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-rows: minmax\(140px, 1fr\) minmax\(112px,/,
     "狭い画面では上下に並べ、両領域に最低高さを確保する");
+  assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-accounts > \.acct-grid--gate"\)/,
+    "起動ゲートの監査は分離後の一覧ペインを参照する");
+  assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-accounts > \.acct-grid--manager"\)/,
+    "管理画面の監査は分離後の一覧ペインを参照する");
+  assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-cloud > details\.lbt-cloud-panel"\)/,
+    "保全パネルの折りたたみ状態を新しいペイン内で確認する");
+  assert.doesNotMatch(uiAuditSource, /:scope > \.acct-grid|:scope > (?:details\.)?lbt-cloud-panel|\.acct-panel > \.acct-grid/,
+    "監査側に旧DOM構造の直下参照を残さない");
 });
 
 test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
