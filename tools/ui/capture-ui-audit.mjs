@@ -633,7 +633,7 @@ async function boot() {
     await snap("account-gate-initial","起動時のSINNER SELECT");
     const initialGateLayout=await page.evaluate(()=>{
       const panel=document.querySelector(".acct-gate-panel");
-      const grid=panel?.querySelector(":scope > .acct-grid");
+      const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--gate");
       const panelRect=panel?.getBoundingClientRect();
       const cardCount=grid?.querySelectorAll(".acct-card--gate").length||0;
       return {
@@ -693,7 +693,7 @@ async function boot() {
       const gateMetrics = await page.evaluate(() => {
         const root=document.querySelector("main.acct-gate");
         const panel=root?.querySelector(".acct-gate-panel");
-        const grid=panel?.querySelector(":scope > .acct-grid");
+        const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--gate");
         const cards=grid ? [...grid.querySelectorAll(".acct-card--gate")] : [];
         const heights=cards.map(card=>card.getBoundingClientRect().height).filter(Number.isFinite);
         const panelRect=panel?.getBoundingClientRect();
@@ -716,7 +716,7 @@ async function boot() {
           panelWidth:panel?.clientWidth||0,
           panelInsideViewport:!!panelRect && panelRect.left>=-1 && panelRect.right<=innerWidth+1 && panelRect.top>=-1 && panelRect.bottom<=innerHeight+1,
           cardsFit,
-          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
+          onlineBackupCollapsed:panel?.querySelector(".acct-panel-cloud > details.lbt-cloud-panel")?.open === false,
           gridOverflowY:gridStyle?.overflowY||"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
         };
@@ -1694,7 +1694,7 @@ async function captureProfile(browser, mode) {
       await page.waitForTimeout(250); await snap("account-management-list","アカウント管理の一覧");
       const managerMetrics = await page.evaluate(() => {
         const panel=document.querySelector(".acct-panel");
-        const grid=panel?.querySelector(":scope > .acct-grid");
+        const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--manager");
         const cards=grid ? [...grid.querySelectorAll(".acct-card:not(.acct-card--add)")] : [];
         const cardRects=cards.map(card=>{
           const r=card.getBoundingClientRect();
@@ -1721,7 +1721,7 @@ async function captureProfile(browser, mode) {
           minCardHeight:heights.length?Math.min(...heights):0,
           overlappingCardPairs,
           actionsOutsideCards:actionBounds.filter(within=>!within).length,
-          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
+          onlineBackupCollapsed:panel?.querySelector(".acct-panel-cloud > details.lbt-cloud-panel")?.open === false,
           gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
         };
@@ -1739,10 +1739,10 @@ async function captureProfile(browser, mode) {
         await click(edit); await snap("account-edit-form","アカウント編集フォーム");
         const editorMetrics = await page.evaluate(() => {
           const panel=document.querySelector(".acct-panel");
-          const grid=panel?.querySelector(":scope > .acct-grid");
+          const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--manager");
           const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
           const button=editor?.querySelector(".acct-import-toggle");
-          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
+          const backup=panel?.querySelector(".acct-panel-cloud > .lbt-cloud-panel");
           const backupHidden=!backup || getComputedStyle(backup).display==="none";
           const rect=(node)=>node?node.getBoundingClientRect():null;
           const er=rect(editor), br=rect(button), gr=rect(grid);
@@ -1777,7 +1777,7 @@ async function captureProfile(browser, mode) {
         const actions=editor.locator(".acct-form-actions").first();
         await actions.scrollIntoViewIfNeeded();
         const actionGeometry=await page.evaluate(()=>{
-          const grid=document.querySelector(".acct-panel > .acct-grid");
+          const grid=document.querySelector(".acct-panel .acct-panel-accounts > .acct-grid--manager");
           const actions=grid?.querySelector(".acct-form-actions");
           const r=actions?.getBoundingClientRect();
           const g=grid?.getBoundingClientRect();
@@ -1798,13 +1798,13 @@ async function captureProfile(browser, mode) {
         }
         await snap("account-edit-actions-visible","編集フォーム末尾の保存／キャンセルをスクロールして表示");
         await click(actions.getByRole("button",{name:"キャンセル",exact:true}));
-        await page.waitForFunction(()=>!document.querySelector(".acct-panel > .acct-grid.is-editing"),null,{timeout:3000});
+        await page.waitForFunction(()=>!document.querySelector(".acct-panel .acct-panel-accounts > .acct-grid--manager.is-editing"),null,{timeout:3000});
         const restore=await page.evaluate(()=>{
           const panel=document.querySelector(".acct-panel");
-          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
+          const backup=panel?.querySelector(".acct-panel-cloud > .lbt-cloud-panel");
           const r=backup?.getBoundingClientRect();
           return {backupVisible:!!backup&&getComputedStyle(backup).display!=="none"&&!!r&&r.width>0&&r.height>0,
-            formRemaining:!!panel?.querySelector(":scope > .acct-grid.is-editing")};
+            formRemaining:!!panel?.querySelector(".acct-panel-accounts > .acct-grid--manager.is-editing")};
         });
         if(!restore.backupVisible || restore.formRemaining){
           throw new Error("編集キャンセル後に一覧／オンライン保全欄へ戻りません: "+JSON.stringify(restore));
