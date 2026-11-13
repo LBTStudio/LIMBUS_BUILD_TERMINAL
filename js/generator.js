@@ -7,7 +7,11 @@ function normalizeImageUrls(value) {
   const seen = new Set();
   const addText = (text) => {
     String(text ?? "").split(/\r\n|\r|\n/).forEach((line) => {
-      const url = line.trim();
+      let url = line.trim();
+      if (url.startsWith("<") && url.endsWith(">")) url = url.slice(1, -1).trim();
+      const markdownImage = url.match(/^!?\[[^\]]*\]\((.+)\)$/);
+      if (markdownImage) url = markdownImage[1].trim().replace(/^<|>$/g, "");
+      url = url.replace(/&amp;/gi, "&");
       if (url && !seen.has(url)) {
         seen.add(url);
         urls.push(url);
