@@ -24,28 +24,28 @@
   --line-hot: var(--ui-accent);
 
   --tx: var(--ui-text);
-  --tx-2: var(--ui-text);
-  --tx-dim: var(--ui-text);
-  --tx-mute: var(--ui-text);
+  --tx-2: color-mix(in srgb, var(--ui-text) 86%, var(--ui-bg));
+  --tx-dim: color-mix(in srgb, var(--ui-text) 72%, var(--ui-bg));
+  --tx-mute: color-mix(in srgb, var(--ui-text) 64%, var(--ui-bg));
   --tx-inv: var(--ui-bg);
 
   --gold: var(--ui-accent);
   --gold-hi: var(--ui-accent);
   --gold-lo: var(--ui-accent);
-  --gold-line: var(--ui-accent);
-  --gold-glow: var(--ui-accent);
-  --gold-tint: var(--ui-accent);
+  --gold-line: var(--ui-line);
+  --gold-glow: var(--ui-surface);
+  --gold-tint: var(--ui-surface);
 
   --accent: var(--ui-accent);
   --accent-hi: var(--ui-accent);
   --accent-lo: var(--ui-accent);
-  --accent-line: var(--ui-accent);
-  --accent-glow: var(--ui-accent);
-  --accent-tint: var(--ui-accent);
+  --accent-line: var(--ui-line);
+  --accent-glow: var(--ui-surface);
+  --accent-tint: var(--ui-surface);
   --amber: var(--ui-accent);
   --amber-hi: var(--ui-accent);
-  --amber-glow: var(--ui-accent);
-  --amber-tint: var(--ui-accent);
+  --amber-glow: var(--ui-surface);
+  --amber-tint: var(--ui-surface);
   --err: var(--ui-accent);
   --err-ink: var(--ui-accent);
   --ok: var(--ui-accent);
@@ -56,9 +56,9 @@
   --clock-ring: var(--ui-accent);
   --neon: var(--ui-accent);
   --neon-hi: var(--ui-accent);
-  --neon-glow: var(--ui-accent);
-  --neon-tint: var(--ui-accent);
-  --neon-line: var(--ui-accent);
+  --neon-glow: var(--ui-surface);
+  --neon-tint: var(--ui-surface);
+  --neon-line: var(--ui-line);
 
   /* Data remains identifiable by its labels; color is no longer carrying
      multiple competing meanings. */
@@ -191,7 +191,7 @@ textarea:focus-visible {
   grid-template-columns: minmax(0, 1fr) 320px;
 }
 .acct-panel-accounts > .acct-grid--manager {
-  grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   grid-auto-rows: minmax(160px, max-content);
   gap: 12px;
 }
