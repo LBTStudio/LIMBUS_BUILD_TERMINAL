@@ -2078,7 +2078,6 @@ const EnhancementSection = ({ state, dispatch }) => {
           className: "spp-item",
           role: "button",
           tabIndex: 0,
-          "aria-label": `${entry.name}を強化候補に追加`,
           onClick: () => addEnh(entry),
           onKeyDown: (event) => {
             if (event.key === "Enter" || event.key === " ") {
