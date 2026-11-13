@@ -18,6 +18,12 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
   assert.deepEqual(Array.from(normalize(" https://img.example/main.png \r\nhttps://img.example/face.png ")), [
     "https://img.example/main.png", "https://img.example/face.png"
   ]);
+  assert.deepEqual(Array.from(normalize("![face](<https://img.example/face.png?x=1&amp;y=2>)")), [
+    "https://img.example/face.png?x=1&y=2"
+  ]);
+  assert.deepEqual(Array.from(normalize("<https://img.example/angle.png>")), [
+    "https://img.example/angle.png"
+  ]);
   assert.deepEqual(Array.from(normalize([
     "https://img.example/main.png",
     { iconUrl: "https://img.example/face-a.png" },
