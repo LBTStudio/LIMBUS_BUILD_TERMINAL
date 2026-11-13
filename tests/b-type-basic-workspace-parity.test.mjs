@@ -11,7 +11,7 @@ const workbench = read("../assets/b-type-workbench.css");
 const uiAudit = read("../tools/ui/capture-ui-audit.mjs");
 const previewCapture = read("../tools/ui/capture-preview-control-regression.mjs");
 
-test("Basic workspace retains image registration but has no permanent portrait preview", () => {
+test("Basic workspace displays compact URL-backed image previews only inside the expanded image editor", () => {
   const start = sections.indexOf("const BaseSection =");
   const end = sections.indexOf("const PassiveCard =", start);
   const base = sections.slice(start, end);
@@ -20,6 +20,15 @@ test("Basic workspace retains image registration but has no permanent portrait p
   assert.ok(base.includes('id: "piece-image-urls"'));
   assert.ok(base.includes("state.imgUrls"));
   assert.ok(base.includes("imgList.length"));
+  assert.ok(base.includes('className: "piece-url-preview-list"'));
+  assert.ok(base.includes('role: "list"'));
+  assert.ok(base.includes("imgList.slice(0, 4)"));
+  assert.ok(base.includes("safeImagePreviewUrl(src)"));
+  assert.ok(base.includes("onError: () => setFailedImageUrls"));
+  assert.ok(base.indexOf('className: "piece-url-preview-list"') > base.indexOf('className: "piece-image-body"'),
+    "駒画像のプレビューは設定欄を開いたときだけ表示する");
+  assert.ok(base.includes("URL形式を確認"));
+  assert.ok(base.includes("画像を読込めません"));
   assert.ok(base.includes("state.shareImageData"));
   for (const forbidden of ["piece-art-wrap", "piece-art-frame", "piece-art-thumbs", "piece-art-zoom", "activeImg", "imgZoom", "imgTab", "画像を確認"]) {
     assert.ok(!base.includes(forbidden), "Basic workspace must not render " + forbidden);
