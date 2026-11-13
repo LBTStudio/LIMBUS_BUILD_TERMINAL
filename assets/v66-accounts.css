@@ -421,7 +421,7 @@
    通常時は従来の複数列グリッドへ戻す。スクロール領域は acct-grid のまま維持する。 */
 
 /* 管理画面カードは最終更新と編集・削除操作を同じカード内に収める。 */
-.acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) {
   min-height: 184px;
 }
 
@@ -1997,26 +1997,56 @@ main.acct-gate {
   }
 }
 
-/* ---- SINNER SELECT: アカウント一覧を独立したスクロール領域にする ----
-   panel は viewport 内の高さを守り、header / backup / footer を固定。
-   一覧だけを縮めて内部スクロールさせ、カード自体は 156px 未満にしない。 */
+/* ---- SINNER SELECT: アカウント一覧と復旧パネルを独立ペイン化 ----
+   復旧キー入力・比較結果の展開でアカウント一覧の高さを奪わない。
+   一覧と保全ペインは各自でスクロールし、親パネルは見出し・フッターを固定する。 */
 .acct-panel,
 .acct-gate-panel {
   min-height: 0;
   overflow: hidden;
 }
 
+.acct-panel {
+  width: min(1040px, 100%);
+  max-height: min(92vh, 860px);
+  max-height: min(92dvh, 860px);
+}
+
+.acct-gate-panel {
+  width: min(1040px, 100%);
+  max-height: min(92vh, 860px);
+  max-height: min(92dvh, 860px);
+}
+
 .acct-panel > .acct-panel-head,
 .acct-panel > .acct-panel-foot,
 .acct-gate-panel > .acct-panel-head,
-.acct-gate-panel > .acct-panel-foot,
-.acct-panel > .acct-empty,
-.acct-gate-panel > .acct-empty {
+.acct-gate-panel > .acct-panel-foot {
   flex: 0 0 auto;
 }
 
-.acct-panel > .acct-grid,
-.acct-gate-panel > .acct-grid {
+.acct-panel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.acct-panel-accounts {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.acct-panel-accounts > .acct-empty {
+  flex: 0 0 auto;
+}
+
+.acct-panel-accounts > .acct-grid {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -2025,15 +2055,40 @@ main.acct-gate {
   align-content: start;
 }
 
-/* 管理画面のカード本体（min-height:184px）と行トラックを一致させる。
-   共通スクロール指定の後に明示し、行トラックだけが156pxへ戻る回帰を防ぐ。 */
-.acct-panel > .acct-grid {
+.acct-panel-accounts > .acct-grid--manager {
   grid-auto-rows: minmax(184px, max-content);
 }
 
-/* 起動時ゲートは従来どおり156px以上のカードを保ち、一覧内をスクロールする。 */
-.acct-gate-panel > .acct-grid {
+.acct-panel-accounts > .acct-grid--gate {
   grid-auto-rows: minmax(156px, max-content);
+}
+
+.acct-panel-cloud {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-3);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-left: 1px solid var(--line-dim);
+  background: var(--surface-0);
+}
+
+.acct-panel-cloud > .lbt-cloud-panel.is-compact {
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .acct-panel-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(140px, 1fr) minmax(112px, min(34vh, 260px));
+  }
+
+  .acct-panel-cloud {
+    padding: var(--s-2) var(--s-3);
+    border-top: 1px solid var(--line-dim);
+    border-left: 0;
+  }
 }
 
 }
