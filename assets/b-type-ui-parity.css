@@ -1160,3 +1160,11 @@
     min-height: 150px;
   }
 }
+
+/* The current pawn art belongs in the visible image card, not inside the URL editor disclosure. */
+@layer v71-btype-parity {
+  .base-info-panel .piece-art-preview-live {
+    min-width: 0;
+    margin-top: 12px;
+  }
+}
