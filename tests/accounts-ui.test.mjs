@@ -402,6 +402,24 @@ test("v71 unified visual system uses one five-color palette and one five-step ty
   assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
 });
 
+test("v71 removes legacy gradients from ordinary workbench surfaces", () => {
+  const start = visualSystem.indexOf("/* Flatten legacy workbench surfaces");
+  const end = visualSystem.indexOf("/* Primary actions stay filled in the flat theme.", start);
+  assert.ok(start >= 0 && end > start, "旧UI面をフラット化する正規化ブロックが存在する");
+  const block = visualSystem.slice(start, end);
+  for (const selector of [
+    ".focus", ".topbar", ".rail", ".preview", ".chip", ".p-card",
+    ".spirit-item.is-active", ".btype-command-hero", ".btype-record-task-card",
+    ".build-context-strip", ".piece-output-shell", ".persona-draft-dialog"
+  ]) {
+    assert.ok(block.includes(selector), "旧グラデーション面をフラット化する: " + selector);
+  }
+  assert.match(block, /background-image: none !important;/,
+    "旧コンポーネントの装飾グラデーションを上書きで除去する");
+  assert.match(block, /Functional[\s\S]*?CCFOLIA board grid lines[\s\S]*?dedicated extraction FX/,
+    "盤面罫線と抽出演出という機能表示は意図的に別扱いとする");
+});
+
 test("flat UI palette keeps primary and body text above WCAG AA contrast", () => {
   const token = (name) => {
     const match = visualSystem.match(new RegExp("^\\s*--ui-" + name + ":\\s*(#[0-9a-f]{6});", "im"));
