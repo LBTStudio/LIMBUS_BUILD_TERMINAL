@@ -46,6 +46,12 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /const \[activeImageIndex, setActiveImageIndex\] = React\.useState\(0\)/);
   assert.match(sections, /setActiveImageIndex\(0\)/);
   assert.match(sections, /className: "piece-url-preview-featured"/);
+  const visibleArtPanelIndex = sections.indexOf('className: "piece-art-panel piece-image-settings"');
+  const livePreviewIndex = sections.indexOf('className: "piece-url-preview"');
+  const editorDisclosureIndex = sections.indexOf('className: "piece-image-details pc-edit"');
+  assert.ok(visibleArtPanelIndex >= 0 && livePreviewIndex > visibleArtPanelIndex && livePreviewIndex < editorDisclosureIndex,
+    "駒の画像と差分選択はURL編集の折りたたみを閉じていても画像設定カード内に表示する");
+  assert.match(parityCss, /\.base-info-panel \.piece-art-preview-live\s*\{[^}]*margin-top: 12px/);
   assert.match(sections, /src: selectedImagePreviewUrl/);
   assert.ok(sections.includes('loading: "eager"') && sections.includes('fetchPriority: "high"'));
   assert.match(sections, /className: "piece-url-preview-list",[\s\S]*?role: "group"/);
