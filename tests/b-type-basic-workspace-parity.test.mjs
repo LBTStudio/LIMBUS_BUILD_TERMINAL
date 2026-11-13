@@ -113,10 +113,22 @@ test("closing the preview removes the only preview panel and leaves only its reo
   assert.ok(uiAudit.includes("basic-workspace-preview-collapsed"));
   assert.ok(uiAudit.includes('snap("basic-image-preview-loaded"'));
   assert.ok(uiAudit.includes("naturalWidth>0"));
-  assert.ok(uiAudit.includes('scrollIntoView({block:"center",inline:"nearest",behavior:"instant"})'));
+  assert.ok(uiAudit.includes("stickyBottom= tabsRect.bottom") || uiAudit.includes("tabsRect.bottom") ,
+    "画像プレビューはstickyタブの下へ配置する");
+  assert.ok(uiAudit.includes("imageBelowTabs") && uiAudit.includes("imageBeforeBottomNav") && uiAudit.includes("controlsBeforeBottomNav"),
+    "画像本体と差分選択列が固定タブ／固定ナビの間に収まることを検査する");
   assert.ok(uiAudit.includes(".btype-mobile-bottom-nav"));
   assert.ok(uiAudit.includes("駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示"));
   assert.ok(uiAudit.includes("shared-preview-board"));
   assert.ok(!uiAudit.includes("#build-params-tab-preview"));
   assert.ok(previewCapture.includes("profiles.length*9"));
+});
+
+test("mobile pawn image preview stays below sticky tabs and fits above bottom navigation", () => {
+  assert.match(parityCss, /@media \(max-width: 560px\)[\s\S]*?\.base-info-panel \.piece-url-preview-featured-frame\s*\{[^}]*height: clamp\(150px, 24vh, 220px\);[^}]*min-height: 150px;/,
+    "短い画面では大きな画像プレビューを縮め、顔や頭頂部まで見える高さを確保する");
+  assert.match(parityCss, /\.base-info-panel \.piece-url-preview-featured,[\s\S]*?scroll-margin-block-start: calc\(184px \+ env\(safe-area-inset-top, 0px\)\)/,
+    "画像プレビューの自動スクロール先を固定タブより下へ配置する");
+  assert.match(parityCss, /\.base-info-panel \.piece-url-preview-item\s*\{[^}]*scroll-margin-block-start:/,
+    "差分ボタンへフォーカスしても固定タブの裏に隠れない");
 });
