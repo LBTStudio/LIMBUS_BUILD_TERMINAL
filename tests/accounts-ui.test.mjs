@@ -402,6 +402,17 @@ test("v71 unified visual system uses one five-color palette and one five-step ty
   assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
 });
 
+test("blocked shop actions and enhancement catalog meet accessibility interaction requirements", () => {
+  assert.match(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-image: none !important;[\s\S]*?color: var\(--ui-bg\) !important;[\s\S]*?opacity: 1 !important;/,
+    "残高不足カードの購入理由ボタンは不透明なフラット塗りで十分なコントラストを保つ");
+  assert.match(visualSystem, /\.btn-primary:disabled,[\s\S]*?color: var\(--ui-text\) !important;[\s\S]*?opacity: 1 !important;/,
+    "実際に無効な主操作も高コントラストの文字を維持する");
+  assert.match(sections, /className: "enhancement-catalog-scroll",[\s\S]*?role: "region",[\s\S]*?"aria-label": "強化候補一覧",[\s\S]*?tabIndex: 0/,
+    "強化候補の内部スクロール領域は名前付きでキーボードフォーカスを受け取る");
+  assert.match(sections, /className: "spp-item",[\s\S]*?role: "button",[\s\S]*?tabIndex: 0,[\s\S]*?onKeyDown: \(event\) => \{[\s\S]*?event\.key === "Enter" \|\| event\.key === " "[\s\S]*?addEnh\(entry\)/,
+    "強化候補の追加操作はマウスだけでなくEnter／Spaceでも実行できる");
+});
+
 test("v71 restores visible primary-action fills without reintroducing gradients", () => {
   assert.match(visualSystem, /\.btn-primary\s*\{[^}]*background-color: var\(--ui-accent\) !important;[^}]*background-image: none !important;[^}]*color: var\(--ui-bg\) !important;/,
     "主操作はアクセント色のフラットな塗りと背景色に対する文字色を持つ");
