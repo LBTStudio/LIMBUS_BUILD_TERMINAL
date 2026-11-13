@@ -28,6 +28,7 @@ const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.
 const accountsUiSource = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const uiAuditSource = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
+const visualSystem = readFileSync(new URL("../assets/v71-unified-visual.css", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
   assert.doesNotMatch(ui, /prompt\(/, "prompt は入力のために文脈を消すので使わない");
@@ -390,4 +391,25 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
     "管理画面の行トラックはカード高と同じ184px以上");
   assert.ok(gateTrack.includes("grid-auto-rows: minmax(156px, max-content);"),
     "起動時ゲートの行トラックは156px以上を維持");
+});
+
+
+test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
+  const colorTokens = [...visualSystem.matchAll(/^\\s*--ui-(?:bg|surface|line|text|accent):\\s*#[0-9a-f]{6};$/gim)];
+  const typeTokens = [...visualSystem.matchAll(/^\\s*--ui-type-[a-z-]+:\\s*\\d+px;$/gim)];
+  assert.equal(colorTokens.length, 5, "基調色は5変数だけにする");
+  assert.equal(typeTokens.length, 5, "文字サイズは5段階だけにする");
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
+  assert.match(visualSystem, /--acct-panel-cloud[\\s\\S]*/, "source is the new visual system");
+});
+
+test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens mobile account cards", () => {
+  assert.match(visualSystem, /grid-template-rows: minmax\\(0, 1fr\\) auto;/,
+    "スマホで復旧欄を閉じたときは内容高だけを確保する");
+  assert.match(visualSystem, /:has\\(\.acct-card--form\\) \.acct-panel-cloud[\\s\\S]*?display: none !important;/,
+    "編集時は復旧欄を隠す");
+  assert.match(visualSystem, /grid-auto-rows: minmax\\(108px, max-content\\)/,
+    "スマホでは管理カードを短い横長行にする");
+  assert.match(visualSystem, /minmax\\(320px, 1fr\\)/,
+    "ショップの商品一覧をPCで3列程度に抑える");
 });
