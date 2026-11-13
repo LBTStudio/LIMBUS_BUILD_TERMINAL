@@ -2,6 +2,36 @@ function normalizeMultiline(s) {
   if (!s) return "";
   return String(s).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").map((l) => l.trim()).filter(Boolean).join("\n");
 }
+function normalizeImageUrls(value) {
+  const urls = [];
+  const seen = new Set();
+  const addText = (text) => {
+    String(text ?? "").split(/\r\n|\r|\n/).forEach((line) => {
+      const url = line.trim();
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        urls.push(url);
+      }
+    });
+  };
+  const append = (entry) => {
+    if (typeof entry === "string") {
+      addText(entry);
+      return;
+    }
+    if (Array.isArray(entry)) {
+      entry.forEach(append);
+      return;
+    }
+    if (!entry || typeof entry !== "object") return;
+    const primary = entry.iconUrl ?? entry.url ?? entry.src ?? entry.imageUrl;
+    if (typeof primary === "string") addText(primary);
+    if (Array.isArray(entry.faces)) append(entry.faces);
+    if (Array.isArray(entry.urls)) append(entry.urls);
+  };
+  append(value);
+  return urls;
+}
 function sanitizeInline(s) {
   if (!s) return "";
   return String(s).replace(/\r\n|\r|\n/g, " ").replace(/\s+/g, " ").trim();
@@ -1430,7 +1460,7 @@ function buildCcfoliaJSON(state, opts) {
   const excl = p.outputExclude || {};
   const commands = filterOutputSections(opts?.palette ?? buildPalette(state), excl.palette);
   const memo = filterOutputSections(opts?.memo ?? buildMemo(state), excl.memo);
-  const imgs = (p.imgUrls || "").split(/\r\n|\r|\n/).map((s) => s.trim()).filter(Boolean);
+  const imgs = normalizeImageUrls(p.imgUrls);
   const imgFields = imgs.length ? {
     iconUrl: imgs[0],
     faces: imgs.map((u, i) => ({ iconUrl: u, label: i === 0 ? charName : `${charName} \u5DEE\u5206${i}` })),
@@ -2487,6 +2517,7 @@ window.LBT_gen = {
   detectMTMods,
   computeMoraleLine,
   getActiveEnhancements,
+  normalizeImageUrls,
   DEFAULT_STATUS_LIST,
   DEF_FMLS
 };
