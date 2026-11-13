@@ -430,7 +430,7 @@ test("blocked shop actions and enhancement catalog meet accessibility interactio
     "実際に無効な主操作も高コントラストの文字を維持する");
   assert.match(sections, /className: "enhancement-catalog-scroll",[\s\S]*?role: "region",[\s\S]*?"aria-label": "強化候補一覧",[\s\S]*?tabIndex: 0/,
     "強化候補の内部スクロール領域は名前付きでキーボードフォーカスを受け取る");
-  assert.match(sections, /className: "spp-item",[\s\S]*?role: "button",[\s\S]*?tabIndex: 0,[\s\S]*?onKeyDown: \(event\) => \{[\s\S]*?event\.key === "Enter" \|\| event\.key === " "[\s\S]*?addEnh\(entry\)/,
+  assert.match(sections, /className: "spp-item",[\s\S]*?role: "button",[\s\S]*?tabIndex: 0,[\s\S]*?"aria-label": `\$\{entry\.name\}を強化候補に追加`,[\s\S]*?onKeyDown: \(event\) => \{[\s\S]*?event\.key === "Enter" \|\| event\.key === " "[\s\S]*?addEnh\(entry\)/,
     "強化候補の追加操作はマウスだけでなくEnter／Spaceでも実行できる");
 });
 
