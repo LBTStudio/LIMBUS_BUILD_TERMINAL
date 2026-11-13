@@ -114,7 +114,11 @@ test("closing the preview removes the only preview panel and leaves only its reo
   assert.ok(uiAudit.includes("basic-workspace-preview-collapsed"));
   assert.ok(uiAudit.includes('snap("basic-image-preview-loaded"'));
   assert.ok(uiAudit.includes("naturalWidth>0"));
-  assert.ok(uiAudit.includes("stickyBottom= tabsRect.bottom") || uiAudit.includes("tabsRect.bottom") ,
+  assert.ok(uiAudit.includes('document.querySelector(".focus")'),
+    "ページ全体ではなく、実際の作業領域をスクロールする");
+  assert.ok(uiAudit.includes("scrollRoot.scrollTo({top:targetTop,behavior:\"instant\"})"),
+    "画像プレビューの位置補正は.focusのscrollTopへ反映する");
+  assert.ok(uiAudit.includes("tabsRect.bottom"),
     "画像プレビューはstickyタブの下へ配置する");
   assert.ok(uiAudit.includes("imageBelowTabs") && uiAudit.includes("imageBeforeBottomNav") && uiAudit.includes("controlsBeforeBottomNav"),
     "画像本体と差分選択列が固定タブ／固定ナビの間に収まることを検査する");
