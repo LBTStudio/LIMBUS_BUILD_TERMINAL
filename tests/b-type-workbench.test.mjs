@@ -67,3 +67,24 @@ test("UI audit covers desktop, tablet and mobile across Home, settings and all r
   assert.match(audit, /build-editor-operation-paths/);
   assert.match(audit, /all six owned-library categories/);
 });
+
+
+test("Build workspace groups all nine existing tabs without changing their persisted IDs", () => {
+  const sections = read("../js/OtherSections.js");
+  assert.match(sections, /id: "character", label: "基本・キャラクター", tabIds: \["baseinfo", "persona"\]/);
+  assert.match(sections, /id: "battle", label: "戦闘データ", tabIds: \["skill", "passive", "enh"\]/);
+  assert.match(sections, /id: "equipment", label: "装備・構成", tabIds: \["support", "ego", "spirit", "items-build"\]/);
+  assert.match(sections, /BUILD_TABS\.filter\(\(tab\) => activeGroup.tabIds.includes\(tab.id\)\)/);
+  assert.match(sections, /id: "btab-" \+ tab.id/);
+  assert.match(sections, /id: "bpanel-" \+ tab.id/);
+});
+test("Shop catalog keeps category selection in one place and exposes one return control", () => {
+  const sections = read("../js/OtherSections.js");
+  const catalogStart = sections.indexOf('className: "shop-workspace btype-shop-catalog"');
+  const filtersStart = sections.indexOf('/* ガチャは商品を並べた画面ではなく、抽選権利の操作画面。', catalogStart);
+  const catalog = sections.slice(catalogStart, filtersStart);
+  assert.ok(catalogStart >= 0 && filtersStart > catalogStart);
+  assert.match(catalog, /className: "btype-shop-catalog-heading"/);
+  assert.match(catalog, /className: "btype-shop-categories-trigger"/);
+  assert.doesNotMatch(catalog, /shop-tabs/);
+});
