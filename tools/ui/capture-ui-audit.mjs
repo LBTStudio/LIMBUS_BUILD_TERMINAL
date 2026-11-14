@@ -2021,10 +2021,12 @@ async function captureProfile(browser, mode) {
     await attempt("state-import-dialog",async()=>{
       await closeOverlay();
       const trigger=page.locator("button.utility-trigger").first();
-      if (!(await visible(trigger))) throw new Error("操作・保存の起動ボタンが見つかりません");
+      await trigger.waitFor({state:"visible",timeout:5000});
       await click(trigger);
-      const importAction=page.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
-      if (!(await visible(importAction))) throw new Error("保存データを読み込む操作が見つかりません");
+      const utilitySheet=page.locator(".utility-sheet");
+      await utilitySheet.waitFor({state:"visible",timeout:5000});
+      const importAction=utilitySheet.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
+      await importAction.waitFor({state:"visible",timeout:5000});
       await click(importAction);
       const input=page.locator('input[type="file"][accept="application/json"]').first();
       if (!(await input.count())) throw new Error("保存データ読込用のJSONファイル入力が見つかりません");
