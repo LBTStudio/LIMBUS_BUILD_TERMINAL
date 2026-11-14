@@ -76,3 +76,27 @@ test("v72 applies one whole-app type and color system without gradients", () => 
   assert.match(v72, /\.piece-hero-grid:has\(\.piece-url-preview-empty\)/);
   assert.match(v72, /\.btype-launcher-grid[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
 });
+
+
+test("v72 restores the previous LBT semantic palette without changing the five-step type scale", () => {
+  const v72 = index.match(/<style id="lbt-v72-ui-health-refinement">([\\s\\S]*?)<\\/style>/)?.[1] || "";
+  for (const value of [
+    "--ui-bg: #0e0b09", "--ui-surface: #1a1715", "--ui-line: #504a42",
+    "--gold: #d4af5f", "--accent: #c8352b", "--amber: #e8963c",
+    "--sin-憤怒: #d94d3f", "--sin-色欲: #ea813a", "--sin-怠惰: #d9d357",
+    "--sin-暴食: #7ec455", "--sin-憂鬱: #3f9fe9", "--sin-傲慢: #5c5bd6",
+    "--sin-嫉妬: #b872d9", "--rank-ALEPH: #b83a3a",
+    "--res-脆弱: #8f3a33", "--res-免疫: #6b5a8a"
+  ]) assert.ok(v72.includes(value), "missing restored token: " + value);
+  for (const size of ["11px", "13px", "15px", "18px", "24px"]) assert.ok(v72.includes(size));
+  assert.doesNotMatch(v72, /linear-gradient|radial-gradient|conic-gradient/);
+});
+
+test("all pawn portraits and face differences are shown in a wrapping grid and eagerly loaded", () => {
+  assert.match(index, /\.base-info-panel \.piece-url-preview-list[\\s\\S]*?display:\s*grid !important/);
+  assert.match(index, /grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(68px,\s*1fr\)\)/);
+  assert.match(otherSections, /loading:\s*"eager",\\s*fetchPriority:\s*index\s*===\s*selectedImageIndex/);
+  const capture = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(capture, /allPreviewGeometry\.display!=="grid"/);
+  assert.match(capture, /allPreviewGeometry\.itemsOutside>0/);
+});
