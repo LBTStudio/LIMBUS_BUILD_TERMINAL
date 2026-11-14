@@ -106,16 +106,17 @@ test("all pawn portraits and face differences are shown in a wrapping grid and e
 });
 
 
-test("v71 preserves the historical layered palette and persona-specific surface treatments", () => {
+test("v71 preserves the restored LBT base palette and semantic surface treatments", () => {
   const v71 = read("../assets/v71-unified-visual.css");
   const design = read("../assets/design-system.css");
-  assert.match(v71, /--ui-bg: var\(--bg\)/);
-  assert.match(v71, /--ui-surface: var\(--surface-2\)/);
-  assert.doesNotMatch(v71, /--sin-憤怒:\s*var\(--ui-accent\)/);
-  assert.doesNotMatch(v71, /--rank-ALEPH:\s*var\(--ui-accent\)/);
-  assert.match(v71, /background-image:\s*none !important;/);
-  assert.match(v71, /\.p-card,[\s\S]*?background-color: var\(--surface-2\)/);
-  assert.match(design, /--surface-3:#292420/);
+  for (const token of ["--ui-bg: #0e0b09", "--ui-surface: #211d1a", "--ui-line: #504a42", "--ui-text: #f2ece1", "--ui-accent: #d4af5f"]) {
+    assert.ok(v71.includes(token), "restored base color: " + token);
+  }
+  assert.doesNotMatch(v71, /linear-gradient|radial-gradient|conic-gradient/i);
+  assert.match(v71, /background-image:\\s*none !important;/);
+  assert.match(design, /--surface-3:\\s*#292420/);
   assert.match(design, /--sin-憤怒:/);
-  assert.match(design, /--ego-influence:\s*#b872d9/);
+  assert.match(design, /--ego-influence:\\s*#b872d9/);
+  assert.match(design, /--rank-ALEPH:/);
+  assert.match(design, /--res-脆弱:/);
 });
