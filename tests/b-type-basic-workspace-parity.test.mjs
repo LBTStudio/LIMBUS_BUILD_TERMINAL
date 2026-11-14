@@ -39,7 +39,11 @@ test("Basic workspace keeps the pawn image preview visible while the URL editor 
   assert.ok(base.includes("URL形式を確認"));
   assert.ok(base.includes("画像を読込めません"));
   assert.ok(base.includes("state.shareImageData"));
-  for (const forbidden of ["piece-art-wrap", "piece-art-frame", "piece-art-thumbs", "piece-art-zoom", "activeImg", "imgZoom", "imgTab", "画像を確認"]) {
+  assert.ok(base.includes("piece-art-zoom-controls"), "全体表示とホイール操作の案内を画像枠内に表示する");
+  assert.ok(base.includes('className: "piece-art-zoom-reset"'), "全体表示へ戻す専用操作を用意する");
+  assert.ok(base.includes('frame.addEventListener("wheel", handleWheel, { passive: false })'), "画像枠でホイールズームを受け付ける");
+  assert.ok(base.includes("Math.min(4, imageZoom * Math.exp"), "ズーム倍率を4倍までに制限する");
+  for (const forbidden of ["piece-art-wrap", "piece-art-frame", "piece-art-thumbs", "activeImg", "imgZoom", "imgTab", "画像を確認"]) {
     assert.ok(!base.includes(forbidden), "Basic workspace must not render " + forbidden);
   }
   assert.ok(persona.includes('className: "baseinfo-workspace piece-workspace"'));
