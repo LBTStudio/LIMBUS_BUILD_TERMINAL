@@ -25,7 +25,7 @@ test("駒画像プレビューを隠して作業領域を確保し、元へ戻�
   assert.match(other, /aria-expanded": imagePreviewOpen/);
   assert.match(other, /hidden: !imagePreviewOpen/);
   assert.match(other, /id: "piece-art-preview-live"/);
-  assert.match(css, /piece-art-preview-live\\[hidden\\].*display: none/);
+  assert.ok(css.includes(".piece-art-preview-live[hidden] { display: none !important; }"));
   assert.match(audit, /basic-image-preview-collapsed-by-user/);
 });
 
