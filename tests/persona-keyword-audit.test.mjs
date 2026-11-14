@@ -61,9 +61,14 @@ test("filter UI does not truncate tags and exposes OR/AND and affiliation contro
   assert.match(codex, /ui\.filterMatch === "all"/);
   assert.match(codex, /いずれか一致/);
   assert.match(codex, /すべて一致/);
-  assert.match(codex, /affiliations\.map\(\(aff\)/);
-  assert.match(codex, /countKeywordInPool\(k\)/);
-  assert.match(codex, /k\)\), allKws\.length > kws\.length && React\.createElement\("span", \{ key: "kw-overflow"/);
+  assert.match(codex, /type: "search"[\s\S]*?aria-label": "所属で絞り込み"/);
+  assert.match(codex, /affiliationCandidates = React\.useMemo/);
+  assert.match(codex, /visibleAffiliationCandidates = affiliationCandidates\.slice\(0, 12\)/);
+  assert.match(codex, /ui\.filterAffs\.map\(\(aff\)/);
+  assert.doesNotMatch(codex, /affiliations\.map\(\(aff\)/);
+  assert.doesNotMatch(codex, /countKeywordInPool|このタグを持つ人格:/);
+  assert.match(codex, /allKws\.map\(\(keyword\)/);
+  assert.match(codex, /PERSONA_FIXED_KEYWORD_OPTIONS\.forEach/);
   assert.match(codex, /ui\.rosterBuildFilter !== "all"/);
   assert.match(codex, /rosterBuildFilter: "all"/);
 });
