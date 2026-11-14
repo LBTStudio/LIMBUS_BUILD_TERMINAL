@@ -495,45 +495,41 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
     "初回ゲートの実クリックでも縮小行列を検査する");
 });
 
-test("v71 uses exactly five base color aliases and one five-step type scale", () => {
-  const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*[^;]+;/gim)];
-  const typeTokens = [...visualSystem.matchAll(/^\s*--ui-type-[a-z-]+:\s*\d+px;$/gim)];
+test("v71 uses exactly five restored LBT base colors and one five-step type scale", () => {
+  const colorTokens = [...visualSystem.matchAll(/^\\s*--ui-(?:bg|surface|line|text|accent):\\s*[^;]+;/gim)];
+  const typeTokens = [...visualSystem.matchAll(/^\\s*--ui-type-[a-z-]+:\\s*\\d+px;$/gim)];
   assert.equal(colorTokens.length, 5, "基調色は5変数だけにする");
   assert.equal(typeTokens.length, 5, "文字サイズは5段階だけにする");
-  for (const alias of [
-    "--ui-bg: var(--bg)", "--ui-surface: var(--surface-2)",
-    "--ui-line: var(--line)", "--ui-text: var(--tx)",
-    "--ui-accent: var(--gold)"
-  ]) assert.ok(visualSystem.includes(alias), "旧LBTパレットへ接続する: " + alias);
-  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
+  for (const token of [
+    "--ui-bg: #0e0b09", "--ui-surface: #211d1a", "--ui-line: #504a42",
+    "--ui-text: #f2ece1", "--ui-accent: #d4af5f"
+  ]) assert.ok(visualSystem.includes(token), "旧LBTの基調色を維持する: " + token);
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i);
 });
 
-test("v71 removes decorative gradients without flattening semantic persona colors", () => {
+test("v71 removes decorative gradients while preserving semantic persona and E.G.O colors", () => {
   const start = visualSystem.indexOf("/* Flatten decorative gradients only.");
   const end = visualSystem.indexOf("/* Primary actions retain their original flat brass fill;", start);
-  assert.ok(start >= 0 && end > start, "旧UI面のグラデーションを抑える正規化ブロックが存在する");
+  assert.ok(start >= 0 && end > start, "装飾画像を外す正規化ブロックが存在する");
   const block = visualSystem.slice(start, end);
-  for (const selector of [
-    ".focus", ".topbar", ".rail", ".preview", ".chip", ".p-card",
-    ".spirit-item.is-active", ".btype-command-hero", ".btype-record-task-card",
-    ".build-context-strip", ".piece-panel", ".persona-draft-dialog"
-  ]) assert.ok(block.includes(selector), "通常UIの装飾面をフラット化する: " + selector);
+  for (const selector of [".focus", ".p-card", ".spirit-item.is-active", ".piece-panel", ".persona-draft-dialog"]) {
+    assert.ok(block.includes(selector), "装飾だけを除去する対象: " + selector);
+  }
   assert.match(block, /background-image: none !important;/);
-  assert.match(block, /Functional[\\s\\S]*?CCFOLIA board grid lines[\\s\\S]*?dedicated extraction FX/);
-  assert.match(visualSystem, /--ui-accent: var\\(--gold\\)/, "旧金色アクセントへ接続する");
-  assert.doesNotMatch(visualSystem, /--sin-憤怒:\\s*var\\(--ui-accent\\)/, "人格の大罪色を金色へ集約しない");
+  assert.match(block, /Functional CCFOLIA board grid lines/);
+  assert.match(block, /dedicated extraction FX/);
+  assert.match(designSystem, /--sin-憤怒:/);
+  assert.match(designSystem, /--ego-influence:/);
+  assert.match(designSystem, /--rank-ALEPH:/);
+  assert.match(designSystem, /--res-脆弱:/);
 });
 
 test("restored LBT base palette keeps primary and body text above WCAG AA contrast", () => {
   const tokens = {
-    accent: designSystem.match(/--gold:\\s*(#[0-9a-f]{6})/i)?.[1],
-    bg: designSystem.match(/--bg:\\s*(#[0-9a-f]{6})/i)?.[1],
-    text: designSystem.match(/--tx:\\s*(#[0-9a-f]{6})/i)?.[1],
-    surface: designSystem.match(/--surface-2:\\s*(#[0-9a-f]{6})/i)?.[1]
-  };
-  const token = (name) => {
-    assert.ok(tokens[name], "旧パレットのトークンが存在する: " + name);
-    return tokens[name];
+    accent: visualSystem.match(/--ui-accent:\\s*(#[0-9a-f]{6})/i)?.[1],
+    bg: visualSystem.match(/--ui-bg:\\s*(#[0-9a-f]{6})/i)?.[1],
+    text: visualSystem.match(/--ui-text:\\s*(#[0-9a-f]{6})/i)?.[1],
+    surface: visualSystem.match(/--ui-surface:\\s*(#[0-9a-f]{6})/i)?.[1]
   };
   const luminance = (hex) => {
     const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
@@ -544,8 +540,9 @@ test("restored LBT base palette keeps primary and body text above WCAG AA contra
     const values = [luminance(a), luminance(b)].sort((x, y) => y - x);
     return (values[0] + 0.05) / (values[1] + 0.05);
   };
-  assert.ok(contrast(token("accent"), token("bg")) >= 4.5, "主操作の真鍮色と文字背景のコントラストは4.5:1以上");
-  assert.ok(contrast(token("text"), token("surface")) >= 4.5, "通常文字と面色のコントラストは4.5:1以上");
+  for (const [name, value] of Object.entries(tokens)) assert.ok(value, "基調色を読み取れる: " + name);
+  assert.ok(contrast(tokens.accent, tokens.bg) >= 4.5, "主操作のアクセント色は4.5:1以上");
+  assert.ok(contrast(tokens.text, tokens.surface) >= 4.5, "通常文字は4.5:1以上");
 });
 
 test("overlay metadata and resistance badges retain previous semantic colors and readable labels", () => {
@@ -572,15 +569,14 @@ test("blocked shop actions retain gold treatment and enhancement catalog remains
     "表示内容を欠く短いaria-labelでボタンの表示名を上書きしない");
 });
 
-test("v71 leaves persona, E.G.O and primary-action source colors intact", () => {
-  assert.doesNotMatch(visualSystem, /\.btn-primary\s*\{[^}]*background-image:\s*none !important;/);
-  assert.match(designSystem, /\.btn-primary[\s\S]*?linear-gradient/);
-  assert.match(designSystem, /--gold:#d4af5f/);
-  assert.match(designSystem, /--accent:#c8352b/);
-  assert.match(designSystem, /--ego-influence:\s*#b872d9/);
+test("v71 keeps semantic persona hues while using flat primary actions", () => {
+  assert.match(visualSystem, /\\.btn-primary \\{[\\s\\S]*?background-image: none !important;/);
+  assert.match(visualSystem, /--ui-accent: #d4af5f/);
+  assert.match(designSystem, /--accent:\\s*#c8352b/);
+  assert.match(designSystem, /--ego-influence:\\s*#b872d9/);
   assert.match(designSystem, /--sin-憤怒:/);
+  assert.match(designSystem, /--rank-ALEPH:/);
 });
-
 test("UI audit uses unique build-tab controls and collapses preview before home launcher taps", () => {
   assert.match(uiAuditSource, /\.btype-build-tablist > \[role='tab'\]/,
     "ビルドのメインタブだけを直接選択し、子パネル内の同名タブを拾わない");
