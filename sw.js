@@ -21,10 +21,10 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-f80ef2a3";
+const CACHE_NAME = "lbt-da3ed7b6";
 const PRECACHE_URLS = [
-  "assets/pawn-image-controls.css?v=e5660e11",
-  "js/OtherSections.js?v=0827c224",
+  "assets/pawn-image-controls.css?v=1471de53",
+  "js/OtherSections.js?v=6c773641",
 ];
 /* ==== /GENERATED ==== */
 const PAGE_FILES = ["index.html", "share.html", "mobile-preview.html"];
