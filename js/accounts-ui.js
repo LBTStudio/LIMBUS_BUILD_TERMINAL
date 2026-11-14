@@ -329,6 +329,7 @@ const AccountCard = ({ entry, index, active, editing, selecting = false, draft, 
 
 const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] }) => {
   const panelRef = React.useRef(null);
+  const returnFocusRef = React.useRef(null);
 
   const [info, setInfo] = React.useState(readAccountInfo);
   const [editingId, setEditingId] = React.useState(null);
@@ -348,7 +349,17 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
       setEditingId(null);
       setCreating(false);
       setClosing(false);
+      const trigger = returnFocusRef.current;
+      returnFocusRef.current = null;
+      if (trigger?.isConnected && typeof trigger.focus === "function") {
+        window.requestAnimationFrame(() => {
+          if (trigger.isConnected) trigger.focus({ preventScroll: true });
+        });
+      }
     } else {
+      // Capture the opening control before the focus trap moves focus into the modal.
+      const active = document.activeElement;
+      returnFocusRef.current = active && active !== document.body ? active : null;
       // Re-opening during an exit animation must cancel the old close callback.
       if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
       closeTimer.current = null;
@@ -646,7 +657,7 @@ const AccountGate = () => {
         h("div", { className: "acct-panel-accounts" },
       accounts.length === 0 ? h("div", { className: "acct-empty" }, "まずキャラクターを作成してください。") : null,
       h("div", { className: "acct-grid acct-grid--gate" },
-        accounts.map((entry, index) => h("div", { key: entry.id, className: `acct-card acct-card--gate${entry.id === info.activeId ? " is-active" : ""}`, style: { "--i": index } },
+        accounts.map((entry, index) => h("div", { key: entry.id, className: `acct-card acct-card--gate${entry.id === info.activeId ? " is-active" : ""}`, style: { "--i": index }, "data-account-id": entry.id },
           h("button", {
             type: "button",
             className: "acct-gate-edit-btn",
