@@ -351,15 +351,26 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
       setClosing(false);
       const trigger = returnFocusRef.current;
       returnFocusRef.current = null;
-      if (trigger?.isConnected && typeof trigger.focus === "function") {
+      if (trigger) {
         window.requestAnimationFrame(() => {
-          if (trigger.isConnected) trigger.focus({ preventScroll: true });
+          // The first-run gate can be re-rendered while the modal is open.
+          // Prefer the original node, but fall back to its stable ID if React
+          // replaced it before the overlay finished closing.
+          const target = trigger.element?.isConnected
+            ? trigger.element
+            : (trigger.id ? document.getElementById(trigger.id) : null);
+          if (target?.isConnected && typeof target.focus === "function") {
+            target.focus({ preventScroll: true });
+          }
         });
       }
     } else {
       // Capture the opening control before the focus trap moves focus into the modal.
       const active = document.activeElement;
-      returnFocusRef.current = active && active !== document.body ? active : null;
+      returnFocusRef.current = {
+        element: active && active !== document.body ? active : null,
+        id: initialEditId ? `acct-gate-edit-${initialEditId}` : null
+      };
       // Re-opening during an exit animation must cancel the old close callback.
       if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
       closeTimer.current = null;
@@ -661,6 +672,7 @@ const AccountGate = () => {
           h("button", {
             type: "button",
             className: "acct-gate-edit-btn",
+            id: `acct-gate-edit-${entry.id}`,
             onClick: (event) => {
               event.stopPropagation();
               window.dispatchEvent(new CustomEvent(ACCOUNTS_OPEN_EVENT, { detail: { editId: entry.id } }));
