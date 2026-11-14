@@ -281,6 +281,46 @@ async function createDisposableAccount(page,profile) {
     wheelOutcome.defaultPrevented && zoomScale > 1 && zoomScale <= 4
       && zoomed.transformOrigin !== "50% 50%",
     { wheelOutcome, zoomed, zoomScale });
+  const dispatchPreviewWheel = deltaY => portraitFrame.evaluate((frame, delta) => {
+    const rect = frame.getBoundingClientRect();
+    const event = new WheelEvent("wheel", {
+      deltaY: delta,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+      bubbles: true,
+      cancelable: true
+    });
+    frame.dispatchEvent(event);
+    return { defaultPrevented: event.defaultPrevented };
+  }, deltaY);
+  const wheelToMaximum = await dispatchPreviewWheel(-100000);
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a >= 3.99;
+  }, null, { timeout: 5000 });
+  const maximumWheelBoundary = await dispatchPreviewWheel(-240);
+  const maximumScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+  recordCheck(profile.name + ": wheel input at the 4x zoom cap is consumed without page scrolling",
+    wheelToMaximum.defaultPrevented && maximumWheelBoundary.defaultPrevented && maximumScale >= 3.99,
+    { wheelToMaximum, maximumWheelBoundary, maximumScale });
+  const wheelToMinimum = await dispatchPreviewWheel(100000);
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && Math.abs(new DOMMatrixReadOnly(getComputedStyle(image).transform).a - 1) < 0.001;
+  }, null, { timeout: 5000 });
+  const minimumWheelBoundary = await dispatchPreviewWheel(240);
+  const minimumScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+  recordCheck(profile.name + ": wheel input at the 1x zoom floor is consumed without page scrolling",
+    wheelToMinimum.defaultPrevented && minimumWheelBoundary.defaultPrevented && Math.abs(minimumScale - 1) < 0.001,
+    { wheelToMinimum, minimumWheelBoundary, minimumScale });
+  const wheelRezoom = await dispatchPreviewWheel(-520);
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a > 1.1;
+  }, null, { timeout: 5000 });
+  recordCheck(profile.name + ": wheel zoom remains responsive after reaching both boundaries",
+    wheelRezoom.defaultPrevented,
+    { wheelRezoom });
   const resetPortrait = page.getByRole("button", { name: "立ち絵を全体表示に戻す" });
   await resetPortrait.waitFor({ state: "visible", timeout: 5000 });
   const resetControlGeometry = await resetPortrait.evaluate(button => {
