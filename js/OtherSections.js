@@ -283,6 +283,13 @@ const BaseSection = ({ state, dispatch }) => {
   };
   return React.createElement("div", { className: "piece-hero-grid base-info-panel", "data-ui-reference": "unified-workbench-v4" },
     React.createElement("div", { className: "piece-hero-left" },
+      React.createElement("div", { className: "baseinfo-group-label", "data-group": "appearance" },
+        React.createElement("span", { className: "baseinfo-group-index" }, "01"),
+        React.createElement("div", null,
+          React.createElement("strong", null, "外観"),
+          React.createElement("small", null, "立ち絵・表情差分を確認／編集")
+        )
+      ),
       React.createElement("section", { className: "piece-panel piece-art-panel piece-image-settings" },
         React.createElement("div", { className: "piece-panel-head" },
           React.createElement("strong", null, "駒の画像設定"),
@@ -491,6 +498,13 @@ const BaseSection = ({ state, dispatch }) => {
       )
     ),
     React.createElement("div", { className: "piece-hero-right" },
+      React.createElement("div", { className: "baseinfo-group-label", "data-group": "token" },
+        React.createElement("span", { className: "baseinfo-group-index" }, "02"),
+        React.createElement("div", null,
+          React.createElement("strong", null, "駒の基本情報"),
+          React.createElement("small", null, "名前・PL・行動順・色")
+        )
+      ),
       React.createElement("section", { className: "piece-panel piece-basic-controls" },
         React.createElement("div", { className: "piece-panel-head" },
           React.createElement("div", null,
@@ -2456,7 +2470,15 @@ const BUILD_TABS = [
   /* アイテムは人格を跨いで共有する。所持品の個数と出力先だけをここで決める。 */
   { id: "items-build", label: "アイテム", num: "09", title: "OWNED ITEMS / 所持アイテム", subtitle: "持っていく個数と出力先を選ぶ", icon: "item", owned: false }
 ];
-if (typeof window !== "undefined") window.LBT_BUILD_TABS = BUILD_TABS;
+const BUILD_TAB_GROUPS = [
+  { id: "character", label: "基本・キャラクター", tabIds: ["baseinfo", "persona"] },
+  { id: "battle", label: "戦闘データ", tabIds: ["skill", "passive", "enh"] },
+  { id: "equipment", label: "装備・構成", tabIds: ["support", "ego", "spirit", "items-build"] }
+];
+if (typeof window !== "undefined") {
+  window.LBT_BUILD_TABS = BUILD_TABS;
+  window.LBT_BUILD_TAB_GROUPS = BUILD_TAB_GROUPS;
+}
 
 /* 取得（所持化）の共通部品。
 
@@ -3592,6 +3614,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     { id: "item", label: "アイテム", description: "消耗品・特殊アイテムを購入する", icon: "item", count: totals.item },
     { id: "gacha", label: "ガチャ", description: "抽選チケット・抽選権利を確認する", icon: "star", count: null }
   ];
+  const activeShopCategory = shopCategories.find((category) => category.id === tab) || shopCategories[0];
   const openShopCategory = (id) => {
     setQuery("");
     setRankFilter("");
@@ -3639,20 +3662,18 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     )
   );
     return h("div", { className: "shop-workspace btype-shop-catalog" },
-    h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "overview" } }) }, "← ショップへ戻る")),
-    h(SectionTitle, { level: 1, title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
-    /* カテゴリタブだけを独立要素にして追従させる。filter パネルの内側に置くと
-       sticky は親の範囲を出られないため、親を抜けた瞬間にタブも消える。
-       追従する面（ラッパー）は全幅にして、下を流れる内容を隠す。
-       タブを切り替えたら先頭へ戻す（スクロール位置は前カテゴリのもので
-       另一位的天空に持ち越すと、「同じ列表の続き」に見えるため）。 */
-    h("div", { className: "shop-tabs-sticky" },
-      h("div", { className: "segmented shop-tabs", role: "tablist", "aria-label": "ショップの種別" },
-        [["persona", "人格"], ["support", "サポート"], ["ego", "E.G.O"], ["spirit", "精神"], ["item", "アイテム"], ["gacha", "ガチャ"]].map(([value, label]) => h("button", {
-          key: value, type: "button", role: "tab", "aria-selected": tab === value, className: tab === value ? "is-active" : "",
-          onClick: () => { setTab(value); scrollWorkspaceToTop(); }
-        }, label))
-      )
+    h("header", { className: "btype-shop-catalog-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "SHOP / " + activeShopCategory.label),
+        h("h1", null, activeShopCategory.label),
+        h("p", null, activeShopCategory.description)
+      ),
+      h("button", {
+        type: "button",
+        className: "btype-shop-categories-trigger",
+        onClick: () => { dispatch({ type: "SET_UI", ui: { shopView: "overview" } }); scrollWorkspaceToTop(); },
+        "aria-label": "ショップのカテゴリ一覧へ戻る"
+      }, h(Icon, { name: "grid", size: 15 }), "カテゴリ一覧")
     ),
     /* ガチャは商品を並べた画面ではなく、抽選権利の操作画面。
        検索/カテゴリ/ソートは全部意味が無いので、このタブだけ専用パネルに分ける。 */
@@ -3691,6 +3712,7 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
+  const activeGroup = BUILD_TAB_GROUPS.find((group) => group.tabIds.includes(active.id)) || BUILD_TAB_GROUPS[0];
   const setTab = (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } });
   /* 各タブの中身は既存コンポーネントをそのまま使う。owned は state.roster を唯一の基準とする。 */
   const owned = !!active.owned;
@@ -3757,9 +3779,22 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
     ),
     h("div", { className: "btype-work-layout" },
       h("div", { className: "btype-work-main" },
-        h("div", { className: "build-tabs is-b-workbench subtabs btype-build-tabs" },
+        h("div", { className: "build-tabs is-b-workbench subtabs btype-build-tabs", "data-active-group": activeGroup.id },
+          h("div", { className: "build-group-nav", role: "group", "aria-label": "ビルドの作業分類" },
+            BUILD_TAB_GROUPS.map((group) => h("button", {
+              key: group.id,
+              type: "button",
+              className: "build-group-button" + (activeGroup.id === group.id ? " is-active" : ""),
+              "data-build-group": group.id,
+              "aria-pressed": activeGroup.id === group.id,
+              onClick: () => setTab(group.tabIds.includes(active.id) ? active.id : group.tabIds[0])
+            },
+              h("span", { className: "build-group-button-label" }, group.label),
+              h("small", null, group.tabIds.length + "項目")
+            ))
+          ),
           h("div", { className: "segmented btype-build-tablist", role: "tablist", "aria-label": "ビルドセクション" },
-            BUILD_TABS.map((tab) => h("button", {
+            BUILD_TABS.filter((tab) => activeGroup.tabIds.includes(tab.id)).map((tab) => h("button", {
               key: tab.id,
               type: "button",
               role: "tab",
@@ -4728,6 +4763,7 @@ const LedgerPanel = ({ state, dispatch }) => {
   }, [state.customItems]);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
   const [newResultError, setNewResultError] = React.useState("");
+  const [activeNewResultStage, setActiveNewResultStage] = React.useState("session");
   const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
   const [newResultEgoQuery, setNewResultEgoQuery] = React.useState("");
   const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
@@ -5399,6 +5435,7 @@ const readDragId = (event) => {
     }
     setNewResultError("");
     setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
+    setActiveNewResultStage("session");
     setNewResultPersonaQuery("");
     setNewResultEgoQuery("");
     setNewRewardItemId("");
@@ -5820,6 +5857,24 @@ const importHeldPersonas = () => {
     const n = Number(value);
     return h("b", { className: "ledger-stat" }, Number.isFinite(n) ? n.toLocaleString("ja-JP") : String(value));
   };
+  const newResultRewardCount = (newResult.personaAcquisitions || []).length
+    + (newResult.egoAcquisitions || []).length + (newResult.rewardItems || []).length;
+  const newResultSteps = [
+    { id: "session", number: "01", title: "セッション", note: newResult.name.trim() ? "名称入力済み" : "名称・日付・資源" },
+    { id: "tickets", number: "02", title: "チケット", note: "必要な分だけ入力" },
+    { id: "rewards", number: "03", title: "報酬", note: newResultRewardCount ? newResultRewardCount + "件追加済み" : "追加は任意" },
+    { id: "confirm", number: "04", title: "確認・記録", note: newResult.name.trim() ? "記録内容を確認" : "名称入力後に記録" }
+  ];
+  const jumpToNewResultStage = (stage) => {
+    setActiveNewResultStage(stage);
+    if (stage === "rewards") {
+      const disclosure = document.querySelector(".ledger-result-reward-disclosure");
+      if (disclosure) disclosure.open = true;
+    }
+    const target = document.getElementById("ledger-result-stage-" + stage);
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    target?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  };
 
   /* --- 描画 ------------------------------------------------------------- */
   return h("div", { className: "stack-3" },
@@ -5912,7 +5967,34 @@ const importHeldPersonas = () => {
         h(Button, { size: "sm", variant: "quiet", icon: "grid", onClick: () => { setImportMenuOpen(false); openHeld(); } }, "所持人格リストを取り込む")
       ),
       h("div", { className: "card-body ledger-result-entry-body" },
-        h("section", { className: "ledger-result-entry-section", "aria-label": "リザルトの基本情報" },
+        h("nav", { className: "ledger-result-progress", "aria-label": "リザルト入力のステップ" },
+          h("div", { className: "ledger-result-progress-heading" },
+            h("strong", null, "入力の進み具合"),
+            h("small", null, "項目を選ぶと、その場所へ移動します")
+          ),
+          h("div", { className: "ledger-result-progress-steps" },
+            newResultSteps.map((step) => h("button", {
+              key: step.id,
+              type: "button",
+              className: "ledger-result-step" + (activeNewResultStage === step.id ? " is-active" : ""),
+              "data-stage": step.id,
+              "aria-current": activeNewResultStage === step.id ? "step" : void 0,
+              onClick: () => jumpToNewResultStage(step.id)
+            },
+              h("span", { className: "ledger-result-step-number" }, step.number),
+              h("span", { className: "ledger-result-step-copy" },
+                h("strong", null, step.title),
+                h("small", null, step.note)
+              )
+            ))
+          )
+        ),
+        h("section", {
+          id: "ledger-result-stage-session",
+          className: "ledger-result-entry-section",
+          "aria-label": "リザルトの基本情報",
+          onFocusCapture: () => setActiveNewResultStage("session")
+        },
           h("div", { className: "ledger-result-section-heading" },
             h("span", { className: "t-label" }, "セッション情報"),
             h("span", { className: "ledger-note" }, "名称・開催日・獲得した資源を入力します。")
@@ -5964,7 +6046,12 @@ const importHeldPersonas = () => {
             )
           )
         ),
-        h("section", { className: "ledger-result-entry-ticket-section", "aria-label": "卓の報酬チケット" },
+        h("section", {
+          id: "ledger-result-stage-tickets",
+          className: "ledger-result-entry-ticket-section",
+          "aria-label": "卓の報酬チケット",
+          onFocusCapture: () => setActiveNewResultStage("tickets")
+        },
           h(TicketInputs, {
             idPrefix: "new-result",
             current: newResult.tickets,
@@ -5973,7 +6060,11 @@ const importHeldPersonas = () => {
             onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
           })
         ),
-        h("details", { className: "ledger-result-reward-disclosure" },
+        h("details", {
+          id: "ledger-result-stage-rewards",
+          className: "ledger-result-reward-disclosure",
+          onToggle: (event) => { if (event.currentTarget.open) setActiveNewResultStage("rewards"); }
+        },
           h("summary", null,
             "報酬を追加（人格 " + (newResult.personaAcquisitions || []).length + " / E.G.O " + (newResult.egoAcquisitions || []).length + " / アイテム " + (newResult.rewardItems || []).length + "）"
           ),
@@ -6094,7 +6185,11 @@ const importHeldPersonas = () => {
           )
           )
         ),
-        h("div", { className: "ledger-result-entry-footer" },
+        h("div", {
+          id: "ledger-result-stage-confirm",
+          className: "ledger-result-entry-footer",
+          onFocusCapture: () => setActiveNewResultStage("confirm")
+        },
           newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
           h("div", { className: "ledger-result-submit" },
             h(Button, { size: "md", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "入力した内容をまとめて記録")
@@ -7497,10 +7592,17 @@ const BuildParamsPanel = ({ state, dispatch }) => {
   );
 
   return h(React.Fragment, null,
+    h("div", { className: "baseinfo-group-label baseinfo-group-label--output", "data-group": "output" },
+      h("span", { className: "baseinfo-group-index" }, "03"),
+      h("div", null,
+        h("strong", null, "出力パラメータ"),
+        h("small", null, "CCFOLIAへ渡すステータス・ラベル・並び順")
+      )
+    ),
     h("section", { className: "build-params-shell piece-format-panel panel", "aria-label": "ココフォリア駒の整形" },
     h("div", { className: "build-params-head panel-head" },
       h("div", null,
-        h("strong", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
+        h("strong", { className: "t-label" }, "OUTPUT PARAMETERS / 出力パラメータ"),
         h("div", { className: "piece-hint", style: { marginTop: 4 } }, "ステータスとラベルを整理し、並び順と出力先を管理します。")
       ),
       h("button", { type: "button", className: "secondary", onClick: () => dispatch({ type: "SET_UI", ui: { previewOpen: true, previewTab: "token" } }) }, "プレビューを開く")
