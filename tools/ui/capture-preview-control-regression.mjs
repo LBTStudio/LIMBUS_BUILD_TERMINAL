@@ -201,7 +201,7 @@ async function createDisposableAccount(page,profile) {
     transform: getComputedStyle(image).transform,
     transformOrigin: getComputedStyle(image).transformOrigin
   }));
-  const zoomScale = Number((zoomed.transform.match(/^matrix\\(([-+0-9.e]+),/) || [])[1] || 1);
+  const zoomScale = Number((zoomed.transform.match(/^matrix\(([-+0-9.e]+),/) || [])[1] || 1);
   recordCheck(profile.name + ": mouse wheel zooms the full portrait within the 4x cap",
     wheelOutcome.defaultPrevented && zoomScale > 1 && zoomScale <= 4
       && zoomed.transformOrigin !== "50% 50%",
