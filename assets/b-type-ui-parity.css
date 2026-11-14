@@ -1008,3 +1008,165 @@
   font: 500 9px/1.3 var(--f-body, system-ui, sans-serif);
   pointer-events: none;
 }
+
+/* Large selected-image preview and keyboard-operable face-difference selector. */
+.base-info-panel .piece-url-preview {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+.base-info-panel .piece-url-preview-featured {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 470px);
+  margin: 0;
+}
+.base-info-panel .piece-url-preview-featured-frame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: clamp(260px, 38vh, 420px);
+  min-height: 220px;
+  overflow: hidden;
+  border: 1px solid var(--ui-line, #49433a);
+  border-radius: 6px;
+  background: #100f0d;
+}
+.base-info-panel .piece-url-preview-featured-frame > img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+.base-info-panel .piece-url-preview-featured > figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ui-text, #eee8dc);
+  font-size: 11px;
+}
+.base-info-panel .piece-url-preview-featured > figcaption > span {
+  color: var(--ui-accent, #c8a45e);
+  font: 700 9px/1.4 ui-monospace, monospace;
+  letter-spacing: .1em;
+}
+.base-info-panel .piece-url-preview-list {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 7px;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+.base-info-panel .piece-url-preview-item {
+  display: grid;
+  flex: 0 0 78px;
+  justify-items: center;
+  align-content: start;
+  gap: 5px;
+  min-height: 104px;
+  padding: 5px;
+  border: 1px solid var(--ui-line, #49433a);
+  border-radius: 5px;
+  background: var(--ui-surface, #1b1916);
+  color: var(--ui-text, #eee8dc);
+  cursor: pointer;
+}
+.base-info-panel .piece-url-preview-item:hover {
+  border-color: var(--ui-accent, #c8a45e);
+}
+.base-info-panel .piece-url-preview-item.is-active {
+  border-color: var(--ui-accent, #c8a45e);
+  box-shadow: inset 0 -2px var(--ui-accent, #c8a45e);
+}
+.base-info-panel .piece-url-preview-item:focus-visible {
+  outline: 2px solid var(--ui-accent, #c8a45e);
+  outline-offset: 2px;
+}
+.base-info-panel .piece-url-preview-frame {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 78px;
+  overflow: hidden;
+  border: 1px solid #40382b;
+  border-radius: 3px;
+  background: #100f0d;
+}
+.base-info-panel .piece-url-preview-frame > img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+.base-info-panel .piece-url-preview-caption {
+  max-width: 100%;
+  color: inherit;
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.base-info-panel .piece-url-preview-item.is-active .piece-url-preview-caption {
+  color: var(--ui-accent, #c8a45e);
+  font-weight: 700;
+}
+.base-info-panel .piece-url-preview-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  color: #c6baa3;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.base-info-panel .piece-url-preview-empty {
+  padding: 14px;
+  border: 1px dashed var(--ui-line, #49433a);
+  border-radius: 5px;
+  color: #a99d88;
+  font-size: 11px;
+}
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview-featured { width: 100%; }
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: min(42vh, 340px);
+    min-height: 220px;
+  }
+  .base-info-panel .piece-url-preview-item { flex-basis: 72px; }
+  .base-info-panel .piece-url-preview-frame { width: 60px; height: 74px; }
+}
+
+/* Keep the selected pawn image clear of the sticky workbench tabs on short screens.
+   The thumbnail row is a control, not the scroll anchor for the large portrait. */
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview-featured,
+  .base-info-panel .piece-url-preview-list,
+  .base-info-panel .piece-url-preview-item {
+    scroll-margin-block-start: calc(184px + env(safe-area-inset-top, 0px));
+  }
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: clamp(150px, 24vh, 220px);
+    min-height: 150px;
+  }
+}
+
+/* The current pawn art belongs in the visible image card, not inside the URL editor disclosure. */
+@layer v71-btype-parity {
+  .base-info-panel .piece-art-preview-live {
+    min-width: 0;
+    margin-top: 12px;
+  }
+}

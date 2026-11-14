@@ -27,6 +27,8 @@ const cloudPanelSource = readFileSync(new URL("../js/cloud-backup.js", import.me
 const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
 const accountsUiSource = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const uiAuditSource = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
+const visualSystem = readFileSync(new URL("../assets/v71-unified-visual.css", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
   assert.doesNotMatch(ui, /prompt\(/, "prompt は入力のために文脈を消すので使わない");
@@ -308,34 +310,33 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
 });
 
 
-test("SINNER SELECT のアカウント一覧はカードを縮めず、一覧だけをスクロールする", () => {
-  const panelStart = css.indexOf(".acct-panel,\n.acct-gate-panel {");
-  assert.notEqual(panelStart, -1, "両方のパネルを同じ制約にする");
-  const panelEnd = css.indexOf("\n}", panelStart);
-  const panelRule = css.slice(panelStart, panelEnd);
-  assert.ok(panelRule.includes("min-height: 0;"), "親 flex の最小高さ制約を解除する");
-  assert.ok(panelRule.includes("overflow: hidden;"), "親パネルでは二重スクロールを作らない");
-
-  const fixedStart = css.indexOf(".acct-panel > .acct-panel-head,");
-  assert.notEqual(fixedStart, -1, "固定する構成要素のルールがある");
-  const fixedEnd = css.indexOf("\n}", fixedStart);
-  const fixedRule = css.slice(fixedStart, fixedEnd);
-  assert.ok(fixedRule.includes("flex: 0 0 auto;"), "見出し・空状態・フッターを縮めない");
-
-  const gridStart = css.indexOf(".acct-panel > .acct-grid,\n.acct-gate-panel > .acct-grid {");
-  assert.notEqual(gridStart, -1, "一覧を両画面で独立させる");
-  const gridEnd = css.indexOf("\n}", gridStart);
-  const gridRule = css.slice(gridStart, gridEnd);
-  for (const declaration of [
-    "flex: 1 1 auto;",
-    "min-height: 0;",
-    "min-width: 0;",
-    "overflow-y: auto;",
-    "align-content: start;"
-  ]) assert.ok(gridRule.includes(declaration), "一覧ルールに " + declaration + " がある");
-
+test("SINNER SELECT はアカウント一覧と復旧操作を独立ペインにし、キー入力中も一覧を残す", () => {
+  assert.equal((ui.match(/className: "acct-panel-layout"/g) || []).length, 2,
+    "起動ゲートと管理画面の両方を二領域レイアウトにする");
+  assert.equal((ui.match(/className: "acct-panel-accounts"/g) || []).length, 2,
+    "アカウント一覧の領域を独立させる");
+  assert.equal((ui.match(/className: "acct-panel-cloud"/g) || []).length, 2,
+    "復旧パネルの領域を独立させる");
+  assert.match(ui, /className: "acct-grid acct-grid--manager"/, "管理画面の一覧を識別する");
+  assert.match(ui, /className: "acct-grid acct-grid--gate"/, "起動ゲートの一覧を識別する");
+  assert.match(css, /\.acct-panel-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) minmax\(300px, 360px\);/);
+  assert.match(css, /\.acct-panel-accounts \{[\s\S]*?min-height: 0;[\s\S]*?overflow: hidden;/);
+  assert.match(css, /\.acct-panel-accounts > \.acct-grid \{[\s\S]*?flex: 1 1 auto;[\s\S]*?min-height: 0;[\s\S]*?overflow-y: auto;/);
+  assert.match(css, /\.acct-panel-cloud \{[\s\S]*?overflow-y: auto;/,
+    "長い照合結果は保全側の領域だけでスクロールする");
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-rows: minmax\(140px, 1fr\) minmax\(112px,/,
+    "狭い画面では上下に並べ、両領域に最低高さを確保する");
+  assert.match(css, /\.acct-panel-accounts > \.acct-grid--manager,[\s\S]*?\.acct-panel-accounts > \.acct-grid--gate \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+    "スマートフォンではアカウントカードを1列表示にする");
+  assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-accounts > \.acct-grid--gate"\)/,
+    "起動ゲートの監査は分離後の一覧ペインを参照する");
+  assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-accounts > \.acct-grid--manager"\)/,
+    "管理画面の監査は分離後の一覧ペインを参照する");
+  assert.match(uiAuditSource, /panel\?\.querySelector\("\.acct-panel-cloud > details\.lbt-cloud-panel"\)/,
+    "保全パネルの折りたたみ状態を新しいペイン内で確認する");
+  assert.doesNotMatch(uiAuditSource, /:scope > \.acct-grid|:scope > (?:details\.)?lbt-cloud-panel|\.acct-panel > \.acct-grid/,
+    "監査側に旧DOM構造の直下参照を残さない");
 });
-
 
 test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
   const start = cloudPanelSource.indexOf('return h("details", { className: "lbt-cloud-panel"');
@@ -366,7 +367,7 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
     "height: auto;",
     "align-self: start;"
   ]) assert.ok(rule.includes(declaration), "編集中カードに " + declaration + " がある");
-  assert.ok(accountsUiSource.includes('className: "acct-grid" + (editingId || creating ? " is-editing" : "")'),
+  assert.ok(accountsUiSource.includes('className: "acct-grid acct-grid--manager" + (editingId || creating ? " is-editing" : "")'),
     "編集または新規作成中だけ一覧にis-editingクラスを付ける");
   const flexStart = css.indexOf(".acct-grid.is-editing {");
   assert.notEqual(flexStart, -1, "編集時専用のフロー表示がある");
@@ -374,14 +375,14 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
   const flexRule = css.slice(flexStart, flexEnd);
   for (const declaration of ["display: flex;", "flex-direction: column;", "align-items: stretch;"])
     assert.ok(flexRule.includes(declaration), "編集時一覧に " + declaration + " がある");
-  const cardRuleStart = css.indexOf(".acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add)");
+  const cardRuleStart = css.indexOf(".acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add)");
   assert.notEqual(cardRuleStart, -1, "管理画面カードだけに行高を適用する");
   const cardRuleEnd = css.indexOf("\n}", cardRuleStart);
   const cardRule = css.slice(cardRuleStart, cardRuleEnd);
   assert.ok(cardRule.includes("min-height: 184px;"), "管理画面カードは内容と操作が重ならない高さを持つ");
-  const sharedScrollRule = css.lastIndexOf(".acct-panel > .acct-grid," + "\n" + ".acct-gate-panel > .acct-grid {");
-  const managerTrackRule = css.lastIndexOf(".acct-panel > .acct-grid {");
-  const gateTrackRule = css.lastIndexOf(".acct-gate-panel > .acct-grid {");
+  const sharedScrollRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid {");
+  const managerTrackRule = css.lastIndexOf(".acct-panel-accounts > .acct-grid--manager {");
+  const gateTrackRule = css.indexOf(".acct-panel-accounts > .acct-grid--gate {");
   assert.ok(sharedScrollRule >= 0 && managerTrackRule > sharedScrollRule && gateTrackRule > sharedScrollRule,
     "共通スクロール指定の後ろで管理画面・起動ゲートの行トラックを分ける");
   const managerTrack = css.slice(managerTrackRule, css.indexOf("}", managerTrackRule));
@@ -391,3 +392,150 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
   assert.ok(gateTrack.includes("grid-auto-rows: minmax(156px, max-content);"),
     "起動時ゲートの行トラックは156px以上を維持");
 });
+
+
+test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
+  const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*#[0-9a-f]{6};$/gim)];
+  const typeTokens = [...visualSystem.matchAll(/^\s*--ui-type-[a-z-]+:\s*\d+px;$/gim)];
+  assert.equal(colorTokens.length, 5, "基調色は5変数だけにする");
+  assert.equal(typeTokens.length, 5, "文字サイズは5段階だけにする");
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
+});
+
+test("v71 removes legacy gradients from ordinary workbench surfaces", () => {
+  const start = visualSystem.indexOf("/* Flatten legacy workbench surfaces");
+  const end = visualSystem.indexOf("/* Primary actions stay filled in the flat theme.", start);
+  assert.ok(start >= 0 && end > start, "旧UI面をフラット化する正規化ブロックが存在する");
+  const block = visualSystem.slice(start, end);
+  for (const selector of [
+    ".focus", ".topbar", ".rail", ".preview", ".chip", ".p-card",
+    ".spirit-item.is-active", ".btype-command-hero", ".btype-record-task-card",
+    ".build-context-strip", ".piece-output-shell", ".persona-draft-dialog"
+  ]) {
+    assert.ok(block.includes(selector), "旧グラデーション面をフラット化する: " + selector);
+  }
+  assert.match(block, /background-image: none !important;/,
+    "旧コンポーネントの装飾グラデーションを上書きで除去する");
+  assert.match(block, /Functional[\s\S]*?CCFOLIA board grid lines[\s\S]*?dedicated extraction FX/,
+    "盤面罫線と抽出演出という機能表示は意図的に別扱いとする");
+});
+
+test("flat UI palette keeps primary and body text above WCAG AA contrast", () => {
+  const token = (name) => {
+    const match = visualSystem.match(new RegExp("^\\s*--ui-" + name + ":\\s*(#[0-9a-f]{6});", "im"));
+    assert.ok(match, "基調色トークンが存在する: " + name);
+    return match[1];
+  };
+  const luminance = (hex) => {
+    const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
+      .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const contrast = (a, b) => {
+    const values = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (values[0] + 0.05) / (values[1] + 0.05);
+  };
+  assert.ok(contrast(token("accent"), token("bg")) >= 4.5,
+    "主操作の真鍮色と文字背景のコントラストは4.5:1以上");
+  assert.ok(contrast(token("text"), token("surface")) >= 4.5,
+    "通常文字と面色のコントラストは4.5:1以上");
+});
+
+test("overlay metadata and resistance badges retain WCAG AA contrast", () => {
+  assert.match(visualSystem, /\.lbt-cloud-panel \.lbt-cloud-state\s*\{[^}]*color: var\(--ui-accent\) !important;[^}]*opacity: 1 !important;/,
+    "ローカル保存状態は背景面に対して読めるアクセント色で表示する");
+  assert.match(visualSystem, /\.acct-card \.acct-meta\s*\{[^}]*color: var\(--ui-text\) !important;[^}]*opacity: 1 !important;/,
+    "アカウントの最終更新表示を薄くしすぎない");
+  for (const level of ["弱点", "耐性"]) {
+    assert.ok(visualSystem.includes('.res-dot[data-res="' + level + '"]'), level + " badge override exists");
+  }
+  assert.match(visualSystem, /\.res-dot\[data-res="弱点"\],[\s\S]*?\.res-dot\[data-res="耐性"\]\s*\{[^}]*color: var\(--ui-bg\) !important;[^}]*text-shadow: none !important;/,
+    "明るい耐性バッジは濃い文字にし、情報を読める状態にする");
+  assert.match(visualSystem, /\.res-dot\[data-res="弱点"\]::before,[\s\S]*?\.res-dot\[data-res="耐性"\]::before\s*\{[^}]*color: var\(--ui-bg\) !important;/,
+    "属性記号も本文と同じ高コントラストを維持する");
+});
+
+test("blocked shop actions and enhancement catalog meet accessibility interaction requirements", () => {
+  assert.match(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-image: none !important;[\s\S]*?color: var\(--ui-bg\) !important;[\s\S]*?opacity: 1 !important;/,
+    "残高不足カードの購入理由ボタンは不透明なフラット塗りで十分なコントラストを保つ");
+  assert.match(visualSystem, /\.btn-primary:disabled,[\s\S]*?color: var\(--ui-text\) !important;[\s\S]*?opacity: 1 !important;/,
+    "実際に無効な主操作も高コントラストの文字を維持する");
+  assert.match(sections, /className: "enhancement-catalog-scroll",[\s\S]*?role: "region",[\s\S]*?"aria-label": "強化候補一覧",[\s\S]*?tabIndex: 0/,
+    "強化候補の内部スクロール領域は名前付きでキーボードフォーカスを受け取る");
+  assert.match(sections, /className: "spp-item",[\s\S]*?role: "button",[\s\S]*?tabIndex: 0,[\s\S]*?onClick: \(\) => addEnh\(entry\),[\s\S]*?onKeyDown: \(event\) => \{[\s\S]*?event\.key === "Enter" \|\| event\.key === " "[\s\S]*?addEnh\(entry\)/,
+    "強化候補の表示全文をボタン名として使い、Enter／Spaceでも追加できる");
+  assert.doesNotMatch(sections, /"aria-label": `\$\{entry\.name\}を強化候補に追加`/,
+    "表示内容を欠く短いaria-labelでボタンの表示名を上書きしない");
+});
+
+test("v71 restores visible primary-action fills without reintroducing gradients", () => {
+  assert.match(visualSystem, /\.btn-primary\s*\{[^}]*background-color: var\(--ui-accent\) !important;[^}]*background-image: none !important;[^}]*color: var\(--ui-bg\) !important;/,
+    "主操作はアクセント色のフラットな塗りと背景色に対する文字色を持つ");
+  assert.match(visualSystem, /\.btn:disabled\.btn-primary\s*\{[^}]*background-color: var\(--ui-surface\) !important;[^}]*color: var\(--ui-line\) !important;[^}]*opacity: 1;/,
+    "無効な主操作は暗い面色と境界色で区別し、不透明度で文字を潰さない");
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i,
+    "フラットなビジュアルにグラデーションを再導入しない");
+});
+
+test("UI audit uses unique build-tab controls and collapses preview before home launcher taps", () => {
+  assert.match(uiAuditSource, /\.btype-build-tablist > \[role='tab'\]/,
+    "ビルドのメインタブだけを直接選択し、子パネル内の同名タブを拾わない");
+  for (const id of ["skill", "ego", "baseinfo", "items-build"]) {
+    assert.ok(uiAuditSource.includes('page.locator("#btab-' + id + '")'),
+      "ビルドタブは一意なIDで操作する: " + id);
+  }
+  assert.match(uiAuditSource, /async function collapsePreviewIfOpen\(\)/,
+    "ランチャー操作の前後にプレビューを閉じる手順を持つ");
+  assert.match(uiAuditSource, /await closeOverlay\(\);\s*await collapsePreviewIfOpen\(\);\s*await go\("ホーム"\)/,
+    "各ランチャー操作の前にダイアログとプレビューを閉じてからホームへ戻る");
+});
+
+test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens mobile account cards", () => {
+  assert.match(visualSystem, /grid-template-rows: minmax\(0, 1fr\) auto;/,
+    "スマホで復旧欄を閉じたときは内容高だけを確保する");
+  assert.match(visualSystem, /\.acct-panel:has\(\.acct-card--form\) \.acct-panel-cloud,[\s\S]*?display: none !important;/,
+    "編集時は復旧欄を隠す");
+  assert.match(visualSystem, /grid-auto-rows: minmax\(108px, max-content\)/,
+    "スマホでは管理カードを短い横長行にする");
+  assert.match(visualSystem, /\.acct-panel-accounts > \.acct-grid--manager \{[\s\S]*?grid-auto-rows: minmax\(184px, max-content\);/,
+    "PC・タブレットでは184px未満の行トラックを作らずカードを重ねない");
+  assert.match(uiAuditSource, /minimumManagerCardHeight = view\.startsWith\("mobile"\) \? 96 : 180/,
+    "監査のカード高基準を端末別にする");
+  assert.match(uiAuditSource, /getComputedStyle\(backupPanel\)\.display\s*===\s*"none"/,
+    "編集時は復旧ペイン全体の非表示を判定する");
+  assert.ok(visualSystem.includes("grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));"),
+    "ショップの商品一覧をPCで3列程度に抑える");
+
+  const closedLayoutStart = visualSystem.indexOf(".acct-panel-layout:has(.acct-panel-cloud > .lbt-cloud-panel:not([open]))");
+  const closedLayoutEnd = visualSystem.indexOf("\n}", closedLayoutStart);
+  const closedLayout = visualSystem.slice(closedLayoutStart, closedLayoutEnd);
+  assert.ok(closedLayoutStart >= 0 && closedLayout.includes("grid-template-columns: minmax(0, 1fr);"),
+    "復旧欄を閉じたPC画面では右側に空き列を残さない");
+
+  const closedCloudStart = visualSystem.indexOf(".acct-panel-cloud:has(> .lbt-cloud-panel:not([open]))");
+  const closedCloudEnd = visualSystem.indexOf("\n}", closedCloudStart);
+  const closedCloud = visualSystem.slice(closedCloudStart, closedCloudEnd);
+  assert.ok(closedCloudStart >= 0 && closedCloud.includes("max-height: 60px;"),
+    "閉じた復旧欄の高さを60pxに制限する");
+  assert.ok(closedCloud.includes("border-top: 1px solid var(--ui-line);"),
+    "折りたたまれた復旧欄は一覧の下に細い行として置く");
+
+  const compactPanelStart = visualSystem.indexOf(".acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) {");
+  const compactPanelEnd = visualSystem.indexOf("\n}", compactPanelStart);
+  const compactPanel = visualSystem.slice(compactPanelStart, compactPanelEnd);
+  assert.ok(compactPanelStart >= 0 && compactPanel.includes("margin: 0;") && compactPanel.includes("padding: 0;"),
+    "カード本体の余白を折りたたみ時に重ねない");
+
+  const headingStart = visualSystem.indexOf(".acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-heading {");
+  const headingEnd = visualSystem.indexOf("\n}", headingStart);
+  const heading = visualSystem.slice(headingStart, headingEnd);
+  assert.ok(headingStart >= 0 && heading.includes("flex-direction: row;") && heading.includes("flex-wrap: nowrap;"),
+    "復旧欄のタイトルと保存状態を1行に収める");
+
+  assert.ok(visualSystem.includes("grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));"),
+    "PCのアカウント一覧は3列程度にして名前を読める幅を確保する");
+  assert.ok(visualSystem.includes("--gold-tint: var(--ui-surface);"),
+    "アクセント文字の背景は文字と同色にしない");
+  assert.ok(visualSystem.includes("--gold-line: var(--ui-line);"),
+    "アクセント文字と境界線を別の役割にする");
+});;

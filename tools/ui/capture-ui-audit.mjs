@@ -44,10 +44,47 @@ async function visible(loc) {
     });
   } catch { return false; }
 }
+async function collapsePreviewIfOpen() {
+  const panel=page.locator(".preview.is-open").first();
+  if(!(await visible(panel))) return false;
+  const width=page.viewportSize()?.width||1440;
+  const toggle=page.locator(width<=640?".preview-mobile-toggle":"#lbt-preview-edge-toggle").first();
+  if(!(await visible(toggle))) throw new Error("プレビューを閉じる操作が見つかりません");
+  await click(toggle);
+  await page.waitForFunction(()=>!document.querySelector(".preview.is-open"),null,{timeout:5000});
+  return true;
+}
 async function click(loc) {
   if (!(await visible(loc))) throw new Error("target is not visible");
   const target = loc.first();
-  await target.scrollIntoViewIfNeeded({ timeout: 4000 });
+  /* 固定ボトムナビがある端末では、要素の一部が見えていても中心点がナビの
+     下へ残ることがある。nearest ではなく中央へ寄せ、実際に押せる位置で検証する。 */
+  await target.evaluate((el) => el.scrollIntoView({
+    block: "center", inline: "nearest", behavior: "instant"
+  }));
+  await page.waitForTimeout(60);
+  const hit = await target.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const x = Math.max(0, Math.min(innerWidth - 1, r.left + r.width / 2));
+    const y = Math.max(0, Math.min(innerHeight - 1, r.top + r.height / 2));
+    const at = document.elementFromPoint(x, y);
+    const style = getComputedStyle(el);
+    return {
+      disabled: !!el.disabled || el.getAttribute("aria-disabled") === "true",
+      pointerEvents: style.pointerEvents,
+      center: { x, y },
+      rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+      hitTarget: at ? {
+        tag: at.tagName,
+        className: typeof at.className === "string" ? at.className : "",
+        label: at.getAttribute("aria-label") || (at.innerText || "").trim().slice(0, 48)
+      } : null,
+      centerReachable: !!at && (at === el || el.contains(at))
+    };
+  });
+  if (hit.disabled || hit.pointerEvents === "none" || !hit.centerReachable) {
+    throw new Error("操作対象の中心点がクリック可能ではありません: " + JSON.stringify(hit));
+  }
   /* hasTouch:true のスマートフォン検証では mouse.click ではなく実タップ経路を通す。
      これにより touch/pointer の発火と hover 前提でない操作を検証できる。 */
   if (view.startsWith("mobile")) await target.tap({ timeout: 4000 });
@@ -338,7 +375,7 @@ async function snap(name, note) {
 }
 async function attempt(name, fn) {
   try { await fn(); audit.interactions.push({name,status:"captured"}); }
-  catch(e) { const err=String(e&&e.message||e).slice(0,220); audit.failures.push({name,error:err}); audit.interactions.push({name,status:"failed",error:err}); log("skip "+name+": "+err); }
+  catch(e) { const err=String(e&&e.message||e).slice(0,900); audit.failures.push({name,error:err}); audit.interactions.push({name,status:"failed",error:err}); log("skip "+name+": "+err); }
 }
 async function seed() {
   return page.evaluate(() => {
@@ -633,7 +670,7 @@ async function boot() {
     await snap("account-gate-initial","起動時のSINNER SELECT");
     const initialGateLayout=await page.evaluate(()=>{
       const panel=document.querySelector(".acct-gate-panel");
-      const grid=panel?.querySelector(":scope > .acct-grid");
+      const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--gate");
       const panelRect=panel?.getBoundingClientRect();
       const cardCount=grid?.querySelectorAll(".acct-card--gate").length||0;
       return {
@@ -693,7 +730,7 @@ async function boot() {
       const gateMetrics = await page.evaluate(() => {
         const root=document.querySelector("main.acct-gate");
         const panel=root?.querySelector(".acct-gate-panel");
-        const grid=panel?.querySelector(":scope > .acct-grid");
+        const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--gate");
         const cards=grid ? [...grid.querySelectorAll(".acct-card--gate")] : [];
         const heights=cards.map(card=>card.getBoundingClientRect().height).filter(Number.isFinite);
         const panelRect=panel?.getBoundingClientRect();
@@ -716,7 +753,7 @@ async function boot() {
           panelWidth:panel?.clientWidth||0,
           panelInsideViewport:!!panelRect && panelRect.left>=-1 && panelRect.right<=innerWidth+1 && panelRect.top>=-1 && panelRect.bottom<=innerHeight+1,
           cardsFit,
-          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
+          onlineBackupCollapsed:panel?.querySelector(".acct-panel-cloud > details.lbt-cloud-panel")?.open === false,
           gridOverflowY:gridStyle?.overflowY||"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
         };
@@ -725,10 +762,10 @@ async function boot() {
       audit.accountGateLayout[view] = gateMetrics;
       const phoneGate=view.startsWith("mobile");
       const minimumGateCardHeight=phoneGate?92:152;
-      if(gateMetrics.accountCount < 8 || gateMetrics.gridClientHeight < 220 || gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1
+      if(gateMetrics.accountCount < 8 || gateMetrics.gridClientHeight < 220
         || gateMetrics.minCardHeight < minimumGateCardHeight || !gateMetrics.onlineBackupCollapsed
         || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden"
-        || (phoneGate && (gateMetrics.gridColumnCount!==1 || gateMetrics.panelWidth/gateMetrics.viewportWidth<0.85
+        || (phoneGate && (gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1 || gateMetrics.gridColumnCount!==1 || gateMetrics.panelWidth/gateMetrics.viewportWidth<0.85
           || gateMetrics.documentWidth>gateMetrics.viewportWidth+2 || !gateMetrics.panelInsideViewport || !gateMetrics.cardsFit))) {
         throw new Error("複数アカウントの起動ゲートでスマホ比率／一覧スクロール／カード配置が期待どおりではありません: " + JSON.stringify(gateMetrics));
       }
@@ -855,7 +892,7 @@ async function captureProfile(browser, mode) {
       if(await visible(movedToggle)) { await movedToggle.hover().catch(()=>{}); await snap("preview-toggle-open-hover","プレビューを開いた状態で開閉タブをホバー"); await click(movedToggle); await snap("preview-toggled-closed","プレビューを再度閉じた状態"); }
     }
     await snap("build-persona-default","ビルドの初期表示。専用の使い捨てデータを使用");
-    const tabs=page.locator(".build-tabs [role='tab']");
+    const tabs=page.locator(".btype-build-tablist > [role='tab']");
     const count=await tabs.count();
     for(let i=0;i<count;i++) {
       const tab=tabs.nth(i), label=(await tab.innerText()).trim();
@@ -991,7 +1028,7 @@ async function captureProfile(browser, mode) {
     /* Basic keeps image URL registration, but deliberately has no always-visible
        portrait or miniature output. The shared LivePreview is the only preview. */
     await attempt("basic-ccfolia-workspace",async()=>{
-      const basicTab=page.locator(".build-tabs").getByRole("tab",{name:"基本",exact:true}).first();
+      const basicTab=page.locator("#btab-baseinfo");
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
       await page.locator(".build-params-shell.piece-format-panel").waitFor({state:"visible",timeout:5000});
@@ -999,14 +1036,128 @@ async function captureProfile(browser, mode) {
       await artDisclosure.waitFor({state:"visible",timeout:5000});
       if(await artDisclosure.evaluate(el=>el.parentElement?.open!==true)) await click(artDisclosure);
       const artUrl="http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg";
+      const faceImageUrls=[artUrl,...Array.from({length:4},(_,index)=>artUrl+"?face="+(index+1))];
       const imageUrls=page.locator("#piece-image-urls");
-      await imageUrls.fill(artUrl+"\n"+artUrl+"?face=1");
-      if(await imageUrls.inputValue()!==artUrl+"\n"+artUrl+"?face=1") throw new Error("立ち絵URL・差分の登録値が保持されません");
+      await imageUrls.fill(faceImageUrls.join("\n"));
+      if(await imageUrls.inputValue()!==faceImageUrls.join("\n")) throw new Error("立ち絵URL・差分の登録値が保持されません");
+      const imagePreviewItems=page.locator(".piece-url-preview-item");
+      const imagePreviewStrip=page.locator(".piece-url-preview-list");
+      const featuredImage=page.locator(".piece-url-preview-featured-frame > img");
+      /* The image stays in the visible art card even when the URL editor is closed. */
+      await click(artDisclosure);
+      await page.waitForFunction(()=> {
+        const editor=document.querySelector(".piece-image-details");
+        return !editor || !editor.open;
+      },null,{timeout:5000});
+      await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
+      await featuredImage.waitFor({state:"visible",timeout:5000});
+      await page.waitForFunction(()=> {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && image.complete && image.naturalWidth>0 && image.naturalHeight>0;
+      },null,{timeout:5000});
+      if(await imageUrls.isVisible()) throw new Error("画像編集を閉じてもURL入力欄が見えています");
+      const collapsedEditorPreview=await featuredImage.evaluate(el=>({
+        loaded:el.complete&&el.naturalWidth>0&&el.naturalHeight>0,
+        naturalWidth:el.naturalWidth,
+        naturalHeight:el.naturalHeight,
+        visible:!!(el.getBoundingClientRect().width&&el.getBoundingClientRect().height)
+      }));
+      if(!collapsedEditorPreview.loaded||!collapsedEditorPreview.visible) {
+        throw new Error("編集欄を閉じると駒画像が見えなくなります: "+JSON.stringify(collapsedEditorPreview));
+      }
+      await snap("basic-image-preview-visible-with-editor-closed","駒画像：URL編集を閉じても基本画像と差分一覧を常時表示");
+      const editAction=page.locator(".piece-art-actions button").first();
+      await click(editAction);
+      await imageUrls.waitFor({state:"visible",timeout:5000});
+      if(!(await artDisclosure.evaluate(el=>el.parentElement?.open===true))) throw new Error("画像編集ボタンからURL編集欄を再度開けません");
+      await click(artDisclosure);
+      await imageUrls.waitFor({state:"hidden",timeout:5000});
+      await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
+      /* The thumbnail row sits below a tall portrait. Centering the strip scrolls
+         the portrait behind the sticky build tabs on phones/tablets. Anchor the
+         large image itself just below the visible tab bar instead. */
+      const imageViewport=await page.locator(".piece-url-preview-featured-frame").evaluate(el=>{
+        const tabs=document.querySelector(".build-tabs.is-b-workbench");
+        const tabsRect=tabs?.getBoundingClientRect();
+        const stickyBottom=tabs&&getComputedStyle(tabs).position==="sticky"&&tabsRect
+          ? Math.max(0,tabsRect.bottom) : 0;
+        const frame=el.getBoundingClientRect();
+        /* The app's content column (.focus) is the scroll container. window.scrollTo()
+           is a no-op here and left the image behind the sticky tab strip. Move that
+           scroll root by the measured overlap so the whole portrait starts below tabs. */
+        const scrollRoot=document.querySelector(".focus");
+        const targetTop=Math.max(0,(scrollRoot?.scrollTop??window.scrollY)+frame.top-stickyBottom-12);
+        if(scrollRoot) scrollRoot.scrollTo({top:targetTop,behavior:"instant"});
+        else window.scrollTo({top:targetTop,behavior:"instant"});
+        return {
+          scrollRoot:scrollRoot?.className||"document",
+          scrollTop:scrollRoot?.scrollTop??window.scrollY,
+          stickyBottom,
+          frameTop:frame.top
+        };
+      });
+      await page.waitForTimeout(100);
+      const imageGeometry=await page.evaluate(()=>{
+        const frame=document.querySelector(".piece-url-preview-featured-frame")?.getBoundingClientRect();
+        const strip=document.querySelector(".piece-url-preview-list")?.getBoundingClientRect();
+        const tabs=document.querySelector(".build-tabs.is-b-workbench")?.getBoundingClientRect();
+        const nav=document.querySelector(".btype-mobile-bottom-nav");
+        const navRect=nav&&getComputedStyle(nav).display!=="none"?nav.getBoundingClientRect():null;
+        return {
+          frameTop:frame?.top??null,frameBottom:frame?.bottom??null,
+          stripTop:strip?.top??null,stripBottom:strip?.bottom??null,
+          stickyTabsBottom:tabs?.bottom??0,navTop:navRect?.top??innerHeight,
+          imageBelowTabs:!!frame&&frame.top>=(tabs?.bottom??0)+6,
+          imageBeforeBottomNav:!!frame&&frame.bottom<=(navRect?.top??innerHeight),
+          controlsBeforeBottomNav:!!strip&&strip.bottom<=(navRect?.top??innerHeight)
+        };
+      });
+      if(!imageGeometry.imageBelowTabs || !imageGeometry.imageBeforeBottomNav || !imageGeometry.controlsBeforeBottomNav) {
+        throw new Error("駒画像の大きなプレビュー／差分選択が固定ナビの表示領域内に収まりません: "+JSON.stringify({imageViewport,imageGeometry}));
+      }
+      if(await imagePreviewItems.count()!==faceImageUrls.length) throw new Error("登録した5枚すべての駒画像が選択ボタンとして表示されません");
+      await featuredImage.waitFor({state:"visible",timeout:5000});
+      const primaryLoaded=await featuredImage.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
+      if(!primaryLoaded || !(await featuredImage.getAttribute("src"))?.endsWith("ccfolia-preview-sample.svg")) {
+        throw new Error("基本画像が大きな選択プレビューに表示されません");
+      }
+      if(await imagePreviewItems.nth(0).getAttribute("aria-pressed")!=="true") {
+        throw new Error("基本画像の選択状態が表示されません");
+      }
+      for(let i=0;i<faceImageUrls.length;i++) {
+        const image=imagePreviewItems.nth(i).locator("img");
+        await image.waitFor({state:"visible",timeout:5000});
+        const loaded=await image.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
+        if(!loaded) throw new Error("駒画像の差分サムネイルを読み込めません: "+i);
+      }
+      await click(imagePreviewItems.nth(4));
+      if(await imagePreviewItems.nth(4).getAttribute("aria-pressed")!=="true") {
+        throw new Error("5枚目の差分を選んでも選択状態が切り替わりません");
+      }
+      await page.waitForFunction(()=> {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && image.getAttribute("src")?.endsWith("?face=4") && image.complete && image.naturalWidth>0;
+      },null,{timeout:5000});
+      await snap("basic-image-preview-fifth-face-selected","駒の画像設定：5枚目の差分まで選択でき、大きな画像が切り替わる状態");
+      await click(imagePreviewItems.nth(0));
+      await page.waitForFunction(()=> {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && image.getAttribute("src")?.endsWith("ccfolia-preview-sample.svg") && image.complete && image.naturalWidth>0;
+      },null,{timeout:5000});
+      const imagePreviewNavOverlap=await imagePreviewStrip.evaluate(el=>{
+        const strip=el.getBoundingClientRect();
+        const nav=document.querySelector(".btype-mobile-bottom-nav");
+        if(!nav||getComputedStyle(nav).display==="none") return 0;
+        const rect=nav.getBoundingClientRect();
+        return Math.max(0,Math.min(strip.bottom,rect.bottom)-Math.max(strip.top,rect.top));
+      });
+      if(imagePreviewNavOverlap>2) throw new Error("駒画像の差分ボタンがスマホ固定ナビに隠れています: "+imagePreviewNavOverlap+"px");
+      await snap("basic-image-preview-loaded","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示");
       for(const selector of [".piece-art-frame",".piece-art-wrap",".piece-art-thumbs",".basic-ccfolia-preview",".btype-workbench-preview-panel",".preview-lines"]) {
         if(await page.locator(selector).count()) throw new Error("格納中の基本画面にプレビュー要素が残っています: "+selector);
       }
       if(await page.locator("#preview-panel").count()) throw new Error("格納中なのに共通プレビューがDOMに残っています");
-      await snap("basic-workspace-preview-collapsed","基本画面：立ち絵・簡易プレビューを表示せず、画像URL編集だけを保持");
+      await snap("basic-workspace-preview-collapsed","共通CCFOLIAプレビューを閉じても、駒画像と差分一覧は画像設定カードに表示");
       const statusTab=page.locator("#build-params-tab-statuses");
       await click(statusTab);
       if(await statusTab.getAttribute("aria-selected")!=="true") throw new Error("STタブが選択状態になりません");
@@ -1553,6 +1704,8 @@ async function captureProfile(browser, mode) {
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
     });
     await attempt("home-launcher-review",async()=>{
+      await closeOverlay();
+      await collapsePreviewIfOpen();
       await go("ホーム");
       await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
       const launcher=page.locator(".btype-launcher-grid");
@@ -1565,6 +1718,8 @@ async function captureProfile(browser, mode) {
       if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
       // Exercise every launcher route against the disposable audit account.
       for(let i=0;i<count;i++){
+        await closeOverlay();
+        await collapsePreviewIfOpen();
         await go("ホーム");
         const action=page.locator(".btype-launcher-grid button").nth(i);
         if(!(await visible(action))) continue;
@@ -1572,18 +1727,19 @@ async function captureProfile(browser, mode) {
         await click(action);
         await snap("home-action-destination-"+label,"ホームランチャーからの遷移先："+label);
         await closeOverlay();
+        await collapsePreviewIfOpen();
       }
     });
     await attempt("build-editor-operation-paths",async()=>{
       await go("ビルド");
-      const skillTab=page.locator(".build-tabs [role='tab']").filter({hasText:"スキル"}).first();
+      const skillTab=page.locator("#btab-skill");
       if(await visible(skillTab)){
         await click(skillTab);
         await snap("build-skill-editor","スキル編集画面の初期状態");
         const addSkill=page.getByRole("button",{name:/スキル.*追加|追加.*スキル/}).first();
         if(await visible(addSkill)){await click(addSkill);await snap("build-skill-add","スキル追加操作後の編集状態");}
       }
-      const egoTab=page.locator(".build-tabs [role='tab']").filter({hasText:"E.G.O"}).first();
+      const egoTab=page.locator("#btab-ego");
       if(await visible(egoTab)){
         await click(egoTab);
         const create=page.getByRole("button",{name:/E.G.Oを新規作成/}).first();
@@ -1593,12 +1749,12 @@ async function captureProfile(browser, mode) {
           await closeOverlay();
         }
       }
-      const basicTab=page.locator(".build-tabs [role='tab']").filter({hasText:"基本"}).first();
+      const basicTab=page.locator("#btab-baseinfo");
       if(await visible(basicTab)) await click(basicTab);
     });
     await attempt("build-item-picker-search",async()=>{
       await go("ビルド");
-      const itemTab=page.locator(".build-tabs [role='tab']").filter({hasText:"アイテム"}).first();
+      const itemTab=page.locator("#btab-items-build");
       if(!(await visible(itemTab))) throw new Error("Buildのアイテムタブが見つかりません");
       await click(itemTab);
       await snap("build-items-inventory","Buildの所持アイテムと検索・表示設定");
@@ -1694,7 +1850,7 @@ async function captureProfile(browser, mode) {
       await page.waitForTimeout(250); await snap("account-management-list","アカウント管理の一覧");
       const managerMetrics = await page.evaluate(() => {
         const panel=document.querySelector(".acct-panel");
-        const grid=panel?.querySelector(":scope > .acct-grid");
+        const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--manager");
         const cards=grid ? [...grid.querySelectorAll(".acct-card:not(.acct-card--add)")] : [];
         const cardRects=cards.map(card=>{
           const r=card.getBoundingClientRect();
@@ -1721,17 +1877,19 @@ async function captureProfile(browser, mode) {
           minCardHeight:heights.length?Math.min(...heights):0,
           overlappingCardPairs,
           actionsOutsideCards:actionBounds.filter(within=>!within).length,
-          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
+          onlineBackupCollapsed:panel?.querySelector(".acct-panel-cloud > details.lbt-cloud-panel")?.open === false,
           gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
         };
       });
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
-      if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
-        || managerMetrics.minCardHeight < 180 || managerMetrics.overlappingCardPairs > 0
+      const minimumManagerCardHeight = view.startsWith("mobile") ? 96 : 180;
+      if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220
+        || managerMetrics.minCardHeight < minimumManagerCardHeight || managerMetrics.overlappingCardPairs > 0
         || managerMetrics.actionsOutsideCards > 0 || !managerMetrics.onlineBackupCollapsed
-        || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
+        || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden"
+        || (view.startsWith("mobile") && managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1)) {
         throw new Error("複数アカウントの管理画面で一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(managerMetrics));
       }
       const edit=page.locator(".acct-card-actions .acct-edit-btn").first();
@@ -1739,11 +1897,13 @@ async function captureProfile(browser, mode) {
         await click(edit); await snap("account-edit-form","アカウント編集フォーム");
         const editorMetrics = await page.evaluate(() => {
           const panel=document.querySelector(".acct-panel");
-          const grid=panel?.querySelector(":scope > .acct-grid");
+          const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--manager");
           const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
           const button=editor?.querySelector(".acct-import-toggle");
-          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
-          const backupHidden=!backup || getComputedStyle(backup).display==="none";
+          const backupPanel=panel?.querySelector(".acct-panel-cloud");
+          const backup=backupPanel?.querySelector(".lbt-cloud-panel");
+          const backupHidden=!backupPanel || getComputedStyle(backupPanel).display==="none"
+            || !backup || getComputedStyle(backup).display==="none";
           const rect=(node)=>node?node.getBoundingClientRect():null;
           const er=rect(editor), br=rect(button), gr=rect(grid);
           const style=editor?getComputedStyle(editor):null;
@@ -1777,7 +1937,7 @@ async function captureProfile(browser, mode) {
         const actions=editor.locator(".acct-form-actions").first();
         await actions.scrollIntoViewIfNeeded();
         const actionGeometry=await page.evaluate(()=>{
-          const grid=document.querySelector(".acct-panel > .acct-grid");
+          const grid=document.querySelector(".acct-panel .acct-panel-accounts > .acct-grid--manager");
           const actions=grid?.querySelector(".acct-form-actions");
           const r=actions?.getBoundingClientRect();
           const g=grid?.getBoundingClientRect();
@@ -1798,13 +1958,13 @@ async function captureProfile(browser, mode) {
         }
         await snap("account-edit-actions-visible","編集フォーム末尾の保存／キャンセルをスクロールして表示");
         await click(actions.getByRole("button",{name:"キャンセル",exact:true}));
-        await page.waitForFunction(()=>!document.querySelector(".acct-panel > .acct-grid.is-editing"),null,{timeout:3000});
+        await page.waitForFunction(()=>!document.querySelector(".acct-panel .acct-panel-accounts > .acct-grid--manager.is-editing"),null,{timeout:3000});
         const restore=await page.evaluate(()=>{
           const panel=document.querySelector(".acct-panel");
-          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
+          const backup=panel?.querySelector(".acct-panel-cloud > .lbt-cloud-panel");
           const r=backup?.getBoundingClientRect();
           return {backupVisible:!!backup&&getComputedStyle(backup).display!=="none"&&!!r&&r.width>0&&r.height>0,
-            formRemaining:!!panel?.querySelector(":scope > .acct-grid.is-editing")};
+            formRemaining:!!panel?.querySelector(".acct-panel-accounts > .acct-grid--manager.is-editing")};
         });
         if(!restore.backupVisible || restore.formRemaining){
           throw new Error("編集キャンセル後に一覧／オンライン保全欄へ戻りません: "+JSON.stringify(restore));
@@ -1850,10 +2010,10 @@ async function main() {
   audit.overlayAccessibilityScanCount = audit.accessibilityScans.length;
   audit.overlayAccessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
   audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states",
-    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation",
+    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes, with loaded primary and face images in image settings","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation",
     "new result entry labels, resource inputs and reward-ticket layout at every viewport","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
-    "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクター編集プレビュー","ビルド内基本タブの出力データプレビュー",
+    "基本画面のステータス（ST）編集パネル","基本画面のラベル（パラメータ）編集パネル","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示","共通プレビュー：CCFOLIA盤面","共通プレビュー：CCFOLIAキャラクター編集画面","共通プレビュー：実際のCCFOLIA出力JSON",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",

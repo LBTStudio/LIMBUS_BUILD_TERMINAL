@@ -451,8 +451,10 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
         ),
         h("button", { type: "button", className: "acct-close", onClick: requestClose, title: "閉じる (Esc)", "aria-label": "アカウント切替を閉じる" }, h(Icon, { name: "x", size: 16 }))
       ),
+      h("div", { className: "acct-panel-layout" },
+        h("div", { className: "acct-panel-accounts" },
       total === 0 ? h("div", { className: "acct-empty" }, "端末内への保存が有効なブラウザで開いてください。") : null,
-      total > 0 ? h("div", { className: "acct-grid" + (editingId || creating ? " is-editing" : "") },
+      total > 0 ? h("div", { className: "acct-grid acct-grid--manager" + (editingId || creating ? " is-editing" : "") },
         info.accounts.map((entry, index) => h(AccountCard, {
           key: entry.id,
           entry,
@@ -509,7 +511,11 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
           h("span", null, "新しいアカウント")
         ) : null
       ) : null,
-      h(window.LBTCloudBackupPanel || "div", { compact: true }),
+              ),
+        h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
+          h(window.LBTCloudBackupPanel || "div", { compact: true })
+        )
+      ),
       h("footer", { className: "acct-panel-foot" },
         h("span", null, total > 0 ? `${total}件のアカウント・この端末内に保存` : "保存領域なし"),
         h("span", { className: "acct-foot-note" }, "切替・作成で他のアカウントは書き換わりません。初回移行時の旧データはバックアップとして残ります。")
@@ -577,8 +583,10 @@ const AccountGate = () => {
           h("p", { className: "acct-lead" }, "作業するキャラクター（アカウント）を選んでください。保存領域はキャラクターごとに分かれ、いつでも切替えられます。")
         )
       ),
+      h("div", { className: "acct-panel-layout" },
+        h("div", { className: "acct-panel-accounts" },
       accounts.length === 0 ? h("div", { className: "acct-empty" }, "まずキャラクターを作成してください。") : null,
-      h("div", { className: "acct-grid" },
+      h("div", { className: "acct-grid acct-grid--gate" },
         accounts.map((entry, index) => h("div", { key: entry.id, className: `acct-card acct-card--gate${entry.id === info.activeId ? " is-active" : ""}`, style: { "--i": index } },
           h("button", {
             type: "button",
@@ -636,7 +644,11 @@ const AccountGate = () => {
           h("span", null, "新しいキャラクター")
         ) : null
       ),
-      h(window.LBTCloudBackupPanel || "div", { compact: true }),
+              ),
+        h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
+          h(window.LBTCloudBackupPanel || "div", { compact: true })
+        )
+      ),
       h("footer", { className: "acct-panel-foot" },
         h("span", null, accounts.length > 0 ? `${accounts.length}件のアカウント・この端末内に保存` : "保存領域なし"),
         h("span", { className: "acct-foot-note" }, "ローカル保存はこの端末のブラウザに残ります。オンライン保全を設定した場合は、明示したデータをクラウドにも保存します。初回のみ、旧保存データを1つ目のアカウントへ取り込みます。")

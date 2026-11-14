@@ -8,10 +8,11 @@ const persona = read("../js/PersonaCodex.js");
 const app = read("../js/App.js");
 const livePreview = read("../js/LivePreview.js");
 const workbench = read("../assets/b-type-workbench.css");
+const parityCss = read("../assets/b-type-ui-parity.css");
 const uiAudit = read("../tools/ui/capture-ui-audit.mjs");
 const previewCapture = read("../tools/ui/capture-preview-control-regression.mjs");
 
-test("Basic workspace retains image registration but has no permanent portrait preview", () => {
+test("Basic workspace keeps the pawn image preview visible while the URL editor is collapsed", () => {
   const start = sections.indexOf("const BaseSection =");
   const end = sections.indexOf("const PassiveCard =", start);
   const base = sections.slice(start, end);
@@ -20,6 +21,23 @@ test("Basic workspace retains image registration but has no permanent portrait p
   assert.ok(base.includes('id: "piece-image-urls"'));
   assert.ok(base.includes("state.imgUrls"));
   assert.ok(base.includes("imgList.length"));
+  assert.ok(base.includes('className: "piece-url-preview-list"'));
+  assert.ok(base.includes('role: "group"'));
+  assert.ok(base.includes('"aria-label": "表示する基本画像・差分を選択"'));
+  assert.ok(base.includes('className: "piece-url-preview-featured"'));
+  assert.ok(base.includes('className: "piece-url-preview-featured-frame"'));
+  assert.ok(base.includes('"aria-pressed": selectedImageIndex === index'));
+  assert.ok(base.includes("onClick: () => setActiveImageIndex(index)"));
+  assert.ok(base.includes("imgList.map((src, index) => {"), "登録した差分を4枚で打ち切らず、すべて選択できる");
+  assert.ok(base.includes("safeImagePreviewUrl(src)"));
+  assert.ok(base.includes("onError: () => setFailedImageUrls"));
+  const artPanelIndex = base.indexOf('className: "piece-panel piece-art-panel piece-image-settings"');
+  const imagePreviewIndex = base.indexOf('className: "piece-url-preview-list"');
+  const editorDisclosureIndex = base.indexOf('className: "piece-image-details pc-edit"');
+  assert.ok(artPanelIndex >= 0 && imagePreviewIndex > artPanelIndex && imagePreviewIndex < editorDisclosureIndex,
+    "駒画像のプレビューはURL編集を閉じていても画像設定カードに表示する");
+  assert.ok(base.includes("URL形式を確認"));
+  assert.ok(base.includes("画像を読込めません"));
   assert.ok(base.includes("state.shareImageData"));
   for (const forbidden of ["piece-art-wrap", "piece-art-frame", "piece-art-thumbs", "piece-art-zoom", "activeImg", "imgZoom", "imgTab", "画像を確認"]) {
     assert.ok(!base.includes(forbidden), "Basic workspace must not render " + forbidden);
@@ -97,7 +115,28 @@ test("closing the preview removes the only preview panel and leaves only its reo
   assert.ok(!base.includes("piece-art-frame"));
   assert.ok(!base.includes("basic-ccfolia-preview"));
   assert.ok(uiAudit.includes("basic-workspace-preview-collapsed"));
+  assert.ok(uiAudit.includes('snap("basic-image-preview-loaded"'));
+  assert.ok(uiAudit.includes("naturalWidth>0"));
+  assert.ok(uiAudit.includes('document.querySelector(".focus")'),
+    "ページ全体ではなく、実際の作業領域をスクロールする");
+  assert.ok(uiAudit.includes("scrollRoot.scrollTo({top:targetTop,behavior:\"instant\"})"),
+    "画像プレビューの位置補正は.focusのscrollTopへ反映する");
+  assert.ok(uiAudit.includes("tabsRect.bottom"),
+    "画像プレビューはstickyタブの下へ配置する");
+  assert.ok(uiAudit.includes("imageBelowTabs") && uiAudit.includes("imageBeforeBottomNav") && uiAudit.includes("controlsBeforeBottomNav"),
+    "画像本体と差分選択列が固定タブ／固定ナビの間に収まることを検査する");
+  assert.ok(uiAudit.includes(".btype-mobile-bottom-nav"));
+  assert.ok(uiAudit.includes("駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示"));
   assert.ok(uiAudit.includes("shared-preview-board"));
   assert.ok(!uiAudit.includes("#build-params-tab-preview"));
   assert.ok(previewCapture.includes("profiles.length*9"));
+});
+
+test("mobile pawn image preview stays below sticky tabs and fits above bottom navigation", () => {
+  assert.match(parityCss, /@media \(max-width: 560px\)[\s\S]*?\.base-info-panel \.piece-url-preview-featured-frame\s*\{[^}]*height: clamp\(150px, 24vh, 220px\);[^}]*min-height: 150px;/,
+    "短い画面では大きな画像プレビューを縮め、顔や頭頂部まで見える高さを確保する");
+  assert.match(parityCss, /\.base-info-panel \.piece-url-preview-featured,[\s\S]*?scroll-margin-block-start: calc\(184px \+ env\(safe-area-inset-top, 0px\)\)/,
+    "画像プレビューの自動スクロール先を固定タブより下へ配置する");
+  assert.match(parityCss, /\.base-info-panel \.piece-url-preview-item\s*\{[^}]*scroll-margin-block-start:/,
+    "差分ボタンへフォーカスしても固定タブの裏に隠れない");
 });

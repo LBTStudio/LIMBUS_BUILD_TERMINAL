@@ -26,8 +26,8 @@ test("the mobile audit stylesheet is loaded after the preview-controls styleshee
 });
 
 test("phone widths keep account creation controls and category tabs usable", () => {
-  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\)\s*>\s*\.lbt-cloud-panel\s*\{[^}]*display:\s*none;/s);
-  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\)\s*>\s*\.acct-grid\s*\{[^}]*overflow-y:\s*auto;/s);
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\)\s+\.acct-panel-cloud\s*\{[^}]*display:\s*none;/s);
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\)\s+\.acct-panel-accounts > \.acct-grid--gate\s*\{[^}]*overflow-y:\s*auto;/s);
   assert.match(css, /\.build-tabs \.segmented\[role="tablist"\]\[aria-label="ビルドセクション"\][\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.guide-filter-row\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
   assert.match(css, /\.shop-tabs-sticky \.shop-tabs\[role="tablist"\]\[aria-label="ショップの種別"\]\s*\{[^}]*display:\s*grid/s);

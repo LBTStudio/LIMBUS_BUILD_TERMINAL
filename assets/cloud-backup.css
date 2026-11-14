@@ -156,12 +156,13 @@
 }
 .lbt-cloud-btn:disabled { opacity: .6; cursor: not-allowed; }
 .lbt-cloud-panel.is-compact { margin-block: var(--s-4); }
-/* パネル内部の入れ子スクロールを廃止し、復元操作を親アカウント画面の
-   一本のスクロールで到達可能にする。 */
-.acct-gate-panel > .lbt-cloud-panel,
-.acct-panel > .lbt-cloud-panel {
-  flex: none;
-  min-height: 0;
+/* SINNER SELECT の保全パネルは専用のスクロール領域に収める。
+   右側（狭い画面では下側）の一覧ペインを押しつぶさない。 */
+.acct-panel-cloud > .lbt-cloud-panel {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
 }
 @media (max-width: 560px) {
   .lbt-cloud-panel { padding: var(--s-3); gap: var(--s-2); }

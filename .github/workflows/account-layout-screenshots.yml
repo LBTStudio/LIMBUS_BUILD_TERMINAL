@@ -1,0 +1,38 @@
+name: Account layout screenshots (1440 and 390)
+on:
+  pull_request:
+    paths:
+      - "tools/ui/capture-account-layout-screenshots.mjs"
+      - ".github/workflows/account-layout-screenshots.yml"
+      - "assets/**"
+      - "js/accounts-ui.js"
+      - "js/state.js"
+      - "index.html"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: "24"
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.64.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Capture 1440px and 390px account manager screenshots
+        run: node tools/ui/capture-account-layout-screenshots.mjs
+      - name: Upload exact-width screenshots
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: account-layout-1440-and-390
+          path: artifacts/account-layout-screenshots/
+          if-no-files-found: error
+          retention-days: 30

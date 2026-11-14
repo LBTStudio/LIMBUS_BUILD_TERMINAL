@@ -2,6 +2,58 @@ function normalizeMultiline(s) {
   if (!s) return "";
   return String(s).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").map((l) => l.trim()).filter(Boolean).join("\n");
 }
+function normalizeImageUrls(value) {
+  const urls = [];
+  const seen = new Set();
+  const visited = new WeakSet();
+  const addText = (text) => {
+    String(text ?? "").split(/\r\n|\r|\n/).forEach((line) => {
+      let url = line.trim();
+      if (!url) return;
+      if ((url.startsWith("<") && url.endsWith(">"))) url = url.slice(1, -1).trim();
+      const markdownImage = url.match(/^!?\[[^\]]*\]\((.+)\)$/);
+      if (markdownImage) url = markdownImage[1].trim().replace(/^<|>$/g, "");
+      url = url.replace(/&amp;/gi, "&");
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        urls.push(url);
+      }
+    });
+  };
+  const append = (entry) => {
+    if (typeof entry === "string") {
+      const text = entry.trim();
+      // Older exports sometimes persist the complete CCFOLIA image object as JSON text.
+      // Decode only object/array-shaped strings; ordinary URLs and Markdown stay untouched.
+      if (/^[\[{]/.test(text)) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed === "object") {
+            append(parsed);
+            return;
+          }
+        } catch (_) { /* Treat malformed JSON as a normal URL/text line. */ }
+      }
+      addText(entry);
+      return;
+    }
+    if (Array.isArray(entry)) {
+      entry.forEach(append);
+      return;
+    }
+    if (!entry || typeof entry !== "object" || visited.has(entry)) return;
+    visited.add(entry);
+    if (entry.data && typeof entry.data === "object") append(entry.data);
+    const primary = entry.iconUrl ?? entry.icon_url ?? entry.url ?? entry.src ??
+      entry.imageUrl ?? entry.image_url ?? entry.externalUrl;
+    if (typeof primary === "string") addText(primary);
+    for (const key of ["faces", "urls", "images", "imageUrls", "imgUrls"]) {
+      if (entry[key] != null) append(entry[key]);
+    }
+  };
+  append(value);
+  return urls;
+}
 function sanitizeInline(s) {
   if (!s) return "";
   return String(s).replace(/\r\n|\r|\n/g, " ").replace(/\s+/g, " ").trim();
@@ -1430,7 +1482,7 @@ function buildCcfoliaJSON(state, opts) {
   const excl = p.outputExclude || {};
   const commands = filterOutputSections(opts?.palette ?? buildPalette(state), excl.palette);
   const memo = filterOutputSections(opts?.memo ?? buildMemo(state), excl.memo);
-  const imgs = (p.imgUrls || "").split(/\r\n|\r|\n/).map((s) => s.trim()).filter(Boolean);
+  const imgs = normalizeImageUrls(p.imgUrls);
   const imgFields = imgs.length ? {
     iconUrl: imgs[0],
     faces: imgs.map((u, i) => ({ iconUrl: u, label: i === 0 ? charName : `${charName} \u5DEE\u5206${i}` })),
@@ -2487,6 +2539,7 @@ window.LBT_gen = {
   detectMTMods,
   computeMoraleLine,
   getActiveEnhancements,
+  normalizeImageUrls,
   DEFAULT_STATUS_LIST,
   DEF_FMLS
 };

@@ -26,7 +26,37 @@ const EgoResourceChips = ({ resources, className = "" }) => {
 };
 const BaseSection = ({ state, dispatch }) => {
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
-  const imgList = (state.imgUrls || "").split("\n").map((s) => s.trim()).filter(Boolean);
+  const imgList = window.LBT_gen?.normalizeImageUrls
+    ? window.LBT_gen.normalizeImageUrls(state.imgUrls)
+    : (Array.isArray(state.imgUrls) ? state.imgUrls : String(state.imgUrls || "").split(/\r\n|\r|\n/))
+      .map((entry) => typeof entry === "string" ? entry.trim() : String(entry?.iconUrl || entry?.url || entry?.src || "").trim())
+      .filter(Boolean);
+  const imgUrlsText = imgList.join("\n");
+  const [failedImageUrls, setFailedImageUrls] = React.useState([]);
+  const [activeImageIndex, setActiveImageIndex] = React.useState(0);
+  React.useEffect(() => {
+    setFailedImageUrls([]);
+    setActiveImageIndex(0);
+  }, [state.imgUrls]);
+  const safeImagePreviewUrl = (value) => {
+    let raw = String(value ?? "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("<") && raw.endsWith(">")) raw = raw.slice(1, -1).trim();
+    const markdownImage = raw.match(/^!?\[[^\]]*\]\((.+)\)$/);
+    if (markdownImage) raw = markdownImage[1].trim().replace(/^<|>$/g, "");
+    raw = raw.replace(/&amp;/gi, "&");
+    if (/^data:image\//i.test(raw)) return raw;
+    try {
+      const parsed = new URL(raw, window.location.href);
+      return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+    } catch (_) {
+      return "";
+    }
+  };
+  const selectedImageIndex = imgList.length ? Math.min(activeImageIndex, imgList.length - 1) : 0;
+  const selectedImageUrl = imgList[selectedImageIndex] || "";
+  const selectedImagePreviewUrl = safeImagePreviewUrl(selectedImageUrl);
+  const selectedImageFailed = !selectedImagePreviewUrl || failedImageUrls.includes(selectedImageUrl);
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
   const [editOpen, setEditOpen] = React.useState(false);
@@ -77,6 +107,74 @@ const BaseSection = ({ state, dispatch }) => {
         ),
         React.createElement("div", { className: "piece-art-actions" },
           React.createElement("button", { type: "button", className: "secondary", onClick: () => setEditOpen(true) }, "立ち絵URL・差分を編集")
+        ),
+        React.createElement("div", { className: "piece-art-preview-live" },
+            React.createElement("div", { className: "piece-url-preview" },
+              imgList.length === 0
+                ? React.createElement("div", { className: "piece-url-preview-empty" }, "画像URLを登録すると、ここに基本画像と差分が表示されます。")
+                : React.createElement(React.Fragment, null,
+                    React.createElement("figure", { className: "piece-url-preview-featured" },
+                      React.createElement("div", { className: "piece-url-preview-featured-frame" },
+                        selectedImagePreviewUrl && !selectedImageFailed
+                          ? React.createElement("img", {
+                              src: selectedImagePreviewUrl,
+                              alt: (selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex) + "の大きなプレビュー",
+                              loading: "eager",
+                              fetchPriority: "high",
+                              decoding: "async",
+                              onError: () => setFailedImageUrls((current) => current.includes(selectedImageUrl) ? current : [...current, selectedImageUrl])
+                            })
+                          : React.createElement("span", {
+                              className: "piece-url-preview-fallback",
+                              role: "img",
+                              "aria-label": (selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex) + "を表示できません"
+                            }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認")
+                      ),
+                      React.createElement("figcaption", null,
+                        React.createElement("span", null, "表示中"),
+                        React.createElement("strong", null, selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex)
+                      )
+                    ),
+                    React.createElement("div", {
+                      className: "piece-url-preview-list",
+                      role: "group",
+                      "aria-label": "表示する基本画像・差分を選択"
+                    },
+                      imgList.map((src, index) => {
+                        const safeSrc = safeImagePreviewUrl(src);
+                        const failed = !safeSrc || failedImageUrls.includes(src);
+                        const label = index === 0 ? "基本画像" : "差分 " + index;
+                        return React.createElement("button", {
+                          key: index + ":" + src,
+                          type: "button",
+                          className: "piece-url-preview-item" + (selectedImageIndex === index ? " is-active" : "") + (index === 0 ? " is-primary" : ""),
+                          "aria-pressed": selectedImageIndex === index,
+                          "aria-label": label + "を大きく表示",
+                          title: label + "をプレビュー",
+                          onClick: () => setActiveImageIndex(index)
+                        },
+                          React.createElement("span", { className: "piece-url-preview-frame" },
+                            safeSrc && !failed
+                              ? React.createElement("img", {
+                                  src: safeSrc,
+                                  alt: "",
+                                  loading: index === selectedImageIndex ? "eager" : "lazy",
+                                  fetchPriority: index === selectedImageIndex ? "high" : "auto",
+                                  decoding: "async",
+                                  onError: () => setFailedImageUrls((current) => current.includes(src) ? current : [...current, src])
+                                })
+                              : React.createElement("span", {
+                                  className: "piece-url-preview-fallback",
+                                  role: "img",
+                                  "aria-label": label + "を表示できません"
+                                }, failedImageUrls.includes(src) ? "読込失敗" : "URL確認")
+                          ),
+                          React.createElement("span", { className: "piece-url-preview-caption" }, label)
+                        );
+                      })
+                    )
+                  )
+            ),
         )
       ),
       React.createElement("details", {
@@ -96,12 +194,13 @@ const BaseSection = ({ state, dispatch }) => {
               className: "piece-textarea",
               rows: 4,
               placeholder: "https://...\nhttps://...",
-              value: state.imgUrls || "",
+              value: imgUrlsText,
               onChange: (event) => setF("imgUrls", event.target.value)
             }),
             React.createElement("div", { className: "piece-hint" },
               "画像URLを1行に1枚入力します。1行目が基本画像、2行目以降は表情・差分です。実際のココフォリア画像は、ルームへアップロードしたうえでキャラクター編集画面から選択してください。クリップボード出力だけでは外部画像を登録できません。"
-            )
+            ),
+
           ),
           React.createElement("div", { className: "piece-share-row" },
             React.createElement("div", { className: "piece-share-thumb" }, state.shareImageData ? "設定済み" : "共有シート画像"),
@@ -2066,8 +2165,26 @@ const EnhancementSection = ({ state, dispatch }) => {
         }))
       ),
       state.syncedManual && h("div", { className: "settings-section-note", style: { padding: "0 var(--s-3)" } }, "同期化中：通常人格用の未同期専用強化は選択・出力されません。囚人人格用・特殊強化・同期化人格用強化は通常どおり利用できます。"),
-      h("div", { style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" } },
-        h("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catalogRows.map((entry) => h("div", { key: entry.name, className: "spp-item", onClick: () => addEnh(entry) },
+      h("div", {
+        className: "enhancement-catalog-scroll",
+        role: "region",
+        "aria-label": "強化候補一覧",
+        tabIndex: 0,
+        style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" }
+      },
+        h("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catalogRows.map((entry) => h("div", {
+          key: entry.name,
+          className: "spp-item",
+          role: "button",
+          tabIndex: 0,
+          onClick: () => addEnh(entry),
+          onKeyDown: (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              addEnh(entry);
+            }
+          }
+        },
           h("div", { className: "spp-item-name" }, entry.name, " ", h("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", fontWeight: 400 } }, "欠片", entry.shards)),
           h("div", { className: "spp-item-eff" }, entry.effect)
         )))

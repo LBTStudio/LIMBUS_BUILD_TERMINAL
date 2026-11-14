@@ -144,14 +144,18 @@
 /* Keep account creation as a focused, fully operable step. The optional cloud
    recovery panel should not compete with the create/save actions while a form
    is open; it returns when the form is cancelled or submitted. */
-.acct-gate-panel:has(.acct-card--form) > .lbt-cloud-panel {
+.acct-gate-panel:has(.acct-card--form) .acct-panel-cloud {
   display: none;
+}
+
+.acct-gate-panel:has(.acct-card--form) .acct-panel-layout {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* The form content must keep its intrinsic height instead of collapsing inside
    the gate's bounded grid row. On very short screens the grid can scroll, but
    the primary actions remain part of the form rather than being clipped. */
-.acct-gate-panel:has(.acct-card--form) > .acct-grid {
+.acct-gate-panel:has(.acct-card--form) .acct-panel-accounts > .acct-grid--gate {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -595,7 +599,7 @@
     font-size: 12px;
     line-height: 1.55;
   }
-  .acct-gate-panel > .acct-grid {
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate {
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
@@ -608,7 +612,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .acct-gate-panel > .acct-grid > .acct-card--gate {
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--gate {
     box-sizing: border-box;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -679,7 +683,7 @@
     min-height: 40px;
     padding-inline: 8px;
   }
-  .acct-gate-panel > .acct-grid > .acct-card--add {
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--add {
     box-sizing: border-box;
     display: flex;
     flex-direction: row;
@@ -688,7 +692,7 @@
     min-height: 62px;
     padding: 10px 12px;
   }
-  .acct-gate-panel:has(.acct-card--form) > .acct-grid {
+  .acct-gate-panel:has(.acct-card--form) .acct-panel-accounts > .acct-grid--gate {
     grid-template-columns: minmax(0, 1fr);
     grid-auto-rows: max-content;
     align-content: start;
@@ -818,8 +822,8 @@
 }
 @media (max-width: 380px) {
   .acct-gate-panel > .acct-panel-head { padding: 13px 13px 10px; }
-  .acct-gate-panel > .acct-grid { padding: 9px; }
-  .acct-gate-panel > .acct-grid > .acct-card--gate { padding: 10px; }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate { padding: 9px; }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--gate { padding: 10px; }
   .ledger-result-entry-section,
   .ledger-result-entry-ticket-section { padding: 9px; }
   .ledger-result-entry-card .ledger-result-reward-content { gap: 8px; }

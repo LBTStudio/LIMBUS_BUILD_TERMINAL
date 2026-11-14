@@ -1,0 +1,558 @@
+/* LBT Unified Visual System v71
+   One restrained visual language: matte dark workbench, warm metal accent,
+   4/8/12/16/24/32 spacing, 4/6/8 radii, hairline borders.
+   Five base colors and five type sizes. No gradients. */
+:root {
+  /* The only five base colors. Legacy semantic tokens below are aliases. */
+  --ui-bg: #11100f;
+  --ui-surface: #1b1916;
+  --ui-line: #49433a;
+  --ui-text: #eee8dc;
+  --ui-accent: #c8a45e;
+
+  --bg: var(--ui-bg);
+  --surface-0: var(--ui-bg);
+  --surface-1: var(--ui-surface);
+  --surface-2: var(--ui-surface);
+  --surface-3: var(--ui-surface);
+  --surface-4: var(--ui-surface);
+  --surface-inset: var(--ui-bg);
+
+  --line-dim: var(--ui-line);
+  --line: var(--ui-line);
+  --line-strong: var(--ui-line);
+  --line-hot: var(--ui-accent);
+
+  --tx: var(--ui-text);
+  --tx-2: color-mix(in srgb, var(--ui-text) 86%, var(--ui-bg));
+  --tx-dim: color-mix(in srgb, var(--ui-text) 72%, var(--ui-bg));
+  --tx-mute: color-mix(in srgb, var(--ui-text) 64%, var(--ui-bg));
+  --tx-inv: var(--ui-bg);
+
+  --gold: var(--ui-accent);
+  --gold-hi: var(--ui-accent);
+  --gold-lo: var(--ui-accent);
+  --gold-line: var(--ui-line);
+  --gold-glow: var(--ui-surface);
+  --gold-tint: var(--ui-surface);
+
+  --accent: var(--ui-accent);
+  --accent-hi: var(--ui-accent);
+  --accent-lo: var(--ui-accent);
+  --accent-line: var(--ui-line);
+  --accent-glow: var(--ui-surface);
+  --accent-tint: var(--ui-surface);
+  --amber: var(--ui-accent);
+  --amber-hi: var(--ui-accent);
+  --amber-glow: var(--ui-surface);
+  --amber-tint: var(--ui-surface);
+  --err: var(--ui-accent);
+  --err-ink: var(--ui-accent);
+  --ok: var(--ui-accent);
+  --warn: var(--ui-accent);
+  --ego-influence: var(--ui-accent);
+  --clock-face: var(--ui-surface);
+  --clock-hand: var(--ui-accent);
+  --clock-ring: var(--ui-accent);
+  --neon: var(--ui-accent);
+  --neon-hi: var(--ui-accent);
+  --neon-glow: var(--ui-surface);
+  --neon-tint: var(--ui-surface);
+  --neon-line: var(--ui-line);
+
+  /* Data remains identifiable by its labels; color is no longer carrying
+     multiple competing meanings. */
+  --sin-憤怒: var(--ui-accent);
+  --sin-色欲: var(--ui-accent);
+  --sin-怠惰: var(--ui-accent);
+  --sin-暴食: var(--ui-accent);
+  --sin-憂鬱: var(--ui-accent);
+  --sin-傲慢: var(--ui-accent);
+  --sin-嫉妬: var(--ui-accent);
+  --sin-特殊: var(--ui-text);
+  --rank-ZAYIN: var(--ui-accent);
+  --rank-TETH: var(--ui-accent);
+  --rank-HE: var(--ui-accent);
+  --rank-WAW: var(--ui-accent);
+  --rank-ALEPH: var(--ui-accent);
+  --res-脆弱: var(--ui-accent);
+  --res-弱点: var(--ui-accent);
+  --res-普通: var(--ui-text);
+  --res-抵抗: var(--ui-text);
+  --res-耐性: var(--ui-text);
+  --res-免疫: var(--ui-text);
+
+  /* One five-step type scale. Existing sizes resolve to these five values. */
+  --ui-type-xs: 11px;
+  --ui-type-sm: 13px;
+  --ui-type-body: 15px;
+  --ui-type-heading: 18px;
+  --ui-type-title: 24px;
+  --fs-9: var(--ui-type-xs);
+  --fs-10: var(--ui-type-xs);
+  --fs-11: var(--ui-type-sm);
+  --fs-12: var(--ui-type-sm);
+  --fs-13: var(--ui-type-body);
+  --fs-14: var(--ui-type-body);
+  --fs-15: var(--ui-type-body);
+  --fs-16: var(--ui-type-body);
+  --fs-18: var(--ui-type-heading);
+  --fs-20: var(--ui-type-heading);
+  --fs-24: var(--ui-type-title);
+  --fs-30: var(--ui-type-title);
+  --fs-40: var(--ui-type-title);
+
+  --f-display: "Noto Sans JP", system-ui, sans-serif;
+  --f-body: "Noto Sans JP", system-ui, sans-serif;
+  --f-serif: "Noto Sans JP", system-ui, sans-serif;
+
+  /* One spacing rhythm, one restrained corner system. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 32px;
+  --s-9: 32px;
+  --s-10: 32px;
+  --r-sm: 4px;
+  --r: 6px;
+  --r-lg: 8px;
+  --r-pill: 8px;
+  --shadow-1: none;
+}
+
+body {
+  background: var(--ui-bg) !important;
+  color: var(--ui-text);
+  font-size: var(--ui-type-body);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--f-body);
+}
+
+button,
+.btn,
+.acct-card,
+.acct-panel,
+.acct-gate-panel,
+.shop-card,
+.home-task-card,
+.lbt-cloud-panel {
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-color: var(--ui-accent);
+}
+
+/* Keep catalog cards scannable: three readable columns on desktop, one on phone. */
+.shop-grid,
+.shop-grid[data-tab="ego"] {
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 12px;
+}
+.shop-card {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+}
+.shop-card-name {
+  font-size: var(--ui-type-body);
+  line-height: 1.4;
+}
+.shop-card-note,
+.shop-card .shop-card-num {
+  font-size: var(--ui-type-xs);
+  line-height: 1.45;
+}
+
+/* Account list: widen desktop cards and stop the recovery disclosure reserving
+   a large empty bottom band on mobile. The list always owns its own scroll area. */
+.acct-panel,
+.acct-gate-panel {
+  background: var(--ui-bg);
+  border-color: var(--ui-line);
+  border-radius: 8px;
+  box-shadow: none !important;
+}
+.acct-panel-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.acct-panel-accounts > .acct-grid--manager {
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  grid-auto-rows: minmax(184px, max-content);
+  gap: 12px;
+}
+.acct-panel-cloud {
+  background: var(--ui-bg);
+  border-color: var(--ui-line);
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact {
+  background: var(--ui-surface);
+  border-color: var(--ui-line);
+}
+
+/* A closed recovery disclosure must not reserve a desktop sidebar. It becomes
+   a slim row under the list; opening it restores the two-column workspace. */
+.acct-panel-layout:has(.acct-panel-cloud > .lbt-cloud-panel:not([open])) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.acct-panel-cloud:has(> .lbt-cloud-panel:not([open])) {
+  max-height: 60px;
+  padding: 0 8px;
+  overflow: hidden;
+  border-top: 1px solid var(--ui-line);
+  border-left: 0;
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) > .lbt-cloud-summary {
+  min-height: 44px;
+  padding: 4px 8px;
+  gap: 8px;
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-heading {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-heading strong,
+.acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-state {
+  min-width: 0;
+  font-size: var(--ui-type-xs);
+  line-height: 1.3;
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-state {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: .72;
+}
+
+/* Editing is a focused task: temporarily remove recovery controls and use the
+   entire dialog width for the form and its save/cancel actions. */
+.acct-panel:has(.acct-card--form) .acct-panel-cloud,
+.acct-panel:has(.acct-card--editing) .acct-panel-cloud,
+.acct-gate-panel:has(.acct-card--form) .acct-panel-cloud,
+.acct-gate-panel:has(.acct-card--editing) .acct-panel-cloud {
+  display: none !important;
+}
+.acct-panel:has(.acct-card--form) .acct-panel-layout,
+.acct-panel:has(.acct-card--editing) .acct-panel-layout,
+.acct-gate-panel:has(.acct-card--form) .acct-panel-layout,
+.acct-gate-panel:has(.acct-card--editing) .acct-panel-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Selected / active cards use the same flat surface as every other card. */
+.acct-card.is-active {
+  background: var(--ui-surface);
+  border-color: var(--ui-accent);
+  box-shadow: none !important;
+}
+.acct-card:hover,
+.acct-card:focus-within {
+  transform: none;
+  box-shadow: none !important;
+  border-color: var(--ui-accent);
+}
+
+@media (max-width: 760px) {
+  .acct-panel-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .acct-panel-cloud {
+    box-sizing: border-box;
+    height: auto;
+    max-height: 104px;
+    padding: 8px 12px;
+    overflow: hidden;
+    border-top: 1px solid var(--ui-line);
+    border-left: 0;
+  }
+  .acct-panel-cloud:has(.lbt-cloud-panel[open]) {
+    max-height: min(34dvh, 224px);
+    overflow: auto;
+  }
+
+  .acct-panel-accounts > .acct-grid--manager {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(108px, max-content);
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+    display: flex;
+    min-height: 108px;
+    height: auto;
+    align-items: stretch;
+    padding: 12px 100px 12px 12px;
+    text-align: left;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-card-body {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    justify-items: start;
+    gap: 2px 10px;
+    min-width: 0;
+    text-align: left;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-mark {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    width: 44px;
+    height: 44px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-name {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    font-size: var(--ui-type-sm);
+    line-height: 1.35;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-purpose {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    font-size: var(--ui-type-xs);
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-meta {
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+    font-size: var(--ui-type-xs);
+    line-height: 1.35;
+    opacity: .72;
+    text-align: left;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-card-actions {
+    right: 8px;
+    bottom: 8px;
+    gap: 4px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-icon-btn {
+    box-sizing: border-box;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-edit-btn {
+    box-sizing: border-box;
+    min-width: 68px;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .shop-grid,
+  .shop-grid[data-tab="ego"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* Flatten legacy workbench surfaces as well: the theme must not retain older
+   decorative gradients through component styles loaded before v71. Functional
+   CCFOLIA board grid lines and the dedicated extraction FX are content visuals,
+   so they remain separate from ordinary UI surfaces. */
+:where(
+  .focus, .topbar, .rail, .rail-item.is-active, .preview, .pv-sec-head,
+  .chip, .chip.is-active, .deck-thumb, .deck-thumb.is-active, .deck-focus,
+  .deck-card.deck-focus, .detail-actions, .ego-quick-actions,
+  .equipped-summary, .es-badge-sync, .codex-modes button.is-active,
+  .p-card, .detail-head, .spp-item.is-active, .spirit-item.is-active,
+  .share-modal, .share-opt, .focus-preview-toggle, .deck-focus-readonly,
+  .guide-intro, .roster-detail, .utility-sheet-action, .item-codex-intro,
+  .home-hero, .btype-command-hero, .btype-record-task-card,
+  .btype-shop-entry, .btype-help-entry, .btype-shop-category-card,
+  .build-context-strip, .build-tabs.is-b-workbench,
+  .pc-portrait, .pc-identity, .pc-edit, .pc-token-preview,
+  .build-params-preview, .piece-panel, .settings-major, .piece-output-shell,
+  .piece-preview-tab.active, .piece-board-inspector, .piece-sheet-mock,
+  .piece-board-token-ring, .piece-board-avatar, .piece-board-nameplate,
+  .ego-quick-detail, .persona-draft-dialog, main.acct-gate
+) {
+  background-image: none !important;
+}
+:where(
+  .p-card[data-mode="tokui"]::before,
+  .equipped-summary::before,
+  .persona-save-primary::before
+) {
+  background-image: none !important;
+}
+
+/* Primary actions stay filled in the flat theme. The earlier blanket removal of
+   gradient images also removed the only fill of legacy .btn-primary controls. */
+.btn-primary {
+  background-color: var(--ui-accent) !important;
+  background-image: none !important;
+  color: var(--ui-bg) !important;
+  border-color: var(--ui-accent) !important;
+}
+.btn-primary:hover:not(:disabled),
+.btn-primary:focus-visible {
+  background-color: var(--ui-accent) !important;
+  color: var(--ui-bg) !important;
+  border-color: var(--ui-accent) !important;
+}
+.btn-primary:disabled,
+.btn:disabled.btn-primary {
+  background-color: var(--ui-surface) !important;
+  background-image: none !important;
+  color: var(--ui-line) !important;
+  border-color: var(--ui-line) !important;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/* Accessible blocked/disabled shop actions and keyboard-scrollable enhancement catalog. */
+.shop-card[data-blocked="1"] .btn-primary:not(:disabled) {
+  background-color: var(--ui-accent) !important;
+  background-image: none !important;
+  color: var(--ui-bg) !important;
+  border-color: var(--ui-accent) !important;
+  opacity: 1 !important;
+}
+.btn-primary:disabled,
+.btn:disabled.btn-primary {
+  background-color: var(--ui-surface) !important;
+  background-image: none !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-line) !important;
+  opacity: 1 !important;
+}
+.enhancement-catalog-scroll:focus-visible,
+.spp-item[role="button"]:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+/* Compact previews live inside the expanded pawn-image settings only. This keeps
+   the closed workbench free of duplicate portrait previews while making URL
+   registration verifiable at the point where it is edited. */
+.piece-url-preview-list {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  overflow-x: auto;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface);
+}
+.piece-url-preview-item {
+  display: flex;
+  flex: 0 0 64px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+}
+.piece-url-preview-item.is-primary {
+  flex-basis: 76px;
+}
+.piece-url-preview-frame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 82px;
+  overflow: hidden;
+  border: 1px solid var(--ui-line);
+  border-radius: 4px;
+  background: var(--ui-bg);
+}
+.piece-url-preview-item:not(.is-primary) .piece-url-preview-frame {
+  height: 68px;
+  margin-top: 7px;
+}
+.piece-url-preview-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.piece-url-preview-item figcaption {
+  overflow: hidden;
+  color: var(--ui-text);
+  font-size: var(--ui-type-xs);
+  line-height: 1.3;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.piece-url-preview-fallback {
+  padding: 4px;
+  color: var(--ui-text);
+  font-size: var(--ui-type-xs);
+  line-height: 1.4;
+  text-align: center;
+}
+.piece-url-preview-empty {
+  color: var(--ui-text);
+  font-size: var(--ui-type-sm);
+  line-height: 1.5;
+}
+.piece-url-preview-more {
+  align-self: center;
+  color: var(--ui-text);
+  font-size: var(--ui-type-xs);
+  white-space: nowrap;
+}
+
+/* Overlay contrast repair: keep small status text readable in dialogs and account cards. */
+.lbt-cloud-panel .lbt-cloud-state {
+  color: var(--ui-accent) !important;
+  opacity: 1 !important;
+}
+.acct-card .acct-meta {
+  color: var(--ui-text) !important;
+  opacity: 1 !important;
+}
+.res-dot[data-res="弱点"],
+.res-dot[data-res="耐性"] {
+  color: var(--ui-bg) !important;
+  text-shadow: none !important;
+}
+.res-dot[data-res="弱点"]::before,
+.res-dot[data-res="耐性"]::before {
+  color: var(--ui-bg) !important;
+  text-shadow: none !important;
+  border-right-color: color-mix(in oklab, var(--ui-bg) 38%, transparent) !important;
+}

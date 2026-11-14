@@ -361,7 +361,10 @@ async function runProfile(browser,profile) {
     await boardStatus.scrollIntoViewIfNeeded({timeout:5000});
     const boardStatusBounds=await boardStatus.evaluate(el=>{
       const r=el.getBoundingClientRect(), body=el.closest(".preview-body"), b=body.getBoundingClientRect();
-      return {top:r.top,bottom:r.bottom,bodyTop:b.top,bodyBottom:b.bottom,scrollTop:body.scrollTop,within:r.top>=b.top-2&&r.bottom<=b.bottom+2};
+      /* Fractional viewport and scrollbar-gutter rounding can leave a sub-4px edge delta
+         even after the final row has reached the scroll boundary. */
+      const edgeTolerance=4;
+      return {top:r.top,bottom:r.bottom,bodyTop:b.top,bodyBottom:b.bottom,scrollTop:body.scrollTop,edgeTolerance,within:r.top>=b.top-edgeTolerance&&r.bottom<=b.bottom+edgeTolerance};
     }).catch(()=>({within:false,error:"board status was not reachable"}));
     recordCheck(profile.name+": board roster can scroll to status values below the token image",
       boardStatusBounds.within,{bounds:boardStatusBounds});
