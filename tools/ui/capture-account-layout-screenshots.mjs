@@ -168,6 +168,92 @@ async function prepare(page) {
   return { seeded, metrics, errors };
 }
 
+async function openAccountManager(page) {
+  if (await page.locator(".acct-panel").isVisible().catch(() => false)) return;
+  await page.evaluate(() => window.dispatchEvent(new Event("lbt:open-accounts")));
+  await page.locator(".acct-panel").waitFor({ state: "visible", timeout: 12000 });
+  await page.locator(".acct-panel-accounts > .acct-grid--manager").waitFor({ state: "visible", timeout: 8000 });
+}
+
+async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
+  const gridSelector = ".acct-panel-accounts > .acct-grid--manager";
+  const findInactive = () => page.locator(`${gridSelector} > .acct-card[data-account-id]:not(.is-active)`).first();
+  const switchAfterReturn = async (cardId, phase) => {
+    const card = page.locator(`.acct-panel-accounts > .acct-grid--manager > .acct-card[data-account-id="${cardId}"]`);
+    const hit = card.locator(".acct-card-hit");
+    const hitTest = await page.evaluate((id) => {
+      const node = document.querySelector(`.acct-panel-accounts > .acct-grid--manager > .acct-card[data-account-id="${id}"] .acct-card-hit`);
+      if (!node) return { ok: false, reason: "hit target missing" };
+      const r = node.getBoundingClientRect();
+      const x = Math.max(1, Math.min(innerWidth - 1, r.left + r.width / 2));
+      const y = Math.max(1, Math.min(innerHeight - 1, r.top + r.height / 2));
+      const top = document.elementFromPoint(x, y);
+      return {
+        ok: getComputedStyle(node).pointerEvents !== "none" && (top === node || node.contains(top)),
+        pointerEvents: getComputedStyle(node).pointerEvents,
+        topElement: top?.className?.baseVal || top?.className || top?.tagName || null,
+        x, y, width: r.width, height: r.height
+      };
+    }, cardId);
+    if (!hitTest.ok) throw new Error(`${viewportName}: ${phase} returned card has a blocked hit target: ${JSON.stringify(hitTest)}`);
+
+    const navigation = page.waitForNavigation({ waitUntil: "load", timeout: 20000 });
+    await hit.click();
+    await page.waitForFunction((id) => {
+      const card = document.querySelector(`.acct-panel-accounts > .acct-grid--manager > .acct-card[data-account-id="${id}"]`);
+      return card?.classList.contains("is-selecting") === true;
+    }, cardId, { timeout: 1000 });
+    const pressed = await card.evaluate((node) => ({
+      selecting: node.classList.contains("is-selecting"),
+      transform: getComputedStyle(node).transform,
+      borderColor: getComputedStyle(node).borderColor
+    }));
+    if (!pressed.selecting || pressed.transform === "none") {
+      throw new Error(`${viewportName}: ${phase} produced no visible press feedback: ${JSON.stringify(pressed)}`);
+    }
+    await navigation;
+    const activeId = await page.evaluate(() => window.LBT_accounts?.list?.()?.activeId || null);
+    if (activeId !== cardId) throw new Error(`${viewportName}: ${phase} click did not switch account (expected ${cardId}, received ${activeId})`);
+    await openAccountManager(page);
+    return { cardId, hitTest, pressed, activeId };
+  };
+
+  const cancelCard = await findInactive();
+  const cancelId = await cancelCard.getAttribute("data-account-id");
+  if (!cancelId) throw new Error(`${viewportName}: account card has no stable id`);
+  await cancelCard.locator(".acct-edit-btn").click();
+  await page.locator(`${gridSelector}.is-editing`).waitFor({ state: "visible", timeout: 5000 });
+  const editVisible = await page.locator(`.acct-card[data-account-id="${cancelId}"] .acct-card--editing, .acct-card[data-account-id="${cancelId}"].acct-card--form`).count();
+  if (!editVisible) throw new Error(`${viewportName}: edit form did not open for ${cancelId}`);
+  await page.locator(`.acct-card[data-account-id="${cancelId}"] .acct-form-actions`)
+    .getByRole("button", { name: "キャンセル", exact: true }).click();
+  await page.waitForFunction((id) => {
+    const grid = document.querySelector(".acct-panel-accounts > .acct-grid--manager");
+    const card = grid?.querySelector(`.acct-card[data-account-id="${id}"]`);
+    return !grid?.classList.contains("is-editing") && !!card?.querySelector(".acct-card-hit") &&
+      !!card?.querySelector(".acct-edit-btn") && document.activeElement === card.querySelector(".acct-edit-btn");
+  }, cancelId, { timeout: 5000 });
+  const afterCancel = await switchAfterReturn(cancelId, "Cancel");
+
+  // Repeat the recovery with Save: the updated card must regain both its edit
+  // control and its full-card hit target after the form node changes shape.
+  const saveCard = await findInactive();
+  const saveId = await saveCard.getAttribute("data-account-id");
+  const previousName = (await saveCard.locator(".acct-name").textContent())?.trim();
+  await saveCard.locator(".acct-edit-btn").click();
+  await page.locator(`.acct-card[data-account-id="${saveId}"] .acct-field input`).first().fill(previousName + " 確認");
+  await page.locator(`.acct-card[data-account-id="${saveId}"] .acct-form-actions`)
+    .getByRole("button", { name: "保存", exact: true }).click();
+  await page.waitForFunction((id, expected) => {
+    const grid = document.querySelector(".acct-panel-accounts > .acct-grid--manager");
+    const card = grid?.querySelector(`.acct-card[data-account-id="${id}"]`);
+    return !grid?.classList.contains("is-editing") && card?.querySelector(".acct-name")?.textContent?.trim() === expected &&
+      !!card?.querySelector(".acct-card-hit") && !!card?.querySelector(".acct-edit-btn");
+  }, [saveId, previousName + " 確認"], { timeout: 5000 });
+  const afterSave = await switchAfterReturn(saveId, "Save");
+  return { afterCancel, afterSave };
+}
+
 async function capture(browser, name, width, height) {
   const isMobile = width <= 640;
   const context = await browser.newContext({
@@ -177,11 +263,12 @@ async function capture(browser, name, width, height) {
     hasTouch: isMobile,
     serviceWorkers: "block",
     colorScheme: "dark",
-    reducedMotion: "reduce"
+    reducedMotion: "no-preference"
   });
   try {
     const page = await context.newPage();
     const { seeded, metrics, errors } = await prepare(page);
+    const lifecycle = await verifyAccountHitTargetsAfterFormReturn(page, name);
     await page.screenshot({
       path: path.join(OUT, `account-manager-${name}.png`),
       fullPage: false,
@@ -258,7 +345,7 @@ async function capture(browser, name, width, height) {
       fullPage: false,
       animations: "disabled"
     });
-    return { name, seeded, metrics, expanded, errors };
+    return { name, seeded, metrics, lifecycle, expanded, errors };
   } finally {
     await context.close();
   }
@@ -282,7 +369,7 @@ async function main() {
       viewports: results
     }, null, 2) + "\n", "utf8");
     for (const result of results) {
-      console.log(JSON.stringify({ name: result.name, metrics: result.metrics, expanded: result.expanded, pageErrors: result.errors.length }));
+      console.log(JSON.stringify({ name: result.name, metrics: result.metrics, lifecycle: result.lifecycle, expanded: result.expanded, pageErrors: result.errors.length }));
       if (result.errors.length) throw new Error("Browser reported errors: " + result.errors.join(" | "));
     }
   } finally {
