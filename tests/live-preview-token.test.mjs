@@ -90,6 +90,12 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /Math\.min\(4, imageZoom \* Math\.exp/);
   assert.match(sections, /\}, \[selectedImageIndex, selectedImageUrl\]\)/);
   assert.match(sections, /transformOrigin: imageZoomOrigin/);
+  assert.match(sections, /mode: imageZoom > 1\.001 && !event\.shiftKey \? "pan" : "zoom"/,
+    "等倍時のドラッグはズーム、拡大後のドラッグは位置移動に分離する");
+  assert.match(sections, /Math\.exp\(-deltaY \* 0\.008\)/,
+    "等倍時の上下ドラッグで拡大縮小できる");
+  assert.match(sections, /addEventListener\("touchstart", handlePinchStart, \{ passive: false \}\)/);
+  assert.match(sections, /addEventListener\("touchmove", handlePinchMove, \{ passive: false \}\)/);
   assert.match(sections, /立ち絵を全体表示に戻す/);
   assert.match(sections, /setImageZoom\(1\)/);
   assert.ok(sections.includes("const [imagePreviewOpen, setImagePreviewOpen] = React.useState(true);"),
