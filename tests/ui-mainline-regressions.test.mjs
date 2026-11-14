@@ -66,7 +66,7 @@ test("collapsed preview has no residual portrait or miniature CCFOLIA preview in
 
 
 test("v72 applies one whole-app type and color system without gradients", () => {
-  const v72 = index.match(/<style id="lbt-v72-ui-health-refinement">([\\s\\S]*?)<\\/style>/)?.[1] || "";
+  const v72 = index.match(/<style id="lbt-v72-ui-health-refinement">([\s\S]*?)<\/style>/)?.[1] || "";
   assert.ok(v72.length > 1000, "v72 inline refinement stylesheet must be present");
   for (const token of ["--ui-bg", "--ui-surface", "--ui-line", "--ui-text", "--ui-accent"]) {
     assert.match(v72, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
