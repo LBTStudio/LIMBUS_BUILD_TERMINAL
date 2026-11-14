@@ -569,7 +569,7 @@ test("v71 keeps semantic persona hues while using flat primary actions", () => {
   assert.ok(visualSystem.includes(".btn-primary {"));
   assert.ok(visualSystem.includes("background-image: none !important;"));
   assert.ok(visualSystem.includes("--ui-accent: #d4af5f"));
-  assert.ok(designSystem.includes("--accent: #c8352b"));
+  assert.ok(designSystem.includes("--accent:#c8352b"));
   assert.ok(designSystem.includes("--ego-influence: #b872d9"));
   assert.ok(designSystem.includes("--sin-憤怒:"));
   assert.ok(designSystem.includes("--rank-ALEPH:"));
