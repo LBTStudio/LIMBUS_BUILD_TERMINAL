@@ -503,22 +503,21 @@ test("v71 unified visual system uses one five-color palette and one five-step ty
   assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
 });
 
-test("v71 removes legacy gradients from ordinary workbench surfaces", () => {
+test("v71 removes only decorative gradients and retains solid persona semantic surfaces", () => {
   const start = visualSystem.indexOf("/* Flatten legacy workbench surfaces");
   const end = visualSystem.indexOf("/* Primary actions stay filled in the flat theme.", start);
-  assert.ok(start >= 0 && end > start, "旧UI面をフラット化する正規化ブロックが存在する");
+  assert.ok(start >= 0 && end > start, "通常UIの装飾レイヤー正規化ブロックが存在する");
   const block = visualSystem.slice(start, end);
-  for (const selector of [
-    ".focus", ".topbar", ".rail", ".preview", ".chip", ".p-card",
-    ".spirit-item.is-active", ".btype-command-hero", ".btype-record-task-card",
-    ".build-context-strip", ".piece-output-shell", ".persona-draft-dialog"
-  ]) {
-    assert.ok(block.includes(selector), "旧グラデーション面をフラット化する: " + selector);
+  for (const selector of [".focus", ".p-card", ".spirit-item.is-active", ".equipped-summary", ".ego-quick-detail", ".persona-draft-dialog"]) {
+    assert.ok(block.includes(selector), "装飾だけを外す対象を明示する: " + selector);
   }
-  assert.match(block, /background-image: none !important;/,
-    "旧コンポーネントの装飾グラデーションを上書きで除去する");
-  assert.match(block, /Functional[\s\S]*?CCFOLIA board grid lines[\s\S]*?dedicated extraction FX/,
-    "盤面罫線と抽出演出という機能表示は意図的に別扱いとする");
+  assert.match(block, /background-image: none !important;/, "グラデーション画像は使わない");
+  assert.match(visualSystem, /\.p-card,[\s\S]*?background-color: var\(--surface-2\)/,
+    "人格カードの面色を旧LBTの階層色で塗り戻す");
+  assert.match(visualSystem, /\.spp-item\.is-active,[\s\S]*?var\(--sin-憂鬱\)/,
+    "人格の選択状態は意味色を残す");
+  assert.match(visualSystem, /\.ego-quick-detail\s*\{[^}]*var\(--ego-influence\)/,
+    "E.G.Oの影響色を独立させる");
 });
 
 test("flat UI palette keeps primary and body text above WCAG AA contrast", () => {
@@ -554,11 +553,9 @@ test("overlay metadata and resistance badges retain previous semantic colors and
     "耐性ラベルは旧来の属性色と文字スタイルを維持する");
 });
 
-test("blocked shop actions retain their source treatment and enhancement catalog remains accessible", () => {
-  assert.doesNotMatch(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-image: none !important;/,
-    "残高不足カードの購入理由ボタンも元のアクセント塗り・金色表現を壊さない");
-  assert.match(designSystem, /\.btn-primary[\s\S]*?linear-gradient/);
-  assert.match(designSystem, /\.btn:disabled[\s\S]*?background:/);
+test("blocked shop actions retain gold treatment and enhancement catalog remains accessible", () => {
+  assert.match(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-color: var\(--gold\) !important;[\s\S]*?color: var\(--tx-inv\) !important;/);
+  assert.match(visualSystem, /\.btn:disabled\.btn-primary[\s\S]*?background-color: var\(--surface-2\) !important;[\s\S]*?opacity: 1 !important;/);
 
   assert.match(sections, /className: "enhancement-catalog-scroll",[\s\S]*?role: "region",[\s\S]*?"aria-label": "強化候補一覧",[\s\S]*?tabIndex: 0/,
     "強化候補の内部スクロール領域は名前付きでキーボードフォーカスを受け取る");
