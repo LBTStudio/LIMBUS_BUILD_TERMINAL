@@ -445,6 +445,18 @@ test("アカウント画面のブラウザー監査はキャンセル・保存�
   assert.match(uiAuditSource, /afterSave/);
 });
 
+test("初回ゲートから編集を開いた場合も閉じた後に起動元へフォーカスを戻す", () => {
+  assert.match(ui, /const returnFocusRef = React\.useRef\(null\)/);
+  assert.match(ui, /returnFocusRef\.current = active/,
+    "モーダルを開く直前の操作要素を保存する");
+  assert.match(ui, /if \(trigger\.isConnected\) trigger\.focus\(\{ preventScroll: true \}\)/,
+    "閉じた後に存在している起動元だけへフォーカスを戻す");
+  assert.match(ui, /className: `acct-card acct-card--gate[^\n]*"data-account-id": entry\.id/,
+    "初回ゲートのカードも管理画面と同じ安定IDで検証できる");
+  assert.match(ui, /window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_OPEN_EVENT, \{ detail: \{ editId: entry\.id \} \}\)\)/,
+    "ゲートの編集ボタンは対象アカウントを指定して管理画面を開く");
+});
+
 test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
   const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*#[0-9a-f]{6};$/gim)];
   const typeTokens = [...visualSystem.matchAll(/^\s*--ui-type-[a-z-]+:\s*\d+px;$/gim)];
