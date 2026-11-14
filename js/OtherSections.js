@@ -148,9 +148,10 @@ const BaseSection = ({ state, dispatch }) => {
     if (!frame) return undefined;
     const handleWheel = (event) => {
       if (!selectedImagePreviewUrl || selectedImageFailed) return;
+      /* 1x / 4x の上限でも入力を消費し、ページスクロールへ抜けないようにする。 */
+      event.preventDefault();
       const nextZoom = Math.max(1, Math.min(4, imageZoom * Math.exp(-event.deltaY * 0.0015)));
       if (Math.abs(nextZoom - imageZoom) < 0.001) return;
-      event.preventDefault();
       if (nextZoom <= 1.001) {
         setImageZoom(1);
         setImageZoomOrigin("50% 50%");
