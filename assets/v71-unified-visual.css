@@ -562,9 +562,9 @@ textarea:focus-visible {
    Source vocabulary: Motion Prompt #049 modal scale/fade + #081 hover lift.
    One ease-out family; no spring/bounce and no gradient surfaces. */
 :root {
-  --ui-motion-ease: cubic-bezier(.22, .8, .22, 1);
-  --ui-motion-fast: 120ms;
-  --ui-motion-modal: 280ms;
+  --ui-motion-ease: cubic-bezier(.22, 1, .36, 1);
+  --ui-motion-fast: 160ms;
+  --ui-motion-modal: 300ms;
 }
 
 .acct-overlay {
@@ -604,14 +604,14 @@ textarea:focus-visible {
 }
 .acct-card:hover,
 .acct-card:focus-within {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   border-color: var(--ui-accent);
   background: var(--ui-surface);
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--ui-line) 52%, transparent);
+  box-shadow: 0 9px 18px color-mix(in srgb, var(--ui-line) 58%, transparent);
 }
 .acct-card:has(.acct-card-hit:active),
 .acct-card.is-selecting {
-  transform: scale(.982);
+  transform: scale(.976);
   border-color: var(--ui-accent);
   background: var(--ui-surface);
   box-shadow: inset 0 0 0 1px var(--ui-accent);
@@ -671,7 +671,7 @@ textarea:focus-visible {
   font-size: var(--ui-type-xs);
   line-height: 1.35;
   color: var(--ui-text) !important;
-  opacity: .82;
+  opacity: 1;
 }
 .acct-card-actions {
   z-index: 2;
@@ -735,7 +735,7 @@ textarea:focus-visible {
       background-color var(--ui-motion-fast) var(--ui-motion-ease);
   }
   .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--gate:has(.acct-card-hit:active) {
-    transform: scale(.985);
+    transform: scale(.976);
     border-color: var(--ui-accent);
   }
 }
