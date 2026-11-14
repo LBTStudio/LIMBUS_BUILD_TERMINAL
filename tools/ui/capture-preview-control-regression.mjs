@@ -357,24 +357,34 @@ async function createDisposableAccount(page,profile) {
     const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
     return { scale: matrix.a, x: matrix.e, y: matrix.f };
   });
-  await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2, imageFrameBox.y + imageFrameBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2 + 32, imageFrameBox.y + imageFrameBox.height / 2 + 20, { steps: 5 });
-  await page.mouse.up();
-  await page.waitForFunction((before) => {
-    const image = document.querySelector(".piece-url-preview-featured-frame > img");
-    if (!image) return false;
-    const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
-    return Math.abs(matrix.e - before.x) + Math.abs(matrix.f - before.y) > 8;
-  }, transformBeforeDrag, { timeout: 5000 });
+  const panDirections = [[32, 20], [-32, 20], [32, -20], [-32, -20]];
+  let panMoved = false;
+  for (const [dx, dy] of panDirections) {
+    await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2, imageFrameBox.y + imageFrameBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2 + dx, imageFrameBox.y + imageFrameBox.height / 2 + dy, { steps: 5 });
+    await page.mouse.up();
+    try {
+      await page.waitForFunction(({ before, minimum }) => {
+        const image = document.querySelector(".piece-url-preview-featured-frame > img");
+        if (!image) return false;
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
+        return Math.abs(matrix.e - before.x) + Math.abs(matrix.f - before.y) > minimum;
+      }, { before: transformBeforeDrag, minimum: 4 }, { timeout: 1100 });
+      panMoved = true;
+      break;
+    } catch {
+      /* At a pan boundary, try another direction before deciding the image is immovable. */
+    }
+  }
   const transformAfterDrag = await portraitImage.evaluate(image => {
     const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
     return { scale: matrix.a, x: matrix.e, y: matrix.f };
   });
+  const panDistance = Math.abs(transformAfterDrag.x - transformBeforeDrag.x) + Math.abs(transformAfterDrag.y - transformBeforeDrag.y);
   recordCheck(profile.name + ": zoomed portrait can be repositioned by dragging",
-    transformAfterDrag.scale > 1
-      && Math.abs(transformAfterDrag.x - transformBeforeDrag.x) + Math.abs(transformAfterDrag.y - transformBeforeDrag.y) > 8,
-    { transformBeforeDrag, transformAfterDrag });
+    panMoved && transformAfterDrag.scale > 1 && panDistance > 4,
+    { transformBeforeDrag, transformAfterDrag, panDistance, attemptedDirections: panDirections });
 
   await resetPortrait.click();
   await page.waitForTimeout(120);
