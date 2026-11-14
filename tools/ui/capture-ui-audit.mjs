@@ -1049,6 +1049,18 @@ async function captureProfile(browser, mode) {
         const editor=document.querySelector(".piece-image-details");
         return !editor || !editor.open;
       },null,{timeout:5000});
+      const previewToggle=page.locator(".piece-art-preview-toggle").first();
+      if(!(await visible(previewToggle))) throw new Error("駒画像プレビューの表示切替がありません");
+      const initialPreviewState={
+        expanded:await previewToggle.getAttribute("aria-expanded"),
+        visible:await page.locator(".piece-art-preview-live").isVisible()
+      };
+      if(initialPreviewState.expanded!=="false" || initialPreviewState.visible) {
+        throw new Error("駒画像プレビューが初期状態で折りたたまれていません: "+JSON.stringify(initialPreviewState));
+      }
+      await snap("basic-image-preview-default-collapsed","初期状態では駒画像プレビューを閉じ、編集スペースを確保");
+      await click(previewToggle);
+      if(await previewToggle.getAttribute("aria-expanded")!=="true") throw new Error("駒画像プレビューを開けません");
       await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
       await featuredImage.waitFor({state:"visible",timeout:5000});
       await page.waitForFunction(()=> {
@@ -1066,7 +1078,6 @@ async function captureProfile(browser, mode) {
         throw new Error("編集欄を閉じると駒画像が見えなくなります: "+JSON.stringify(collapsedEditorPreview));
       }
       await snap("basic-image-preview-visible-with-editor-closed","駒画像：URL編集を閉じても基本画像と差分一覧を表示");
-      const previewToggle=page.locator(".piece-art-preview-toggle").first();
       if(!(await visible(previewToggle))) throw new Error("駒画像プレビューを隠す操作がありません");
       await click(previewToggle);
       if(await previewToggle.getAttribute("aria-expanded")!=="false"
