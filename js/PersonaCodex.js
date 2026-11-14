@@ -774,6 +774,7 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
   /* ビルド側の人格タブは既定で「所持して装備するもの」だけを出す。
      これはロックではなく、未所持を探したいときのために解除できる。 */
   const [showAll, setShowAll] = React.useState(false);
+  const [affiliationFilterQuery, setAffiliationFilterQuery] = React.useState("");
   const gated = ownedOnly && !showAll;
 
   /* 枠（通常人格/特異人格）の解決は roster-resolver の resolvePersonaMode に任せる。
@@ -915,22 +916,16 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     (ui.filterAffs || []).forEach((aff) => { if (aff) set.add(aff); });
     return Array.from(set).sort();
   }, [pool, ui.filterAffs]);
-  const keywordCounts = React.useMemo(() => {
-    const counts = new Map();
-    pool.forEach(({ p }) => {
-      const tags = new Set(p.keywords || []);
-      const hasBullets = !!(p.bullets && p.bullets !== "×" && p.bullets !== "x" && p.bullets !== "X");
-      if (hasBullets) tags.add("弾丸");
-      tags.forEach((keyword) => counts.set(keyword, (counts.get(keyword) || 0) + 1));
+  const affiliationCandidates = React.useMemo(() => {
+    const terms = affiliationFilterQuery.normalize("NFKC").toLocaleLowerCase("ja").trim().split(/\s+/).filter(Boolean);
+    if (!terms.length) return [];
+    return affiliations.filter((aff) => {
+      if ((ui.filterAffs || []).includes(aff)) return false;
+      const normalized = aff.normalize("NFKC").toLocaleLowerCase("ja");
+      return terms.every((term) => normalized.includes(term));
     });
-    PERSONA_FIXED_KEYWORD_OPTIONS.forEach((keyword) => counts.set(keyword, counts.get(keyword) || 0));
-    // Keep a previously selected tag visible when switching to a list with zero matches.
-    (ui.filterKws || []).forEach((keyword) => counts.set(keyword, counts.get(keyword) || 0));
-    return counts;
-  }, [pool, ui.filterKws]);
-  // The source list is independent of the PDF status list length: custom and one-off tags stay filterable.
-  const allKws = React.useMemo(() => orderPersonaKeywordOptions(Array.from(keywordCounts.keys())), [keywordCounts]);
-  const countKeywordInPool = (keyword) => keywordCounts.get(keyword) || 0;
+  }, [affiliations, affiliationFilterQuery, ui.filterAffs]);
+  const visibleAffiliationCandidates = affiliationCandidates.slice(0, 12);
   // N19: 所持人格キーセット（フィルタとソートの両方で使うため filtered より前に定義）
   const ownedPersonaKeys = React.useMemo(() => new Set((roster.personas || []).map((r) => `${r.mode}:${r.no}`)), [roster.personas]);
   const filtered = React.useMemo(() => {
@@ -1020,7 +1015,13 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     const list = ui.filterAffs.includes(aff) ? ui.filterAffs.filter((x) => x !== aff) : [...ui.filterAffs, aff];
     dispatch({ type: "SET_UI", ui: { filterAffs: list } });
   };
-  const resetFilters = () => dispatch({ type: "SET_UI", ui: {
+  const selectAffiliation = (aff) => {
+    if (!ui.filterAffs.includes(aff)) toggleAff(aff);
+    setAffiliationFilterQuery("");
+  };
+  const resetFilters = () => {
+    setAffiliationFilterQuery("");
+    dispatch({ type: "SET_UI", ui: {
     filterSins: [],
     filterKws: [],
     filterAffs: [],
@@ -1031,7 +1032,8 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     filterOwnedOnly: false,
     filterMatch: "any",
     rosterBuildFilter: "all"
-  } });
+    } });
+  };
   const getFocusScroller = () => document.querySelector("main.focus");
   const scrollIntoFocus = (target, block = "start") => {
     if (!target) return;
@@ -1277,6 +1279,7 @@ const addRoster = (p) => {
       key: s,
       sin: s,
       active: ui.filterSins.includes(s),
+      ariaPressed: ui.filterSins.includes(s),
       onClick: () => toggleSin(s)
     },
     s
@@ -1307,10 +1310,50 @@ const addRoster = (p) => {
     const key = `filterRes${k}`;
     const label = ["\u65AC\u6483", "\u8CAB\u901A", "\u6253\u6483"][i];
     return /* @__PURE__ */ React.createElement("div", { key: k, style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", fontFamily: "var(--f-display)", letterSpacing: "0.14em", textTransform: "uppercase", minWidth: 32 } }, label), /* @__PURE__ */ React.createElement("select", { className: "codex-sort", "aria-label": `${label}抵抗で絞り込み`, value: ui[key] || "", onChange: (e) => dispatch({ type: "SET_UI", ui: { [key]: e.target.value } }), style: { minWidth: 80 } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u6307\u5B9A\u306A\u3057"), RES_LEVELS.map((r) => /* @__PURE__ */ React.createElement("option", { key: r, value: r }, r))));
-  }))), affiliations.length > 0 && React.createElement("div", { className: "codex-filter-row" },
+  }))), affiliations.length > 0 && React.createElement("div", { className: "codex-filter-row codex-affiliation-row" },
   React.createElement("span", { className: "filter-label" }, "所属"),
-  React.createElement("div", { className: "chips-group" }, affiliations.map((aff) => React.createElement(Chip, { key: aff, size: "sm", active: ui.filterAffs.includes(aff), onClick: () => toggleAff(aff) }, aff))
-)), allKws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u30AD\u30FC\u30EF\u30FC\u30C9"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, allKws.map((k) => /* @__PURE__ */ React.createElement(Chip, { key: k, size: "sm", active: ui.filterKws.includes(k), onClick: () => toggleKw(k), title: "このタグを持つ人格: " + countKeywordInPool(k) + "件" }, k + " · " + countKeywordInPool(k))))), /* @__PURE__ */ showAll && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u6240\u6301"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, /* @__PURE__ */ React.createElement(Chip, { active: !!ui.filterOwnedOnly, onClick: () => dispatch({ type: "SET_UI", ui: { filterOwnedOnly: !ui.filterOwnedOnly } }) }, "\u6240\u6301\u3057\u3066\u3044\u308B\u3082\u306E\u306E\u307F", ui.filterOwnedOnly ? ` (${ownedPersonaKeys.size})` : ""))), mode === "roster" && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u4FDD\u5B58\u72B6\u614B"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, [["all", "\u3059\u3079\u3066"], ["saved", "\u7DE8\u96C6\u4FDD\u5B58\u6E08\u307F"], ["default", "\u65E2\u5B9A\u5024\u306E\u307E\u307E"]].map(([key, label]) => /* @__PURE__ */ React.createElement("button", { key, className: `chip is-sm${(ui.rosterBuildFilter || "all") === key ? " is-active" : ""}`, onClick: () => dispatch({ type: "SET_UI", ui: { rosterBuildFilter: key } }) }, label)))),     ownedOnly && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row owned-gate-row" },
+  React.createElement("div", { className: "codex-affiliation-picker" },
+    React.createElement("input", {
+      className: "codex-affiliation-input",
+      type: "search",
+      value: affiliationFilterQuery,
+      placeholder: "所属名で検索",
+      "aria-label": "所属で絞り込み",
+      autoComplete: "off",
+      onChange: (e) => setAffiliationFilterQuery(e.target.value),
+      onKeyDown: (e) => {
+        if (e.key === "Enter" && visibleAffiliationCandidates.length) {
+          e.preventDefault();
+          selectAffiliation(visibleAffiliationCandidates[0]);
+        }
+      }
+    }),
+    ui.filterAffs.length > 0 && React.createElement("div", { className: "codex-affiliation-selected", role: "group", "aria-label": "選択中の所属" },
+      ui.filterAffs.map((aff) => React.createElement(Chip, {
+        key: aff, size: "sm", active: true, ariaPressed: true,
+        title: "所属「" + aff + "」の選択を解除",
+        onClick: () => toggleAff(aff)
+      }, React.createElement(React.Fragment, null, aff, React.createElement("span", { className: "codex-affiliation-remove", "aria-hidden": "true" }, "×"))))
+    ),
+    affiliationFilterQuery.trim() && React.createElement("div", { className: "codex-affiliation-results", role: "group", "aria-label": "所属の検索候補" },
+      visibleAffiliationCandidates.map((aff) => React.createElement(Chip, { key: aff, size: "sm", onClick: () => selectAffiliation(aff) }, aff)),
+      affiliationCandidates.length > visibleAffiliationCandidates.length
+        ? React.createElement("span", { className: "codex-affiliation-hint" }, "候補が多いため、さらに文字を入力してください")
+        : affiliationCandidates.length === 0
+          ? React.createElement("span", { className: "codex-affiliation-hint" }, "一致する所属はありません")
+          : null
+    )
+  )
+), allKws.length > 0 && React.createElement("div", { className: "codex-filter-row" },
+  React.createElement("span", { className: "filter-label" }, "キーワード"),
+  React.createElement("div", { className: "chips-group" },
+    allKws.map((keyword) => React.createElement(Chip, {
+      key: keyword, size: "sm", active: ui.filterKws.includes(keyword),
+      ariaPressed: ui.filterKws.includes(keyword),
+      onClick: () => toggleKw(keyword)
+    }, keyword))
+  )
+), /* @__PURE__ */ showAll && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u6240\u6301"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, /* @__PURE__ */ React.createElement(Chip, { active: !!ui.filterOwnedOnly, onClick: () => dispatch({ type: "SET_UI", ui: { filterOwnedOnly: !ui.filterOwnedOnly } }) }, "\u6240\u6301\u3057\u3066\u3044\u308B\u3082\u306E\u306E\u307F", ui.filterOwnedOnly ? ` (${ownedPersonaKeys.size})` : ""))), mode === "roster" && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u4FDD\u5B58\u72B6\u614B"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, [["all", "\u3059\u3079\u3066"], ["saved", "\u7DE8\u96C6\u4FDD\u5B58\u6E08\u307F"], ["default", "\u65E2\u5B9A\u5024\u306E\u307E\u307E"]].map(([key, label]) => /* @__PURE__ */ React.createElement("button", { key, className: `chip is-sm${(ui.rosterBuildFilter || "all") === key ? " is-active" : ""}`, onClick: () => dispatch({ type: "SET_UI", ui: { rosterBuildFilter: key } }) }, label)))),     ownedOnly && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row owned-gate-row" },
       /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u8868\u793a\u7bc4\u56f2"),
       /* @__PURE__ */ React.createElement("div", { className: "chips-group" },
         /* @__PURE__ */ React.createElement("button", {
