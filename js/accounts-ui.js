@@ -245,7 +245,7 @@ function applyGarasumadoImport(result) {
   }));
 }
 
-const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove, onImport, existingResults = [] }) => {
+const AccountCard = ({ entry, index, active, editing, selecting = false, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove, onImport, existingResults = [] }) => {
   const onDraftKeyDown = (save) => (event) => {
     if (event.key === "Enter") { event.preventDefault(); save(); }
     if (event.key === "Escape") { event.preventDefault(); onCancel(); }
@@ -256,7 +256,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
   React.useEffect(() => { if (!editing) setImportOpen(false); }, [editing]);
 
   if (editing) {
-    return h("div", { className: `acct-card acct-card--form${importOpen ? " acct-card--import-open" : ""}`, style: { "--i": index } },
+    return h("div", { className: `acct-card acct-card--form${importOpen ? " acct-card--import-open" : ""}`, style: { "--i": index }, "data-account-id": entry.id },
       h("span", { className: "acct-form-kicker" }, "編集中"),
       h("label", { className: "acct-field" }, h("span", null, "アカウント名"), h("input", {
         className: "input", value: draft.name, autoFocus: true, maxLength: 40,
@@ -311,7 +311,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
     );
   }
   const cardLabel = `アカウント「${entry.name}」へ切替（${entry.purpose ? `用途 ${entry.purpose}・` : ""}最終更新 ${relativeUpdatedAt(entry.updatedAt)}）`;
-  return h("div", { className: `acct-card${active ? " is-active" : ""}`, style: { "--i": index } },
+  return h("div", { className: `acct-card${active ? " is-active" : ""}${selecting ? " is-selecting" : ""}`, style: { "--i": index }, "data-account-id": entry.id },
     active ? null : h("button", { type: "button", className: "acct-card-hit", onClick: onSelect, "aria-label": cardLabel, title: `${entry.name} を開く` }),
     h("div", { className: "acct-card-body" },
       h(AccountMark, { icon, name: entry.name }),
@@ -337,10 +337,23 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
 
   const [pendingIcon, setPendingIcon] = React.useState("");
   const [closing, setClosing] = React.useState(false);
+  const [selectingId, setSelectingId] = React.useState(null);
   const closeTimer = React.useRef(null);
+  const selectionTimer = React.useRef(null);
 
   React.useEffect(() => {
-    if (!open) { setEditingId(null); setCreating(false); setClosing(false); }
+    if (!open) {
+      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+      setEditingId(null);
+      setCreating(false);
+      setClosing(false);
+    } else {
+      // Re-opening during an exit animation must cancel the old close callback.
+      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+      setClosing(false);
+    }
     const onChange = () => setInfo(readAccountInfo());
     window.addEventListener(ACCOUNTS_CHANGED_EVENT, onChange);
     return () => window.removeEventListener(ACCOUNTS_CHANGED_EVENT, onChange);
@@ -358,11 +371,22 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
   }, [open, initialEditId]);
 
   const requestClose = React.useCallback(() => {
+    // Ignore duplicate backdrop / Escape / close-button events during the exit.
+    if (closeTimer.current !== null) return;
     if (prefersReducedMotion()) { onClose(); return; }
     setClosing(true);
-    closeTimer.current = window.setTimeout(() => { setClosing(false); onClose(); }, 140);
+    closeTimer.current = window.setTimeout(() => {
+      closeTimer.current = null;
+      setClosing(false);
+      onClose();
+    }, 180);
   }, [onClose]);
-  React.useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  React.useEffect(() => () => {
+    if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+    if (selectionTimer.current !== null) window.clearTimeout(selectionTimer.current);
+    closeTimer.current = null;
+    selectionTimer.current = null;
+  }, []);
 
   /* フォーカストラップ + Esc。UtilitySheet と同じ規約。 */
   React.useEffect(() => {
@@ -396,8 +420,33 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
   if (!open) return null;
 
   const total = info.accounts.length;
-  const startEdit = (entry) => { setCreating(false); setEditingId(entry.id); setDraft({ name: entry.name, purpose: entry.purpose || "" }); };
-  const cancelForm = () => { setEditingId(null); setCreating(false); setDraft({ name: "", purpose: "" }); setPendingIcon(""); };
+  const startEdit = (entry) => {
+    setSelectingId(null);
+    setCreating(false);
+    setEditingId(entry.id);
+    setDraft({ name: entry.name, purpose: entry.purpose || "" });
+  };
+  const cancelForm = () => {
+    const restoreId = editingId;
+    const restoreAdd = creating;
+    setEditingId(null);
+    setCreating(false);
+    setDraft({ name: "", purpose: "" });
+    setPendingIcon("");
+    // The editing card is replaced by a fresh card node. Return keyboard focus
+    // to its edit action (or the add card) only after React has committed it.
+    window.requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const card = restoreId
+        ? Array.from(panel.querySelectorAll(".acct-card[data-account-id]"))
+          .find((node) => node.dataset.accountId === restoreId)
+        : null;
+      const target = card?.querySelector(".acct-edit-btn")
+        || (restoreAdd ? panel.querySelector(".acct-card--add") : null);
+      target?.focus({ preventScroll: true });
+    });
+  };
   cancelFormRef.current = cancelForm;
   const requiredName = () => {
     if (!draft.name.trim()) { toast("アカウント名を入力してください", "assertive"); return false; }
@@ -429,8 +478,17 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
     else toast("アカウントは作成されましたが、切替に失敗しました。一覧から選択してください。", "assertive");
   };
   const doSelect = (id) => {
-    if (window.LBT_accounts?.switch?.(id)) location.reload();
-    else toast("アカウントを切替できませんでした", "assertive");
+    if (selectionTimer.current !== null) return;
+    if (!window.LBT_accounts?.switch?.(id)) {
+      toast("アカウントを切替できませんでした", "assertive");
+      return;
+    }
+    // Give the pressed state one visible beat before navigation replaces the view.
+    setSelectingId(id);
+    selectionTimer.current = window.setTimeout(() => {
+      selectionTimer.current = null;
+      location.reload();
+    }, prefersReducedMotion() ? 0 : 150);
   };
   const doRemove = (entry) => {
     if (!confirm(`アカウント「${entry.name}」を削除しますか？\nこの保存領域は復元できません。他のアカウントと旧データのバックアップには影響しません。`)) return;
@@ -461,6 +519,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
           index,
           active: entry.id === info.activeId,
           editing: editingId === entry.id,
+          selecting: selectingId === entry.id,
           draft,
           setDraft,
           icon: info.icons?.[entry.id] || "",
@@ -505,7 +564,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
           type: "button",
           className: "acct-card acct-card--add",
           style: { "--i": total },
-          onClick: () => { setEditingId(null); setCreating(true); setDraft({ name: "", purpose: "" }); }
+          onClick: () => { setSelectingId(null); setEditingId(null); setCreating(true); setDraft({ name: "", purpose: "" }); }
         },
           h("span", { className: "acct-add-plus", "aria-hidden": "true" }, "+"),
           h("span", null, "新しいアカウント")
