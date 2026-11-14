@@ -5,10 +5,12 @@ function normalizeMultiline(s) {
 function normalizeImageUrls(value) {
   const urls = [];
   const seen = new Set();
+  const visited = new WeakSet();
   const addText = (text) => {
     String(text ?? "").split(/\r\n|\r|\n/).forEach((line) => {
       let url = line.trim();
-      if (url.startsWith("<") && url.endsWith(">")) url = url.slice(1, -1).trim();
+      if (!url) return;
+      if ((url.startsWith("<") && url.endsWith(">"))) url = url.slice(1, -1).trim();
       const markdownImage = url.match(/^!?\[[^\]]*\]\((.+)\)$/);
       if (markdownImage) url = markdownImage[1].trim().replace(/^<|>$/g, "");
       url = url.replace(/&amp;/gi, "&");
@@ -20,6 +22,18 @@ function normalizeImageUrls(value) {
   };
   const append = (entry) => {
     if (typeof entry === "string") {
+      const text = entry.trim();
+      // Older exports sometimes persist the complete CCFOLIA image object as JSON text.
+      // Decode only object/array-shaped strings; ordinary URLs and Markdown stay untouched.
+      if (/^[\[{]/.test(text)) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed === "object") {
+            append(parsed);
+            return;
+          }
+        } catch (_) { /* Treat malformed JSON as a normal URL/text line. */ }
+      }
       addText(entry);
       return;
     }
@@ -27,11 +41,15 @@ function normalizeImageUrls(value) {
       entry.forEach(append);
       return;
     }
-    if (!entry || typeof entry !== "object") return;
-    const primary = entry.iconUrl ?? entry.url ?? entry.src ?? entry.imageUrl;
+    if (!entry || typeof entry !== "object" || visited.has(entry)) return;
+    visited.add(entry);
+    if (entry.data && typeof entry.data === "object") append(entry.data);
+    const primary = entry.iconUrl ?? entry.icon_url ?? entry.url ?? entry.src ??
+      entry.imageUrl ?? entry.image_url ?? entry.externalUrl;
     if (typeof primary === "string") addText(primary);
-    if (Array.isArray(entry.faces)) append(entry.faces);
-    if (Array.isArray(entry.urls)) append(entry.urls);
+    for (const key of ["faces", "urls", "images", "imageUrls", "imgUrls"]) {
+      if (entry[key] != null) append(entry[key]);
+    }
   };
   append(value);
   return urls;
