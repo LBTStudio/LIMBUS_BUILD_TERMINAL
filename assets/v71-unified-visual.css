@@ -225,8 +225,7 @@ textarea:focus-visible {
 }
 .acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) > .lbt-cloud-summary {
   min-height: 44px;
-  padding: 4px 8px;
-  gap: 8px;
+  padding: 4px 44px 4px 8px;
 }
 .acct-panel-cloud > .lbt-cloud-panel.is-compact:not([open]) .lbt-cloud-heading {
   flex-direction: row;
