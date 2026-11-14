@@ -88,6 +88,8 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /imagePreviewFrameRef = React\.useRef\(null\)/);
   assert.match(sections, /frame\.addEventListener\("wheel", handleWheel, \{ passive: false \}\)/);
   assert.match(sections, /Math\.min\(4, imageZoom \* Math\.exp/);
+  assert.match(sections, /const handleWheel = \(event\) => \{\s*if \(!selectedImagePreviewUrl \|\| selectedImageFailed\) return;\s*\/\*[\s\S]*?\*\/\s*event\.preventDefault\(\);\s*const nextZoom/,
+    "ズームの上限・下限でもホイール入力を消費し、ページスクロールへ渡さない");
   assert.match(sections, /\}, \[selectedImageIndex, selectedImageUrl\]\)/);
   assert.match(sections, /transformOrigin: imageZoomOrigin/);
   assert.match(sections, /mode: imageZoom > 1\.001 && !event\.shiftKey \? "pan" : "zoom"/,
