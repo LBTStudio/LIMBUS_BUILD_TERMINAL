@@ -252,7 +252,62 @@ async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
       document.activeElement === card.querySelector(".acct-edit-btn");
   }, [saveId, previousName + " 確認"], { timeout: 5000 });
   const afterSave = await switchAfterReturn(saveId, "Save");
-  return { afterCancel, afterSave };
+
+  // Cover the first-run gate route too: Edit opens the manager with an initial
+  // edit target; Cancel returns to the manager; closing it must restore focus
+  // to the gate's Edit button; the gate card remains a working hit target.
+  const closeManager = page.locator(".acct-panel .acct-close").first();
+  await closeManager.click();
+  await page.locator(".acct-panel").waitFor({ state: "hidden", timeout: 8000 });
+  const gateReload = page.waitForNavigation({ waitUntil: "load", timeout: 20000 });
+  await page.evaluate(() => {
+    localStorage.removeItem("lbt_account_active");
+    location.reload();
+  });
+  await gateReload;
+  const gate = page.locator(".acct-gate").first();
+  await gate.waitFor({ state: "visible", timeout: 12000 });
+  const gateCard = page.locator(".acct-gate-panel .acct-card--gate[data-account-id]").first();
+  const gateId = await gateCard.getAttribute("data-account-id");
+  if (!gateId) throw new Error(`${viewportName}: gate card has no stable account id`);
+  const gateEdit = gateCard.locator(".acct-gate-edit-btn");
+  await gateEdit.click();
+  await page.locator(".acct-panel").waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForFunction((id) => {
+    const form = document.querySelector(`.acct-panel .acct-card[data-account-id="${id}"].acct-card--form`);
+    return !!form?.querySelector(".acct-form-actions");
+  }, gateId, { timeout: 5000 });
+  await page.locator(`.acct-panel .acct-card[data-account-id="${gateId}"] .acct-form-actions`)
+    .getByRole("button", { name: "キャンセル", exact: true }).click();
+  await page.waitForFunction((id) => {
+    const card = document.querySelector(`.acct-panel .acct-card[data-account-id="${id}"]`);
+    return !!card?.querySelector(".acct-edit-btn") && !!card?.querySelector(".acct-card-hit");
+  }, gateId, { timeout: 5000 });
+  await page.locator(".acct-panel .acct-close").first().click();
+  await page.locator(".acct-panel").waitFor({ state: "hidden", timeout: 8000 });
+  await page.waitForFunction((id) => {
+    const trigger = document.querySelector(`.acct-gate-panel .acct-card--gate[data-account-id="${id}"] .acct-gate-edit-btn`);
+    return !!trigger && document.activeElement === trigger;
+  }, gateId, { timeout: 5000 });
+  const gateHit = gateCard.locator(".acct-card-hit");
+  const gateHitTest = await page.evaluate((id) => {
+    const node = document.querySelector(`.acct-gate-panel .acct-card--gate[data-account-id="${id}"] .acct-card-hit`);
+    if (!node) return { ok: false, reason: "gate hit target missing" };
+    const r = node.getBoundingClientRect();
+    const x = Math.max(1, Math.min(innerWidth - 1, r.left + r.width / 2));
+    const y = Math.max(1, Math.min(innerHeight - 1, r.top + r.height / 2));
+    const top = document.elementFromPoint(x, y);
+    return { ok: getComputedStyle(node).pointerEvents !== "none" && (top === node || node.contains(top)), topElement: top?.className || top?.tagName, x, y };
+  }, gateId);
+  if (!gateHitTest.ok) throw new Error(`${viewportName}: gate card hit target is blocked after Edit/Cancel: ${JSON.stringify(gateHitTest)}`);
+  await gateHit.click();
+  await page.waitForFunction((id) => {
+    const activeId = window.LBT_accounts?.list?.()?.activeId;
+    const gateNode = document.querySelector(".acct-gate");
+    return activeId === id && (!gateNode || getComputedStyle(gateNode).display === "none");
+  }, gateId, { timeout: 8000 });
+  await openAccountManager(page);
+  return { afterCancel, afterSave, gateAfterEditCancel: { gateId, gateHitTest, activeId: gateId } };
 }
 
 async function capture(browser, name, width, height) {
