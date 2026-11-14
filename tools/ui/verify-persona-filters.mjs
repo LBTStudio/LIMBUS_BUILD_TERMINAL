@@ -52,7 +52,16 @@ async function runProfile(profile) {
       beforeCount, affiliation
     });
 
-    const query = [...affiliation].slice(0, Math.min(2, [...affiliation].length)).join("");
+    const affiliationChars = [...affiliation];
+    const allAffiliations = [...new Set(affiliationNames.map(value => value.trim()).filter(Boolean))];
+    let queryLength = Math.min(2, affiliationChars.length);
+    let query = affiliationChars.slice(0, queryLength).join("");
+    while (queryLength < affiliationChars.length
+      && allAffiliations.filter(value => value.normalize("NFKC").toLocaleLowerCase("ja")
+        .includes(query.normalize("NFKC").toLocaleLowerCase("ja"))).length > 12) {
+      queryLength++;
+      query = affiliationChars.slice(0, queryLength).join("");
+    }
     await affiliationInput.fill(query);
     const candidates = page.locator(".codex-affiliation-results .chip");
     await candidates.first().waitFor({ state: "visible", timeout: 7000 });
