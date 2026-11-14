@@ -488,7 +488,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
     selectionTimer.current = window.setTimeout(() => {
       selectionTimer.current = null;
       location.reload();
-    }, prefersReducedMotion() ? 0 : 150);
+    }, prefersReducedMotion() ? 0 : 180);
   };
   const doRemove = (entry) => {
     if (!confirm(`アカウント「${entry.name}」を削除しますか？\nこの保存領域は復元できません。他のアカウントと旧データのバックアップには影響しません。`)) return;
