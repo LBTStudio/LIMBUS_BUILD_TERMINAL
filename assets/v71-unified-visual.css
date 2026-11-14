@@ -556,3 +556,203 @@ textarea:focus-visible {
   text-shadow: none !important;
   border-right-color: color-mix(in oklab, var(--ui-bg) 38%, transparent) !important;
 }
+
+
+/* Account selection interaction pass
+   Source vocabulary: Motion Prompt #049 modal scale/fade + #081 hover lift.
+   One ease-out family; no spring/bounce and no gradient surfaces. */
+:root {
+  --ui-motion-ease: cubic-bezier(.22, .8, .22, 1);
+  --ui-motion-fast: 120ms;
+  --ui-motion-modal: 280ms;
+}
+
+.acct-overlay {
+  animation: acct-modal-in var(--ui-motion-modal) var(--ui-motion-ease) both;
+}
+.acct-overlay.is-closing {
+  animation: acct-modal-out 180ms var(--ui-motion-ease) forwards;
+  pointer-events: none;
+}
+@keyframes acct-modal-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes acct-modal-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.acct-panel {
+  animation: acct-panel-in var(--ui-motion-modal) var(--ui-motion-ease) both;
+  border-color: var(--ui-line);
+  background: var(--ui-bg);
+}
+@keyframes acct-panel-in {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* The last-layer flat theme had disabled the earlier card press/hover rules.
+   Re-establish a visible but restrained response on the actual hit surface. */
+.acct-card {
+  background: var(--ui-surface);
+  border-color: var(--ui-line);
+  transition:
+    transform var(--ui-motion-fast) var(--ui-motion-ease),
+    border-color var(--ui-motion-fast) var(--ui-motion-ease),
+    background-color var(--ui-motion-fast) var(--ui-motion-ease);
+}
+.acct-card:hover,
+.acct-card:focus-within {
+  transform: translateY(-2px);
+  border-color: var(--ui-accent);
+  background: var(--ui-surface);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--ui-line) 52%, transparent);
+}
+.acct-card:has(.acct-card-hit:active),
+.acct-card.is-selecting {
+  transform: scale(.982);
+  border-color: var(--ui-accent);
+  background: var(--ui-surface);
+  box-shadow: inset 0 0 0 1px var(--ui-accent);
+}
+.acct-card-hit:active {
+  background: transparent;
+}
+.acct-card-hit:focus-visible,
+.acct-gate-edit-btn:focus-visible,
+.acct-icon-btn:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+/* Read order: identity first, purpose second, recency third, actions in a
+   dedicated lower-right rail. This removes the old vertically-centred stack. */
+.acct-panel-accounts > .acct-grid--manager {
+  grid-auto-rows: minmax(140px, max-content);
+  gap: 10px;
+}
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+  min-height: 140px;
+  padding: 12px 12px 42px;
+}
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-card-body {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  justify-items: start;
+  gap: 3px 10px;
+  min-width: 0;
+  text-align: left;
+}
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-mark {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  width: 44px;
+  height: 44px;
+}
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-name {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: var(--ui-type-body);
+  line-height: 1.35;
+  min-width: 0;
+  text-align: left;
+}
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-purpose {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: var(--ui-type-xs);
+}
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-meta {
+  grid-column: 2;
+  grid-row: 3;
+  font-size: var(--ui-type-xs);
+  line-height: 1.35;
+  color: var(--ui-text) !important;
+  opacity: .82;
+}
+.acct-card-actions {
+  z-index: 2;
+}
+.acct-edit-btn,
+.acct-icon-btn {
+  transition:
+    transform var(--ui-motion-fast) var(--ui-motion-ease),
+    color var(--ui-motion-fast) var(--ui-motion-ease),
+    border-color var(--ui-motion-fast) var(--ui-motion-ease),
+    background-color var(--ui-motion-fast) var(--ui-motion-ease);
+}
+.acct-edit-btn:active,
+.acct-icon-btn:active {
+  transform: scale(.96);
+}
+
+/* Collapse native and custom disclosure markers into one chevron. */
+.lbt-cloud-summary {
+  list-style: none;
+}
+.lbt-cloud-summary::marker {
+  content: "";
+}
+
+@media (max-width: 760px) {
+  .acct-panel-accounts > .acct-grid--manager {
+    grid-auto-rows: minmax(98px, max-content);
+    gap: 8px;
+    padding: 10px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+    min-height: 98px;
+    padding: 10px 92px 10px 10px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-card-body {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 2px 8px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-mark {
+    width: 40px;
+    height: 40px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-name {
+    font-size: var(--ui-type-sm);
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-icon-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) .acct-edit-btn {
+    min-width: 64px;
+    min-height: 40px;
+  }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--gate {
+    transition:
+      transform var(--ui-motion-fast) var(--ui-motion-ease),
+      border-color var(--ui-motion-fast) var(--ui-motion-ease),
+      background-color var(--ui-motion-fast) var(--ui-motion-ease);
+  }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--gate:has(.acct-card-hit:active) {
+    transform: scale(.985);
+    border-color: var(--ui-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acct-overlay,
+  .acct-overlay.is-closing,
+  .acct-panel,
+  .acct-card,
+  .acct-edit-btn,
+  .acct-icon-btn {
+    animation: none !important;
+    transition-duration: 0ms !important;
+  }
+  .acct-card:hover,
+  .acct-card:has(.acct-card-hit:active),
+  .acct-card.is-selecting {
+    transform: none !important;
+  }
+}
