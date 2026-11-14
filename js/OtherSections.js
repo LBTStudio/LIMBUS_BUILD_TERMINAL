@@ -198,7 +198,7 @@ const BaseSection = ({ state, dispatch }) => {
             title: imagePreviewOpen ? "プレビューを隠して作業スペースを広げる" : "立ち絵プレビューを表示する"
           }, imagePreviewOpen ? "プレビューを隠す" : "プレビューを表示")
         ),
-        imagePreviewOpen && React.createElement("div", { id: "piece-art-preview-live", className: "piece-art-preview-live" },
+        React.createElement("div", { id: "piece-art-preview-live", className: "piece-art-preview-live", hidden: !imagePreviewOpen },
             React.createElement("div", { className: "piece-url-preview" },
               imgList.length === 0
                 ? React.createElement("div", { className: "piece-url-preview-empty" }, "画像URLを登録すると、ここに基本画像と差分が表示されます。")
