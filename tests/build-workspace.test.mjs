@@ -374,7 +374,11 @@ test("ショップの消耗品カタログは所持状況に依存せず、在�
   /* 所持上限に達したアイテムは購入できない。 */
   assert.match(shop, /card\(item\.id, item\.name, item\.category \|\| "その他", "item",[\s\S]{0,200}?atCap\(item\), "所持上限に達しています"/);
 /* 人格・サポート・E.G.O・精神・アイテム + ガチャ（抽出チケット）。 */
-     assert.match(shop, /\[\["persona", "人格"\], \["support", "サポート"\], \["ego", "E\.G\.O"\], \["spirit", "精神"\], \["item", "アイテム"\], \["gacha", "ガチャ"\]\]/);
+  for (const id of ["persona", "support", "ego", "spirit", "item", "gacha"]) {
+    assert.match(shop, new RegExp('id: "' + id + '"'));
+  }
+  assert.match(shop, /activeShopCategory = shopCategories\.find/);
+  assert.match(shop, /className: "btype-shop-categories-trigger"/);
   /* 共通カードで描く。 */
   assert.match(shop, /className: "shop-card spirit-item"/);
   assert.match(shop, /className: "shop-grid"/);
@@ -775,7 +779,7 @@ test("ステータス一覧とラベル一覧は駒整形へ移設する（設�
   /* 外側の「ステータス」「ラベル」見出しは、中身のパネルの見出しと二重になるので置かない。 */
   assert.doesNotMatch(sections, /settings-major-name" \}, "ステータス"\)/);
   assert.doesNotMatch(sections, /settings-major-name" \}, "ラベル"\)/);
-  assert.match(sections, /"組み立て \/ BUILD PARAMETERS"/);
+  assert.match(sections, /"OUTPUT PARAMETERS \/ 出力パラメータ"/);
   /* 組み立て設定は人格と無関係。人格が未装備でも、名前・PL・立ち絵・
      INITIATIVE・COLOR と組み立て設定の両方を開ける。 */
   const order = codex.indexOf("人格は未装備です。");
@@ -1014,9 +1018,9 @@ test("ショップはビルドと同じ検索窓形式で絞り込む", () => {
   assert.match(shop, /className: `shop-filters codex-filters\$\{tab === "ego" \? " ego-catalog-filters" : ""\}`/);
   /* 追従するのはカテゴリタブだけ。検索・フィルタはスクロールで流す。
      タブは filter パネルの外側（sticky は親の範囲を出られないため）。 */
-  assert.match(shop, /className: "shop-tabs-sticky"/);
+  assert.doesNotMatch(shop, /className: "shop-tabs-sticky"/);
   assert.doesNotMatch(shop, /className: `shop-filters codex-filters shop-filters--merged/);
-  assert.match(shop, /onClick: \(\) => \{ setTab\(value\); scrollWorkspaceToTop\(\); \}/);
+  assert.match(shop, /className: "btype-shop-categories-trigger"/);
   assert.match(shop, /const scrollWorkspaceToTop = \(\) => \{/);
   assert.match(shop, /document\.querySelector\("main\.focus"\) \|\| document\.querySelector\("main"\)/);
   assert.match(shop, /className: "codex-search"/);
