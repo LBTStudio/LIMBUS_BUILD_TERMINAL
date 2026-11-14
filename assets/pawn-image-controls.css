@@ -1,0 +1,86 @@
+/* Pawn image preview controls: direct manipulation and a smaller working footprint. */
+.base-info-panel .piece-art-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.base-info-panel .piece-art-preview-toggle {
+  min-height: 40px;
+  padding: 7px 10px;
+  border-color: var(--line-strong, #504a42);
+  color: var(--ui-text, #f2ece1);
+}
+.base-info-panel .piece-url-preview-featured-frame {
+  height: clamp(180px, 27vh, 290px) !important;
+  min-height: 165px !important;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: zoom-in;
+}
+.base-info-panel .piece-url-preview-featured-frame[data-zoomed="true"] {
+  cursor: grab;
+  touch-action: none;
+}
+.base-info-panel .piece-url-preview-featured-frame[data-dragging="true"] {
+  cursor: grabbing;
+}
+.base-info-panel .piece-url-preview-featured-frame > img {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: auto;
+}
+.base-info-panel .piece-url-preview-zoom-controls {
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 5px;
+  padding-inline: 2px;
+}
+.base-info-panel .piece-url-preview-zoom-help {
+  margin-right: auto;
+  min-width: 0 !important;
+  font-size: 10px !important;
+}
+.base-info-panel .piece-url-preview-item {
+  min-height: 72px !important;
+  padding: 4px !important;
+  gap: 3px !important;
+}
+.base-info-panel .piece-url-preview-frame {
+  width: 54px !important;
+  height: 58px !important;
+}
+.base-info-panel .piece-url-preview-caption {
+  font-size: 9px !important;
+  line-height: 1.2;
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: clamp(180px, 25vh, 260px) !important;
+    min-height: 165px !important;
+  }
+}
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: clamp(145px, 22vh, 195px) !important;
+    min-height: 140px !important;
+  }
+  .base-info-panel .piece-url-preview-item {
+    min-height: 68px !important;
+  }
+  .base-info-panel .piece-url-preview-frame {
+    width: 50px !important;
+    height: 54px !important;
+  }
+  .base-info-panel .piece-art-actions .piece-art-preview-toggle {
+    min-height: 42px;
+  }
+}
+@media (max-width: 360px) and (max-height: 700px) {
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: 145px !important;
+    min-height: 135px !important;
+  }
+}
