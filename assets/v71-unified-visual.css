@@ -688,12 +688,24 @@ textarea:focus-visible {
   transform: scale(.96);
 }
 
-/* Collapse native and custom disclosure markers into one chevron. */
-.lbt-cloud-summary {
-  list-style: none;
+/* The cloud backup stylesheet is intentionally followed by this final
+   visual layer. Suppress the UA disclosure triangle here as well: Chromium
+   otherwise keeps its marker beside the custom chevron at some zoom levels. */
+.acct-panel-cloud > details.lbt-cloud-panel > summary.lbt-cloud-summary {
+  display: block !important;
+  list-style: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
 }
-.lbt-cloud-summary::marker {
-  content: "";
+.acct-panel-cloud > details.lbt-cloud-panel > summary.lbt-cloud-summary::marker {
+  content: "" !important;
+  display: none !important;
+  font-size: 0 !important;
+  color: transparent !important;
+}
+.acct-panel-cloud > details.lbt-cloud-panel > summary.lbt-cloud-summary::-webkit-details-marker {
+  display: none !important;
+  content: none !important;
 }
 
 @media (max-width: 760px) {
