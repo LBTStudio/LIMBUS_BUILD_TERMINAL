@@ -1055,12 +1055,10 @@ async function captureProfile(browser, mode) {
         expanded:await previewToggle.getAttribute("aria-expanded"),
         visible:await page.locator(".piece-art-preview-live").isVisible()
       };
-      if(initialPreviewState.expanded!=="false" || initialPreviewState.visible) {
-        throw new Error("駒画像プレビューが初期状態で折りたたまれていません: "+JSON.stringify(initialPreviewState));
+      if(initialPreviewState.expanded!=="true" || !initialPreviewState.visible) {
+        throw new Error("駒画像プレビューが初期状態で展開されていません: "+JSON.stringify(initialPreviewState));
       }
-      await snap("basic-image-preview-default-collapsed","初期状態では駒画像プレビューを閉じ、編集スペースを確保");
-      await click(previewToggle);
-      if(await previewToggle.getAttribute("aria-expanded")!=="true") throw new Error("駒画像プレビューを開けません");
+      await snap("basic-image-preview-default-expanded","初期状態から立ち絵プレビューを展開");
       await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
       await featuredImage.waitFor({state:"visible",timeout:5000});
       await page.waitForFunction(()=> {

@@ -166,11 +166,9 @@ async function createDisposableAccount(page,profile) {
     expanded: button.getAttribute("aria-expanded"),
     previewVisible: !!document.querySelector(".piece-art-preview-live")?.getClientRects().length
   }));
-  recordCheck(profile.name + ": pawn image preview starts folded to preserve editing space",
-    initialArtPreview.expanded === "false" && !initialArtPreview.previewVisible,
+  recordCheck(profile.name + ": pawn image preview starts expanded by default",
+    initialArtPreview.expanded === "true" && initialArtPreview.previewVisible,
     initialArtPreview);
-  await artPreviewToggle.click();
-  await page.locator(".piece-art-preview-live").waitFor({ state: "visible", timeout: 5000 });
 
   const portraitFrame = page.locator(".piece-url-preview-featured-frame").first();
   const portraitImage = portraitFrame.locator("img").first();
