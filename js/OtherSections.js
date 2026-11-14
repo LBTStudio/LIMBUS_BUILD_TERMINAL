@@ -63,7 +63,7 @@ const BaseSection = ({ state, dispatch }) => {
   React.useEffect(() => {
     setImageZoom(1);
     setImageZoomOrigin("50% 50%");
-  }, [selectedImageUrl]);
+  }, [selectedImageIndex, selectedImageUrl]);
   React.useEffect(() => {
     const frame = imagePreviewFrameRef.current;
     if (!frame) return undefined;
