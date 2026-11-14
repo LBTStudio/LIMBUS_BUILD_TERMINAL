@@ -15,10 +15,11 @@
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
-  cursor: zoom-in;
+  cursor: ns-resize;
 }
 .base-info-panel .piece-url-preview-featured-frame[data-zoomed="true"] {
   cursor: grab;
+  -webkit-user-drag: none;
   touch-action: none;
 }
 .base-info-panel .piece-url-preview-featured-frame[data-dragging="true"] {
