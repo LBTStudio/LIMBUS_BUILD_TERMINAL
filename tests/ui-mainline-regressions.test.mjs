@@ -63,3 +63,16 @@ test("collapsed preview has no residual portrait or miniature CCFOLIA preview in
   assert.match(capture, /Home preview shortcut opens the shared CCFOLIA tab/);
   assert.doesNotMatch(capture, /\.piece-art-frame img|previewFormatTab|previewFormatPanel|basic-ccfolia-panel-board/);
 });
+
+
+test("v72 applies one whole-app type and color system without gradients", () => {
+  const v72 = read("../assets/v72-ui-health-refinement.css");
+  assert.match(index, /assets\/v72-ui-health-refinement\.css\?v=e2d5840e/);
+  for (const token of ["--ui-bg", "--ui-surface", "--ui-line", "--ui-text", "--ui-accent"]) {
+    assert.match(v72, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  for (const size of ["11px", "13px", "15px", "18px", "24px"]) assert.ok(v72.includes(size));
+  assert.doesNotMatch(v72, /linear-gradient|radial-gradient|conic-gradient/);
+  assert.match(v72, /\.piece-hero-grid:has\(\.piece-url-preview-empty\)/);
+  assert.match(v72, /\.btype-launcher-grid[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+});
