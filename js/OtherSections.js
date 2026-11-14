@@ -158,7 +158,7 @@ const BaseSection = ({ state, dispatch }) => {
                               ? React.createElement("img", {
                                   src: safeSrc,
                                   alt: "",
-                                  loading: index === selectedImageIndex ? "eager" : "lazy",
+                                  loading: "eager",
                                   fetchPriority: index === selectedImageIndex ? "high" : "auto",
                                   decoding: "async",
                                   onError: () => setFailedImageUrls((current) => current.includes(src) ? current : [...current, src])
