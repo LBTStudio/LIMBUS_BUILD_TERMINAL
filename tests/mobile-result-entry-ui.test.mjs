@@ -66,3 +66,15 @@ test("画面キャプチャは一時通知が消えてから撮影する", () =>
 test("変更したモバイルスタイルはメインHTMLから読み込まれる", () => {
   assert.match(index, /assets\/v69-mobile-ui-audit\.css\?v=[0-9a-f]{8}/);
 });
+
+
+test("新規リザルトは4段階の進行表示から各セクションへ直接移動できる", () => {
+  assert.match(sections, /className: "ledger-result-progress"/);
+  assert.match(sections, /aria-label: "リザルト入力のステップ"/);
+  for (const stage of ["session", "tickets", "rewards", "confirm"]) {
+    assert.match(sections, new RegExp('ledger-result-stage-' + stage));
+    assert.match(sections, new RegExp('id: "' + stage + '"'));
+  }
+  assert.match(sections, /scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth"/);
+  assert.match(sections, /className: "ledger-result-step"/);
+});
