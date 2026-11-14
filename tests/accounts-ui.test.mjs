@@ -355,6 +355,8 @@ test("オンライン保全のsummaryはブラウザー標準マーカーを隠�
     "最終視覚レイヤーでネイティブsummaryマーカーの表示方式を解除する");
   assert.match(visualSystem, /summary\.lbt-cloud-summary::-webkit-details-marker\s*\{[^}]*display:\s*none !important;/,
     "最終視覚レイヤーでもChromiumの標準マーカーを抑止する");
+  assert.match(visualSystem, /summary\.lbt-cloud-summary::after\s*\{[^}]*content:\s*none !important;[^}]*display:\s*none !important;/,
+    "v67共通ルールの▲／▼だけを保全パネルから除去する");
 });
 
 test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
