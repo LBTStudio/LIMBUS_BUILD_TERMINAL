@@ -625,6 +625,8 @@ const AccountGate = () => {
   const [creating, setCreating] = React.useState(false);
   const [draft, setDraft] = React.useState({ name: "", purpose: "" });
   const [pendingIcon, setPendingIcon] = React.useState("");
+  const [selectingId, setSelectingId] = React.useState(null);
+  const selectionTimer = React.useRef(null);
 
 
   React.useEffect(() => {
@@ -632,13 +634,24 @@ const AccountGate = () => {
     window.addEventListener(ACCOUNTS_CHANGED_EVENT, onChange);
     return () => window.removeEventListener(ACCOUNTS_CHANGED_EVENT, onChange);
   }, []);
+  React.useEffect(() => () => {
+    if (selectionTimer.current !== null) window.clearTimeout(selectionTimer.current);
+    selectionTimer.current = null;
+  }, []);
 
-  /* 選んだアカウントで開く。ページ再読込はしない（常時ゲートと競合して
-     「選んでもう一度ゲート」のループになる）。App へ通知し、state を
-     そのアカウントの保存領域で差し替えてもらう。 */
+  /* 選んだアカウントで開く。通常の一覧と同じ押下感を表示してから、
+     App へ通知し、そのアカウントの保存領域へ切り替える。 */
   const choose = (id) => {
-    if (!window.LBT_accounts?.switch?.(id)) { toast("アカウントを読み出せませんでした", "assertive"); return; }
-    window.dispatchEvent(new CustomEvent(ACCOUNTS_ENTERED_EVENT, { detail: { id } }));
+    if (selectionTimer.current !== null) return;
+    if (!window.LBT_accounts?.switch?.(id)) {
+      toast("アカウントを読み出せませんでした", "assertive");
+      return;
+    }
+    setSelectingId(id);
+    selectionTimer.current = window.setTimeout(() => {
+      selectionTimer.current = null;
+      window.dispatchEvent(new CustomEvent(ACCOUNTS_ENTERED_EVENT, { detail: { id } }));
+    }, prefersReducedMotion() ? 0 : 180);
   };
   /* アイコンは「選ぶ → 円形エディタで構図を決める → 決定後に圧縮して保存」。 */
   const iconEditor = useAccountIconEditor((stored) => {
@@ -668,7 +681,7 @@ const AccountGate = () => {
         h("div", { className: "acct-panel-accounts" },
       accounts.length === 0 ? h("div", { className: "acct-empty" }, "まずキャラクターを作成してください。") : null,
       h("div", { className: "acct-grid acct-grid--gate" },
-        accounts.map((entry, index) => h("div", { key: entry.id, className: `acct-card acct-card--gate${entry.id === info.activeId ? " is-active" : ""}`, style: { "--i": index }, "data-account-id": entry.id },
+        accounts.map((entry, index) => h("div", { key: entry.id, className: `acct-card acct-card--gate${entry.id === info.activeId ? " is-active" : ""}${entry.id === selectingId ? " is-selecting" : ""}`, style: { "--i": index }, "data-account-id": entry.id },
           h("button", {
             type: "button",
             className: "acct-gate-edit-btn",
