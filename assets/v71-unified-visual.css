@@ -78,6 +78,37 @@ textarea:focus-visible {
   line-height: 1.45;
 }
 
+
+/* Flatten decorative gradients only. Keep the source palette and all per-persona,
+   E.G.O, rank, sin and resistance semantics. Functional CCFOLIA board grid lines and
+   the dedicated extraction FX are content visuals and remain untouched. */
+:where(
+  .focus, .topbar, .rail, .rail-item.is-active, .preview, .pv-sec-head,
+  .chip, .chip.is-active, .deck-thumb, .deck-thumb.is-active, .deck-focus,
+  .deck-card.deck-focus, .detail-actions, .ego-quick-actions,
+  .equipped-summary, .es-badge-sync, .codex-modes button.is-active,
+  .p-card, .detail-head, .spp-item.is-active, .spirit-item.is-active,
+  .share-modal, .share-opt, .focus-preview-toggle, .deck-focus-readonly,
+  .guide-intro, .roster-detail, .utility-sheet-action, .item-codex-intro,
+  .home-hero, .btype-command-hero, .btype-record-task-card,
+  .btype-shop-entry, .btype-help-entry, .btype-shop-category-card,
+  .build-context-strip, .build-tabs.is-b-workbench,
+  .pc-portrait, .pc-identity, .pc-edit, .pc-token-preview,
+  .build-params-preview, .piece-panel, .piece-output-shell,
+  .piece-preview-tab.active, .piece-board-inspector, .piece-sheet-mock,
+  .ego-quick-detail, .persona-draft-dialog, main.acct-gate
+) {
+  background-image: none !important;
+}
+:where(
+  .p-card[data-mode="tokui"]::before,
+  .equipped-summary::before,
+  .persona-save-primary::before
+) {
+  background-image: none !important;
+}
+
+/* Primary actions retain their original flat brass fill; data colors are untouched. */
 /* Account list: widen desktop cards and stop the recovery disclosure reserving
    a large empty bottom band on mobile. The list always owns its own scroll area. */
 .acct-panel,
