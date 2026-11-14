@@ -161,18 +161,18 @@ const BaseSection = ({ state, dispatch }) => {
                               className: "piece-url-preview-fallback",
                               role: "img",
                               "aria-label": (selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex) + "を表示できません"
-                            }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認"),
-                        React.createElement("div", { className: "piece-url-preview-zoom-controls" },
-                          React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイールで拡大・縮小"),
-                          React.createElement("button", {
-                            type: "button",
-                            className: "piece-url-preview-zoom-reset",
-                            disabled: imageZoom <= 1.001,
-                            onClick: () => { setImageZoom(1); setImageZoomOrigin("50% 50%"); },
-                            title: "立ち絵全体が枠内に収まる表示へ戻す",
-                            "aria-label": "立ち絵を全体表示に戻す"
-                          }, "全体表示 " + Math.round(imageZoom * 100) + "%")
-                        )
+                            }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認")
+                      ),
+                      React.createElement("div", { className: "piece-url-preview-zoom-controls" },
+                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイールで拡大・縮小"),
+                        React.createElement("button", {
+                          type: "button",
+                          className: "piece-url-preview-zoom-reset",
+                          disabled: imageZoom <= 1.001,
+                          onClick: () => { setImageZoom(1); setImageZoomOrigin("50% 50%"); },
+                          title: "立ち絵全体が枠内に収まる表示へ戻す",
+                          "aria-label": "立ち絵を全体表示に戻す"
+                        }, "全体表示 " + Math.round(imageZoom * 100) + "%")
                       ),
                       React.createElement("figcaption", null,
                         React.createElement("span", null, "表示中"),
