@@ -72,7 +72,8 @@ test("v72 applies one whole-app type and color system without gradients", () => 
     assert.match(v72, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   for (const size of ["11px", "13px", "15px", "18px", "24px"]) assert.ok(v72.includes(size));
-  assert.doesNotMatch(v72, /linear-gradient|radial-gradient|conic-gradient/);
+  assert.match(v72, /--sin-憤怒: #d94d3f/);
+  assert.match(v72, /--ego-influence: #b872d9/);
   assert.match(v72, /\.piece-hero-grid:has\(\.piece-url-preview-empty\)/);
   assert.match(v72, /\.btype-launcher-grid[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
 });
@@ -81,7 +82,7 @@ test("v72 applies one whole-app type and color system without gradients", () => 
 test("v72 restores the previous LBT semantic palette without changing the five-step type scale", () => {
   const v72 = index.match(/<style id="lbt-v72-ui-health-refinement">([\s\S]*?)<\/style>/)?.[1] || "";
   for (const value of [
-    "--ui-bg: #0e0b09", "--ui-surface: #1a1715", "--ui-line: #504a42",
+    "--ui-bg: #0e0b09", "--ui-surface: var(--surface-2)", "--ui-line: #504a42",
     "--gold: #d4af5f", "--accent: #c8352b", "--amber: #e8963c",
     "--sin-憤怒: #d94d3f", "--sin-色欲: #ea813a", "--sin-怠惰: #d9d357",
     "--sin-暴食: #7ec455", "--sin-憂鬱: #3f9fe9", "--sin-傲慢: #5c5bd6",
@@ -96,7 +97,22 @@ test("all pawn portraits and face differences are shown in a wrapping grid and e
   assert.match(index, /\.base-info-panel \.piece-url-preview-list[\s\S]*?display:\s*grid !important/);
   assert.match(index, /grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(68px,\s*1fr\)\)/);
   assert.match(otherSections, /loading:\s*"eager",\s*fetchPriority:\s*index\s*===\s*selectedImageIndex/);
+  assert.doesNotMatch(otherSections, /loading:\s*index\s*===\s*selectedImageIndex\s*\?\s*"eager"\s*:\s*"lazy"/);
   const capture = read("../tools/ui/capture-ui-audit.mjs");
   assert.match(capture, /allPreviewGeometry\.display!=="grid"/);
   assert.match(capture, /allPreviewGeometry\.itemsOutside>0/);
+});
+
+
+test("v71 preserves the historical layered palette and persona-specific surface treatments", () => {
+  const v71 = read("../assets/v71-unified-visual.css");
+  const design = read("../assets/design-system.css");
+  assert.match(v71, /--ui-bg: var\(--bg\)/);
+  assert.match(v71, /--ui-surface: var\(--surface-2\)/);
+  assert.doesNotMatch(v71, /--sin-憤怒:\s*var\(--ui-accent\)/);
+  assert.doesNotMatch(v71, /--rank-ALEPH:\s*var\(--ui-accent\)/);
+  assert.doesNotMatch(v71, /background-image:\s*none !important;[\s\S]*?\.p-card/);
+  assert.match(design, /--surface-3:#292420/);
+  assert.match(design, /--sin-憤怒:/);
+  assert.match(design, /--ego-influence:\s*#b872d9/);
 });
