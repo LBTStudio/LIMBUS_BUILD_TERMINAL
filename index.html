@@ -1083,6 +1083,14 @@ button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
 .base-info-panel .piece-url-preview-list { overflow: visible !important; max-height: none !important; }
 .base-info-panel .piece-url-preview-item { min-width: 0; max-width: none; min-height: 0; }
 .base-info-panel .piece-url-preview-caption { white-space: normal; overflow-wrap: anywhere; }
+/* Tablet workbench keeps the full-body art and its five face choices above
+   the viewport edge without forcing a second scroll just to reach the controls. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: clamp(300px, 44vh, 380px) !important;
+    min-height: 280px;
+  }
+}
 @media (max-width: 560px) {
   .base-info-panel .piece-url-preview-featured { width: 100%; }
   .base-info-panel .piece-url-preview-featured-frame { height: min(34vh, 300px) !important; min-height: 220px; }
