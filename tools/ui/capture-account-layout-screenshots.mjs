@@ -318,12 +318,29 @@ async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
   if (!gateHitTest.ok) throw new Error(`${viewportName}: gate card hit target is blocked after Edit/Cancel: ${JSON.stringify(gateHitTest)}`);
   await gateHit.click();
   await page.waitForFunction((id) => {
+    const card = document.querySelector(`.acct-gate-panel .acct-card--gate[data-account-id="${id}"]`);
+    return card?.classList.contains("is-selecting") === true;
+  }, gateId, { timeout: 1000 });
+  await page.waitForTimeout(70);
+  const gatePressed = await gateCard.evaluate((node) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+    return {
+      selecting: node.classList.contains("is-selecting"),
+      transform: getComputedStyle(node).transform,
+      scaleX: matrix.a,
+      scaleY: matrix.d
+    };
+  });
+  if (!gatePressed.selecting || gatePressed.scaleX >= .999 || gatePressed.scaleY >= .999) {
+    throw new Error(`${viewportName}: first-run gate selection did not show press compression: ${JSON.stringify(gatePressed)}`);
+  }
+  await page.waitForFunction((id) => {
     const activeId = window.LBT_accounts?.list?.()?.activeId;
     const gateNode = document.querySelector(".acct-gate");
     return activeId === id && (!gateNode || getComputedStyle(gateNode).display === "none");
   }, gateId, { timeout: 8000 });
   await openAccountManager(page);
-  return { afterCancel, afterSave, gateAfterEditCancel: { gateId, gateHitTest, activeId: gateId } };
+  return { afterCancel, afterSave, gateAfterEditCancel: { gateId, gateHitTest, gatePressed, activeId: gateId } };
 }
 
 async function capture(browser, name, width, height) {
