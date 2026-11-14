@@ -861,7 +861,7 @@ window.addEventListener("load", function(){
    Typography and geometry stay on the v72 system; semantic data colors do not. */
 :root {
   --ui-bg: #0e0b09;
-  --ui-surface: #1a1715;
+  --ui-surface: var(--surface-2);
   --ui-line: #504a42;
   --ui-text: #f2ece1;
   --ui-accent: #d4af5f;
@@ -944,20 +944,13 @@ h3, h4, .card-title { font-size: var(--ui-type-body) !important; line-height: 1.
 p, label, input, select, textarea { font-size: var(--ui-type-body); line-height: 1.55; }
 small, .muted, .btype-muted, .btype-eyebrow, .t-label { font-size: var(--ui-type-xs); line-height: 1.5; }
 button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
-:where(.card, .panel, .piece-panel, .btype-command-hero, .btype-launcher-card, .btype-continue-panel, .btype-record-task-card, .btype-shop-category-card, .shop-card, .record-tabbar, .acct-card, .acct-panel, .acct-gate-panel, .settings-major, .utility-sheet, .share-modal, .persona-draft-dialog, .import-scope-dialog, .guide-intro, .guide-card) {
-  background-color: var(--ui-surface); border-color: var(--ui-line); box-shadow: none !important;
-}
-:where(button, .btn, .card, .panel, .piece-panel, .btype-launcher-card, .btype-record-task-card, .btype-shop-category-card, .shop-card, .acct-card, .acct-panel, .acct-gate-panel, .settings-major, .utility-sheet, .share-modal, .persona-draft-dialog, .import-scope-dialog) { background-image: none !important; }
+/* Keep original LBT surfaces, persona hues and E.G.O forms. v72 only changes layout. */
 :where(button, a, input, select, textarea, summary):focus-visible { outline-color: var(--ui-accent); }
 :where(.btype-launcher-card, .btype-record-task-card, .btype-shop-category-card, .shop-card, .acct-card, .settings-major) {
   border-radius: 6px; transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
 :where(.btype-launcher-card, .btype-record-task-card, .btype-shop-category-card, .shop-card, .acct-card):hover { border-color: var(--ui-accent); box-shadow: none !important; }
 /* Empty pawn-image preview: retain the edit entry without reserving a portrait-sized canvas. */
-.piece-hero-grid:has(.piece-url-preview-empty) { min-height: 0 !important; height: auto !important; align-items: start; grid-template-rows: auto; }
-.piece-hero-grid:has(.piece-url-preview-empty) > * { min-width: 0; min-height: 0; }
-.piece-image-settings:has(.piece-url-preview-empty) { min-height: 0 !important; height: auto !important; align-self: start; }
-.piece-image-settings .piece-art-preview-live:has(.piece-url-preview-empty), .piece-image-settings .piece-url-preview:has(.piece-url-preview-empty) { min-height: 0 !important; height: auto !important; }
 .piece-url-preview-empty { min-height: 52px !important; padding: 10px 12px !important; display: flex; align-items: center; line-height: 1.5; }
 
 /* Keep every uploaded portrait/difference visible at once. No horizontal carousel:
@@ -1060,6 +1053,31 @@ button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
+/* Full portrait remains large and fully contained; every registered face difference
+   wraps underneath instead of hiding off-screen in a horizontal thumbnail strip. */
+.base-info-panel .piece-url-preview-featured { width: min(100%, 560px); }
+.base-info-panel .piece-url-preview-featured-frame {
+  height: clamp(440px, 58vh, 620px) !important;
+  min-height: 360px;
+  padding: 10px;
+  border-color: var(--line);
+  background: var(--surface-inset);
+}
+.base-info-panel .piece-url-preview-featured-frame > img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+.base-info-panel .piece-url-preview-list { overflow: visible !important; max-height: none !important; }
+.base-info-panel .piece-url-preview-item { min-width: 0; max-width: none; min-height: 0; }
+.base-info-panel .piece-url-preview-caption { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview-featured { width: 100%; }
+  .base-info-panel .piece-url-preview-featured-frame { height: min(34vh, 300px) !important; min-height: 220px; }
+}
 </style>
 </head>
 <body style="background-color:#14110d">
