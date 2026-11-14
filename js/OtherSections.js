@@ -64,23 +64,38 @@ const BaseSection = ({ state, dispatch }) => {
   const [imagePreviewOpen, setImagePreviewOpen] = React.useState(true);
   const imagePreviewFrameRef = React.useRef(null);
   const imageDragRef = React.useRef(null);
+  const imagePinchRef = React.useRef(null);
   React.useEffect(() => {
     setImageZoom(1);
     setImageZoomOrigin("50% 50%");
     setImagePan({ x: 0, y: 0 });
     imageDragRef.current = null;
+    imagePinchRef.current = null;
     setImageDragging(false);
   }, [selectedImageIndex, selectedImageUrl]);
   const handleImagePointerDown = (event) => {
-    if (imageZoom <= 1.001 || !selectedImagePreviewUrl || selectedImageFailed) return;
-    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (!selectedImagePreviewUrl || selectedImageFailed) return;
+    if (event.pointerType !== "touch" && event.button !== 0) return;
+    /* 等倍時のマウス・ペンは上下ドラッグでズーム。拡大後は通常ドラッグで移動し、
+       Shift を押したドラッグでは拡大率を調整する。タッチの等倍操作はピンチに任せる。 */
+    if (event.pointerType === "touch" && imageZoom <= 1.001) return;
     event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pointX = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
+    const pointY = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
+    const zoomOrigin = imageZoom > 1.001 ? imageZoomOrigin : pointX.toFixed(2) + "% " + pointY.toFixed(2) + "%";
+    const origin = zoomOrigin.split(/\s+/);
     imageDragRef.current = {
+      mode: imageZoom > 1.001 && !event.shiftKey ? "pan" : "zoom",
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      startZoom: imageZoom,
       panX: imagePan.x,
-      panY: imagePan.y
+      panY: imagePan.y,
+      zoomOrigin,
+      originX: Math.max(0, Math.min(100, parseFloat(origin[0]) || 50)),
+      originY: Math.max(0, Math.min(100, parseFloat(origin[1]) || 50))
     };
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
     setImageDragging(true);
@@ -89,10 +104,24 @@ const BaseSection = ({ state, dispatch }) => {
     const drag = imageDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     event.preventDefault();
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (drag.mode === "zoom") {
+      const nextZoom = Math.max(1, Math.min(4, drag.startZoom * Math.exp(-deltaY * 0.008)));
+      if (nextZoom <= 1.001) {
+        setImageZoom(1);
+        setImageZoomOrigin("50% 50%");
+        setImagePan({ x: 0, y: 0 });
+      } else {
+        setImageZoom(nextZoom);
+        setImageZoomOrigin(drag.zoomOrigin);
+        setImagePan({ x: drag.panX, y: drag.panY });
+      }
+      return;
+    }
     const rect = event.currentTarget.getBoundingClientRect();
-    const origin = imageZoomOrigin.split(/\s+/);
-    const originX = rect.width * Math.max(0, Math.min(100, parseFloat(origin[0]) || 50)) / 100;
-    const originY = rect.height * Math.max(0, Math.min(100, parseFloat(origin[1]) || 50)) / 100;
+    const originX = rect.width * drag.originX / 100;
+    const originY = rect.height * drag.originY / 100;
     const limitX = Math.max(0, (imageZoom - 1) * rect.width);
     const limitY = Math.max(0, (imageZoom - 1) * rect.height);
     const minX = -limitX + (imageZoom - 1) * originX;
@@ -100,8 +129,8 @@ const BaseSection = ({ state, dispatch }) => {
     const minY = -limitY + (imageZoom - 1) * originY;
     const maxY = (imageZoom - 1) * originY;
     setImagePan({
-      x: Math.max(minX, Math.min(maxX, drag.panX + event.clientX - drag.startX)),
-      y: Math.max(minY, Math.min(maxY, drag.panY + event.clientY - drag.startY))
+      x: Math.max(minX, Math.min(maxX, drag.panX + deltaX)),
+      y: Math.max(minY, Math.min(maxY, drag.panY + deltaY))
     });
   };
   const finishImagePointerDrag = (event) => {
@@ -139,6 +168,77 @@ const BaseSection = ({ state, dispatch }) => {
     frame.addEventListener("wheel", handleWheel, { passive: false });
     return () => frame.removeEventListener("wheel", handleWheel);
   }, [selectedImagePreviewUrl, selectedImageFailed, imageZoom]);
+  React.useEffect(() => {
+    const frame = imagePreviewFrameRef.current;
+    if (!frame || !selectedImagePreviewUrl || selectedImageFailed) return undefined;
+    const distanceBetween = (a, b) => Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    const midpointOf = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const handlePinchStart = (event) => {
+      if (event.touches.length < 2) return;
+      event.preventDefault();
+      const [first, second] = [event.touches[0], event.touches[1]];
+      const rect = frame.getBoundingClientRect();
+      const midpoint = midpointOf(first, second);
+      const origin = imageZoomOrigin.split(/\s+/);
+      imagePinchRef.current = {
+        startDistance: Math.max(1, distanceBetween(first, second)),
+        startZoom: imageZoom,
+        startPanX: imagePan.x,
+        startPanY: imagePan.y,
+        startCenterX: midpoint.x - rect.left,
+        startCenterY: midpoint.y - rect.top,
+        originX: rect.width * clamp(parseFloat(origin[0]) || 50, 0, 100) / 100,
+        originY: rect.height * clamp(parseFloat(origin[1]) || 50, 0, 100) / 100,
+        zoomOrigin: imageZoomOrigin
+      };
+      imageDragRef.current = null;
+      setImageDragging(false);
+    };
+    const handlePinchMove = (event) => {
+      const pinch = imagePinchRef.current;
+      if (!pinch || event.touches.length < 2) return;
+      event.preventDefault();
+      const [first, second] = [event.touches[0], event.touches[1]];
+      const rect = frame.getBoundingClientRect();
+      const midpoint = midpointOf(first, second);
+      const nextZoom = clamp(pinch.startZoom * distanceBetween(first, second) / pinch.startDistance, 1, 4);
+      if (nextZoom <= 1.001) {
+        setImageZoom(1);
+        setImageZoomOrigin("50% 50%");
+        setImagePan({ x: 0, y: 0 });
+        return;
+      }
+      const centerX = midpoint.x - rect.left;
+      const centerY = midpoint.y - rect.top;
+      const sourceX = pinch.originX + (pinch.startCenterX - pinch.startPanX - pinch.originX) / Math.max(1, pinch.startZoom);
+      const sourceY = pinch.originY + (pinch.startCenterY - pinch.startPanY - pinch.originY) / Math.max(1, pinch.startZoom);
+      const rawPanX = centerX - pinch.originX - nextZoom * (sourceX - pinch.originX);
+      const rawPanY = centerY - pinch.originY - nextZoom * (sourceY - pinch.originY);
+      const limitX = Math.max(0, (nextZoom - 1) * rect.width);
+      const limitY = Math.max(0, (nextZoom - 1) * rect.height);
+      const minX = -limitX + (nextZoom - 1) * pinch.originX;
+      const maxX = (nextZoom - 1) * pinch.originX;
+      const minY = -limitY + (nextZoom - 1) * pinch.originY;
+      const maxY = (nextZoom - 1) * pinch.originY;
+      setImageZoom(nextZoom);
+      setImageZoomOrigin(pinch.zoomOrigin);
+      setImagePan({ x: clamp(rawPanX, minX, maxX), y: clamp(rawPanY, minY, maxY) });
+    };
+    const handlePinchEnd = (event) => {
+      if (event.touches.length < 2) imagePinchRef.current = null;
+    };
+    frame.addEventListener("touchstart", handlePinchStart, { passive: false });
+    frame.addEventListener("touchmove", handlePinchMove, { passive: false });
+    frame.addEventListener("touchend", handlePinchEnd);
+    frame.addEventListener("touchcancel", handlePinchEnd);
+    return () => {
+      frame.removeEventListener("touchstart", handlePinchStart);
+      frame.removeEventListener("touchmove", handlePinchMove);
+      frame.removeEventListener("touchend", handlePinchEnd);
+      frame.removeEventListener("touchcancel", handlePinchEnd);
+    };
+  }, [selectedImagePreviewUrl, selectedImageFailed, imageZoom, imageZoomOrigin, imagePan]);
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
   const [editOpen, setEditOpen] = React.useState(false);
@@ -233,7 +333,7 @@ const BaseSection = ({ state, dispatch }) => {
                                 transform: "translate3d(" + imagePan.x + "px, " + imagePan.y + "px, 0) scale(" + imageZoom + ")",
                                 transformOrigin: imageZoomOrigin,
                                 transition: imageDragging ? "none" : "transform 80ms ease-out",
-                                cursor: imageZoom > 1.001 ? (imageDragging ? "grabbing" : "grab") : "zoom-in",
+                                cursor: imageZoom > 1.001 ? (imageDragging ? "grabbing" : "grab") : "ns-resize",
                                 userSelect: "none",
                                 WebkitUserDrag: "none"
                               },
@@ -246,7 +346,7 @@ const BaseSection = ({ state, dispatch }) => {
                             }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認")
                       ),
                       React.createElement("div", { className: "piece-url-preview-zoom-controls" },
-                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイールで拡大／拡大後はドラッグで移動"),
+                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "等倍時は上下ドラッグ・ホイールで拡大縮小／拡大後はドラッグで移動（タッチはピンチ）"),
                         React.createElement("button", {
                           type: "button",
                           className: "piece-url-preview-zoom-reset",
