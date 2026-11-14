@@ -187,7 +187,78 @@ async function capture(browser, name, width, height) {
       fullPage: false,
       animations: "disabled"
     });
-    return { name, seeded, metrics, errors };
+
+    // The core requirement is not only that the account list is visible when
+    // recovery is collapsed, but that it keeps an independent pane while the
+    // recovery-key controls are expanded.
+    await page.locator(".acct-panel-cloud .lbt-cloud-summary").click();
+    await page.locator(".acct-panel-cloud .lbt-cloud-panel[open]").waitFor({ state: "visible", timeout: 5000 });
+    const recoveryInput = page.locator("#lbt-cloud-recovery-key");
+    await recoveryInput.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await page.waitForTimeout(80);
+    const expanded = await page.evaluate(() => {
+      const panel = document.querySelector(".acct-panel");
+      const layout = panel?.querySelector(".acct-panel-layout");
+      const accounts = panel?.querySelector(".acct-panel-accounts");
+      const grid = accounts?.querySelector(".acct-grid--manager");
+      const cloud = panel?.querySelector(".acct-panel-cloud");
+      const disclosure = cloud?.querySelector(".lbt-cloud-panel");
+      const input = cloud?.querySelector("#lbt-cloud-recovery-key");
+      const rect = el => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+      };
+      const listRect = rect(accounts);
+      const cloudRect = rect(cloud);
+      const inputRect = rect(input);
+      const mobile = innerWidth <= 760;
+      const panesSeparated = !!listRect && !!cloudRect && (mobile
+        ? cloudRect.y >= listRect.bottom - 1
+        : cloudRect.x >= listRect.right - 1);
+      const keyVisible = !!inputRect && !!cloudRect &&
+        inputRect.y >= cloudRect.y - 1 && inputRect.bottom <= cloudRect.bottom + 1 &&
+        inputRect.width > 0 && inputRect.height > 0;
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        accountCount: grid?.querySelectorAll(".acct-card:not(.acct-card--add)").length || 0,
+        panel: rect(panel),
+        layout: rect(layout),
+        list: listRect,
+        grid: rect(grid),
+        gridClientHeight: grid?.clientHeight || 0,
+        gridScrollHeight: grid?.scrollHeight || 0,
+        cloud: cloudRect,
+        cloudClientHeight: cloud?.clientHeight || 0,
+        cloudScrollHeight: cloud?.scrollHeight || 0,
+        recoveryOpen: !!disclosure?.open,
+        recoveryInput: inputRect,
+        keyVisible,
+        panesSeparated,
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 2
+      };
+    });
+    if (!expanded.recoveryOpen) throw new Error("Recovery disclosure did not open: " + JSON.stringify(expanded));
+    if (expanded.accountCount < fixtures.length) throw new Error("Expanded recovery hid account cards from the manager DOM: " + JSON.stringify(expanded));
+    if (!expanded.list || expanded.list.height < 140 || expanded.list.width <= 0) {
+      throw new Error("Account list pane collapsed while recovery was open: " + JSON.stringify(expanded));
+    }
+    if (!expanded.panesSeparated) throw new Error("Account and recovery panes overlap: " + JSON.stringify(expanded));
+    if (!expanded.keyVisible) throw new Error("Recovery-key input cannot be reached inside its pane: " + JSON.stringify(expanded));
+    if (expanded.gridScrollHeight <= expanded.gridClientHeight) {
+      throw new Error("Account list is not independently scrollable with recovery open: " + JSON.stringify(expanded));
+    }
+    if (expanded.horizontalOverflow) throw new Error("Expanded recovery causes horizontal overflow: " + JSON.stringify(expanded));
+    if (!expanded.panel || expanded.panel.x < -1 || expanded.panel.right > expanded.viewport.width + 1 ||
+        expanded.panel.y < -1 || expanded.panel.bottom > expanded.viewport.height + 1) {
+      throw new Error("Expanded account dialog is outside viewport: " + JSON.stringify(expanded));
+    }
+    await page.screenshot({
+      path: path.join(OUT, `account-manager-${name}-recovery-open.png`),
+      fullPage: false,
+      animations: "disabled"
+    });
+    return { name, seeded, metrics, expanded, errors };
   } finally {
     await context.close();
   }
@@ -211,7 +282,7 @@ async function main() {
       viewports: results
     }, null, 2) + "\n", "utf8");
     for (const result of results) {
-      console.log(JSON.stringify({ name: result.name, metrics: result.metrics, pageErrors: result.errors.length }));
+      console.log(JSON.stringify({ name: result.name, metrics: result.metrics, expanded: result.expanded, pageErrors: result.errors.length }));
       if (result.errors.length) throw new Error("Browser reported errors: " + result.errors.join(" | "));
     }
   } finally {
