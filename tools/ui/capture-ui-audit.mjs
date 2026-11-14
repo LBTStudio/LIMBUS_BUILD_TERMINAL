@@ -1116,6 +1116,27 @@ async function captureProfile(browser, mode) {
         throw new Error("駒画像の大きなプレビュー／差分選択が固定ナビの表示領域内に収まりません: "+JSON.stringify({imageViewport,imageGeometry}));
       }
       if(await imagePreviewItems.count()!==faceImageUrls.length) throw new Error("登録した5枚すべての駒画像が選択ボタンとして表示されません");
+
+      const allPreviewGeometry=await imagePreviewStrip.evaluate(el=>{
+        const r=el.getBoundingClientRect();
+        const items=[...el.querySelectorAll(".piece-url-preview-item")].map(item=>{
+          const b=item.getBoundingClientRect();
+          return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};
+        });
+        const style=getComputedStyle(el);
+        return {
+          display:style.display,overflowX:style.overflowX,overflowY:style.overflowY,
+          clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,
+          clientHeight:el.clientHeight,scrollHeight:el.scrollHeight,
+          listRect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom},
+          itemCount:items.length,
+          itemsOutside:items.filter(b=>b.left<r.left-1||b.right>r.right+1||b.top<r.top-1||b.bottom>r.bottom+1).length
+        };
+      });
+      if(allPreviewGeometry.display!=="grid"||allPreviewGeometry.overflowX==="auto"||allPreviewGeometry.scrollWidth>allPreviewGeometry.clientWidth+1||allPreviewGeometry.itemsOutside>0) {
+        throw new Error("立ち絵プレビューの全差分が一覧内に折り返して表示されません: "+JSON.stringify(allPreviewGeometry));
+      }
+
       await featuredImage.waitFor({state:"visible",timeout:5000});
       const primaryLoaded=await featuredImage.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
       if(!primaryLoaded || !(await featuredImage.getAttribute("src"))?.endsWith("ccfolia-preview-sample.svg")) {
