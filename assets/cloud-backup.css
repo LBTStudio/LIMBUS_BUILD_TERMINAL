@@ -10,15 +10,21 @@
 }
 
 .lbt-cloud-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
+  display: block;
+  position: relative;
   min-height: 36px;
+  padding-right: 40px;
   cursor: pointer;
   list-style: none;
 }
-.lbt-cloud-summary::-webkit-details-marker { display: none; }
+.lbt-cloud-summary::marker {
+  content: none !important;
+  display: none !important;
+}
+.lbt-cloud-summary::-webkit-details-marker {
+  display: none !important;
+  content: none !important;
+}
 .lbt-cloud-summary:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 3px;
@@ -30,7 +36,10 @@
   margin: 0;
 }
 .lbt-cloud-chevron {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
   width: 28px;
@@ -43,7 +52,7 @@
   transition: transform var(--t-fast) var(--e-out);
 }
 .lbt-cloud-panel[open] > .lbt-cloud-summary .lbt-cloud-chevron {
-  transform: rotate(180deg);
+  transform: translateY(-50%) rotate(180deg);
 }
 .lbt-cloud-content {
   display: grid;

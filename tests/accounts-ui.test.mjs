@@ -28,6 +28,7 @@ const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.
 const accountsUiSource = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const uiAuditSource = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
+const accountLayoutCaptureSource = readFileSync(new URL("../tools/ui/capture-account-layout-screenshots.mjs", import.meta.url), "utf8");
 const visualSystem = readFileSync(new URL("../assets/v71-unified-visual.css", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
@@ -300,7 +301,8 @@ test("共有URL取込は説明付きの主導線として見つけられ、既�
 });
 
 test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカード幅に押し込まれない", () => {
-  assert.ok(ui.includes('className: `acct-card acct-card--form${importOpen ? " acct-card--import-open" : ""}`, style: { "--i": index } },'), "展開状態のクラスを反映");
+  assert.ok(ui.includes("acct-card--import-open"), "展開状態のクラスを反映");
+  assert.ok(ui.includes('"data-account-id": entry.id'), "編集前後で安定IDを維持する");
   assert.match(css, /\.acct-card--import-open\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;/);
   assert.match(css, /\.acct-card--import-open \.acct-gara-body\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;/);
   assert.match(css, /\.acct-card--import-open \.gara\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);[^}]*min-width:\s*0;[^}]*width:\s*100%;/);
@@ -336,6 +338,25 @@ test("SINNER SELECT はアカウント一覧と復旧操作を独立ペインに
     "保全パネルの折りたたみ状態を新しいペイン内で確認する");
   assert.doesNotMatch(uiAuditSource, /:scope > \.acct-grid|:scope > (?:details\.)?lbt-cloud-panel|\.acct-panel > \.acct-grid/,
     "監査側に旧DOM構造の直下参照を残さない");
+});
+
+test("オンライン保全のsummaryはブラウザー標準マーカーを隠し、カスタム矢印だけを使う", () => {
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary\s*\{[^}]*display:\s*block;[^}]*position:\s*relative;/,
+    "summary本体はネイティブマーカーを消せるブロック表示にする");
+  assert.match(cloudPanelCss, /\.lbt-cloud-chevron\s*\{[^}]*position:\s*absolute;[^}]*top:\s*50%;[^}]*right:\s*0;/,
+    "カスタム矢印だけをsummary内の専用位置に置く");
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary::marker\s*\{[^}]*content:\s*none !important;[^}]*display:\s*none !important;/,
+    "標準のdetailsマーカーを全ブラウザーで無効化する");
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary::-webkit-details-marker\s*\{[^}]*display:\s*none !important;[^}]*content:\s*none !important;/,
+    "Chromium/WebKitのネイティブ三角を無効化する");
+  assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron\s*\{[^}]*transform:\s*translateY\(-50%\) rotate\(180deg\)/,
+    "開閉状態の変化はカスタム矢印だけで示す");
+  assert.match(visualSystem, /\.acct-panel-cloud > details\.lbt-cloud-panel > summary\.lbt-cloud-summary\s*\{[^}]*display:\s*block !important;[^}]*list-style:\s*none !important;[^}]*appearance:\s*none !important;/,
+    "最終視覚レイヤーでネイティブsummaryマーカーの表示方式を解除する");
+  assert.match(visualSystem, /summary\.lbt-cloud-summary::-webkit-details-marker\s*\{[^}]*display:\s*none !important;/,
+    "最終視覚レイヤーでもChromiumの標準マーカーを抑止する");
+  assert.match(visualSystem, /summary\.lbt-cloud-summary::after\s*\{[^}]*content:\s*none !important;[^}]*display:\s*none !important;/,
+    "v67共通ルールの▲／▼だけを保全パネルから除去する");
 });
 
 test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
@@ -393,6 +414,85 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
     "起動時ゲートの行トラックは156px以上を維持");
 });
 
+
+test("アカウント編集のキャンセル・保存後にカードのクリック判定とフォーカスを復元する", () => {
+  const regularCard = ui.slice(ui.indexOf('const cardLabel ='), ui.indexOf('const AccountSwitcher ='));
+  const cancel = ui.slice(ui.indexOf('const cancelForm ='), ui.indexOf('cancelFormRef.current = cancelForm;'));
+  const select = ui.slice(ui.indexOf('const doSelect ='), ui.indexOf('const doRemove ='));
+  assert.match(regularCard, /data-account-id": entry\.id/,
+    "一覧カードに編集フォームと同じ安定IDを持たせる");
+  assert.match(regularCard, /className: `acct-card[^\n]*is-selecting/,
+    "選択中状態をカードに反映する");
+  assert.match(cancel, /setEditingId\(null\)/);
+  assert.match(cancel, /window\.requestAnimationFrame\(\(\) => \{/,
+    "フォームDOMの切替後にフォーカスを戻す");
+  assert.match(cancel, /card\?\.querySelector\("\.acct-edit-btn"\)/,
+    "編集を始めたカードの編集ボタンへフォーカスを復帰する");
+  assert.match(select, /selectionTimer\.current !== null/,
+    "短時間の連打による二重切替を防ぐ");
+  assert.match(select, /setSelectingId\(id\)/,
+    "切替直前の押下フィードバックを描画する");
+  assert.match(select, /prefersReducedMotion\(\) \? 0 : 180/,
+    "動きを減らす設定を尊重しつつ、通常時は押下を視認できる時間を確保する");
+  assert.match(ui, /if \(selectionTimer\.current !== null\) window\.clearTimeout\(selectionTimer\.current\)/,
+    "アンマウント時に選択タイマーを破棄する");
+  assert.match(ui, /if \(closeTimer\.current !== null\) window\.clearTimeout\(closeTimer\.current\)/,
+    "アンマウント時に閉じるタイマーを破棄する");
+});
+
+test("アカウントモーションは単一イージング・押下表現・閉じる間のクリック透過を守る", () => {
+  assert.match(visualSystem, /--ui-motion-ease:\s*cubic-bezier\(\.22,\s*1,\s*\.36,\s*1\)/);
+  assert.match(visualSystem, /--ui-motion-fast:\s*160ms/);
+  assert.match(visualSystem, /--ui-motion-modal:\s*300ms/);
+  assert.match(visualSystem, /\.acct-card:has\(\.acct-card-hit:active\),[\s\S]*?\.acct-card\.is-selecting\s*\{[^}]*transform:\s*scale\(\.976\)/,
+    "カード押下時に縮小と枠の変化を示す");
+  assert.match(visualSystem, /\.acct-card\.is-selecting:hover,[\s\S]*?\.acct-card\.is-selecting:focus-within\s*\{[^}]*transform:\s*scale\(\.976\)/,
+    "復帰したフォーカスやhoverよりも押下縮小を優先する");
+  assert.match(accountLayoutCaptureSource, /scaleX >= \.999 \|\| pressed\.scaleY >= \.999/,
+    "実ブラウザー監査は押下縮小を行列値で確認する");
+  assert.match(visualSystem, /\.acct-overlay\.is-closing\s*\{[^}]*pointer-events:\s*none;/,
+    "透明化中のオーバーレイが背面クリックを奪わない");
+  assert.match(visualSystem, /@media \(prefers-reduced-motion:\s*reduce\)/,
+    "reduced motion を尊重する");
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i,
+    "グラデーションを追加しない");
+});
+
+test("アカウント画面のブラウザー監査はキャンセル・保存後に実クリックで切替を検証する", () => {
+  assert.match(accountLayoutCaptureSource, /verifyAccountHitTargetsAfterFormReturn/,
+    "Playwrightで編集フォームから戻った後を実行する");
+  assert.match(accountLayoutCaptureSource, /document\.elementFromPoint/,
+    "カード中央で最前面の要素を検査する");
+  assert.match(accountLayoutCaptureSource, /\.acct-card-hit/);
+  assert.match(accountLayoutCaptureSource, /waitForNavigation\(\{ waitUntil: "load"/,
+    "実クリックでリロード後まで待つ");
+  assert.match(accountLayoutCaptureSource, /afterCancel/);
+  assert.match(accountLayoutCaptureSource, /afterSave/);
+});
+
+test("初回ゲートから編集を開いた場合も閉じた後に起動元へフォーカスを戻す", () => {
+  assert.match(ui, /const returnFocusRef = React\.useRef\(null\)/);
+  assert.ok(ui.includes("returnFocusRef.current = {"), "起動元要素の参照情報を保存する");
+  assert.ok(ui.includes("id: initialEditId ? `acct-gate-edit-"), "ゲートの編集起動元を安定IDで保存する");
+  assert.match(ui, /trigger\.id \? document\.getElementById\(trigger\.id\) : null/,
+    "ゲート再描画で要素が差し替わった場合は安定IDから再取得する");
+  assert.match(ui, /target\.focus\(\{ preventScroll: true \}\)/,
+    "閉じた後に存在している起動元だけへフォーカスを戻す");
+  assert.match(ui, /className: `acct-card acct-card--gate[^\n]*"data-account-id": entry\.id/,
+    "初回ゲートのカードも管理画面と同じ安定IDで検証できる");
+  assert.match(ui, /window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_OPEN_EVENT, \{ detail: \{ editId: entry\.id \} \}\)\)/,
+    "ゲートの編集ボタンは対象アカウントを指定して管理画面を開く");
+  assert.match(ui, /const \[selectingId, setSelectingId\] = React\.useState\(null\)/,
+    "初回ゲートも切替中のカード状態を保持する");
+  assert.match(ui, /selectionTimer\.current !== null\) return/,
+    "初回ゲートの二重クリックでイベントを重ねない");
+  assert.match(ui, /setSelectingId\(id\)[\s\S]*?prefersReducedMotion\(\) \? 0 : 180/,
+    "初回ゲートでも動きを減らす設定を尊重してから切替イベントを通知する");
+  assert.match(ui, /entry\.id === selectingId \? " is-selecting" : ""/,
+    "初回ゲートの選択カードに押下状態を反映する");
+  assert.match(accountLayoutCaptureSource, /gatePressed\.scaleX >= \.999 \|\| gatePressed\.scaleY >= \.999/,
+    "初回ゲートの実クリックでも縮小行列を検査する");
+});
 
 test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
   const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*#[0-9a-f]{6};$/gim)];
