@@ -113,7 +113,8 @@ test("v71 preserves the historical layered palette and persona-specific surface 
   assert.match(v71, /--ui-surface: var\(--surface-2\)/);
   assert.doesNotMatch(v71, /--sin-憤怒:\s*var\(--ui-accent\)/);
   assert.doesNotMatch(v71, /--rank-ALEPH:\s*var\(--ui-accent\)/);
-  assert.doesNotMatch(v71, /background-image:\s*none !important;[\s\S]*?\.p-card/);
+  assert.match(v71, /background-image:\s*none !important;/);
+  assert.match(v71, /\.p-card,[\s\S]*?background-color: var\(--surface-2\)/);
   assert.match(design, /--surface-3:#292420/);
   assert.match(design, /--sin-憤怒:/);
   assert.match(design, /--ego-influence:\s*#b872d9/);
