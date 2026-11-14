@@ -464,7 +464,6 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
   assert.match(ui, /const returnFocusRef = React\.useRef\(null\)/);
   assert.ok(ui.includes("returnFocusRef.current = {"), "起動元要素の参照情報を保存する");
   assert.ok(ui.includes("id: initialEditId ? `acct-gate-edit-"), "ゲートの編集起動元を安定IDで保存する");
-    "モーダルを開く直前の操作要素を保存する");
   assert.match(ui, /trigger\.id \? document\.getElementById\(trigger\.id\) : null/,
     "ゲート再描画で要素が差し替わった場合は安定IDから再取得する");
   assert.match(ui, /target\.focus\(\{ preventScroll: true \}\)/,
