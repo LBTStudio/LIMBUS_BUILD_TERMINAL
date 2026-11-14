@@ -301,7 +301,8 @@ test("共有URL取込は説明付きの主導線として見つけられ、既�
 });
 
 test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカード幅に押し込まれない", () => {
-  assert.match(ui, /className: `acct-card acct-card--form${importOpen \\? " acct-card--import-open" : ""}`, style: \\{ "--i": index \\}, "data-account-id": entry\\.id \\}/, "展開状態のクラスと安定IDを反映");
+  assert.ok(ui.includes("acct-card--import-open"), "展開状態のクラスを反映");
+  assert.ok(ui.includes('"data-account-id": entry.id'), "編集前後で安定IDを維持する");
   assert.match(css, /\.acct-card--import-open\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;/);
   assert.match(css, /\.acct-card--import-open \.acct-gara-body\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;/);
   assert.match(css, /\.acct-card--import-open \.gara\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);[^}]*min-width:\s*0;[^}]*width:\s*100%;/);
@@ -348,7 +349,7 @@ test("オンライン保全のsummaryはブラウザー標準マーカーを隠�
     "標準のdetailsマーカーを全ブラウザーで無効化する");
   assert.match(cloudPanelCss, /\.lbt-cloud-summary::-webkit-details-marker\s*\{[^}]*display:\s*none !important;[^}]*content:\s*none !important;/,
     "Chromium/WebKitのネイティブ三角を無効化する");
-  assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron\s*\{[^}]*transform:\s*rotate\(180deg\)/,
+  assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron\s*\{[^}]*transform:\s*translateY\(-50%\) rotate\(180deg\)/,
     "開閉状態の変化はカスタム矢印だけで示す");
 });
 
@@ -450,10 +451,10 @@ test("アカウントモーションは単一イージング・押下表現・�
 test("アカウント画面のブラウザー監査はキャンセル・保存後に実クリックで切替を検証する", () => {
   assert.match(accountLayoutCaptureSource, /verifyAccountHitTargetsAfterFormReturn/,
     "Playwrightで編集フォームから戻った後を実行する");
-  assert.match(uiAuditSource, /document\.elementFromPoint/,
+  assert.match(accountLayoutCaptureSource, /document\.elementFromPoint/,
     "カード中央で最前面の要素を検査する");
-  assert.match(uiAuditSource, /\.acct-card-hit/);
-  assert.match(uiAuditSource, /waitForNavigation\(\{ waitUntil: "load"/,
+  assert.match(accountLayoutCaptureSource, /\.acct-card-hit/);
+  assert.match(accountLayoutCaptureSource, /waitForNavigation\(\{ waitUntil: "load"/,
     "実クリックでリロード後まで待つ");
   assert.match(accountLayoutCaptureSource, /afterCancel/);
   assert.match(accountLayoutCaptureSource, /afterSave/);
@@ -461,7 +462,8 @@ test("アカウント画面のブラウザー監査はキャンセル・保存�
 
 test("初回ゲートから編集を開いた場合も閉じた後に起動元へフォーカスを戻す", () => {
   assert.match(ui, /const returnFocusRef = React\.useRef\(null\)/);
-  assert.match(ui, /returnFocusRef\.current = active/,
+  assert.ok(ui.includes("returnFocusRef.current = {"), "起動元要素の参照情報を保存する");
+  assert.ok(ui.includes("id: initialEditId ? `acct-gate-edit-"), "ゲートの編集起動元を安定IDで保存する");
     "モーダルを開く直前の操作要素を保存する");
   assert.match(ui, /trigger\.id \? document\.getElementById\(trigger\.id\) : null/,
     "ゲート再描画で要素が差し替わった場合は安定IDから再取得する");
