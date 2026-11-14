@@ -208,6 +208,26 @@ async function createDisposableAccount(page,profile) {
     { wheelOutcome, zoomed, zoomScale });
   const resetPortrait = page.getByRole("button", { name: "立ち絵を全体表示に戻す" });
   await resetPortrait.waitFor({ state: "visible", timeout: 5000 });
+  const resetControlGeometry = await resetPortrait.evaluate(button => {
+    const rect = button.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(button);
+    const textRects = [...range.getClientRects()].filter(item => item.width > 0 && item.height > 0);
+    const style = getComputedStyle(button);
+    return {
+      width: rect.width,
+      height: rect.height,
+      textLineCount: new Set(textRects.map(item => Math.round(item.y))).size,
+      whiteSpace: style.whiteSpace,
+      writingMode: style.writingMode
+    };
+  });
+  recordCheck(profile.name + ": zoom reset control remains horizontal and readable on narrow screens",
+    resetControlGeometry.width > resetControlGeometry.height
+      && resetControlGeometry.textLineCount === 1
+      && resetControlGeometry.whiteSpace === "nowrap"
+      && resetControlGeometry.writingMode === "horizontal-tb",
+    resetControlGeometry);
   await resetPortrait.click();
   await page.waitForTimeout(120);
   const resetTransform = await portraitImage.evaluate(image => getComputedStyle(image).transform);
