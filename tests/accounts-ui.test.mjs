@@ -446,6 +446,10 @@ test("アカウントモーションは単一イージング・押下表現・�
   assert.match(visualSystem, /--ui-motion-modal:\s*300ms/);
   assert.match(visualSystem, /\.acct-card:has\(\.acct-card-hit:active\),[\s\S]*?\.acct-card\.is-selecting\s*\{[^}]*transform:\s*scale\(\.976\)/,
     "カード押下時に縮小と枠の変化を示す");
+  assert.match(visualSystem, /\.acct-card\.is-selecting:hover,[\s\S]*?\.acct-card\.is-selecting:focus-within\s*\{[^}]*transform:\s*scale\(\.976\)/,
+    "復帰したフォーカスやhoverよりも押下縮小を優先する");
+  assert.match(accountLayoutCaptureSource, /scaleX >= \.999 \|\| pressed\.scaleY >= \.999/,
+    "実ブラウザー監査は押下縮小を行列値で確認する");
   assert.match(visualSystem, /\.acct-overlay\.is-closing\s*\{[^}]*pointer-events:\s*none;/,
     "透明化中のオーバーレイが背面クリックを奪わない");
   assert.match(visualSystem, /@media \(prefers-reduced-motion:\s*reduce\)/,
