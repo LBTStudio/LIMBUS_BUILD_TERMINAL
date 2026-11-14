@@ -11,7 +11,10 @@ const sectionsCss = readFileSync(new URL("../assets/sections.css", import.meta.u
 const uiSource = readFileSync(new URL("../js/ui.js", import.meta.url), "utf8");
 
 test("ショップに通常人格の指定購入カテゴリがあり、未所持・検索・件数が連動する", () => {
-  assert.match(otherSectionsSource, /\[\["persona", "人格"\], \["support", "サポート"\]/);
+  assert.match(otherSectionsSource, /const shopCategories = \[/);
+  for (const id of ["persona", "support", "ego", "spirit", "item", "gacha"]) {
+    assert.match(otherSectionsSource, new RegExp('id: "' + id + '"'));
+  }
   assert.match(otherSectionsSource, /const ownedPersonaKeys = React\.useMemo/);
   assert.match(otherSectionsSource, /const personaSearchRows = React\.useMemo\(\(\) => \{\s*if \(shopView !== "catalog" \|\| tab !== "persona"\) return \[\];/);
   assert.match(otherSectionsSource, /const personas = personaSearchRows\s*\.filter/);
