@@ -9,6 +9,7 @@ const generator = read("../js/generator.js");
 const sections = read("../js/OtherSections.js");
 const css = read("../assets/workspace.css");
 const parityCss = read("../assets/b-type-ui-parity.css");
+const pawnControlsCss = read("../assets/pawn-image-controls.css");
 const app = read("../js/App.js");
 
 test("駒画像URLは文字列・配列・旧式オブジェクトを共通形式へ正規化する", () => {
@@ -91,6 +92,18 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(sections, /transformOrigin: imageZoomOrigin/);
   assert.match(sections, /立ち絵を全体表示に戻す/);
   assert.match(sections, /setImageZoom\(1\)/);
+  assert.ok(sections.includes("const [imagePreviewOpen, setImagePreviewOpen] = React.useState(true);"),
+    "立ち絵プレビューは初期状態から展開する");
+  assert.ok(sections.includes('hidden: !imagePreviewOpen'));
+  assert.ok(sections.includes('"aria-expanded": imagePreviewOpen'));
+  assert.ok(parityCss.includes("height: clamp(260px, 38vh, 420px);"),
+    "デスクトップの立ち絵枠は従来の高さへ戻す");
+  assert.ok(parityCss.includes("height: min(42vh, 340px);"),
+    "スマートフォンの立ち絵枠は従来の高さへ戻す");
+  assert.ok(!pawnControlsCss.includes("height: clamp(180px, 27vh, 290px)")
+    && !pawnControlsCss.includes("height: clamp(145px, 22vh, 195px)")
+    && !pawnControlsCss.includes("height: 145px"),
+    "操作用スタイルが立ち絵プレビューを再び縮小しない");
 });
 
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {

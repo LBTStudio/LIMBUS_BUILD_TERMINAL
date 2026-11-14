@@ -61,7 +61,7 @@ const BaseSection = ({ state, dispatch }) => {
   const [imageZoomOrigin, setImageZoomOrigin] = React.useState("50% 50%");
   const [imagePan, setImagePan] = React.useState({ x: 0, y: 0 });
   const [imageDragging, setImageDragging] = React.useState(false);
-  const [imagePreviewOpen, setImagePreviewOpen] = React.useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = React.useState(true);
   const imagePreviewFrameRef = React.useRef(null);
   const imageDragRef = React.useRef(null);
   React.useEffect(() => {
