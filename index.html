@@ -1089,18 +1089,18 @@ button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
   transition: transform 80ms ease-out;
 }
 .base-info-panel .piece-url-preview-zoom-controls {
-  position: absolute;
-  z-index: 2;
-  right: 10px;
-  bottom: 10px;
+  position: relative;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  width: max-content;
-  max-width: calc(100% - 20px);
-  pointer-events: none;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  pointer-events: auto;
   white-space: nowrap;
 }
 .base-info-panel .piece-url-preview-zoom-help,
