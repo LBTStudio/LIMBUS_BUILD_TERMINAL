@@ -1852,6 +1852,38 @@ async function captureProfile(browser, mode) {
       }
       await closeOverlay();
     });
+    await attempt("state-import-dialog",async()=>{
+      await closeOverlay();
+      const trigger=mobile
+        ? page.locator(".btype-mobile-bottom-nav button").filter({hasText:"その他"}).first()
+        : page.locator("button.utility-trigger").first();
+      await trigger.waitFor({state:"visible",timeout:5000});
+      await click(trigger);
+      const utilitySheet=page.locator(".utility-sheet");
+      await utilitySheet.waitFor({state:"visible",timeout:5000});
+      const importAction=utilitySheet.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
+      await importAction.waitFor({state:"visible",timeout:5000});
+      await click(importAction);
+      const input=page.locator('input[type="file"][accept="application/json"]').first();
+      if (!(await input.count())) throw new Error("保存データ読込用のJSONファイル入力が見つかりません");
+      await page.waitForFunction(() => typeof window.LBT_openImportDialog === "function", null, { timeout: 5000 });
+      await input.setInputFiles({
+        name:"ui-audit-import.json",
+        mimeType:"application/json",
+        buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA",skills:[]}),"utf8")
+      });
+      const importDialog=page.locator(".import-scope-dialog");
+      await importDialog.waitFor({state:"visible",timeout:5000});
+      const importOptions=importDialog.locator(".import-scope-options input[type='checkbox']");
+      if (!(await importOptions.count())) throw new Error("読み込み対象カテゴリの選択肢が表示されません");
+      await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
+      const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
+      if (await visible(emptyDetails)) {
+        await click(emptyDetails);
+        await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
+      }
+      await closeOverlay();
+    });
     await attempt("other-navigation",async()=>{
       const more=page.locator(".rail-more").first();
       if(await visible(more)) {
@@ -2018,36 +2050,7 @@ async function captureProfile(browser, mode) {
       }
       await closeOverlay();
     });
-    await attempt("state-import-dialog",async()=>{
-      await closeOverlay();
-      const trigger=page.locator("button.utility-trigger").first();
-      await trigger.waitFor({state:"visible",timeout:5000});
-      await click(trigger);
-      const utilitySheet=page.locator(".utility-sheet");
-      await utilitySheet.waitFor({state:"visible",timeout:5000});
-      const importAction=utilitySheet.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
-      await importAction.waitFor({state:"visible",timeout:5000});
-      await click(importAction);
-      const input=page.locator('input[type="file"][accept="application/json"]').first();
-      if (!(await input.count())) throw new Error("保存データ読込用のJSONファイル入力が見つかりません");
-      await page.waitForFunction(() => typeof window.LBT_openImportDialog === "function", null, { timeout: 5000 });
-      await input.setInputFiles({
-        name:"ui-audit-import.json",
-        mimeType:"application/json",
-        buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA",skills:[]}),"utf8")
-      });
-      const importDialog=page.locator(".import-scope-dialog");
-      await importDialog.waitFor({state:"visible",timeout:5000});
-      const importOptions=importDialog.locator(".import-scope-options input[type='checkbox']");
-      if (!(await importOptions.count())) throw new Error("読み込み対象カテゴリの選択肢が表示されません");
-      await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
-      const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
-      if (await visible(emptyDetails)) {
-        await click(emptyDetails);
-        await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
-      }
-      await closeOverlay();
-    });
+
     await attempt("keyboard-focus",async()=>{await page.keyboard.press("Tab");await snap("keyboard-focus-visible","キーボードTabで移動したフォーカス状態");});
   } finally { await context.close(); }
 }
