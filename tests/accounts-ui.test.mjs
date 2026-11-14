@@ -394,6 +394,57 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
 });
 
 
+test("アカウント編集のキャンセル・保存後にカードのクリック判定とフォーカスを復元する", () => {
+  const regularCard = ui.slice(ui.indexOf('const cardLabel ='), ui.indexOf('const AccountSwitcher ='));
+  const cancel = ui.slice(ui.indexOf('const cancelForm ='), ui.indexOf('cancelFormRef.current = cancelForm;'));
+  const select = ui.slice(ui.indexOf('const doSelect ='), ui.indexOf('const doRemove ='));
+  assert.match(regularCard, /data-account-id": entry\.id/,
+    "一覧カードに編集フォームと同じ安定IDを持たせる");
+  assert.match(regularCard, /className: `acct-card[^\n]*is-selecting/,
+    "選択中状態をカードに反映する");
+  assert.match(cancel, /setEditingId\(null\)/);
+  assert.match(cancel, /window\.requestAnimationFrame\(\(\) => \{/,
+    "フォームDOMの切替後にフォーカスを戻す");
+  assert.match(cancel, /card\?\.querySelector\("\.acct-edit-btn"\)/,
+    "編集を始めたカードの編集ボタンへフォーカスを復帰する");
+  assert.match(select, /selectionTimer\.current !== null/,
+    "短時間の連打による二重切替を防ぐ");
+  assert.match(select, /setSelectingId\(id\)/,
+    "切替直前の押下フィードバックを描画する");
+  assert.match(select, /prefersReducedMotion\(\) \? 0 : 150/,
+    "動きを減らす設定を尊重しつつ、通常時は押下を視認できる時間を確保する");
+  assert.match(ui, /if \(selectionTimer\.current !== null\) window\.clearTimeout\(selectionTimer\.current\)/,
+    "アンマウント時に選択タイマーを破棄する");
+  assert.match(ui, /if \(closeTimer\.current !== null\) window\.clearTimeout\(closeTimer\.current\)/,
+    "アンマウント時に閉じるタイマーを破棄する");
+});
+
+test("アカウントモーションは単一イージング・押下表現・閉じる間のクリック透過を守る", () => {
+  assert.match(visualSystem, /--ui-motion-ease:\s*cubic-bezier\(\.22,\s*\.8,\s*\.22,\s*1\)/);
+  assert.match(visualSystem, /--ui-motion-fast:\s*120ms/);
+  assert.match(visualSystem, /--ui-motion-modal:\s*280ms/);
+  assert.match(visualSystem, /\.acct-card:has\(\.acct-card-hit:active\),[\s\S]*?\.acct-card\.is-selecting\s*\{[^}]*transform:\s*scale\(\.982\)/,
+    "カード押下時に縮小と枠の変化を示す");
+  assert.match(visualSystem, /\.acct-overlay\.is-closing\s*\{[^}]*pointer-events:\s*none;/,
+    "透明化中のオーバーレイが背面クリックを奪わない");
+  assert.match(visualSystem, /@media \(prefers-reduced-motion:\s*reduce\)/,
+    "reduced motion を尊重する");
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i,
+    "グラデーションを追加しない");
+});
+
+test("アカウント画面のブラウザー監査はキャンセル・保存後に実クリックで切替を検証する", () => {
+  assert.match(uiAuditSource, /verifyAccountHitTargetsAfterFormReturn/,
+    "Playwrightで編集フォームから戻った後を実行する");
+  assert.match(uiAuditSource, /document\.elementFromPoint/,
+    "カード中央で最前面の要素を検査する");
+  assert.match(uiAuditSource, /\.acct-card-hit/);
+  assert.match(uiAuditSource, /waitForNavigation\(\{ waitUntil: "load"/,
+    "実クリックでリロード後まで待つ");
+  assert.match(uiAuditSource, /afterCancel/);
+  assert.match(uiAuditSource, /afterSave/);
+});
+
 test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
   const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*#[0-9a-f]{6};$/gim)];
   const typeTokens = [...visualSystem.matchAll(/^\s*--ui-type-[a-z-]+:\s*\d+px;$/gim)];
