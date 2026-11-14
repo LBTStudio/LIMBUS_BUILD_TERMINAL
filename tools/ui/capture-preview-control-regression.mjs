@@ -222,6 +222,14 @@ async function createDisposableAccount(page,profile) {
       writingMode: style.writingMode
     };
   });
+  const resetControlPlacement = await resetPortrait.evaluate(button => {
+    const rect = button.getBoundingClientRect();
+    const frame = document.querySelector(".piece-url-preview-featured-frame").getBoundingClientRect();
+    return { outsideImageFrame: rect.top >= frame.bottom, gap: rect.top - frame.bottom };
+  });
+  recordCheck(profile.name + ": zoom controls sit below the image without covering the portrait",
+    resetControlPlacement.outsideImageFrame && resetControlPlacement.gap >= 0,
+    resetControlPlacement);
   recordCheck(profile.name + ": zoom reset control remains horizontal and readable on narrow screens",
     resetControlGeometry.width > resetControlGeometry.height
       && resetControlGeometry.textLineCount === 1
