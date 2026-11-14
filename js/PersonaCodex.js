@@ -926,6 +926,18 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     });
   }, [affiliations, affiliationFilterQuery, ui.filterAffs]);
   const visibleAffiliationCandidates = affiliationCandidates.slice(0, 12);
+  const allKws = React.useMemo(() => {
+    const tags = new Set();
+    pool.forEach(({ p }) => {
+      (p.keywords || []).forEach((keyword) => { if (keyword) tags.add(keyword); });
+      const hasBullets = !!(p.bullets && p.bullets !== "×" && p.bullets !== "x" && p.bullets !== "X");
+      if (hasBullets) tags.add("弾丸");
+    });
+    PERSONA_FIXED_KEYWORD_OPTIONS.forEach((keyword) => tags.add(keyword));
+    // 選択済みキーワードは、該当が0件でも解除できるよう候補に残す。
+    (ui.filterKws || []).forEach((keyword) => { if (keyword) tags.add(keyword); });
+    return orderPersonaKeywordOptions(Array.from(tags));
+  }, [pool, ui.filterKws]);
   // N19: 所持人格キーセット（フィルタとソートの両方で使うため filtered より前に定義）
   const ownedPersonaKeys = React.useMemo(() => new Set((roster.personas || []).map((r) => `${r.mode}:${r.no}`)), [roster.personas]);
   const filtered = React.useMemo(() => {
