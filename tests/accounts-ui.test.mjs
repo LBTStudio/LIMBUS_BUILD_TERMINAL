@@ -340,6 +340,10 @@ test("SINNER SELECT はアカウント一覧と復旧操作を独立ペインに
 });
 
 test("オンライン保全のsummaryはブラウザー標準マーカーを隠し、カスタム矢印だけを使う", () => {
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary\s*\{[^}]*display:\s*block;[^}]*position:\s*relative;/,
+    "summary本体はネイティブマーカーを消せるブロック表示にする");
+  assert.match(cloudPanelCss, /\.lbt-cloud-chevron\s*\{[^}]*position:\s*absolute;[^}]*top:\s*50%;[^}]*right:\s*0;/,
+    "カスタム矢印だけをsummary内の専用位置に置く");
   assert.match(cloudPanelCss, /\.lbt-cloud-summary::marker\s*\{[^}]*content:\s*none !important;[^}]*display:\s*none !important;/,
     "標準のdetailsマーカーを全ブラウザーで無効化する");
   assert.match(cloudPanelCss, /\.lbt-cloud-summary::-webkit-details-marker\s*\{[^}]*display:\s*none !important;[^}]*content:\s*none !important;/,
