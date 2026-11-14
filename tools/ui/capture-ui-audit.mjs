@@ -2020,23 +2020,29 @@ async function captureProfile(browser, mode) {
     });
     await attempt("state-import-dialog",async()=>{
       await closeOverlay();
-      const trigger=page.locator("button.utility-trigger").first(); if(await visible(trigger)) await click(trigger);
+      const trigger=page.locator("button.utility-trigger").first();
+      if (!(await visible(trigger))) throw new Error("操作・保存の起動ボタンが見つかりません");
+      await click(trigger);
       const importAction=page.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
-      if(await visible(importAction)) {
-        await click(importAction);
-        const input=page.locator('input[type="file"][accept="application/json"]').first();
-        if(await input.count()) {
-          await input.setInputFiles({name:"ui-audit-import.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA"}),"utf8")});
-          await page.waitForTimeout(300);
-          if(await visible(page.locator(".share-modal-backdrop"))) {
-            await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
-            const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
-            if (await visible(emptyDetails)) {
-              await click(emptyDetails);
-              await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
-            }
-          }
-        }
+      if (!(await visible(importAction))) throw new Error("保存データを読み込む操作が見つかりません");
+      await click(importAction);
+      const input=page.locator('input[type="file"][accept="application/json"]').first();
+      if (!(await input.count())) throw new Error("保存データ読込用のJSONファイル入力が見つかりません");
+      await page.waitForFunction(() => typeof window.LBT_openImportDialog === "function", null, { timeout: 5000 });
+      await input.setInputFiles({
+        name:"ui-audit-import.json",
+        mimeType:"application/json",
+        buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA",skills:[]}),"utf8")
+      });
+      const importDialog=page.locator(".import-scope-dialog");
+      await importDialog.waitFor({state:"visible",timeout:5000});
+      const importOptions=importDialog.locator(".import-scope-options input[type='checkbox']");
+      if (!(await importOptions.count())) throw new Error("読み込み対象カテゴリの選択肢が表示されません");
+      await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
+      const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
+      if (await visible(emptyDetails)) {
+        await click(emptyDetails);
+        await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
       }
       await closeOverlay();
     });
