@@ -86,7 +86,8 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(parityCss, /\.piece-url-preview-frame > img\s*\{[^}]*object-fit: contain/);
   assert.match(sections, /imagePreviewFrameRef = React\.useRef\(null\)/);
   assert.match(sections, /frame\.addEventListener\("wheel", handleWheel, \{ passive: false \}\)/);
-  assert.match(sections, /Math\.min\(4, imageZoom \* Math\.exp/);\n  assert.match(sections, /\}, \[selectedImageIndex, selectedImageUrl\]\)/);
+  assert.match(sections, /Math\.min\(4, imageZoom \* Math\.exp/);
+  assert.match(sections, /\}, \[selectedImageIndex, selectedImageUrl\]\)/);
   assert.match(sections, /transformOrigin: imageZoomOrigin/);
   assert.match(sections, /立ち絵を全体表示に戻す/);
   assert.match(sections, /setImageZoom\(1\)/);
