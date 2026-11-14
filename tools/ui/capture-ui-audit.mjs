@@ -892,10 +892,17 @@ async function captureProfile(browser, mode) {
       if(await visible(movedToggle)) { await movedToggle.hover().catch(()=>{}); await snap("preview-toggle-open-hover","プレビューを開いた状態で開閉タブをホバー"); await click(movedToggle); await snap("preview-toggled-closed","プレビューを再度閉じた状態"); }
     }
     await snap("build-persona-default","ビルドの初期表示。専用の使い捨てデータを使用");
-    const tabs=page.locator(".btype-build-tablist > [role='tab']");
-    const count=await tabs.count();
-    for(let i=0;i<count;i++) {
-      const tab=tabs.nth(i), label=(await tab.innerText()).trim();
+    const buildTabSequence=[
+      ["character","基本"],["character","人格"],
+      ["battle","スキル"],["battle","パッシブ"],["battle","強化"],
+      ["equipment","サポート"],["equipment","E.G.O"],["equipment","精神"],["equipment","アイテム"]
+    ];
+    for(const [groupId,label] of buildTabSequence) {
+      const group=page.locator(".build-group-nav [data-build-group='"+groupId+"']").first();
+      if(!(await visible(group))) throw new Error("ビルド分類が見つかりません: "+groupId);
+      if(await group.getAttribute("aria-pressed")!=="true") await click(group);
+      const tab=page.locator(".btype-build-tablist > [role='tab']").filter({hasText:label}).first();
+      await tab.waitFor({state:"visible",timeout:8000});
       await attempt("build-tab-"+label,async()=>{
         if (!mobile) {
           await tab.hover().catch(()=>{});
@@ -1280,6 +1287,15 @@ async function captureProfile(browser, mode) {
         }
         await go(label);
         await snap("section-"+label,"主要セクション: "+label);
+        if (mobile) {
+          const expectedNavLabel = ["ホーム", "ショップ", "設定", "使い方"].includes(label) ? "その他"
+            : label === "記録" ? "記録" : null;
+          if (expectedNavLabel) {
+            const currentNavItem = page.locator(".btype-mobile-bottom-nav button.is-active").filter({ hasText: expectedNavLabel }).first();
+            if (!(await visible(currentNavItem))) throw new Error("モバイルナビの現在地が表示されていません: " + label);
+            await snap("mobile-navigation-current-" + label, "モバイルナビの現在地: " + expectedNavLabel);
+          }
+        }
         if(label==="ショップ") {
           const categoryCards=page.locator(".btype-shop-category-card");
           const expectedCategories=[
@@ -1294,16 +1310,16 @@ async function captureProfile(browser, mode) {
             const category=page.locator('.btype-shop-category-card[data-category="'+id+'"]').first();
             if(!(await visible(category))) throw new Error("ショップカテゴリカードが見つかりません: "+labelText);
             await click(category);
-            const activeTab=page.locator(".shop-tabs [role='tab'][aria-selected='true']").first();
-            const selected=(await activeTab.innerText().catch(()=>"")).trim();
+            const selected=(await page.locator(".btype-shop-catalog-heading h1").innerText().catch(()=>"")).trim();
             if(selected!==labelText) throw new Error(labelText+"カテゴリのカードから正しい一覧へ遷移しません: "+selected);
+            if(await page.locator(".shop-tabs").count()!==0) throw new Error("ショップ一覧でカテゴリタブが重複表示されています");
             await snap("shop-category-"+id,"ショップ分類: "+labelText);
             if(id==="persona") {
               const personaCards=page.locator(".shop-persona-card");
               if(await personaCards.count()===0) throw new Error("人格ショップのビルド統一カードが表示されません");
               await snap("shop-persona-card-layout","ショップ人格カテゴリ：ビルドと統一したカード表示");
             }
-            const back=page.locator(".btype-back-link").first();
+            const back=page.locator(".btype-shop-categories-trigger").first();
             if(!(await visible(back))) throw new Error("ショップカテゴリから戻る入口がありません");
             await click(back);
             if(!(await visible(page.locator(".btype-shop-category-grid")))) throw new Error("ショップカテゴリホームへ戻れません");
@@ -1311,12 +1327,8 @@ async function captureProfile(browser, mode) {
           const personaCategory=page.locator('.btype-shop-category-card[data-category="persona"]').first();
           await click(personaCategory);
           await snap("shop-catalog-entry","カテゴリカードから通常人格一覧へ直接移動");
-          const tabsShop=page.locator(".shop-tabs [role='tab']");
-          const n=Math.min(await tabsShop.count(),8);
-          for(let i=0;i<n;i++) {
-            const t=tabsShop.nth(i), text=(await t.innerText().catch(()=>"")).trim();
-            if(text) await attempt("shop-tab-"+text,async()=>{await click(t);await snap("shop-tab-"+text,"ショップ分類: "+text);});
-          }
+          if(await page.locator(".shop-tabs").count()!==0) throw new Error("ショップの商品一覧に重複カテゴリタブがあります");
+          if(!(await visible(page.locator(".btype-shop-categories-trigger")))) throw new Error("ショップカテゴリ一覧へ戻る操作が見つかりません");
         }
         if(label==="記録") {
           const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
@@ -2121,7 +2133,7 @@ async function main() {
     "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes, with loaded primary and face images in image settings","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation",
     "new result entry labels, resource inputs and reward-ticket layout at every viewport","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
-    "基本画面のステータス（ST）編集パネル","基本画面のラベル（パラメータ）編集パネル","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示","初期状態では駒画像プレビューを閉じ、編集スペースを確保","駒画像プレビューを折りたたみ、作業スペースを広げた状態","立ち絵を拡大し、ドラッグで表示位置を調整した状態","共通プレビュー：CCFOLIA盤面","共通プレビュー：CCFOLIAキャラクター編集画面","共通プレビュー：実際のCCFOLIA出力JSON",
+    "基本画面のステータス（ST）編集パネル","基本画面のラベル（パラメータ）編集パネル","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示","初期状態から立ち絵プレビューを展開","駒画像プレビューを折りたたみ、作業スペースを広げた状態","立ち絵を拡大し、ドラッグで表示位置を調整した状態","共通プレビュー：CCFOLIA盤面","共通プレビュー：CCFOLIAキャラクター編集画面","共通プレビュー：実際のCCFOLIA出力JSON",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",
