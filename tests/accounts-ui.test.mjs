@@ -449,7 +449,9 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
   assert.match(ui, /const returnFocusRef = React\.useRef\(null\)/);
   assert.match(ui, /returnFocusRef\.current = active/,
     "モーダルを開く直前の操作要素を保存する");
-  assert.match(ui, /if \(trigger\.isConnected\) trigger\.focus\(\{ preventScroll: true \}\)/,
+  assert.match(ui, /trigger\.id \? document\.getElementById\(trigger\.id\) : null/,
+    "ゲート再描画で要素が差し替わった場合は安定IDから再取得する");
+  assert.match(ui, /target\.focus\(\{ preventScroll: true \}\)/,
     "閉じた後に存在している起動元だけへフォーカスを戻す");
   assert.match(ui, /className: `acct-card acct-card--gate[^\n]*"data-account-id": entry\.id/,
     "初回ゲートのカードも管理画面と同じ安定IDで検証できる");
