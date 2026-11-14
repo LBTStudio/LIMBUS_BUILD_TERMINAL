@@ -79,7 +79,7 @@ test("v72 applies one whole-app type and color system without gradients", () => 
 
 
 test("v72 restores the previous LBT semantic palette without changing the five-step type scale", () => {
-  const v72 = index.match(/<style id="lbt-v72-ui-health-refinement">([\\s\\S]*?)<\\/style>/)?.[1] || "";
+  const v72 = index.match(/<style id="lbt-v72-ui-health-refinement">([\s\S]*?)<\/style>/)?.[1] || "";
   for (const value of [
     "--ui-bg: #0e0b09", "--ui-surface: #1a1715", "--ui-line: #504a42",
     "--gold: #d4af5f", "--accent: #c8352b", "--amber: #e8963c",
@@ -93,9 +93,9 @@ test("v72 restores the previous LBT semantic palette without changing the five-s
 });
 
 test("all pawn portraits and face differences are shown in a wrapping grid and eagerly loaded", () => {
-  assert.match(index, /\.base-info-panel \.piece-url-preview-list[\\s\\S]*?display:\s*grid !important/);
+  assert.match(index, /\.base-info-panel \.piece-url-preview-list[\s\S]*?display:\s*grid !important/);
   assert.match(index, /grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(68px,\s*1fr\)\)/);
-  assert.match(otherSections, /loading:\s*"eager",\\s*fetchPriority:\s*index\s*===\s*selectedImageIndex/);
+  assert.match(otherSections, /loading:\s*"eager",\s*fetchPriority:\s*index\s*===\s*selectedImageIndex/);
   const capture = read("../tools/ui/capture-ui-audit.mjs");
   assert.match(capture, /allPreviewGeometry\.display!=="grid"/);
   assert.match(capture, /allPreviewGeometry\.itemsOutside>0/);
