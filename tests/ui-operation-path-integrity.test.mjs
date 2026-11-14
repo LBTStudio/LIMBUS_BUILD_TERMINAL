@@ -346,7 +346,7 @@ test("ブラウザ監査ハーネスは現在の画面構造と内部タブを�
 test("ショップと記録の内部タブを巡回するときは、カテゴリ／ライブラリの入口へ戻ってから次を開く", () => {
   assert.match(uiHarness, /async function openShopHub/);
   assert.match(uiHarness, /async function openRecordHub/);
-  assert.match(uiHarness, /btype-shop-catalog \.btype-back-link/);
+  assert.match(uiHarness, /btype-shop-catalog \.btype-shop-categories-trigger/);
   assert.match(uiHarness, /btype-record-detail \.btype-back-link/);
 });
 
@@ -442,7 +442,7 @@ test("各画面の主見出しを本文領域のH1として定義する", () => 
   assert.ok(sharedUi.includes('level === 1 ? "h1" : "h2"'));
   assert.ok(sections.includes('level: 1'));
   assert.ok(sections.includes('tab === "inventory" ? "アイテム"'));
-  assert.ok(sections.includes('level: 1, title: "SHOP / ショップ"'));
+  assert.ok(sections.includes('h("h1", null, activeShopCategory.label)'));
   assert.ok(workbenchCss.includes(".btype-command-hero :is(h1, h2)"));
 });
 
