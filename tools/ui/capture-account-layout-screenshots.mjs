@@ -267,7 +267,8 @@ async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
   await gateReload;
   const gate = page.locator(".acct-gate").first();
   await gate.waitFor({ state: "visible", timeout: 12000 });
-  const gateCard = page.locator(".acct-gate-panel .acct-card--gate[data-account-id]").first();
+  // Use a non-active gate account so the manager renders its full-card hit target.
+  const gateCard = page.locator(".acct-gate-panel .acct-card--gate[data-account-id]").nth(1);
   const gateId = await gateCard.getAttribute("data-account-id");
   if (!gateId) throw new Error(`${viewportName}: gate card has no stable account id`);
   const gateEdit = gateCard.locator(".acct-gate-edit-btn");
