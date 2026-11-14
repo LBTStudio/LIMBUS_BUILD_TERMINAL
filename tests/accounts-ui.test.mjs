@@ -482,6 +482,16 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
     "初回ゲートのカードも管理画面と同じ安定IDで検証できる");
   assert.match(ui, /window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_OPEN_EVENT, \{ detail: \{ editId: entry\.id \} \}\)\)/,
     "ゲートの編集ボタンは対象アカウントを指定して管理画面を開く");
+  assert.match(ui, /const \[selectingId, setSelectingId\] = React\.useState\(null\)/,
+    "初回ゲートも切替中のカード状態を保持する");
+  assert.match(ui, /selectionTimer\.current !== null\) return/,
+    "初回ゲートの二重クリックでイベントを重ねない");
+  assert.match(ui, /setSelectingId\(id\)[\s\S]*?prefersReducedMotion\(\) \? 0 : 180/,
+    "初回ゲートでも動きを減らす設定を尊重してから切替イベントを通知する");
+  assert.match(ui, /entry\.id === selectingId \? " is-selecting" : ""/,
+    "初回ゲートの選択カードに押下状態を反映する");
+  assert.match(accountLayoutCaptureSource, /gatePressed\.scaleX >= \.999 \|\| gatePressed\.scaleY >= \.999/,
+    "初回ゲートの実クリックでも縮小行列を検査する");
 });
 
 test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
