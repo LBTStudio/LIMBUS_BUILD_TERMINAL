@@ -30,7 +30,7 @@ test("ショップに通常人格の指定購入カテゴリがあり、未所�
     assert.ok(uiSource.includes("  " + icon + ":"), "category icon must exist in the app icon registry: " + icon);
   }
   assert.match(otherSectionsSource, /persona: \(DB\.normal_personas \|\| \[\]\)\.length/);
-  assert.match(otherSectionsSource, /人格・サポート・E\.G\.O・精神・アイテムを購入/);
+  assert.match(otherSectionsSource, /"SHOP \/ " \+ activeShopCategory\.label/);
   assert.match(appSource, /subtitle: "人格・サポート・E\.G\.O・精神・アイテムを購入"/);
   assert.match(otherSectionsSource, /className: "p-card shop-persona-card"/);
   assert.match(otherSectionsSource, /className: "p-stats"/);
