@@ -354,6 +354,7 @@ async function capture(browser, name, width, height) {
       const grid = accounts?.querySelector(".acct-grid--manager");
       const cloud = panel?.querySelector(".acct-panel-cloud");
       const disclosure = cloud?.querySelector(".lbt-cloud-panel");
+      const summary = cloud?.querySelector(".lbt-cloud-summary");
       const input = cloud?.querySelector("#lbt-cloud-recovery-key");
       const rect = el => {
         if (!el) return null;
@@ -383,6 +384,25 @@ async function capture(browser, name, width, height) {
         cloudClientHeight: cloud?.clientHeight || 0,
         cloudScrollHeight: cloud?.scrollHeight || 0,
         recoveryOpen: !!disclosure?.open,
+        disclosureMarker: summary ? (() => {
+          const main = getComputedStyle(summary);
+          const marker = getComputedStyle(summary, "::marker");
+          const webkitMarker = getComputedStyle(summary, "::-webkit-details-marker");
+          return {
+            display: main.display,
+            listStyle: main.listStyle,
+            listStyleType: main.listStyleType,
+            appearance: main.appearance,
+            markerContent: marker.content,
+            markerDisplay: marker.display,
+            markerFontSize: marker.fontSize,
+            webkitMarkerDisplay: webkitMarker.display,
+            webkitMarkerContent: webkitMarker.content,
+            beforeContent: getComputedStyle(summary, "::before").content,
+            afterContent: getComputedStyle(summary, "::after").content,
+            html: summary.outerHTML
+          };
+        })() : null,
         recoveryInput: inputRect,
         keyVisible,
         panesSeparated,
