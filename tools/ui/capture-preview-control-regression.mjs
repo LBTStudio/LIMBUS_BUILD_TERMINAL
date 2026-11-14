@@ -194,6 +194,71 @@ async function createDisposableAccount(page,profile) {
       && portraitFit.naturalHeight > 0 && portraitFit.imageWithinFrame
       && portraitFit.transform === "matrix(1, 0, 0, 1, 0, 0)",
     portraitFit);
+  const zoomDragReset = page.getByRole("button", { name: "立ち絵を全体表示に戻す" });
+  const dragZoomBox = await portraitFrame.boundingBox();
+  if (!dragZoomBox) throw new Error(profile.name + ": portrait frame has no bounding box for drag zoom");
+  await page.mouse.move(dragZoomBox.x + dragZoomBox.width / 2, dragZoomBox.y + dragZoomBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(dragZoomBox.x + dragZoomBox.width / 2, dragZoomBox.y + dragZoomBox.height / 2 - 48, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a > 1.1;
+  }, null, { timeout: 5000 });
+  const dragZoomScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+  recordCheck(profile.name + ": dragging vertically at 1x zooms the portrait without a click",
+    dragZoomScale > 1.1 && dragZoomScale <= 4,
+    { dragZoomScale });
+  await zoomDragReset.click();
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && Math.abs(new DOMMatrixReadOnly(getComputedStyle(image).transform).a - 1) < 0.001;
+  }, null, { timeout: 5000 });
+  if (profile.mobile) {
+    const pinchOutcome = await portraitFrame.evaluate(frame => {
+      if (typeof Touch !== "function" || typeof TouchEvent !== "function") return { supported: false };
+      const rect = frame.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const makeTouch = (identifier, clientX) => new Touch({
+        identifier, target: frame, clientX, clientY: y, screenX: clientX, screenY: y,
+        radiusX: 1, radiusY: 1, force: 1
+      });
+      const dispatch = (type, touches, changedTouches) => {
+        const event = new TouchEvent(type, {
+          bubbles: true, cancelable: true,
+          touches, targetTouches: touches, changedTouches
+        });
+        frame.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      const firstStart = makeTouch(1, x - 22);
+      const secondStart = makeTouch(2, x + 22);
+      const startPrevented = dispatch("touchstart", [firstStart, secondStart], [firstStart, secondStart]);
+      const firstMove = makeTouch(1, x - 36);
+      const secondMove = makeTouch(2, x + 36);
+      const movePrevented = dispatch("touchmove", [firstMove, secondMove], [firstMove, secondMove]);
+      dispatch("touchend", [], [firstMove, secondMove]);
+      return { supported: true, startPrevented, movePrevented };
+    });
+    if (pinchOutcome.supported) {
+      await page.waitForFunction(() => {
+        const image = document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a > 1.2;
+      }, null, { timeout: 5000 });
+      const pinchScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+      recordCheck(profile.name + ": two-finger pinch zooms the portrait on touch devices",
+        pinchOutcome.startPrevented && pinchOutcome.movePrevented && pinchScale > 1.2 && pinchScale <= 4,
+        { pinchOutcome, pinchScale });
+      await zoomDragReset.click();
+      await page.waitForFunction(() => {
+        const image = document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && Math.abs(new DOMMatrixReadOnly(getComputedStyle(image).transform).a - 1) < 0.001;
+      }, null, { timeout: 5000 });
+    } else {
+      recordCheck(profile.name + ": touch pinch event API is available for mobile zoom tests", false, pinchOutcome);
+    }
+  }
   const wheelOutcome = await portraitFrame.evaluate(frame => {
     const rect = frame.getBoundingClientRect();
     const event = new WheelEvent("wheel", {
