@@ -22,7 +22,7 @@ test("新規リザルトの基本入力は表示ラベルつきのlabelで構成
 });
 
 test("チケットと任意報酬を独立セクションに分け、保存操作を最後に置く", () => {
-  assert.match(sections, /className: "ledger-result-entry-ticket-section", "aria-label": "卓の報酬チケット"/);
+  assert.match(sections, /id: "ledger-result-stage-tickets",[\s\S]*?className: "ledger-result-entry-ticket-section",[\s\S]*?"aria-label": "卓の報酬チケット"/);
   assert.match(sections, /className: "ledger-result-reward-disclosure"/);
   assert.match(sections, /className: "ledger-result-entry-footer"/);
   assert.match(sections, /className: "ledger-result-submit"/);
@@ -70,7 +70,7 @@ test("変更したモバイルスタイルはメインHTMLから読み込まれ�
 
 test("新規リザルトは4段階の進行表示から各セクションへ直接移動できる", () => {
   assert.match(sections, /className: "ledger-result-progress"/);
-  assert.match(sections, /aria-label: "リザルト入力のステップ"/);
+  assert.match(sections, /"aria-label": "リザルト入力のステップ"/);
   for (const stage of ["session", "tickets", "rewards", "confirm"]) {
     assert.match(sections, new RegExp('ledger-result-stage-' + stage));
     assert.match(sections, new RegExp('id: "' + stage + '"'));
