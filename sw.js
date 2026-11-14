@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-ed34856b";
+const CACHE_NAME = "lbt-7a06124d";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -48,7 +48,7 @@ const PRECACHE_URLS = [
   "assets/v68-interaction-a11y.css?v=0bbe4495",
   "assets/v69-mobile-ui-audit.css?v=0347dbce",
   "assets/v70-preview-controls.css?v=ef27f951",
-  "assets/v71-unified-visual.css?v=54f5ff2e",
+  "assets/v71-unified-visual.css?v=be3bca50",
   "assets/workspace.css?v=6661210a",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
@@ -62,7 +62,7 @@ const PRECACHE_URLS = [
   "js/OtherSections.js?v=b07598a1",
   "js/PersonaCodex.js?v=0600d6f2",
   "js/SkillDeck.js?v=f176d667",
-  "js/accounts-ui.js?v=f6c1a7e8",
+  "js/accounts-ui.js?v=02dc524a",
   "js/cloud-backup.js?v=32acbafe",
   "js/core.js?v=d79b98be",
   "js/ego-slot-forms.js?v=85aa4887",
