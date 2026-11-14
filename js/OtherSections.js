@@ -61,7 +61,7 @@ const BaseSection = ({ state, dispatch }) => {
   const [imageZoomOrigin, setImageZoomOrigin] = React.useState("50% 50%");
   const [imagePan, setImagePan] = React.useState({ x: 0, y: 0 });
   const [imageDragging, setImageDragging] = React.useState(false);
-  const [imagePreviewOpen, setImagePreviewOpen] = React.useState(true);
+  const [imagePreviewOpen, setImagePreviewOpen] = React.useState(false);
   const imagePreviewFrameRef = React.useRef(null);
   const imageDragRef = React.useRef(null);
   React.useEffect(() => {
@@ -246,7 +246,7 @@ const BaseSection = ({ state, dispatch }) => {
                             }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認")
                       ),
                       React.createElement("div", { className: "piece-url-preview-zoom-controls" },
-                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイール拡大／ドラッグ移動"),
+                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイールで拡大／拡大後はドラッグで移動"),
                         React.createElement("button", {
                           type: "button",
                           className: "piece-url-preview-zoom-reset",
