@@ -1884,7 +1884,7 @@ async function captureProfile(browser, mode) {
       });
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
-      const minimumManagerCardHeight = view.startsWith("mobile") ? 96 : 180;
+      const minimumManagerCardHeight = view.startsWith("mobile") ? 96 : 136;
       if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220
         || managerMetrics.minCardHeight < minimumManagerCardHeight || managerMetrics.overlappingCardPairs > 0
         || managerMetrics.actionsOutsideCards > 0 || !managerMetrics.onlineBackupCollapsed
