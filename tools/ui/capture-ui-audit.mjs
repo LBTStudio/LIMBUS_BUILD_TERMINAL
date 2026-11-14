@@ -1854,16 +1854,9 @@ async function captureProfile(browser, mode) {
     });
     await attempt("state-import-dialog",async()=>{
       await closeOverlay();
-      const trigger=mobile
-        ? page.locator(".btype-mobile-bottom-nav button").filter({hasText:"その他"}).first()
-        : page.locator("button.utility-trigger").first();
-      await trigger.waitFor({state:"visible",timeout:5000});
-      await click(trigger);
-      const utilitySheet=page.locator(".utility-sheet");
-      await utilitySheet.waitFor({state:"visible",timeout:5000});
-      const importAction=utilitySheet.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
-      await importAction.waitFor({state:"visible",timeout:5000});
-      await click(importAction);
+      // The import sheet is covered by its own interaction captures above.
+      // Trigger the real hidden file input directly here so the scope-dialog
+      // capture does not depend on viewport-specific navigation visibility.
       const input=page.locator('input[type="file"][accept="application/json"]').first();
       if (!(await input.count())) throw new Error("保存データ読込用のJSONファイル入力が見つかりません");
       await page.waitForFunction(() => typeof window.LBT_openImportDialog === "function", null, { timeout: 5000 });
