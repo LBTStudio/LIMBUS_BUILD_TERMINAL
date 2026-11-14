@@ -244,11 +244,12 @@ async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
   await page.locator(`.acct-card[data-account-id="${saveId}"] .acct-field input`).first().fill(previousName + " 確認");
   await page.locator(`.acct-card[data-account-id="${saveId}"] .acct-form-actions`)
     .getByRole("button", { name: "保存", exact: true }).click();
-  await page.waitForFunction((id, expected) => {
+  await page.waitForFunction(([id, expected]) => {
     const grid = document.querySelector(".acct-panel-accounts > .acct-grid--manager");
     const card = grid?.querySelector(`.acct-card[data-account-id="${id}"]`);
     return !grid?.classList.contains("is-editing") && card?.querySelector(".acct-name")?.textContent?.trim() === expected &&
-      !!card?.querySelector(".acct-card-hit") && !!card?.querySelector(".acct-edit-btn");
+      !!card?.querySelector(".acct-card-hit") && !!card?.querySelector(".acct-edit-btn") &&
+      document.activeElement === card.querySelector(".acct-edit-btn");
   }, [saveId, previousName + " 確認"], { timeout: 5000 });
   const afterSave = await switchAfterReturn(saveId, "Save");
   return { afterCancel, afterSave };
