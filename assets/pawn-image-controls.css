@@ -84,3 +84,5 @@
     min-height: 135px !important;
   }
 }
+
+.base-info-panel .piece-art-preview-live[hidden] { display: none !important; }
