@@ -28,6 +28,7 @@ const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.
 const accountsUiSource = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const uiAuditSource = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
+const accountLayoutCaptureSource = readFileSync(new URL("../tools/ui/capture-account-layout-screenshots.mjs", import.meta.url), "utf8");
 const visualSystem = readFileSync(new URL("../assets/v71-unified-visual.css", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
@@ -300,7 +301,7 @@ test("共有URL取込は説明付きの主導線として見つけられ、既�
 });
 
 test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカード幅に押し込まれない", () => {
-  assert.ok(ui.includes('className: `acct-card acct-card--form${importOpen ? " acct-card--import-open" : ""}`, style: { "--i": index } },'), "展開状態のクラスを反映");
+  assert.match(ui, /className: `acct-card acct-card--form${importOpen \\? " acct-card--import-open" : ""}`, style: \\{ "--i": index \\}, "data-account-id": entry\\.id \\}/, "展開状態のクラスと安定IDを反映");
   assert.match(css, /\.acct-card--import-open\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;/);
   assert.match(css, /\.acct-card--import-open \.acct-gara-body\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;/);
   assert.match(css, /\.acct-card--import-open \.gara\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);[^}]*min-width:\s*0;[^}]*width:\s*100%;/);
@@ -434,15 +435,15 @@ test("アカウントモーションは単一イージング・押下表現・�
 });
 
 test("アカウント画面のブラウザー監査はキャンセル・保存後に実クリックで切替を検証する", () => {
-  assert.match(uiAuditSource, /verifyAccountHitTargetsAfterFormReturn/,
+  assert.match(accountLayoutCaptureSource, /verifyAccountHitTargetsAfterFormReturn/,
     "Playwrightで編集フォームから戻った後を実行する");
   assert.match(uiAuditSource, /document\.elementFromPoint/,
     "カード中央で最前面の要素を検査する");
   assert.match(uiAuditSource, /\.acct-card-hit/);
   assert.match(uiAuditSource, /waitForNavigation\(\{ waitUntil: "load"/,
     "実クリックでリロード後まで待つ");
-  assert.match(uiAuditSource, /afterCancel/);
-  assert.match(uiAuditSource, /afterSave/);
+  assert.match(accountLayoutCaptureSource, /afterCancel/);
+  assert.match(accountLayoutCaptureSource, /afterSave/);
 });
 
 test("初回ゲートから編集を開いた場合も閉じた後に起動元へフォーカスを戻す", () => {
