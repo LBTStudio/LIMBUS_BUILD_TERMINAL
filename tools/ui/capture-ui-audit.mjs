@@ -1991,6 +1991,30 @@ async function captureProfile(browser, mode) {
           throw new Error("編集キャンセル後に一覧／オンライン保全欄へ戻りません: "+JSON.stringify(restore));
         }
         await snap("account-edit-cancel-restores-list","編集をキャンセルして一覧とオンライン保全欄が戻った状態");
+        const restoredCard = page.locator(".acct-panel .acct-grid--manager .acct-card-hit").first();
+        await restoredCard.waitFor({ state: "visible", timeout: 5000 });
+        await restoredCard.scrollIntoViewIfNeeded();
+        const restoredHitTest = await restoredCard.evaluate(el => {
+          const r = el.getBoundingClientRect();
+          const x = r.left + r.width / 2;
+          const y = r.top + r.height / 2;
+          const hit = document.elementFromPoint(x, y);
+          return {
+            pointerEvents: getComputedStyle(el).pointerEvents,
+            targetTag: hit?.tagName || "",
+            targetClass: typeof hit?.className === "string" ? hit.className : "",
+            targetInsideCard: !!hit && (hit === el || el.contains(hit)),
+            width: r.width,
+            height: r.height
+          };
+        });
+        if (restoredHitTest.pointerEvents === "none" || !restoredHitTest.targetInsideCard
+          || restoredHitTest.width < 40 || restoredHitTest.height < 40) {
+          throw new Error("編集キャンセル後にアカウントカードのクリック領域が復帰しません: " + JSON.stringify(restoredHitTest));
+        }
+        await click(restoredCard);
+        await page.waitForFunction(() => !document.querySelector(".acct-panel"), null, { timeout: 5000 });
+        await snap("account-edit-cancel-card-hit-restored","編集キャンセル後に一覧カードを再クリックできることを確認");
       }
       await closeOverlay();
     });
