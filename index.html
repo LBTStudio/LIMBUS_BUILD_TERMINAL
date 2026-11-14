@@ -1140,6 +1140,14 @@ button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
   .base-info-panel .piece-url-preview-featured { width: 100%; }
   .base-info-panel .piece-url-preview-featured-frame { height: min(34vh, 300px) !important; min-height: 220px; }
 }
+@media (max-width: 360px) and (max-height: 700px) {
+  /* Leave room for the portrait, its separate zoom controls, and face choices
+     between the sticky tab strip and the fixed bottom navigation. */
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: 200px !important;
+    min-height: 190px;
+  }
+}
 </style>
 </head>
 <body style="background-color:#14110d">
