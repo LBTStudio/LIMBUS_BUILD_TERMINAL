@@ -495,35 +495,40 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
     "初回ゲートの実クリックでも縮小行列を検査する");
 });
 
-test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
-  const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*#[0-9a-f]{6};$/gim)];
+test("v71 uses exactly five base color aliases and one five-step type scale", () => {
+  const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*[^;]+;/gim)];
   const typeTokens = [...visualSystem.matchAll(/^\s*--ui-type-[a-z-]+:\s*\d+px;$/gim)];
   assert.equal(colorTokens.length, 5, "基調色は5変数だけにする");
   assert.equal(typeTokens.length, 5, "文字サイズは5段階だけにする");
+  for (const alias of [
+    "--ui-bg: var(--bg)", "--ui-surface: var(--surface-2)",
+    "--ui-line: var(--line)", "--ui-text: var(--tx)",
+    "--ui-accent: var(--gold)"
+  ]) assert.ok(visualSystem.includes(alias), "旧LBTパレットへ接続する: " + alias);
   assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
 });
 
-test("v71 removes only decorative gradients and retains solid persona semantic surfaces", () => {
-  const start = visualSystem.indexOf("/* Flatten legacy workbench surfaces");
-  const end = visualSystem.indexOf("/* Primary actions stay filled in the flat theme.", start);
-  assert.ok(start >= 0 && end > start, "通常UIの装飾レイヤー正規化ブロックが存在する");
+test("v71 removes decorative gradients without flattening semantic persona colors", () => {
+  const start = visualSystem.indexOf("/* Flatten decorative gradients only.");
+  const end = visualSystem.indexOf("/* Primary actions retain their original flat brass fill;", start);
+  assert.ok(start >= 0 && end > start, "旧UI面のグラデーションを抑える正規化ブロックが存在する");
   const block = visualSystem.slice(start, end);
-  for (const selector of [".focus", ".p-card", ".spirit-item.is-active", ".equipped-summary", ".ego-quick-detail", ".persona-draft-dialog"]) {
-    assert.ok(block.includes(selector), "装飾だけを外す対象を明示する: " + selector);
-  }
-  assert.match(block, /background-image: none !important;/, "グラデーション画像は使わない");
-  assert.match(visualSystem, /\.p-card,[\s\S]*?background-color: var\(--surface-2\)/,
-    "人格カードの面色を旧LBTの階層色で塗り戻す");
-  assert.match(visualSystem, /\.spp-item\.is-active,[\s\S]*?var\(--sin-憂鬱\)/,
-    "人格の選択状態は意味色を残す");
-  assert.match(visualSystem, /\.ego-quick-detail\s*\{[^}]*var\(--ego-influence\)/,
-    "E.G.Oの影響色を独立させる");
+  for (const selector of [
+    ".focus", ".topbar", ".rail", ".preview", ".chip", ".p-card",
+    ".spirit-item.is-active", ".btype-command-hero", ".btype-record-task-card",
+    ".build-context-strip", ".piece-panel", ".persona-draft-dialog"
+  ]) assert.ok(block.includes(selector), "通常UIの装飾面をフラット化する: " + selector);
+  assert.match(block, /background-image: none !important;/);
+  assert.match(block, /Functional[\\s\\S]*?CCFOLIA board grid lines[\\s\\S]*?dedicated extraction FX/);
+  assert.match(visualSystem, /--ui-accent: var\\(--gold\\)/, "旧金色アクセントへ接続する");
+  assert.doesNotMatch(visualSystem, /--sin-憤怒:\\s*var\\(--ui-accent\\)/, "人格の大罪色を金色へ集約しない");
 });
 
-test("flat UI palette keeps primary and body text above WCAG AA contrast", () => {
+test("restored LBT base palette keeps primary and body text above WCAG AA contrast", () => {
   const token = (name) => {
-    const match = visualSystem.match(new RegExp("^\\s*--ui-" + name + ":\\s*(#[0-9a-f]{6});", "im"));
-    assert.ok(match, "基調色トークンが存在する: " + name);
+    const key = {accent:"gold", bg:"bg", text:"tx", surface:"surface-2"}[name];
+    const match = designSystem.match(new RegExp("^\\\\s*--" + key + ":\\\\s*(#[0-9a-f]{6});", "im"));
+    assert.ok(match, "旧パレットのトークンが存在する: " + key);
     return match[1];
   };
   const luminance = (hex) => {
@@ -535,10 +540,8 @@ test("flat UI palette keeps primary and body text above WCAG AA contrast", () =>
     const values = [luminance(a), luminance(b)].sort((x, y) => y - x);
     return (values[0] + 0.05) / (values[1] + 0.05);
   };
-  assert.ok(contrast(token("accent"), token("bg")) >= 4.5,
-    "主操作の真鍮色と文字背景のコントラストは4.5:1以上");
-  assert.ok(contrast(token("text"), token("surface")) >= 4.5,
-    "通常文字と面色のコントラストは4.5:1以上");
+  assert.ok(contrast(token("accent"), token("bg")) >= 4.5, "主操作の真鍮色と文字背景のコントラストは4.5:1以上");
+  assert.ok(contrast(token("text"), token("surface")) >= 4.5, "通常文字と面色のコントラストは4.5:1以上");
 });
 
 test("overlay metadata and resistance badges retain previous semantic colors and readable labels", () => {
