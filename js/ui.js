@@ -109,11 +109,13 @@ function toast(msg, tone = "polite") {
   clearTimeout(_toastT);
   _toastT = setTimeout(() => _toastEl.classList.remove("is-show"), 1800);
 }
-const Chip = ({ children, active, sin, onClick, size, count }) => /* @__PURE__ */ React.createElement(
+const Chip = ({ children, active, sin, onClick, size, count, ariaPressed, title }) => /* @__PURE__ */ React.createElement(
   "button",
   {
     className: `chip${active ? " is-active" : ""}${size === "sm" ? " is-sm" : ""}`,
     "data-sin": sin || void 0,
+    "aria-pressed": ariaPressed === void 0 ? void 0 : !!ariaPressed,
+    title,
     onClick,
     type: "button"
   },

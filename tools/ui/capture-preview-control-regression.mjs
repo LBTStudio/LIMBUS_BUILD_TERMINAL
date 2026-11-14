@@ -160,6 +160,18 @@ async function createDisposableAccount(page,profile) {
   recordCheck(profile.name + ": collapsed Basic workspace contains no preview image, miniature or duplicate panel",
     closedClean, closedState);
 
+  const artPreviewToggle = page.locator(".piece-art-preview-toggle").first();
+  await artPreviewToggle.waitFor({ state: "visible", timeout: 10000 });
+  const initialArtPreview = await artPreviewToggle.evaluate(button => ({
+    expanded: button.getAttribute("aria-expanded"),
+    previewVisible: !!document.querySelector(".piece-art-preview-live")?.getClientRects().length
+  }));
+  recordCheck(profile.name + ": pawn image preview starts folded to preserve editing space",
+    initialArtPreview.expanded === "false" && !initialArtPreview.previewVisible,
+    initialArtPreview);
+  await artPreviewToggle.click();
+  await page.locator(".piece-art-preview-live").waitFor({ state: "visible", timeout: 5000 });
+
   const portraitFrame = page.locator(".piece-url-preview-featured-frame").first();
   const portraitImage = portraitFrame.locator("img").first();
   await portraitImage.waitFor({ state: "visible", timeout: 10000 });
@@ -236,12 +248,52 @@ async function createDisposableAccount(page,profile) {
       && resetControlGeometry.whiteSpace === "nowrap"
       && resetControlGeometry.writingMode === "horizontal-tb",
     resetControlGeometry);
+  const imageFrameBox = await portraitFrame.boundingBox();
+  if (!imageFrameBox) throw new Error(profile.name + ": portrait frame has no bounding box");
+  const transformBeforeDrag = await portraitImage.evaluate(image => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
+    return { scale: matrix.a, x: matrix.e, y: matrix.f };
+  });
+  await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2, imageFrameBox.y + imageFrameBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2 + 32, imageFrameBox.y + imageFrameBox.height / 2 + 20, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForFunction((before) => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    if (!image) return false;
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
+    return Math.abs(matrix.e - before.x) + Math.abs(matrix.f - before.y) > 8;
+  }, transformBeforeDrag, { timeout: 5000 });
+  const transformAfterDrag = await portraitImage.evaluate(image => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
+    return { scale: matrix.a, x: matrix.e, y: matrix.f };
+  });
+  recordCheck(profile.name + ": zoomed portrait can be repositioned by dragging",
+    transformAfterDrag.scale > 1
+      && Math.abs(transformAfterDrag.x - transformBeforeDrag.x) + Math.abs(transformAfterDrag.y - transformBeforeDrag.y) > 8,
+    { transformBeforeDrag, transformAfterDrag });
+
   await resetPortrait.click();
   await page.waitForTimeout(120);
   const resetTransform = await portraitImage.evaluate(image => getComputedStyle(image).transform);
+  const resetMatrix = await portraitImage.evaluate(image => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
+    return { scale: matrix.a, x: matrix.e, y: matrix.f };
+  });
+  recordCheck(profile.name + ": full-fit reset clears both zoom and drag offset",
+    Math.abs(resetMatrix.scale - 1) < 0.001 && Math.abs(resetMatrix.x) < 0.1 && Math.abs(resetMatrix.y) < 0.1,
+    resetMatrix);
   recordCheck(profile.name + ": full-fit control restores the complete portrait",
     resetTransform === "matrix(1, 0, 0, 1, 0, 0)",
     { resetTransform });
+  await artPreviewToggle.click();
+  const hiddenAgain = await artPreviewToggle.evaluate(button => ({
+    expanded: button.getAttribute("aria-expanded"),
+    visible: !!document.querySelector(".piece-art-preview-live")?.getClientRects().length
+  }));
+  recordCheck(profile.name + ": pawn image preview can be folded again after use",
+    hiddenAgain.expanded === "false" && !hiddenAgain.visible,
+    hiddenAgain);
 }
 
 async function runProfile(browser,profile) {

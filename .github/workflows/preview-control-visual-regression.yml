@@ -7,6 +7,8 @@ on:
       - "assets/workspace.css"
       - "js/App.js"
       - "js/LivePreview.js"
+      - "js/OtherSections.js"
+      - "assets/pawn-image-controls.css"
       - "tools/ui/capture-preview-control-regression.mjs"
       - ".github/workflows/preview-control-visual-regression.yml"
       - "index.html"

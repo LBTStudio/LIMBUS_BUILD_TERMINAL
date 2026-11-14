@@ -59,11 +59,61 @@ const BaseSection = ({ state, dispatch }) => {
   const selectedImageFailed = !selectedImagePreviewUrl || failedImageUrls.includes(selectedImageUrl);
   const [imageZoom, setImageZoom] = React.useState(1);
   const [imageZoomOrigin, setImageZoomOrigin] = React.useState("50% 50%");
+  const [imagePan, setImagePan] = React.useState({ x: 0, y: 0 });
+  const [imageDragging, setImageDragging] = React.useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = React.useState(false);
   const imagePreviewFrameRef = React.useRef(null);
+  const imageDragRef = React.useRef(null);
   React.useEffect(() => {
     setImageZoom(1);
     setImageZoomOrigin("50% 50%");
+    setImagePan({ x: 0, y: 0 });
+    imageDragRef.current = null;
+    setImageDragging(false);
   }, [selectedImageIndex, selectedImageUrl]);
+  const handleImagePointerDown = (event) => {
+    if (imageZoom <= 1.001 || !selectedImagePreviewUrl || selectedImageFailed) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    imageDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      panX: imagePan.x,
+      panY: imagePan.y
+    };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
+    setImageDragging(true);
+  };
+  const handleImagePointerMove = (event) => {
+    const drag = imageDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const origin = imageZoomOrigin.split(/\s+/);
+    const originX = rect.width * Math.max(0, Math.min(100, parseFloat(origin[0]) || 50)) / 100;
+    const originY = rect.height * Math.max(0, Math.min(100, parseFloat(origin[1]) || 50)) / 100;
+    const limitX = Math.max(0, (imageZoom - 1) * rect.width);
+    const limitY = Math.max(0, (imageZoom - 1) * rect.height);
+    const minX = -limitX + (imageZoom - 1) * originX;
+    const maxX = (imageZoom - 1) * originX;
+    const minY = -limitY + (imageZoom - 1) * originY;
+    const maxY = (imageZoom - 1) * originY;
+    setImagePan({
+      x: Math.max(minX, Math.min(maxX, drag.panX + event.clientX - drag.startX)),
+      y: Math.max(minY, Math.min(maxY, drag.panY + event.clientY - drag.startY))
+    });
+  };
+  const finishImagePointerDrag = (event) => {
+    const drag = imageDragRef.current;
+    if (drag && drag.pointerId === event.pointerId) {
+      imageDragRef.current = null;
+      try {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch (_) {}
+      setImageDragging(false);
+    }
+  };
   React.useEffect(() => {
     const frame = imagePreviewFrameRef.current;
     if (!frame) return undefined;
@@ -72,10 +122,18 @@ const BaseSection = ({ state, dispatch }) => {
       const nextZoom = Math.max(1, Math.min(4, imageZoom * Math.exp(-event.deltaY * 0.0015)));
       if (Math.abs(nextZoom - imageZoom) < 0.001) return;
       event.preventDefault();
-      const rect = frame.getBoundingClientRect();
-      const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
-      const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
-      setImageZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
+      if (nextZoom <= 1.001) {
+        setImageZoom(1);
+        setImageZoomOrigin("50% 50%");
+        setImagePan({ x: 0, y: 0 });
+        return;
+      }
+      if (imageZoom <= 1.001) {
+        const rect = frame.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
+        const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
+        setImageZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
+      }
       setImageZoom(nextZoom);
     };
     frame.addEventListener("wheel", handleWheel, { passive: false });
@@ -130,19 +188,40 @@ const BaseSection = ({ state, dispatch }) => {
           React.createElement("span", { className: "pill" }, imgList.length + "枚登録")
         ),
         React.createElement("div", { className: "piece-art-actions" },
-          React.createElement("button", { type: "button", className: "secondary", onClick: () => setEditOpen(true) }, "立ち絵URL・差分を編集")
+          React.createElement("button", { type: "button", className: "secondary", onClick: () => setEditOpen(true) }, "立ち絵URL・差分を編集"),
+          imgList.length > 0 && React.createElement("button", {
+            type: "button",
+            className: "secondary piece-art-preview-toggle",
+            onClick: () => setImagePreviewOpen((open) => !open),
+            "aria-controls": "piece-art-preview-live",
+            "aria-expanded": imagePreviewOpen,
+            title: imagePreviewOpen ? "プレビューを隠して作業スペースを広げる" : "立ち絵プレビューを表示する"
+          }, imagePreviewOpen ? "プレビューを隠す" : "プレビューを表示")
         ),
-        React.createElement("div", { className: "piece-art-preview-live" },
+        React.createElement("div", { id: "piece-art-preview-live", className: "piece-art-preview-live", hidden: !imagePreviewOpen },
             React.createElement("div", { className: "piece-url-preview" },
               imgList.length === 0
                 ? React.createElement("div", { className: "piece-url-preview-empty" }, "画像URLを登録すると、ここに基本画像と差分が表示されます。")
                 : React.createElement(React.Fragment, null,
                     React.createElement("figure", { className: "piece-url-preview-featured" },
-                      React.createElement("div", { className: "piece-url-preview-featured-frame", ref: imagePreviewFrameRef, "aria-label": "立ち絵プレビュー。マウスホイールで拡大・縮小できます。" },
+                      React.createElement("div", {
+                        className: "piece-url-preview-featured-frame",
+                        ref: imagePreviewFrameRef,
+                        "aria-label": "立ち絵プレビュー。ホイールで拡大・縮小し、拡大後はドラッグで位置を移動できます。",
+                        "data-zoomed": imageZoom > 1.001 ? "true" : "false",
+                        "data-dragging": imageDragging ? "true" : "false",
+                        style: { touchAction: imageZoom > 1.001 ? "none" : "pan-y", userSelect: "none" },
+                        onPointerDown: handleImagePointerDown,
+                        onPointerMove: handleImagePointerMove,
+                        onPointerUp: finishImagePointerDrag,
+                        onPointerCancel: finishImagePointerDrag,
+                        onLostPointerCapture: finishImagePointerDrag
+                      },
                         selectedImagePreviewUrl && !selectedImageFailed
                           ? React.createElement("img", {
                               src: selectedImagePreviewUrl,
                               alt: (selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex) + "の大きなプレビュー",
+                              draggable: false,
                               loading: "eager",
                               fetchPriority: "high",
                               decoding: "async",
@@ -151,9 +230,12 @@ const BaseSection = ({ state, dispatch }) => {
                                 height: "100%",
                                 objectFit: "contain",
                                 objectPosition: "center",
-                                transform: "scale(" + imageZoom + ")",
+                                transform: "translate3d(" + imagePan.x + "px, " + imagePan.y + "px, 0) scale(" + imageZoom + ")",
                                 transformOrigin: imageZoomOrigin,
-                                cursor: imageZoom > 1 ? "zoom-out" : "zoom-in"
+                                transition: imageDragging ? "none" : "transform 80ms ease-out",
+                                cursor: imageZoom > 1.001 ? (imageDragging ? "grabbing" : "grab") : "zoom-in",
+                                userSelect: "none",
+                                WebkitUserDrag: "none"
                               },
                               onError: () => setFailedImageUrls((current) => current.includes(selectedImageUrl) ? current : [...current, selectedImageUrl])
                             })
@@ -164,12 +246,18 @@ const BaseSection = ({ state, dispatch }) => {
                             }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認")
                       ),
                       React.createElement("div", { className: "piece-url-preview-zoom-controls" },
-                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイールで拡大・縮小"),
+                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイールで拡大／拡大後はドラッグで移動"),
                         React.createElement("button", {
                           type: "button",
                           className: "piece-url-preview-zoom-reset",
                           disabled: imageZoom <= 1.001,
-                          onClick: () => { setImageZoom(1); setImageZoomOrigin("50% 50%"); },
+                          onClick: () => {
+                            setImageZoom(1);
+                            setImageZoomOrigin("50% 50%");
+                            setImagePan({ x: 0, y: 0 });
+                            imageDragRef.current = null;
+                            setImageDragging(false);
+                          },
                           title: "立ち絵全体が枠内に収まる表示へ戻す",
                           "aria-label": "立ち絵を全体表示に戻す"
                         }, "全体表示 " + Math.round(imageZoom * 100) + "%")

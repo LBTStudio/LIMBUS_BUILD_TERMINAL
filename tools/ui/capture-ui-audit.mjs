@@ -1049,6 +1049,18 @@ async function captureProfile(browser, mode) {
         const editor=document.querySelector(".piece-image-details");
         return !editor || !editor.open;
       },null,{timeout:5000});
+      const previewToggle=page.locator(".piece-art-preview-toggle").first();
+      if(!(await visible(previewToggle))) throw new Error("駒画像プレビューの表示切替がありません");
+      const initialPreviewState={
+        expanded:await previewToggle.getAttribute("aria-expanded"),
+        visible:await page.locator(".piece-art-preview-live").isVisible()
+      };
+      if(initialPreviewState.expanded!=="false" || initialPreviewState.visible) {
+        throw new Error("駒画像プレビューが初期状態で折りたたまれていません: "+JSON.stringify(initialPreviewState));
+      }
+      await snap("basic-image-preview-default-collapsed","初期状態では駒画像プレビューを閉じ、編集スペースを確保");
+      await click(previewToggle);
+      if(await previewToggle.getAttribute("aria-expanded")!=="true") throw new Error("駒画像プレビューを開けません");
       await imagePreviewStrip.waitFor({state:"visible",timeout:5000});
       await featuredImage.waitFor({state:"visible",timeout:5000});
       await page.waitForFunction(()=> {
@@ -1065,7 +1077,56 @@ async function captureProfile(browser, mode) {
       if(!collapsedEditorPreview.loaded||!collapsedEditorPreview.visible) {
         throw new Error("編集欄を閉じると駒画像が見えなくなります: "+JSON.stringify(collapsedEditorPreview));
       }
-      await snap("basic-image-preview-visible-with-editor-closed","駒画像：URL編集を閉じても基本画像と差分一覧を常時表示");
+      await snap("basic-image-preview-visible-with-editor-closed","駒画像：URL編集を閉じても基本画像と差分一覧を表示");
+      if(!(await visible(previewToggle))) throw new Error("駒画像プレビューを隠す操作がありません");
+      await click(previewToggle);
+      if(await previewToggle.getAttribute("aria-expanded")!=="false"
+        || await page.locator(".piece-art-preview-live").isVisible()) {
+        throw new Error("駒画像プレビューを折りたためません");
+      }
+      await snap("basic-image-preview-collapsed-by-user","駒画像プレビューを折りたたみ、作業スペースを広げた状態");
+      await click(previewToggle);
+      if(await previewToggle.getAttribute("aria-expanded")!=="true") throw new Error("駒画像プレビューを再表示できません");
+      await featuredImage.waitFor({state:"visible",timeout:5000});
+      const imageFrame=page.locator(".piece-url-preview-featured-frame").first();
+      const imageFrameBox=await imageFrame.boundingBox();
+      if(!imageFrameBox) throw new Error("駒画像のドラッグ領域がありません");
+      await page.mouse.move(imageFrameBox.x+imageFrameBox.width/2,imageFrameBox.y+imageFrameBox.height/2);
+      await page.mouse.wheel(0,-520);
+      await page.waitForFunction(() => {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a > 1.1;
+      },null,{timeout:5000});
+      const transformBeforeDrag=await featuredImage.evaluate(el=>{
+        const m=new DOMMatrixReadOnly(getComputedStyle(el).transform);
+        return {scale:m.a,x:m.e,y:m.f};
+      });
+      await page.mouse.move(imageFrameBox.x+imageFrameBox.width/2,imageFrameBox.y+imageFrameBox.height/2);
+      await page.mouse.down();
+      await page.mouse.move(imageFrameBox.x+imageFrameBox.width/2+34,imageFrameBox.y+imageFrameBox.height/2+22,{steps:5});
+      await page.mouse.up();
+      await page.waitForFunction((before) => {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        if(!image) return false;
+        const m=new DOMMatrixReadOnly(getComputedStyle(image).transform);
+        return Math.abs(m.e-before.x)+Math.abs(m.f-before.y)>12;
+      },transformBeforeDrag,{timeout:5000});
+      const transformAfterDrag=await featuredImage.evaluate(el=>{
+        const m=new DOMMatrixReadOnly(getComputedStyle(el).transform);
+        return {scale:m.a,x:m.e,y:m.f};
+      });
+      if(transformAfterDrag.scale<=1.1 || Math.abs(transformAfterDrag.x-transformBeforeDrag.x)+Math.abs(transformAfterDrag.y-transformBeforeDrag.y)<12) {
+        throw new Error("拡大後の駒画像をドラッグで移動できません: "+JSON.stringify({transformBeforeDrag,transformAfterDrag}));
+      }
+      await snap("basic-image-preview-dragged","立ち絵を拡大し、ドラッグで表示位置を調整した状態");
+      const zoomReset=page.locator(".piece-url-preview-zoom-reset").first();
+      await click(zoomReset);
+      await page.waitForFunction(() => {
+        const image=document.querySelector(".piece-url-preview-featured-frame > img");
+        if(!image) return false;
+        const m=new DOMMatrixReadOnly(getComputedStyle(image).transform);
+        return Math.abs(m.a-1)<0.001 && Math.abs(m.e)<0.1 && Math.abs(m.f)<0.1;
+      },null,{timeout:5000});
       const editAction=page.locator(".piece-art-actions button").first();
       await click(editAction);
       await imageUrls.waitFor({state:"visible",timeout:5000});
@@ -2062,7 +2123,7 @@ async function main() {
     "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes, with loaded primary and face images in image settings","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation",
     "new result entry labels, resource inputs and reward-ticket layout at every viewport","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
-    "基本画面のステータス（ST）編集パネル","基本画面のラベル（パラメータ）編集パネル","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示","共通プレビュー：CCFOLIA盤面","共通プレビュー：CCFOLIAキャラクター編集画面","共通プレビュー：実際のCCFOLIA出力JSON",
+    "基本画面のステータス（ST）編集パネル","基本画面のラベル（パラメータ）編集パネル","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示","初期状態では駒画像プレビューを閉じ、編集スペースを確保","駒画像プレビューを折りたたみ、作業スペースを広げた状態","立ち絵を拡大し、ドラッグで表示位置を調整した状態","共通プレビュー：CCFOLIA盤面","共通プレビュー：CCFOLIAキャラクター編集画面","共通プレビュー：実際のCCFOLIA出力JSON",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",
