@@ -181,15 +181,19 @@ async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
   const switchAfterReturn = async (cardId, phase) => {
     const card = page.locator(`.acct-panel-accounts > .acct-grid--manager > .acct-card[data-account-id="${cardId}"]`);
     const hit = card.locator(".acct-card-hit");
+    await card.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await page.waitForTimeout(100);
     const hitTest = await page.evaluate((id) => {
       const node = document.querySelector(`.acct-panel-accounts > .acct-grid--manager > .acct-card[data-account-id="${id}"] .acct-card-hit`);
       if (!node) return { ok: false, reason: "hit target missing" };
       const r = node.getBoundingClientRect();
-      const x = Math.max(1, Math.min(innerWidth - 1, r.left + r.width / 2));
-      const y = Math.max(1, Math.min(innerHeight - 1, r.top + r.height / 2));
-      const top = document.elementFromPoint(x, y);
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      const inViewport = x >= 0 && x < innerWidth && y >= 0 && y < innerHeight;
+      const top = inViewport ? document.elementFromPoint(x, y) : null;
       return {
-        ok: getComputedStyle(node).pointerEvents !== "none" && (top === node || node.contains(top)),
+        ok: inViewport && getComputedStyle(node).pointerEvents !== "none" && (top === node || node.contains(top)),
+        inViewport,
         pointerEvents: getComputedStyle(node).pointerEvents,
         topElement: top?.className?.baseVal || top?.className || top?.tagName || null,
         x, y, width: r.width, height: r.height
@@ -291,14 +295,17 @@ async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
     return !!trigger && document.activeElement === trigger;
   }, gateId, { timeout: 5000 });
   const gateHit = gateCard.locator(".acct-card-hit");
+  await gateCard.scrollIntoViewIfNeeded({ timeout: 5000 });
+  await page.waitForTimeout(100);
   const gateHitTest = await page.evaluate((id) => {
     const node = document.querySelector(`.acct-gate-panel .acct-card--gate[data-account-id="${id}"] .acct-card-hit`);
     if (!node) return { ok: false, reason: "gate hit target missing" };
     const r = node.getBoundingClientRect();
-    const x = Math.max(1, Math.min(innerWidth - 1, r.left + r.width / 2));
-    const y = Math.max(1, Math.min(innerHeight - 1, r.top + r.height / 2));
-    const top = document.elementFromPoint(x, y);
-    return { ok: getComputedStyle(node).pointerEvents !== "none" && (top === node || node.contains(top)), topElement: top?.className || top?.tagName, x, y };
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const inViewport = x >= 0 && x < innerWidth && y >= 0 && y < innerHeight;
+    const top = inViewport ? document.elementFromPoint(x, y) : null;
+    return { ok: inViewport && getComputedStyle(node).pointerEvents !== "none" && (top === node || node.contains(top)), inViewport, topElement: top?.className || top?.tagName, x, y };
   }, gateId);
   if (!gateHitTest.ok) throw new Error(`${viewportName}: gate card hit target is blocked after Edit/Cancel: ${JSON.stringify(gateHitTest)}`);
   await gateHit.click();
