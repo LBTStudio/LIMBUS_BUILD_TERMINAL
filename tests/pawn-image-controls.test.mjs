@@ -5,6 +5,7 @@ import test from "node:test";
 const other = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../assets/pawn-image-controls.css", import.meta.url), "utf8");
 const audit = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
+const previewRegression = readFileSync(new URL("../tools/ui/capture-preview-control-regression.mjs", import.meta.url), "utf8");
 
 test("駒画像はホイール拡大後にポインタードラッグで位置を移動できる", () => {
   assert.match(other, /const handleImagePointerDown =/);
@@ -38,7 +39,8 @@ test("全体表示リセットはズームとドラッグ位置を同時に初�
   assert.match(resetHandler, /setImagePan\(\{ x: 0, y: 0 \}\)/);
   assert.match(resetHandler, /imageDragRef\.current = null/);
   assert.match(resetHandler, /setImageDragging\(false\)/);
-  assert.match(audit, /full-fit reset clears both zoom and drag offset/);
+  assert.match(previewRegression, /full-fit reset clears both zoom and drag offset/);
+  assert.match(previewRegression, /transformAfterDrag/);
 });
 
 test("画像の全身表示は維持しつつ、プレビュー枠と差分サムネイルを縮小する", () => {
