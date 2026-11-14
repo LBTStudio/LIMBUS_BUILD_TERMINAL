@@ -3,86 +3,12 @@
    4/8/12/16/24/32 spacing, 4/6/8 radii, hairline borders.
    Five base colors and five type sizes. No gradients. */
 :root {
-  /* The only five base colors. Legacy semantic tokens below are aliases. */
-  --ui-bg: #11100f;
-  --ui-surface: #1b1916;
-  --ui-line: #49433a;
-  --ui-text: #eee8dc;
-  --ui-accent: #c8a45e;
-
-  --bg: var(--ui-bg);
-  --surface-0: var(--ui-bg);
-  --surface-1: var(--ui-surface);
-  --surface-2: var(--ui-surface);
-  --surface-3: var(--ui-surface);
-  --surface-4: var(--ui-surface);
-  --surface-inset: var(--ui-bg);
-
-  --line-dim: var(--ui-line);
-  --line: var(--ui-line);
-  --line-strong: var(--ui-line);
-  --line-hot: var(--ui-accent);
-
-  --tx: var(--ui-text);
-  --tx-2: color-mix(in srgb, var(--ui-text) 86%, var(--ui-bg));
-  --tx-dim: color-mix(in srgb, var(--ui-text) 72%, var(--ui-bg));
-  --tx-mute: color-mix(in srgb, var(--ui-text) 64%, var(--ui-bg));
-  --tx-inv: var(--ui-bg);
-
-  --gold: var(--ui-accent);
-  --gold-hi: var(--ui-accent);
-  --gold-lo: var(--ui-accent);
-  --gold-line: var(--ui-line);
-  --gold-glow: var(--ui-surface);
-  --gold-tint: var(--ui-surface);
-
-  --accent: var(--ui-accent);
-  --accent-hi: var(--ui-accent);
-  --accent-lo: var(--ui-accent);
-  --accent-line: var(--ui-line);
-  --accent-glow: var(--ui-surface);
-  --accent-tint: var(--ui-surface);
-  --amber: var(--ui-accent);
-  --amber-hi: var(--ui-accent);
-  --amber-glow: var(--ui-surface);
-  --amber-tint: var(--ui-surface);
-  --err: var(--ui-accent);
-  --err-ink: var(--ui-accent);
-  --ok: var(--ui-accent);
-  --warn: var(--ui-accent);
-  --ego-influence: var(--ui-accent);
-  --clock-face: var(--ui-surface);
-  --clock-hand: var(--ui-accent);
-  --clock-ring: var(--ui-accent);
-  --neon: var(--ui-accent);
-  --neon-hi: var(--ui-accent);
-  --neon-glow: var(--ui-surface);
-  --neon-tint: var(--ui-surface);
-  --neon-line: var(--ui-line);
-
-  /* Data remains identifiable by its labels; color is no longer carrying
-     multiple competing meanings. */
-  --sin-憤怒: var(--ui-accent);
-  --sin-色欲: var(--ui-accent);
-  --sin-怠惰: var(--ui-accent);
-  --sin-暴食: var(--ui-accent);
-  --sin-憂鬱: var(--ui-accent);
-  --sin-傲慢: var(--ui-accent);
-  --sin-嫉妬: var(--ui-accent);
-  --sin-特殊: var(--ui-text);
-  --rank-ZAYIN: var(--ui-accent);
-  --rank-TETH: var(--ui-accent);
-  --rank-HE: var(--ui-accent);
-  --rank-WAW: var(--ui-accent);
-  --rank-ALEPH: var(--ui-accent);
-  --res-脆弱: var(--ui-accent);
-  --res-弱点: var(--ui-accent);
-  --res-普通: var(--ui-text);
-  --res-抵抗: var(--ui-text);
-  --res-耐性: var(--ui-text);
-  --res-免疫: var(--ui-text);
-
-  /* One five-step type scale. Existing sizes resolve to these five values. */
+  /* Restore the pre-v71 LBT color system; keep the five-step type scale. */
+  --ui-bg: #0e0b09;
+  --ui-surface: #211d1a;
+  --ui-line: #504a42;
+  --ui-text: #f2ece1;
+  --ui-accent: #d4af5f;
   --ui-type-xs: 11px;
   --ui-type-sm: 13px;
   --ui-type-body: 15px;
@@ -101,27 +27,13 @@
   --fs-24: var(--ui-type-title);
   --fs-30: var(--ui-type-title);
   --fs-40: var(--ui-type-title);
-
   --f-display: "Noto Sans JP", system-ui, sans-serif;
   --f-body: "Noto Sans JP", system-ui, sans-serif;
   --f-serif: "Noto Sans JP", system-ui, sans-serif;
-
-  /* One spacing rhythm, one restrained corner system. */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-5: 24px;
-  --s-6: 24px;
-  --s-7: 32px;
-  --s-8: 32px;
-  --s-9: 32px;
-  --s-10: 32px;
-  --r-sm: 4px;
-  --r: 6px;
-  --r-lg: 8px;
-  --r-pill: 8px;
-  --shadow-1: none;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px;
+  --s-6: 24px; --s-7: 32px; --s-8: 32px; --s-9: 32px; --s-10: 32px;
+  --r-sm: 4px; --r: 6px; --r-lg: 8px; --r-pill: 8px;
+  --shadow-1: var(--shadow-1, 0 4px 12px rgba(0,0,0,.28));
 }
 
 body {
@@ -135,18 +47,6 @@ input,
 select,
 textarea {
   font-family: var(--f-body);
-}
-
-button,
-.btn,
-.acct-card,
-.acct-panel,
-.acct-gate-panel,
-.shop-card,
-.home-task-card,
-.lbt-cloud-panel {
-  background-image: none !important;
-  box-shadow: none !important;
 }
 
 button:focus-visible,
@@ -168,6 +68,10 @@ textarea:focus-visible {
   border: 1px solid var(--ui-line);
   border-radius: 8px;
 }
+/* Blocked prices remain semantically red, but must stay readable on the shop surface. */
+.shop-card[data-blocked="1"] .shop-card-cost {
+  color: #f18c83 !important;
+}
 .shop-card-name {
   font-size: var(--ui-type-body);
   line-height: 1.4;
@@ -178,6 +82,37 @@ textarea:focus-visible {
   line-height: 1.45;
 }
 
+
+/* Flatten decorative gradients only. Keep the source palette and all per-persona,
+   E.G.O, rank, sin and resistance semantics. Functional CCFOLIA board grid lines and
+   the dedicated extraction FX are content visuals and remain untouched. */
+:where(
+  .focus, .topbar, .rail, .rail-item.is-active, .preview, .pv-sec-head,
+  .chip, .chip.is-active, .deck-thumb, .deck-thumb.is-active, .deck-focus,
+  .deck-card.deck-focus, .detail-actions, .ego-quick-actions,
+  .equipped-summary, .es-badge-sync, .codex-modes button.is-active,
+  .p-card, .detail-head, .spp-item.is-active, .spirit-item.is-active,
+  .share-modal, .share-opt, .focus-preview-toggle, .deck-focus-readonly,
+  .guide-intro, .roster-detail, .utility-sheet-action, .item-codex-intro,
+  .home-hero, .btype-command-hero, .btype-record-task-card,
+  .btype-shop-entry, .btype-help-entry, .btype-shop-category-card,
+  .build-context-strip, .build-tabs.is-b-workbench,
+  .pc-portrait, .pc-identity, .pc-edit, .pc-token-preview,
+  .build-params-preview, .piece-panel, .piece-output-shell,
+  .piece-preview-tab.active, .piece-board-inspector, .piece-sheet-mock,
+  .ego-quick-detail, .persona-draft-dialog, main.acct-gate
+) {
+  background-image: none !important;
+}
+:where(
+  .p-card[data-mode="tokui"]::before,
+  .equipped-summary::before,
+  .persona-save-primary::before
+) {
+  background-image: none !important;
+}
+
+/* Primary actions retain their original flat brass fill; data colors are untouched. */
 /* Account list: widen desktop cards and stop the recovery disclosure reserving
    a large empty bottom band on mobile. The list always owns its own scroll area. */
 .acct-panel,
@@ -383,10 +318,15 @@ textarea:focus-visible {
 }
 
 
-/* Flatten legacy workbench surfaces as well: the theme must not retain older
-   decorative gradients through component styles loaded before v71. Functional
-   CCFOLIA board grid lines and the dedicated extraction FX are content visuals,
-   so they remain separate from ordinary UI surfaces. */
+.enhancement-catalog-scroll:focus-visible,
+.spp-item[role="button"]:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+/* Flatten legacy workbench surfaces as well: only decorative gradients are removed.
+   Functional CCFOLIA board grid lines and the dedicated extraction FX remain separate
+   content visuals. Original semantic colors are restored with solid surface fills. */
 :where(
   .focus, .topbar, .rail, .rail-item.is-active, .preview, .pv-sec-head,
   .chip, .chip.is-active, .deck-thumb, .deck-thumb.is-active, .deck-focus,
@@ -403,62 +343,49 @@ textarea:focus-visible {
   .piece-preview-tab.active, .piece-board-inspector, .piece-sheet-mock,
   .piece-board-token-ring, .piece-board-avatar, .piece-board-nameplate,
   .ego-quick-detail, .persona-draft-dialog, main.acct-gate
-) {
+) { background-image: none !important; }
+:where(.p-card[data-mode="tokui"]::before, .equipped-summary::before, .persona-save-primary::before) {
   background-image: none !important;
 }
-:where(
-  .p-card[data-mode="tokui"]::before,
-  .equipped-summary::before,
-  .persona-save-primary::before
-) {
-  background-image: none !important;
+.p-card, .detail-head, .persona-draft-dialog,
+.pc-portrait, .pc-identity, .pc-edit, .pc-token-preview {
+  background-color: var(--surface-2);
+  border-color: var(--line-dim);
 }
-
-/* Primary actions stay filled in the flat theme. The earlier blanket removal of
-   gradient images also removed the only fill of legacy .btn-primary controls. */
+.equipped-summary {
+  background-color: var(--surface-1);
+  border-color: var(--gold-line);
+}
+.spp-item.is-active, .spirit-item.is-active {
+  background-color: color-mix(in srgb, var(--sin-憂鬱) 12%, var(--surface-2));
+  border-color: var(--sin-憂鬱);
+}
+.ego-quick-detail {
+  background-color: color-mix(in srgb, var(--ego-influence) 12%, var(--surface-2));
+  border-color: var(--ego-influence);
+}
+/* Primary actions stay filled in the flat theme. */
 .btn-primary {
-  background-color: var(--ui-accent) !important;
+  background-color: var(--gold) !important;
   background-image: none !important;
-  color: var(--ui-bg) !important;
-  border-color: var(--ui-accent) !important;
+  color: var(--tx-inv) !important;
+  border-color: var(--gold-lo) !important;
 }
-.btn-primary:hover:not(:disabled),
-.btn-primary:focus-visible {
-  background-color: var(--ui-accent) !important;
-  color: var(--ui-bg) !important;
-  border-color: var(--ui-accent) !important;
-}
-.btn-primary:disabled,
-.btn:disabled.btn-primary {
-  background-color: var(--ui-surface) !important;
+.btn-primary:disabled, .btn:disabled.btn-primary {
+  background-color: var(--surface-2) !important;
   background-image: none !important;
-  color: var(--ui-line) !important;
-  border-color: var(--ui-line) !important;
-  opacity: 1;
-  cursor: not-allowed;
+  color: var(--tx-dim) !important;
+  border-color: var(--line-dim) !important;
+  opacity: 1 !important;
+}
+.shop-card[data-blocked="1"] .btn-primary:not(:disabled) {
+  background-color: var(--gold) !important;
+  background-image: none !important;
+  color: var(--tx-inv) !important;
+  border-color: var(--gold-lo) !important;
+  opacity: 1 !important;
 }
 
-/* Accessible blocked/disabled shop actions and keyboard-scrollable enhancement catalog. */
-.shop-card[data-blocked="1"] .btn-primary:not(:disabled) {
-  background-color: var(--ui-accent) !important;
-  background-image: none !important;
-  color: var(--ui-bg) !important;
-  border-color: var(--ui-accent) !important;
-  opacity: 1 !important;
-}
-.btn-primary:disabled,
-.btn:disabled.btn-primary {
-  background-color: var(--ui-surface) !important;
-  background-image: none !important;
-  color: var(--ui-text) !important;
-  border-color: var(--ui-line) !important;
-  opacity: 1 !important;
-}
-.enhancement-catalog-scroll:focus-visible,
-.spp-item[role="button"]:focus-visible {
-  outline: 2px solid var(--ui-accent);
-  outline-offset: 2px;
-}
 
 /* Compact previews live inside the expanded pawn-image settings only. This keeps
    the closed workbench free of duplicate portrait previews while making URL
@@ -544,17 +471,7 @@ textarea:focus-visible {
   color: var(--ui-text) !important;
   opacity: 1 !important;
 }
-.res-dot[data-res="弱点"],
-.res-dot[data-res="耐性"] {
-  color: var(--ui-bg) !important;
-  text-shadow: none !important;
-}
-.res-dot[data-res="弱点"]::before,
-.res-dot[data-res="耐性"]::before {
-  color: var(--ui-bg) !important;
-  text-shadow: none !important;
-  border-right-color: color-mix(in oklab, var(--ui-bg) 38%, transparent) !important;
-}
+
 
 
 /* Account selection interaction pass
