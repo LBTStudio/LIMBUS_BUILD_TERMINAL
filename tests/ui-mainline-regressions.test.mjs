@@ -113,10 +113,10 @@ test("v71 preserves the restored LBT base palette and semantic surface treatment
     assert.ok(v71.includes(token), "restored base color: " + token);
   }
   assert.doesNotMatch(v71, /linear-gradient|radial-gradient|conic-gradient/i);
-  assert.match(v71, /background-image:\\s*none !important;/);
-  assert.match(design, /--surface-3:\\s*#292420/);
-  assert.match(design, /--sin-憤怒:/);
-  assert.match(design, /--ego-influence:\\s*#b872d9/);
-  assert.match(design, /--rank-ALEPH:/);
-  assert.match(design, /--res-脆弱:/);
+  assert.ok(v71.includes("background-image: none !important;"));
+  assert.ok(design.includes("--surface-3: #292420") || design.includes("--surface-3:#292420"));
+  assert.ok(design.includes("--sin-憤怒:"));
+  assert.ok(design.includes("--ego-influence: #b872d9") || design.includes("--ego-influence:#b872d9"));
+  assert.ok(design.includes("--rank-ALEPH:"));
+  assert.ok(design.includes("--res-脆弱:"));
 });
