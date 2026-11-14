@@ -57,7 +57,7 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
   assert.ok(sections.includes("const markdownImage = raw.match(/^!?\\[[^\\]]*\\]\\((.+)\\)$/);"));
   assert.ok(sections.includes('raw = raw.replace(/&amp;/gi, "&")'));
   assert.ok(generator.includes("const imgs = normalizeImageUrls(p.imgUrls)"));
-  assert.ok(sections.includes('loading: index === selectedImageIndex ? "eager" : "lazy"'));
+  assert.ok(sections.includes('loading: "eager"'));
   assert.ok(sections.includes('fetchPriority: index === selectedImageIndex ? "high" : "auto"'));
 });
 
