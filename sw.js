@@ -21,14 +21,14 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-3b52cfa3";
+const CACHE_NAME = "lbt-6cc4e100";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
   "assets/b-type-ui-parity.css?v=360505b2",
   "assets/b-type-workbench.css?v=65b185a7",
-  "assets/cloud-backup.css?v=a844732d",
+  "assets/cloud-backup.css?v=e566fbbd",
   "assets/design-system.css?v=910f9485",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
@@ -48,7 +48,7 @@ const PRECACHE_URLS = [
   "assets/v68-interaction-a11y.css?v=0bbe4495",
   "assets/v69-mobile-ui-audit.css?v=0347dbce",
   "assets/v70-preview-controls.css?v=ef27f951",
-  "assets/v71-unified-visual.css?v=be3bca50",
+  "assets/v71-unified-visual.css?v=db23b86d",
   "assets/workspace.css?v=6661210a",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
