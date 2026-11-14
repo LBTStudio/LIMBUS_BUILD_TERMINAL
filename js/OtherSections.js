@@ -251,7 +251,13 @@ const BaseSection = ({ state, dispatch }) => {
                           type: "button",
                           className: "piece-url-preview-zoom-reset",
                           disabled: imageZoom <= 1.001,
-                          onClick: () => { setImageZoom(1); setImageZoomOrigin("50% 50%"); },
+                          onClick: () => {
+                            setImageZoom(1);
+                            setImageZoomOrigin("50% 50%");
+                            setImagePan({ x: 0, y: 0 });
+                            imageDragRef.current = null;
+                            setImageDragging(false);
+                          },
                           title: "立ち絵全体が枠内に収まる表示へ戻す",
                           "aria-label": "立ち絵を全体表示に戻す"
                         }, "全体表示 " + Math.round(imageZoom * 100) + "%")
