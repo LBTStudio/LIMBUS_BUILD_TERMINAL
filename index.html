@@ -856,6 +856,86 @@ window.addEventListener("load", function(){
   --f-body: "Noto Sans JP", system-ui, sans-serif;
   --f-serif: "Noto Sans JP", system-ui, sans-serif;
 }
+
+/* Restore the previous LBT "Obsidian & Lantern" palette.
+   Typography and geometry stay on the v72 system; semantic data colors do not. */
+:root {
+  --ui-bg: #0e0b09;
+  --ui-surface: #1a1715;
+  --ui-line: #504a42;
+  --ui-text: #f2ece1;
+  --ui-accent: #d4af5f;
+
+  --bg: var(--ui-bg);
+  --surface-0: #141110;
+  --surface-1: #1a1715;
+  --surface-2: #211d1a;
+  --surface-3: #292420;
+  --surface-4: #322c26;
+  --surface-inset: #080605;
+
+  --line-dim: #3e3933;
+  --line: #504a42;
+  --line-strong: #756c60;
+  --line-hot: #7a5c33;
+
+  --tx: #f2ece1;
+  --tx-2: #d9d0c0;
+  --tx-dim: #a89e8c;
+  --tx-mute: #9d9280;
+  --tx-inv: #0e0b09;
+
+  --gold: #d4af5f;
+  --gold-hi: #eecf8a;
+  --gold-lo: #8a6c33;
+  --gold-line: rgba(212,175,95,.55);
+  --gold-glow: rgba(212,175,95,.22);
+  --gold-tint: rgba(212,175,95,.09);
+
+  --accent: #c8352b;
+  --accent-hi: #e85c4a;
+  --accent-lo: #7e1d17;
+  --accent-line: rgba(200,53,43,.55);
+  --accent-glow: rgba(200,53,43,.22);
+  --accent-tint: rgba(200,53,43,.10);
+
+  --amber: #e8963c;
+  --amber-hi: #ffb35c;
+  --amber-glow: rgba(232,150,60,.25);
+  --amber-tint: rgba(232,150,60,.10);
+
+  --err: #d94a44;
+  --err-ink: #f0705f;
+  --ok: var(--gold);
+  --warn: var(--amber);
+  --ego-influence: #b872d9;
+
+  --sin-憤怒: #d94d3f;
+  --sin-色欲: #ea813a;
+  --sin-怠惰: #d9d357;
+  --sin-暴食: #7ec455;
+  --sin-憂鬱: #3f9fe9;
+  --sin-傲慢: #5c5bd6;
+  --sin-嫉妬: #b872d9;
+  --sin-特殊: #b0adaf;
+
+  --rank-ZAYIN: #6ea555;
+  --rank-TETH: #4a9fe0;
+  --rank-HE: #c9c650;
+  --rank-WAW: #d97e3a;
+  --rank-ALEPH: #b83a3a;
+
+  --res-脆弱: #8f3a33;
+  --res-弱点: #a46935;
+  --res-普通: #7a7060;
+  --res-抵抗: #4e7a52;
+  --res-耐性: #3f6d85;
+  --res-免疫: #6b5a8a;
+
+  --clock-face: var(--surface-1);
+  --clock-hand: var(--gold);
+  --clock-ring: var(--accent);
+}
 html, body, button, input, select, textarea { font-family: var(--f-body); }
 body { background: var(--ui-bg) !important; color: var(--ui-text) !important; font-size: var(--ui-type-body); }
 h1 { font-size: var(--ui-type-title) !important; line-height: 1.3; }
