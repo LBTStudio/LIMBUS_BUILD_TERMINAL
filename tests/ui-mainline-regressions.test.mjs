@@ -96,6 +96,8 @@ test("v72 restores the previous LBT semantic palette without changing the five-s
 test("all pawn portraits and face differences are shown in a wrapping grid and eagerly loaded", () => {
   assert.match(index, /\.base-info-panel \.piece-url-preview-list[\s\S]*?display:\s*grid !important/);
   assert.match(index, /grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(68px,\s*1fr\)\)/);
+  assert.match(index, /@media \(max-width: 560px\)[\s\S]*?grid-template-columns: repeat\(auto-fill, minmax\(40px, 1fr\)\)/);
+  assert.match(index, /\.piece-url-preview-item \.piece-url-preview-frame[\s\S]*?max-height: 64px/);
   assert.match(otherSections, /loading:\s*"eager",\s*fetchPriority:\s*index\s*===\s*selectedImageIndex/);
   assert.doesNotMatch(otherSections, /loading:\s*index\s*===\s*selectedImageIndex\s*\?\s*"eager"\s*:\s*"lazy"/);
   const capture = read("../tools/ui/capture-ui-audit.mjs");
