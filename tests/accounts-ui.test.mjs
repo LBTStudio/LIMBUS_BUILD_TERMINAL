@@ -351,6 +351,10 @@ test("オンライン保全のsummaryはブラウザー標準マーカーを隠�
     "Chromium/WebKitのネイティブ三角を無効化する");
   assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron\s*\{[^}]*transform:\s*translateY\(-50%\) rotate\(180deg\)/,
     "開閉状態の変化はカスタム矢印だけで示す");
+  assert.match(visualSystem, /\.acct-panel-cloud > details\.lbt-cloud-panel > summary\.lbt-cloud-summary\s*\{[^}]*display:\s*block !important;[^}]*list-style:\s*none !important;[^}]*appearance:\s*none !important;/,
+    "最終視覚レイヤーでネイティブsummaryマーカーの表示方式を解除する");
+  assert.match(visualSystem, /summary\.lbt-cloud-summary::-webkit-details-marker\s*\{[^}]*display:\s*none !important;/,
+    "最終視覚レイヤーでもChromiumの標準マーカーを抑止する");
 });
 
 test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
