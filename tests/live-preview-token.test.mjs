@@ -181,3 +181,15 @@ test("駒の画像は正方形に切り抜かず、縦横比を維持して枠�
   assert.match(previewStyles, /object-fit: contain/);
   assert.doesNotMatch(previewStyles, /object-fit: cover/);
 });
+
+test("駒画像の大きなプレビューと差分サムネイルは画像全体を表示し、縦横比を保つ", () => {
+  const featured = parityCss.match(/\.base-info-panel \.piece-url-preview-featured-frame > img\s*\{[^}]*\}/)?.[0] || "";
+  const thumbnail = parityCss.match(/\.base-info-panel \.piece-url-preview-frame > img\s*\{[^}]*\}/)?.[0] || "";
+  for (const rule of [featured, thumbnail]) {
+    assert.match(rule, /width: auto/);
+    assert.match(rule, /height: auto/);
+    assert.match(rule, /max-width: 100%/);
+    assert.match(rule, /max-height: 100%/);
+    assert.match(rule, /object-fit: contain/);
+  }
+});
