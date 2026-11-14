@@ -496,7 +496,8 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
 });
 
 test("v71 uses exactly five restored LBT base colors and one five-step type scale", () => {
-  const lines = visualSystem.split("\n");
+  const rootBlock = visualSystem.match(/:root\s*\{([^}]*)\}/)?.[1] || "";
+  const lines = rootBlock.split("\n");
   const colorTokens = lines.filter(line => /^\s*--ui-(?:bg|surface|line|text|accent):\s*[^;]+;/i.test(line));
   const typeTokens = lines.filter(line => /^\s*--ui-type-[a-z-]+:\s*\d+px;$/i.test(line));
   assert.equal(colorTokens.length, 5, "基調色は5変数だけにする");
