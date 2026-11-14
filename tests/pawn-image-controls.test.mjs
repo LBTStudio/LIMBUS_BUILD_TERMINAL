@@ -29,6 +29,18 @@ test("駒画像プレビューを隠して作業領域を確保し、元へ戻�
   assert.match(audit, /basic-image-preview-collapsed-by-user/);
 });
 
+test("全体表示リセットはズームとドラッグ位置を同時に初期化する", () => {
+  const resetIndex = other.indexOf("className: \"piece-url-preview-zoom-reset\"");
+  assert.notEqual(resetIndex, -1);
+  const resetHandler = other.slice(resetIndex, resetIndex + 900);
+  assert.match(resetHandler, /setImageZoom\(1\)/);
+  assert.match(resetHandler, /setImageZoomOrigin\("50% 50%"\)/);
+  assert.match(resetHandler, /setImagePan\(\{ x: 0, y: 0 \}\)/);
+  assert.match(resetHandler, /imageDragRef\.current = null/);
+  assert.match(resetHandler, /setImageDragging\(false\)/);
+  assert.match(audit, /full-fit reset clears both zoom and drag offset/);
+});
+
 test("画像の全身表示は維持しつつ、プレビュー枠と差分サムネイルを縮小する", () => {
   assert.match(other, /objectFit: "contain"/);
   assert.match(css, /height: clamp\(180px, 27vh, 290px\) !important/);
