@@ -339,6 +339,15 @@ test("SINNER SELECT はアカウント一覧と復旧操作を独立ペインに
     "監査側に旧DOM構造の直下参照を残さない");
 });
 
+test("オンライン保全のsummaryはブラウザー標準マーカーを隠し、カスタム矢印だけを使う", () => {
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary::marker\s*\{[^}]*content:\s*none !important;[^}]*display:\s*none !important;/,
+    "標準のdetailsマーカーを全ブラウザーで無効化する");
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary::-webkit-details-marker\s*\{[^}]*display:\s*none !important;[^}]*content:\s*none !important;/,
+    "Chromium/WebKitのネイティブ三角を無効化する");
+  assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron\s*\{[^}]*transform:\s*rotate\(180deg\)/,
+    "開閉状態の変化はカスタム矢印だけで示す");
+});
+
 test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
   const start = cloudPanelSource.indexOf('return h("details", { className: "lbt-cloud-panel"');
   assert.notEqual(start, -1, "オンライン保全はネイティブdetailsで開閉できる");
