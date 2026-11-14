@@ -356,6 +356,7 @@ const BaseSection = ({ state, dispatch }) => {
                             setImageZoomOrigin("50% 50%");
                             setImagePan({ x: 0, y: 0 });
                             imageDragRef.current = null;
+                            imagePinchRef.current = null;
                             setImageDragging(false);
                           },
                           title: "立ち絵全体が枠内に収まる表示へ戻す",
