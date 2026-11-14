@@ -207,13 +207,21 @@ async function verifyAccountHitTargetsAfterFormReturn(page, viewportName) {
       const card = document.querySelector(`.acct-panel-accounts > .acct-grid--manager > .acct-card[data-account-id="${id}"]`);
       return card?.classList.contains("is-selecting") === true;
     }, cardId, { timeout: 1000 });
-    const pressed = await card.evaluate((node) => ({
-      selecting: node.classList.contains("is-selecting"),
-      transform: getComputedStyle(node).transform,
-      borderColor: getComputedStyle(node).borderColor
-    }));
-    if (!pressed.selecting || pressed.transform === "none") {
-      throw new Error(`${viewportName}: ${phase} produced no visible press feedback: ${JSON.stringify(pressed)}`);
+    // Sample during the 180ms pre-navigation window, after the 160ms press
+    // transition has had time to overcome a persistent focus/hover state.
+    await page.waitForTimeout(70);
+    const pressed = await card.evaluate((node) => {
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+      return {
+        selecting: node.classList.contains("is-selecting"),
+        transform: getComputedStyle(node).transform,
+        scaleX: matrix.a,
+        scaleY: matrix.d,
+        borderColor: getComputedStyle(node).borderColor
+      };
+    });
+    if (!pressed.selecting || pressed.scaleX >= .999 || pressed.scaleY >= .999) {
+      throw new Error(`${viewportName}: ${phase} did not compress while selected: ${JSON.stringify(pressed)}`);
     }
     await navigation;
     const activeId = await page.evaluate(() => window.LBT_accounts?.list?.()?.activeId || null);
