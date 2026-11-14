@@ -21,7 +21,9 @@ test("駒画像プレビューを隠して作業領域を確保し、元へ戻�
   assert.match(other, /imagePreviewOpen, setImagePreviewOpen/);
   assert.match(other, /piece-art-preview-toggle/);
   assert.match(other, /aria-expanded": imagePreviewOpen/);
-  assert.match(other, /imagePreviewOpen && React\.createElement\("div", \{ id: "piece-art-preview-live"/);
+  assert.match(other, /hidden: !imagePreviewOpen/);
+  assert.match(other, /id: "piece-art-preview-live"/);
+  assert.match(css, /piece-art-preview-live\\[hidden\\].*display: none/);
   assert.match(audit, /basic-image-preview-collapsed-by-user/);
 });
 
