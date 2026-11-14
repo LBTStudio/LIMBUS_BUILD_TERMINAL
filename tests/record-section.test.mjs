@@ -200,7 +200,11 @@ test("リザルトはカード内で直接編集し、下部パネルと移動�
   assert.match(sections, /const saveResultEditor = \(result\) => \{/);
   assert.match(sections, /type: "UPDATE_RESULT"/);
   assert.doesNotMatch(sections, /className: "ledger-result-edit-panel"/);
-  assert.doesNotMatch(sections, /scrollIntoView\(\{ behavior: reducedMotion/);
+  const resultEditorStart = sections.indexOf("const openResultEditor =");
+  const resultEditorEnd = sections.indexOf("const saveResultEditor =", resultEditorStart);
+  const resultEditorFlow = sections.slice(resultEditorStart, resultEditorEnd);
+  assert.doesNotMatch(resultEditorFlow, /scrollIntoView/, "opening an existing result does not unexpectedly jump the page");
+  assert.match(sections, /const jumpToNewResultStage = \(stage\) => \{/);
   assert.doesNotMatch(sections, /className: "ledger-row-move"/);
   const cardStart = sections.indexOf('h(Card, { className: "ledger-card" }');
   const bodyStart = sections.indexOf('className: "card-body ledger-card-body"', cardStart);
