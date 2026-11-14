@@ -707,6 +707,13 @@ textarea:focus-visible {
   display: none !important;
   content: none !important;
 }
+/* v67 adds a global ▲ / ▼ via details > summary::after.
+   Keep the account recovery panel's own chevron as its only indicator. */
+.acct-panel-cloud > details.lbt-cloud-panel > summary.lbt-cloud-summary::after {
+  content: none !important;
+  display: none !important;
+  margin: 0 !important;
+}
 
 @media (max-width: 760px) {
   .acct-panel-accounts > .acct-grid--manager {
