@@ -525,11 +525,15 @@ test("v71 removes decorative gradients without flattening semantic persona color
 });
 
 test("restored LBT base palette keeps primary and body text above WCAG AA contrast", () => {
+  const tokens = {
+    accent: designSystem.match(/--gold:\\s*(#[0-9a-f]{6})/i)?.[1],
+    bg: designSystem.match(/--bg:\\s*(#[0-9a-f]{6})/i)?.[1],
+    text: designSystem.match(/--tx:\\s*(#[0-9a-f]{6})/i)?.[1],
+    surface: designSystem.match(/--surface-2:\\s*(#[0-9a-f]{6})/i)?.[1]
+  };
   const token = (name) => {
-    const key = {accent:"gold", bg:"bg", text:"tx", surface:"surface-2"}[name];
-    const match = designSystem.match(new RegExp("^\\\\s*--" + key + ":\\\\s*(#[0-9a-f]{6});", "im"));
-    assert.ok(match, "旧パレットのトークンが存在する: " + key);
-    return match[1];
+    assert.ok(tokens[name], "旧パレットのトークンが存在する: " + name);
+    return tokens[name];
   };
   const luminance = (hex) => {
     const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
