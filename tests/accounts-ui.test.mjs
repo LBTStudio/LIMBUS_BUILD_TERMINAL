@@ -411,7 +411,7 @@ test("アカウント編集のキャンセル・保存後にカードのクリ�
     "短時間の連打による二重切替を防ぐ");
   assert.match(select, /setSelectingId\(id\)/,
     "切替直前の押下フィードバックを描画する");
-  assert.match(select, /prefersReducedMotion\(\) \? 0 : 150/,
+  assert.match(select, /prefersReducedMotion\(\) \? 0 : 180/,
     "動きを減らす設定を尊重しつつ、通常時は押下を視認できる時間を確保する");
   assert.match(ui, /if \(selectionTimer\.current !== null\) window\.clearTimeout\(selectionTimer\.current\)/,
     "アンマウント時に選択タイマーを破棄する");
@@ -420,10 +420,10 @@ test("アカウント編集のキャンセル・保存後にカードのクリ�
 });
 
 test("アカウントモーションは単一イージング・押下表現・閉じる間のクリック透過を守る", () => {
-  assert.match(visualSystem, /--ui-motion-ease:\s*cubic-bezier\(\.22,\s*\.8,\s*\.22,\s*1\)/);
-  assert.match(visualSystem, /--ui-motion-fast:\s*120ms/);
-  assert.match(visualSystem, /--ui-motion-modal:\s*280ms/);
-  assert.match(visualSystem, /\.acct-card:has\(\.acct-card-hit:active\),[\s\S]*?\.acct-card\.is-selecting\s*\{[^}]*transform:\s*scale\(\.982\)/,
+  assert.match(visualSystem, /--ui-motion-ease:\s*cubic-bezier\(\.22,\s*1,\s*\.36,\s*1\)/);
+  assert.match(visualSystem, /--ui-motion-fast:\s*160ms/);
+  assert.match(visualSystem, /--ui-motion-modal:\s*300ms/);
+  assert.match(visualSystem, /\.acct-card:has\(\.acct-card-hit:active\),[\s\S]*?\.acct-card\.is-selecting\s*\{[^}]*transform:\s*scale\(\.976\)/,
     "カード押下時に縮小と枠の変化を示す");
   assert.match(visualSystem, /\.acct-overlay\.is-closing\s*\{[^}]*pointer-events:\s*none;/,
     "透明化中のオーバーレイが背面クリックを奪わない");
