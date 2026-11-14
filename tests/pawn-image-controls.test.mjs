@@ -19,7 +19,9 @@ test("駒画像はホイール拡大後にポインタードラッグで位置�
 
 test("駒画像プレビューを隠して作業領域を確保し、元へ戻せる", () => {
   assert.match(other, /imagePreviewOpen, setImagePreviewOpen/);
+  assert.match(other, /useState\(false\)/);
   assert.match(other, /piece-art-preview-toggle/);
+  assert.match(audit, /basic-image-preview-default-collapsed/);
   assert.match(other, /aria-expanded": imagePreviewOpen/);
   assert.match(other, /hidden: !imagePreviewOpen/);
   assert.match(other, /id: "piece-art-preview-live"/);
