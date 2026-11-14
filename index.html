@@ -999,14 +999,23 @@ button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
   line-height: 1.35;
 }
 @media (max-width: 560px) {
+  /* 5 portrait variants must fit above the fixed bottom navigation on phone screens. */
   .base-info-panel .piece-url-preview-list {
-    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
-    gap: 8px;
-    padding: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 4px;
+    padding: 4px;
+  }
+  .base-info-panel .piece-url-preview-item {
+    gap: 3px;
+    padding: 2px;
   }
   .base-info-panel .piece-url-preview-item .piece-url-preview-frame {
-    min-height: 76px;
-    max-height: 100px;
+    min-height: 0;
+    max-height: 64px;
+  }
+  .base-info-panel .piece-url-preview-caption {
+    font-size: 9px;
+    line-height: 1.2;
   }
 }
 
