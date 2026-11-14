@@ -836,7 +836,319 @@ window.addEventListener("load", function(){
     cursor: not-allowed;
   }
 </style>
-<link rel="stylesheet" href="assets/v71-unified-visual.css?v=3516024f">
+<link rel="stylesheet" href="assets/v71-unified-visual.css?v=28bc57fd">
+<style id="lbt-v72-ui-health-refinement">
+/* LBT v72 — whole-app hierarchy and density pass.
+   The visual language is intentionally limited to v71's five tokens and
+   five type sizes. No gradients, decorative shadows, or new palette values. */
+:root {
+  --ui-bg: #11100f;
+  --ui-surface: #1b1916;
+  --ui-line: #49433a;
+  --ui-text: #eee8dc;
+  --ui-accent: #c8a45e;
+  --ui-type-xs: 11px;
+  --ui-type-sm: 13px;
+  --ui-type-body: 15px;
+  --ui-type-heading: 18px;
+  --ui-type-title: 24px;
+  --f-display: "Noto Sans JP", system-ui, sans-serif;
+  --f-body: "Noto Sans JP", system-ui, sans-serif;
+  --f-serif: "Noto Sans JP", system-ui, sans-serif;
+}
+
+/* Restore the previous LBT "Obsidian & Lantern" palette.
+   Typography and geometry stay on the v72 system; semantic data colors do not. */
+:root {
+  --ui-bg: #0e0b09;
+  --ui-surface: var(--surface-2);
+  --ui-line: #504a42;
+  --ui-text: #f2ece1;
+  --ui-accent: #d4af5f;
+
+  --bg: var(--ui-bg);
+  --surface-0: #141110;
+  --surface-1: #1a1715;
+  --surface-2: #211d1a;
+  --surface-3: #292420;
+  --surface-4: #322c26;
+  --surface-inset: #080605;
+
+  --line-dim: #3e3933;
+  --line: #504a42;
+  --line-strong: #756c60;
+  --line-hot: #7a5c33;
+
+  --tx: #f2ece1;
+  --tx-2: #d9d0c0;
+  --tx-dim: #a89e8c;
+  --tx-mute: #9d9280;
+  --tx-inv: #0e0b09;
+
+  --gold: #d4af5f;
+  --gold-hi: #eecf8a;
+  --gold-lo: #8a6c33;
+  --gold-line: rgba(212,175,95,.55);
+  --gold-glow: rgba(212,175,95,.22);
+  --gold-tint: rgba(212,175,95,.09);
+
+  --accent: #c8352b;
+  --accent-hi: #e85c4a;
+  --accent-lo: #7e1d17;
+  --accent-line: rgba(200,53,43,.55);
+  --accent-glow: rgba(200,53,43,.22);
+  --accent-tint: rgba(200,53,43,.10);
+
+  --amber: #e8963c;
+  --amber-hi: #ffb35c;
+  --amber-glow: rgba(232,150,60,.25);
+  --amber-tint: rgba(232,150,60,.10);
+
+  --err: #d94a44;
+  --err-ink: #f0705f;
+  --ok: var(--gold);
+  --warn: var(--amber);
+  --ego-influence: #b872d9;
+
+  --sin-憤怒: #d94d3f;
+  --sin-色欲: #ea813a;
+  --sin-怠惰: #d9d357;
+  --sin-暴食: #7ec455;
+  --sin-憂鬱: #3f9fe9;
+  --sin-傲慢: #5c5bd6;
+  --sin-嫉妬: #b872d9;
+  --sin-特殊: #b0adaf;
+
+  --rank-ZAYIN: #6ea555;
+  --rank-TETH: #4a9fe0;
+  --rank-HE: #c9c650;
+  --rank-WAW: #d97e3a;
+  --rank-ALEPH: #b83a3a;
+
+  --res-脆弱: #8f3a33;
+  --res-弱点: #a46935;
+  --res-普通: #7a7060;
+  --res-抵抗: #4e7a52;
+  --res-耐性: #3f6d85;
+  --res-免疫: #6b5a8a;
+
+  --clock-face: var(--surface-1);
+  --clock-hand: var(--gold);
+  --clock-ring: var(--accent);
+}
+html, body, button, input, select, textarea { font-family: var(--f-body); }
+body { background: var(--ui-bg) !important; color: var(--ui-text) !important; font-size: var(--ui-type-body); }
+h1 { font-size: var(--ui-type-title) !important; line-height: 1.3; }
+h2 { font-size: var(--ui-type-heading) !important; line-height: 1.4; }
+h3, h4, .card-title { font-size: var(--ui-type-body) !important; line-height: 1.45; }
+p, label, input, select, textarea { font-size: var(--ui-type-body); line-height: 1.55; }
+small, .muted, .btype-muted, .btype-eyebrow, .t-label { font-size: var(--ui-type-xs); line-height: 1.5; }
+button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
+/* Keep original LBT surfaces, persona hues and E.G.O forms. v72 only changes layout. */
+:where(button, a, input, select, textarea, summary):focus-visible { outline-color: var(--ui-accent); }
+:where(.btype-launcher-card, .btype-record-task-card, .btype-shop-category-card, .shop-card, .acct-card, .settings-major) {
+  border-radius: 6px; transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+:where(.btype-launcher-card, .btype-record-task-card, .btype-shop-category-card, .shop-card, .acct-card):hover { border-color: var(--ui-accent); box-shadow: none !important; }
+/* Empty pawn-image preview: retain the edit entry without reserving a portrait-sized canvas. */
+.piece-url-preview-empty { min-height: 52px !important; padding: 10px 12px !important; display: flex; align-items: center; line-height: 1.5; }
+
+/* Keep every uploaded portrait/difference visible at once. No horizontal carousel:
+   the selected portrait remains large above, while the full set wraps below it. */
+.base-info-panel .piece-url-preview-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  align-items: stretch;
+  justify-items: stretch;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  overscroll-behavior: auto;
+  gap: 8px;
+  padding: 8px;
+}
+.base-info-panel .piece-url-preview-item {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+.base-info-panel .piece-url-preview-item .piece-url-preview-frame {
+  width: 100%;
+  height: auto;
+  min-height: 84px;
+  max-height: 112px;
+  aspect-ratio: 3 / 4;
+}
+.base-info-panel .piece-url-preview-item .piece-url-preview-frame > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+.base-info-panel .piece-url-preview-caption {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.35;
+}
+@media (max-width: 560px) {
+  /* 5 portrait variants must fit above the fixed bottom navigation on phone screens. */
+  .base-info-panel .piece-url-preview-list {
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 4px;
+    padding: 4px;
+  }
+  .base-info-panel .piece-url-preview-item {
+    gap: 3px;
+    padding: 2px;
+  }
+  .base-info-panel .piece-url-preview-item .piece-url-preview-frame {
+    min-height: 0;
+    max-height: 64px;
+  }
+  .base-info-panel .piece-url-preview-caption {
+    font-size: 9px;
+    line-height: 1.2;
+  }
+}
+
+.piece-hero-grid > * { min-width: 0; }
+.piece-hero-grid .piece-panel * { min-width: 0; overflow-wrap: anywhere; }
+/* Shop hub: compact category rows. */
+.btype-shop-category-card { min-height: 112px; padding: 14px 16px; }
+.btype-shop-category-main { min-width: 0; }
+.btype-shop-category-main strong { font-size: var(--ui-type-heading); }
+.btype-shop-category-main small { font-size: var(--ui-type-xs); line-height: 1.45; }
+.btype-shop-category-count { font-size: var(--ui-type-xs); }
+/* Record tabs read as navigation; figures do not need oversized card padding. */
+.record-tabbar .card-header { gap: 8px; }
+.record-tabbar .segmented[role="tablist"] { gap: 4px; }
+.record-tabbar .segmented[role="tablist"] > button { min-height: 40px; padding: 7px 10px; font-size: var(--ui-type-sm); }
+.btype-record-detail { gap: 12px; }
+.btype-record-detail .card { padding: 14px; }
+.subtab.is-active, .piece-tab.is-active, .shop-tabs button.is-active, .record-tabbar button[aria-selected="true"] {
+  color: var(--ui-text); background: var(--ui-surface); border-color: var(--ui-accent);
+}
+/* 390px: one readable launcher column and compact category rows. */
+@media (max-width: 640px) {
+  .btype-launcher-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  .btype-launcher-card {
+    min-height: 76px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px;
+    grid-template-rows: auto auto; align-items: center; column-gap: 10px; padding: 10px 12px; text-align: left;
+  }
+  .btype-launcher-icon { grid-column: 1; grid-row: 1 / 3; }
+  .btype-launcher-card > strong { grid-column: 2; grid-row: 1; font-size: var(--ui-type-body); }
+  .btype-launcher-card > small { grid-column: 2; grid-row: 2; font-size: var(--ui-type-xs); }
+  .btype-launcher-arrow { grid-column: 3; grid-row: 1 / 3; }
+  .btype-command-hero { padding: 16px !important; gap: 10px; }
+  .btype-command-hero h1 { font-size: var(--ui-type-title) !important; }
+  .btype-context-chips { gap: 6px; }
+  .btype-result-chip { font-size: var(--ui-type-xs); }
+  .btype-shop-category-card { min-height: 96px; padding: 12px; grid-template-columns: 44px minmax(0, 1fr) auto 18px; gap: 10px; }
+  .btype-shop-category-main strong { font-size: var(--ui-type-body); }
+  .btype-shop-category-count { white-space: nowrap; }
+  .record-tabbar .card-header > .segmented[role="tablist"] > button { min-height: 40px; padding: 6px 4px; font-size: var(--ui-type-xs); }
+  .piece-hero-grid:has(.piece-url-preview-empty) { grid-template-columns: minmax(0, 1fr) !important; gap: 10px; }
+  .piece-image-settings:has(.piece-url-preview-empty) .piece-art-actions > button { min-height: 40px; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Full portrait remains large and fully contained; every registered face difference
+   wraps underneath instead of hiding off-screen in a horizontal thumbnail strip. */
+.base-info-panel .piece-url-preview-featured { width: min(100%, 560px); }
+.base-info-panel .piece-url-preview-featured-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  height: clamp(440px, 58vh, 620px) !important;
+  min-height: 360px;
+  padding: 10px;
+  border-color: var(--line);
+  background: var(--surface-inset);
+}
+.base-info-panel .piece-url-preview-featured-frame > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+  transition: transform 80ms ease-out;
+}
+.base-info-panel .piece-url-preview-zoom-controls {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+.base-info-panel .piece-url-preview-zoom-help,
+.base-info-panel .piece-url-preview-zoom-reset {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  height: auto;
+  writing-mode: horizontal-tb !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: rgba(14, 11, 9, .88);
+  color: var(--ui-text);
+  font-size: 11px;
+  line-height: 1.3;
+}
+.base-info-panel .piece-url-preview-zoom-reset { cursor: pointer; }
+.base-info-panel .piece-url-preview-zoom-reset:disabled { opacity: .62; cursor: default; }
+.base-info-panel .piece-url-preview-list { overflow: visible !important; max-height: none !important; }
+.base-info-panel .piece-url-preview-item { min-width: 0; max-width: none; min-height: 0; }
+.base-info-panel .piece-url-preview-caption { white-space: normal; overflow-wrap: anywhere; }
+/* Tablet workbench keeps the full-body art and its five face choices above
+   the viewport edge without forcing a second scroll just to reach the controls. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: clamp(300px, 44vh, 380px) !important;
+    min-height: 280px;
+  }
+}
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview-featured { width: 100%; }
+  .base-info-panel .piece-url-preview-featured-frame { height: min(34vh, 300px) !important; min-height: 220px; }
+}
+@media (max-width: 360px) and (max-height: 700px) {
+  /* Leave room for the portrait, its separate zoom controls, and face choices
+     between the sticky tab strip and the fixed bottom navigation. */
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: 200px !important;
+    min-height: 190px;
+  }
+}
+</style>
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
@@ -854,7 +1166,7 @@ window.addEventListener("load", function(){
 				<script src="js/PersonaCodex.js?v=0600d6f2"></script>
 		<script src="js/ItemCodex.js?v=3c394422"></script>
 <script src="js/SkillDeck.js?v=f176d667"></script>
-								<script src="js/OtherSections.js?v=b07598a1"></script>
+								<script src="js/OtherSections.js?v=9fcdbf09"></script>
 				<script src="js/LivePreview.js?v=69b4d6d2"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
 <script src="js/icon-cropper.js?v=20900dc8"></script>

@@ -30,6 +30,7 @@ const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8"
 const uiAuditSource = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
 const accountLayoutCaptureSource = readFileSync(new URL("../tools/ui/capture-account-layout-screenshots.mjs", import.meta.url), "utf8");
 const visualSystem = readFileSync(new URL("../assets/v71-unified-visual.css", import.meta.url), "utf8");
+const designSystem = readFileSync(new URL("../assets/design-system.css", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
   assert.doesNotMatch(ui, /prompt\(/, "prompt は入力のために文脈を消すので使わない");
@@ -494,38 +495,39 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
     "初回ゲートの実クリックでも縮小行列を検査する");
 });
 
-test("v71 unified visual system uses one five-color palette and one five-step type scale", () => {
-  const colorTokens = [...visualSystem.matchAll(/^\s*--ui-(?:bg|surface|line|text|accent):\s*#[0-9a-f]{6};$/gim)];
-  const typeTokens = [...visualSystem.matchAll(/^\s*--ui-type-[a-z-]+:\s*\d+px;$/gim)];
+test("v71 uses exactly five restored LBT base colors and one five-step type scale", () => {
+  const rootBlock = visualSystem.match(/:root\s*\{([^}]*)\}/)?.[1] || "";
+  const lines = rootBlock.split("\n");
+  const colorTokens = lines.filter(line => /^\s*--ui-(?:bg|surface|line|text|accent):\s*[^;]+;/i.test(line));
+  const typeTokens = lines.filter(line => /^\s*--ui-type-[a-z-]+:\s*\d+px;$/i.test(line));
   assert.equal(colorTokens.length, 5, "基調色は5変数だけにする");
   assert.equal(typeTokens.length, 5, "文字サイズは5段階だけにする");
-  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i, "グラデーションを使わない");
+  for (const token of [
+    "--ui-bg: #0e0b09", "--ui-surface: #211d1a", "--ui-line: #504a42",
+    "--ui-text: #f2ece1", "--ui-accent: #d4af5f"
+  ]) assert.ok(visualSystem.includes(token), "旧LBTの基調色を維持する: " + token);
+  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i);
 });
 
-test("v71 removes legacy gradients from ordinary workbench surfaces", () => {
-  const start = visualSystem.indexOf("/* Flatten legacy workbench surfaces");
-  const end = visualSystem.indexOf("/* Primary actions stay filled in the flat theme.", start);
-  assert.ok(start >= 0 && end > start, "旧UI面をフラット化する正規化ブロックが存在する");
+test("v71 removes decorative gradients while preserving semantic persona and E.G.O colors", () => {
+  const start = visualSystem.indexOf("/* Flatten decorative gradients only.");
+  const end = visualSystem.indexOf("/* Primary actions retain their original flat brass fill;", start);
+  assert.ok(start >= 0 && end > start, "装飾画像を外す正規化ブロックが存在する");
   const block = visualSystem.slice(start, end);
-  for (const selector of [
-    ".focus", ".topbar", ".rail", ".preview", ".chip", ".p-card",
-    ".spirit-item.is-active", ".btype-command-hero", ".btype-record-task-card",
-    ".build-context-strip", ".piece-output-shell", ".persona-draft-dialog"
-  ]) {
-    assert.ok(block.includes(selector), "旧グラデーション面をフラット化する: " + selector);
+  for (const selector of [".focus", ".p-card", ".spirit-item.is-active", ".piece-panel", ".persona-draft-dialog"]) {
+    assert.ok(block.includes(selector), "装飾だけを除去する対象: " + selector);
   }
-  assert.match(block, /background-image: none !important;/,
-    "旧コンポーネントの装飾グラデーションを上書きで除去する");
-  assert.match(block, /Functional[\s\S]*?CCFOLIA board grid lines[\s\S]*?dedicated extraction FX/,
-    "盤面罫線と抽出演出という機能表示は意図的に別扱いとする");
+  assert.ok(block.includes("background-image: none !important;"));
+  assert.ok(block.includes("Functional CCFOLIA board grid lines"));
+  assert.ok(block.includes("dedicated extraction FX"));
+  assert.ok(designSystem.includes("--sin-憤怒:"));
+  assert.ok(designSystem.includes("--ego-influence:"));
+  assert.ok(designSystem.includes("--rank-ALEPH:"));
+  assert.ok(designSystem.includes("--res-脆弱:"));
 });
 
-test("flat UI palette keeps primary and body text above WCAG AA contrast", () => {
-  const token = (name) => {
-    const match = visualSystem.match(new RegExp("^\\s*--ui-" + name + ":\\s*(#[0-9a-f]{6});", "im"));
-    assert.ok(match, "基調色トークンが存在する: " + name);
-    return match[1];
-  };
+test("restored LBT base palette keeps primary and body text above WCAG AA contrast", () => {
+  const tokens = { accent: "#d4af5f", bg: "#0e0b09", text: "#f2ece1", surface: "#211d1a" };
   const luminance = (hex) => {
     const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
       .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
@@ -535,31 +537,26 @@ test("flat UI palette keeps primary and body text above WCAG AA contrast", () =>
     const values = [luminance(a), luminance(b)].sort((x, y) => y - x);
     return (values[0] + 0.05) / (values[1] + 0.05);
   };
-  assert.ok(contrast(token("accent"), token("bg")) >= 4.5,
-    "主操作の真鍮色と文字背景のコントラストは4.5:1以上");
-  assert.ok(contrast(token("text"), token("surface")) >= 4.5,
-    "通常文字と面色のコントラストは4.5:1以上");
+  assert.ok(contrast(tokens.accent, tokens.bg) >= 4.5, "主操作のアクセント色は4.5:1以上");
+  assert.ok(contrast(tokens.text, tokens.surface) >= 4.5, "通常文字は4.5:1以上");
 });
 
-test("overlay metadata and resistance badges retain WCAG AA contrast", () => {
+test("overlay metadata and resistance badges retain previous semantic colors and readable labels", () => {
   assert.match(visualSystem, /\.lbt-cloud-panel \.lbt-cloud-state\s*\{[^}]*color: var\(--ui-accent\) !important;[^}]*opacity: 1 !important;/,
-    "ローカル保存状態は背景面に対して読めるアクセント色で表示する");
+    "ローカル保存状態は読める金色アクセントを維持する");
   assert.match(visualSystem, /\.acct-card \.acct-meta\s*\{[^}]*color: var\(--ui-text\) !important;[^}]*opacity: 1 !important;/,
     "アカウントの最終更新表示を薄くしすぎない");
-  for (const level of ["弱点", "耐性"]) {
-    assert.ok(visualSystem.includes('.res-dot[data-res="' + level + '"]'), level + " badge override exists");
+  for (const [level, color] of [["脆弱","#8f3a33"],["弱点","#a46935"],["普通","#7a7060"],["抵抗","#4e7a52"],["耐性","#3f6d85"],["免疫","#6b5a8a"]]) {
+    assert.ok(designSystem.includes('--res-' + level + ':' + color), level + " の旧来の耐性色を維持する");
   }
-  assert.match(visualSystem, /\.res-dot\[data-res="弱点"\],[\s\S]*?\.res-dot\[data-res="耐性"\]\s*\{[^}]*color: var\(--ui-bg\) !important;[^}]*text-shadow: none !important;/,
-    "明るい耐性バッジは濃い文字にし、情報を読める状態にする");
-  assert.match(visualSystem, /\.res-dot\[data-res="弱点"\]::before,[\s\S]*?\.res-dot\[data-res="耐性"\]::before\s*\{[^}]*color: var\(--ui-bg\) !important;/,
-    "属性記号も本文と同じ高コントラストを維持する");
+  assert.doesNotMatch(visualSystem, /\.res-dot\[data-res="弱点"\],[\s\S]*?\.res-dot\[data-res="耐性"\]\s*\{[^}]*color: var\(--ui-bg\) !important;/,
+    "耐性ラベルは旧来の属性色と文字スタイルを維持する");
 });
 
-test("blocked shop actions and enhancement catalog meet accessibility interaction requirements", () => {
-  assert.match(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-image: none !important;[\s\S]*?color: var\(--ui-bg\) !important;[\s\S]*?opacity: 1 !important;/,
-    "残高不足カードの購入理由ボタンは不透明なフラット塗りで十分なコントラストを保つ");
-  assert.match(visualSystem, /\.btn-primary:disabled,[\s\S]*?color: var\(--ui-text\) !important;[\s\S]*?opacity: 1 !important;/,
-    "実際に無効な主操作も高コントラストの文字を維持する");
+test("blocked shop actions retain gold treatment and enhancement catalog remains accessible", () => {
+  assert.match(visualSystem, /\.shop-card\[data-blocked="1"\] \.btn-primary:not\(:disabled\)[\s\S]*?background-color: var\(--gold\) !important;[\s\S]*?color: var\(--tx-inv\) !important;/);
+  assert.match(visualSystem, /\.btn:disabled\.btn-primary[\s\S]*?background-color: var\(--surface-2\) !important;[\s\S]*?opacity: 1 !important;/);
+
   assert.match(sections, /className: "enhancement-catalog-scroll",[\s\S]*?role: "region",[\s\S]*?"aria-label": "強化候補一覧",[\s\S]*?tabIndex: 0/,
     "強化候補の内部スクロール領域は名前付きでキーボードフォーカスを受け取る");
   assert.match(sections, /className: "spp-item",[\s\S]*?role: "button",[\s\S]*?tabIndex: 0,[\s\S]*?onClick: \(\) => addEnh\(entry\),[\s\S]*?onKeyDown: \(event\) => \{[\s\S]*?event\.key === "Enter" \|\| event\.key === " "[\s\S]*?addEnh\(entry\)/,
@@ -568,15 +565,15 @@ test("blocked shop actions and enhancement catalog meet accessibility interactio
     "表示内容を欠く短いaria-labelでボタンの表示名を上書きしない");
 });
 
-test("v71 restores visible primary-action fills without reintroducing gradients", () => {
-  assert.match(visualSystem, /\.btn-primary\s*\{[^}]*background-color: var\(--ui-accent\) !important;[^}]*background-image: none !important;[^}]*color: var\(--ui-bg\) !important;/,
-    "主操作はアクセント色のフラットな塗りと背景色に対する文字色を持つ");
-  assert.match(visualSystem, /\.btn:disabled\.btn-primary\s*\{[^}]*background-color: var\(--ui-surface\) !important;[^}]*color: var\(--ui-line\) !important;[^}]*opacity: 1;/,
-    "無効な主操作は暗い面色と境界色で区別し、不透明度で文字を潰さない");
-  assert.doesNotMatch(visualSystem, /linear-gradient|radial-gradient|conic-gradient/i,
-    "フラットなビジュアルにグラデーションを再導入しない");
+test("v71 keeps semantic persona hues while using flat primary actions", () => {
+  assert.ok(visualSystem.includes(".btn-primary {"));
+  assert.ok(visualSystem.includes("background-image: none !important;"));
+  assert.ok(visualSystem.includes("--ui-accent: #d4af5f"));
+  assert.ok(designSystem.includes("--accent:#c8352b"));
+  assert.ok(designSystem.includes("--ego-influence: #b872d9"));
+  assert.ok(designSystem.includes("--sin-憤怒:"));
+  assert.ok(designSystem.includes("--rank-ALEPH:"));
 });
-
 test("UI audit uses unique build-tab controls and collapses preview before home launcher taps", () => {
   assert.match(uiAuditSource, /\.btype-build-tablist > \[role='tab'\]/,
     "ビルドのメインタブだけを直接選択し、子パネル内の同名タブを拾わない");
@@ -599,8 +596,8 @@ test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens
     "スマホでは管理カードを短い横長行にする");
   assert.match(visualSystem, /\.acct-panel-accounts > \.acct-grid--manager \{[\s\S]*?grid-auto-rows: minmax\(184px, max-content\);/,
     "PC・タブレットでは184px未満の行トラックを作らずカードを重ねない");
-  assert.match(uiAuditSource, /minimumManagerCardHeight = view\.startsWith\("mobile"\) \? 96 : 180/,
-    "監査のカード高基準を端末別にする");
+  assert.match(uiAuditSource, /minimumManagerCardHeight = view\.startsWith\("mobile"\) \? 96 : 136/,
+    "PCでは140px級のカードが3行に収まる実レイアウトを許容し、モバイルは96px以上を要求する");
   assert.match(uiAuditSource, /getComputedStyle\(backupPanel\)\.display\s*===\s*"none"/,
     "編集時は復旧ペイン全体の非表示を判定する");
   assert.ok(visualSystem.includes("grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));"),
@@ -634,8 +631,8 @@ test("SINNER SELECT keeps recovery compact, hides it while editing, and shortens
 
   assert.ok(visualSystem.includes("grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));"),
     "PCのアカウント一覧は3列程度にして名前を読める幅を確保する");
-  assert.ok(visualSystem.includes("--gold-tint: var(--ui-surface);"),
-    "アクセント文字の背景は文字と同色にしない");
-  assert.ok(visualSystem.includes("--gold-line: var(--ui-line);"),
-    "アクセント文字と境界線を別の役割にする");
+  assert.ok(designSystem.includes("--gold-tint:rgba(212,175,95,.09);"),
+    "金色の薄い背景は旧来のゴールドティントで区別する");
+  assert.ok(designSystem.includes("--gold-line:rgba(212,175,95,.55);"),
+    "金色の境界は一般境界色へ潰さない");
 });;

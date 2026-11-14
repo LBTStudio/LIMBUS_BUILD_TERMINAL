@@ -57,7 +57,7 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
   assert.ok(sections.includes("const markdownImage = raw.match(/^!?\\[[^\\]]*\\]\\((.+)\\)$/);"));
   assert.ok(sections.includes('raw = raw.replace(/&amp;/gi, "&")'));
   assert.ok(generator.includes("const imgs = normalizeImageUrls(p.imgUrls)"));
-  assert.ok(sections.includes('loading: index === selectedImageIndex ? "eager" : "lazy"'));
+  assert.ok(sections.includes('loading: "eager"'));
   assert.ok(sections.includes('fetchPriority: index === selectedImageIndex ? "high" : "auto"'));
 });
 
@@ -84,6 +84,13 @@ test("駒画像設定は選択した基本画像・差分を大きく表示し�
   assert.match(parityCss, /\.piece-url-preview-featured-frame > img\s*\{[^}]*object-fit: contain/);
   assert.match(parityCss, /\.piece-url-preview-item\.is-active\s*\{/);
   assert.match(parityCss, /\.piece-url-preview-frame > img\s*\{[^}]*object-fit: contain/);
+  assert.match(sections, /imagePreviewFrameRef = React\.useRef\(null\)/);
+  assert.match(sections, /frame\.addEventListener\("wheel", handleWheel, \{ passive: false \}\)/);
+  assert.match(sections, /Math\.min\(4, imageZoom \* Math\.exp/);
+  assert.match(sections, /\}, \[selectedImageIndex, selectedImageUrl\]\)/);
+  assert.match(sections, /transformOrigin: imageZoomOrigin/);
+  assert.match(sections, /立ち絵を全体表示に戻す/);
+  assert.match(sections, /setImageZoom\(1\)/);
 });
 
 test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {

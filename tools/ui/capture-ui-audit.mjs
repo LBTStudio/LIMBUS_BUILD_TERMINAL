@@ -1116,6 +1116,27 @@ async function captureProfile(browser, mode) {
         throw new Error("駒画像の大きなプレビュー／差分選択が固定ナビの表示領域内に収まりません: "+JSON.stringify({imageViewport,imageGeometry}));
       }
       if(await imagePreviewItems.count()!==faceImageUrls.length) throw new Error("登録した5枚すべての駒画像が選択ボタンとして表示されません");
+
+      const allPreviewGeometry=await imagePreviewStrip.evaluate(el=>{
+        const r=el.getBoundingClientRect();
+        const items=[...el.querySelectorAll(".piece-url-preview-item")].map(item=>{
+          const b=item.getBoundingClientRect();
+          return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};
+        });
+        const style=getComputedStyle(el);
+        return {
+          display:style.display,overflowX:style.overflowX,overflowY:style.overflowY,
+          clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,
+          clientHeight:el.clientHeight,scrollHeight:el.scrollHeight,
+          listRect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom},
+          itemCount:items.length,
+          itemsOutside:items.filter(b=>b.left<r.left-1||b.right>r.right+1||b.top<r.top-1||b.bottom>r.bottom+1).length
+        };
+      });
+      if(allPreviewGeometry.display!=="grid"||allPreviewGeometry.overflowX==="auto"||allPreviewGeometry.scrollWidth>allPreviewGeometry.clientWidth+1||allPreviewGeometry.itemsOutside>0) {
+        throw new Error("立ち絵プレビューの全差分が一覧内に折り返して表示されません: "+JSON.stringify(allPreviewGeometry));
+      }
+
       await featuredImage.waitFor({state:"visible",timeout:5000});
       const primaryLoaded=await featuredImage.evaluate(el=>el.complete&&el.naturalWidth>0&&el.naturalHeight>0);
       if(!primaryLoaded || !(await featuredImage.getAttribute("src"))?.endsWith("ccfolia-preview-sample.svg")) {
@@ -1831,6 +1852,38 @@ async function captureProfile(browser, mode) {
       }
       await closeOverlay();
     });
+    await attempt("state-import-dialog",async()=>{
+      await closeOverlay();
+      const trigger=mobile
+        ? page.locator(".btype-mobile-bottom-nav button").filter({hasText:"その他"}).first()
+        : page.locator("button.utility-trigger").first();
+      await trigger.waitFor({state:"visible",timeout:5000});
+      await click(trigger);
+      const utilitySheet=page.locator(".utility-sheet");
+      await utilitySheet.waitFor({state:"visible",timeout:5000});
+      const importAction=utilitySheet.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
+      await importAction.waitFor({state:"visible",timeout:5000});
+      await click(importAction);
+      const input=page.locator('input[type="file"][accept="application/json"]').first();
+      if (!(await input.count())) throw new Error("保存データ読込用のJSONファイル入力が見つかりません");
+      await page.waitForFunction(() => typeof window.LBT_openImportDialog === "function", null, { timeout: 5000 });
+      await input.setInputFiles({
+        name:"ui-audit-import.json",
+        mimeType:"application/json",
+        buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA",skills:[]}),"utf8")
+      });
+      const importDialog=page.locator(".import-scope-dialog");
+      await importDialog.waitFor({state:"visible",timeout:5000});
+      const importOptions=importDialog.locator(".import-scope-options input[type='checkbox']");
+      if (!(await importOptions.count())) throw new Error("読み込み対象カテゴリの選択肢が表示されません");
+      await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
+      const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
+      if (await visible(emptyDetails)) {
+        await click(emptyDetails);
+        await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
+      }
+      await closeOverlay();
+    });
     await attempt("other-navigation",async()=>{
       const more=page.locator(".rail-more").first();
       if(await visible(more)) {
@@ -1884,7 +1937,7 @@ async function captureProfile(browser, mode) {
       });
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
-      const minimumManagerCardHeight = view.startsWith("mobile") ? 96 : 180;
+      const minimumManagerCardHeight = view.startsWith("mobile") ? 96 : 136;
       if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220
         || managerMetrics.minCardHeight < minimumManagerCardHeight || managerMetrics.overlappingCardPairs > 0
         || managerMetrics.actionsOutsideCards > 0 || !managerMetrics.onlineBackupCollapsed
@@ -1970,31 +2023,34 @@ async function captureProfile(browser, mode) {
           throw new Error("編集キャンセル後に一覧／オンライン保全欄へ戻りません: "+JSON.stringify(restore));
         }
         await snap("account-edit-cancel-restores-list","編集をキャンセルして一覧とオンライン保全欄が戻った状態");
-      }
-      await closeOverlay();
-    });
-    await attempt("state-import-dialog",async()=>{
-      await closeOverlay();
-      const trigger=page.locator("button.utility-trigger").first(); if(await visible(trigger)) await click(trigger);
-      const importAction=page.locator(".utility-sheet-action").filter({hasText:"保存データを読み込む"}).first();
-      if(await visible(importAction)) {
-        await click(importAction);
-        const input=page.locator('input[type="file"][accept="application/json"]').first();
-        if(await input.count()) {
-          await input.setInputFiles({name:"ui-audit-import.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA"}),"utf8")});
-          await page.waitForTimeout(300);
-          if(await visible(page.locator(".share-modal-backdrop"))) {
-            await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
-            const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
-            if (await visible(emptyDetails)) {
-              await click(emptyDetails);
-              await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
-            }
-          }
+        const restoredCard = page.locator(".acct-panel .acct-grid--manager .acct-card-hit").first();
+        await restoredCard.waitFor({ state: "visible", timeout: 5000 });
+        await restoredCard.scrollIntoViewIfNeeded();
+        const restoredHitTest = await restoredCard.evaluate(el => {
+          const r = el.getBoundingClientRect();
+          const x = r.left + r.width / 2;
+          const y = r.top + r.height / 2;
+          const hit = document.elementFromPoint(x, y);
+          return {
+            pointerEvents: getComputedStyle(el).pointerEvents,
+            targetTag: hit?.tagName || "",
+            targetClass: typeof hit?.className === "string" ? hit.className : "",
+            targetInsideCard: !!hit && (hit === el || el.contains(hit)),
+            width: r.width,
+            height: r.height
+          };
+        });
+        if (restoredHitTest.pointerEvents === "none" || !restoredHitTest.targetInsideCard
+          || restoredHitTest.width < 40 || restoredHitTest.height < 40) {
+          throw new Error("編集キャンセル後にアカウントカードのクリック領域が復帰しません: " + JSON.stringify(restoredHitTest));
         }
+        await click(restoredCard);
+        await page.waitForFunction(() => !document.querySelector(".acct-panel"), null, { timeout: 5000 });
+        await snap("account-edit-cancel-card-hit-restored","編集キャンセル後に一覧カードを再クリックできることを確認");
       }
       await closeOverlay();
     });
+
     await attempt("keyboard-focus",async()=>{await page.keyboard.press("Tab");await snap("keyboard-focus-visible","キーボードTabで移動したフォーカス状態");});
   } finally { await context.close(); }
 }

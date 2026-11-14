@@ -57,6 +57,30 @@ const BaseSection = ({ state, dispatch }) => {
   const selectedImageUrl = imgList[selectedImageIndex] || "";
   const selectedImagePreviewUrl = safeImagePreviewUrl(selectedImageUrl);
   const selectedImageFailed = !selectedImagePreviewUrl || failedImageUrls.includes(selectedImageUrl);
+  const [imageZoom, setImageZoom] = React.useState(1);
+  const [imageZoomOrigin, setImageZoomOrigin] = React.useState("50% 50%");
+  const imagePreviewFrameRef = React.useRef(null);
+  React.useEffect(() => {
+    setImageZoom(1);
+    setImageZoomOrigin("50% 50%");
+  }, [selectedImageIndex, selectedImageUrl]);
+  React.useEffect(() => {
+    const frame = imagePreviewFrameRef.current;
+    if (!frame) return undefined;
+    const handleWheel = (event) => {
+      if (!selectedImagePreviewUrl || selectedImageFailed) return;
+      const nextZoom = Math.max(1, Math.min(4, imageZoom * Math.exp(-event.deltaY * 0.0015)));
+      if (Math.abs(nextZoom - imageZoom) < 0.001) return;
+      event.preventDefault();
+      const rect = frame.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100));
+      const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100));
+      setImageZoomOrigin(x.toFixed(2) + "% " + y.toFixed(2) + "%");
+      setImageZoom(nextZoom);
+    };
+    frame.addEventListener("wheel", handleWheel, { passive: false });
+    return () => frame.removeEventListener("wheel", handleWheel);
+  }, [selectedImagePreviewUrl, selectedImageFailed, imageZoom]);
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
   const [editOpen, setEditOpen] = React.useState(false);
@@ -114,7 +138,7 @@ const BaseSection = ({ state, dispatch }) => {
                 ? React.createElement("div", { className: "piece-url-preview-empty" }, "画像URLを登録すると、ここに基本画像と差分が表示されます。")
                 : React.createElement(React.Fragment, null,
                     React.createElement("figure", { className: "piece-url-preview-featured" },
-                      React.createElement("div", { className: "piece-url-preview-featured-frame" },
+                      React.createElement("div", { className: "piece-url-preview-featured-frame", ref: imagePreviewFrameRef, "aria-label": "立ち絵プレビュー。マウスホイールで拡大・縮小できます。" },
                         selectedImagePreviewUrl && !selectedImageFailed
                           ? React.createElement("img", {
                               src: selectedImagePreviewUrl,
@@ -122,6 +146,15 @@ const BaseSection = ({ state, dispatch }) => {
                               loading: "eager",
                               fetchPriority: "high",
                               decoding: "async",
+                              style: {
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "contain",
+                                objectPosition: "center",
+                                transform: "scale(" + imageZoom + ")",
+                                transformOrigin: imageZoomOrigin,
+                                cursor: imageZoom > 1 ? "zoom-out" : "zoom-in"
+                              },
                               onError: () => setFailedImageUrls((current) => current.includes(selectedImageUrl) ? current : [...current, selectedImageUrl])
                             })
                           : React.createElement("span", {
@@ -129,6 +162,17 @@ const BaseSection = ({ state, dispatch }) => {
                               role: "img",
                               "aria-label": (selectedImageIndex === 0 ? "基本画像" : "差分 " + selectedImageIndex) + "を表示できません"
                             }, failedImageUrls.includes(selectedImageUrl) ? "画像を読込めません" : "URL形式を確認")
+                      ),
+                      React.createElement("div", { className: "piece-url-preview-zoom-controls" },
+                        React.createElement("span", { className: "piece-url-preview-zoom-help" }, "ホイールで拡大・縮小"),
+                        React.createElement("button", {
+                          type: "button",
+                          className: "piece-url-preview-zoom-reset",
+                          disabled: imageZoom <= 1.001,
+                          onClick: () => { setImageZoom(1); setImageZoomOrigin("50% 50%"); },
+                          title: "立ち絵全体が枠内に収まる表示へ戻す",
+                          "aria-label": "立ち絵を全体表示に戻す"
+                        }, "全体表示 " + Math.round(imageZoom * 100) + "%")
                       ),
                       React.createElement("figcaption", null,
                         React.createElement("span", null, "表示中"),
@@ -158,7 +202,7 @@ const BaseSection = ({ state, dispatch }) => {
                               ? React.createElement("img", {
                                   src: safeSrc,
                                   alt: "",
-                                  loading: index === selectedImageIndex ? "eager" : "lazy",
+                                  loading: "eager",
                                   fetchPriority: index === selectedImageIndex ? "high" : "auto",
                                   decoding: "async",
                                   onError: () => setFailedImageUrls((current) => current.includes(src) ? current : [...current, src])

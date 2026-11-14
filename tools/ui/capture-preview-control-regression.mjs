@@ -159,6 +159,89 @@ async function createDisposableAccount(page,profile) {
     && closedState.inlineCcfBoardCount === 0;
   recordCheck(profile.name + ": collapsed Basic workspace contains no preview image, miniature or duplicate panel",
     closedClean, closedState);
+
+  const portraitFrame = page.locator(".piece-url-preview-featured-frame").first();
+  const portraitImage = portraitFrame.locator("img").first();
+  await portraitImage.waitFor({ state: "visible", timeout: 10000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame img");
+    return !!image && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
+  }, { timeout: 10000 });
+  const portraitFit = await portraitImage.evaluate(image => {
+    const frame = image.parentElement.getBoundingClientRect();
+    const rect = image.getBoundingClientRect();
+    return {
+      objectFit: getComputedStyle(image).objectFit,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+      imageWithinFrame: rect.left >= frame.left - 1 && rect.top >= frame.top - 1
+        && rect.right <= frame.right + 1 && rect.bottom <= frame.bottom + 1,
+      transform: getComputedStyle(image).transform
+    };
+  });
+  recordCheck(profile.name + ": standing portrait is loaded, fully contained and aspect-fit",
+    portraitFit.objectFit === "contain" && portraitFit.naturalWidth > 0
+      && portraitFit.naturalHeight > 0 && portraitFit.imageWithinFrame
+      && portraitFit.transform === "matrix(1, 0, 0, 1, 0, 0)",
+    portraitFit);
+  const wheelOutcome = await portraitFrame.evaluate(frame => {
+    const rect = frame.getBoundingClientRect();
+    const event = new WheelEvent("wheel", {
+      deltaY: -520,
+      clientX: rect.left + rect.width * 0.32,
+      clientY: rect.top + rect.height * 0.38,
+      bubbles: true,
+      cancelable: true
+    });
+    frame.dispatchEvent(event);
+    return { defaultPrevented: event.defaultPrevented };
+  });
+  await page.waitForTimeout(120);
+  const zoomed = await portraitImage.evaluate(image => ({
+    transform: getComputedStyle(image).transform,
+    transformOrigin: getComputedStyle(image).transformOrigin
+  }));
+  const zoomScale = Number((zoomed.transform.match(/^matrix\(([-+0-9.e]+),/) || [])[1] || 1);
+  recordCheck(profile.name + ": mouse wheel zooms the full portrait within the 4x cap",
+    wheelOutcome.defaultPrevented && zoomScale > 1 && zoomScale <= 4
+      && zoomed.transformOrigin !== "50% 50%",
+    { wheelOutcome, zoomed, zoomScale });
+  const resetPortrait = page.getByRole("button", { name: "立ち絵を全体表示に戻す" });
+  await resetPortrait.waitFor({ state: "visible", timeout: 5000 });
+  const resetControlGeometry = await resetPortrait.evaluate(button => {
+    const rect = button.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(button);
+    const textRects = [...range.getClientRects()].filter(item => item.width > 0 && item.height > 0);
+    const style = getComputedStyle(button);
+    return {
+      width: rect.width,
+      height: rect.height,
+      textLineCount: new Set(textRects.map(item => Math.round(item.y))).size,
+      whiteSpace: style.whiteSpace,
+      writingMode: style.writingMode
+    };
+  });
+  const resetControlPlacement = await resetPortrait.evaluate(button => {
+    const rect = button.getBoundingClientRect();
+    const frame = document.querySelector(".piece-url-preview-featured-frame").getBoundingClientRect();
+    return { outsideImageFrame: rect.top >= frame.bottom, gap: rect.top - frame.bottom };
+  });
+  recordCheck(profile.name + ": zoom controls sit below the image without covering the portrait",
+    resetControlPlacement.outsideImageFrame && resetControlPlacement.gap >= 0,
+    resetControlPlacement);
+  recordCheck(profile.name + ": zoom reset control remains horizontal and readable on narrow screens",
+    resetControlGeometry.width > resetControlGeometry.height
+      && resetControlGeometry.textLineCount === 1
+      && resetControlGeometry.whiteSpace === "nowrap"
+      && resetControlGeometry.writingMode === "horizontal-tb",
+    resetControlGeometry);
+  await resetPortrait.click();
+  await page.waitForTimeout(120);
+  const resetTransform = await portraitImage.evaluate(image => getComputedStyle(image).transform);
+  recordCheck(profile.name + ": full-fit control restores the complete portrait",
+    resetTransform === "matrix(1, 0, 0, 1, 0, 0)",
+    { resetTransform });
 }
 
 async function runProfile(browser,profile) {
