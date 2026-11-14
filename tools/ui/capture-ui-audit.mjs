@@ -1070,7 +1070,7 @@ async function captureProfile(browser, mode) {
       if(!(await visible(previewToggle))) throw new Error("駒画像プレビューを隠す操作がありません");
       await click(previewToggle);
       if(await previewToggle.getAttribute("aria-expanded")!=="false"
-        || await page.locator(".piece-art-preview-live").count()!==0) {
+        || await page.locator(".piece-art-preview-live").isVisible()) {
         throw new Error("駒画像プレビューを折りたためません");
       }
       await snap("basic-image-preview-collapsed-by-user","駒画像プレビューを折りたたみ、作業スペースを広げた状態");
