@@ -160,6 +160,18 @@ async function createDisposableAccount(page,profile) {
   recordCheck(profile.name + ": collapsed Basic workspace contains no preview image, miniature or duplicate panel",
     closedClean, closedState);
 
+  const artPreviewToggle = page.locator(".piece-art-preview-toggle").first();
+  await artPreviewToggle.waitFor({ state: "visible", timeout: 10000 });
+  const initialArtPreview = await artPreviewToggle.evaluate(button => ({
+    expanded: button.getAttribute("aria-expanded"),
+    previewVisible: !!document.querySelector(".piece-art-preview-live")?.getClientRects().length
+  }));
+  recordCheck(profile.name + ": pawn image preview starts folded to preserve editing space",
+    initialArtPreview.expanded === "false" && !initialArtPreview.previewVisible,
+    initialArtPreview);
+  await artPreviewToggle.click();
+  await page.locator(".piece-art-preview-live").waitFor({ state: "visible", timeout: 5000 });
+
   const portraitFrame = page.locator(".piece-url-preview-featured-frame").first();
   const portraitImage = portraitFrame.locator("img").first();
   await portraitImage.waitFor({ state: "visible", timeout: 10000 });
@@ -242,6 +254,14 @@ async function createDisposableAccount(page,profile) {
   recordCheck(profile.name + ": full-fit control restores the complete portrait",
     resetTransform === "matrix(1, 0, 0, 1, 0, 0)",
     { resetTransform });
+  await artPreviewToggle.click();
+  const hiddenAgain = await artPreviewToggle.evaluate(button => ({
+    expanded: button.getAttribute("aria-expanded"),
+    visible: !!document.querySelector(".piece-art-preview-live")?.getClientRects().length
+  }));
+  recordCheck(profile.name + ": pawn image preview can be folded again after use",
+    hiddenAgain.expanded === "false" && !hiddenAgain.visible,
+    hiddenAgain);
 }
 
 async function runProfile(browser,profile) {
