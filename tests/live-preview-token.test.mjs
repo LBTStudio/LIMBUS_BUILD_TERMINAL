@@ -33,6 +33,25 @@ test("駒画像URLは文字列・配列・旧式オブジェクトを共通形�
     "https://img.example/main.png", "https://img.example/face-a.png",
     "https://img.example/face-b.png", "https://img.example/face-c.png"
   ]);
+  assert.deepEqual(Array.from(normalize(JSON.stringify({
+    data: {
+      iconUrl: "https://img.example/ccfolia-main.png",
+      faces: [
+        { iconUrl: "https://img.example/ccfolia-face-1.png" },
+        { icon_url: "https://img.example/ccfolia-face-2.png" }
+      ]
+    }
+  }))), [
+    "https://img.example/ccfolia-main.png",
+    "https://img.example/ccfolia-face-1.png",
+    "https://img.example/ccfolia-face-2.png"
+  ]);
+  assert.deepEqual(Array.from(normalize({
+    data: { image_url: "https://img.example/nested.png" },
+    imageUrls: ["https://img.example/extra.png"]
+  })), [
+    "https://img.example/nested.png", "https://img.example/extra.png"
+  ]);
   assert.ok(sections.includes("window.LBT_gen.normalizeImageUrls(state.imgUrls)"));
   assert.ok(sections.includes("value: imgUrlsText"));
   assert.ok(sections.includes("const markdownImage = raw.match(/^!?\\[[^\\]]*\\]\\((.+)\\)$/);"));
