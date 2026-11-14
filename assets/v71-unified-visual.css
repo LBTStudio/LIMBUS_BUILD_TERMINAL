@@ -289,9 +289,9 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* Flatten only decorative images; preserve the original LBT semantic colors.
-   Persona/ego cards receive solid source-colored surfaces below, so the content hierarchy
-   remains readable without bringing gradients back. */
+/* Flatten legacy workbench surfaces as well: only decorative gradients are removed.
+   Functional CCFOLIA board grid lines and the dedicated extraction FX remain separate
+   content visuals. Original semantic colors are restored with solid surface fills. */
 :where(
   .focus, .topbar, .rail, .rail-item.is-active, .preview, .pv-sec-head,
   .chip, .chip.is-active, .deck-thumb, .deck-thumb.is-active, .deck-focus,
@@ -329,6 +329,7 @@ textarea:focus-visible {
   background-color: color-mix(in srgb, var(--ego-influence) 12%, var(--surface-2));
   border-color: var(--ego-influence);
 }
+/* Primary actions stay filled in the flat theme. */
 .btn-primary {
   background-color: var(--gold) !important;
   background-image: none !important;
