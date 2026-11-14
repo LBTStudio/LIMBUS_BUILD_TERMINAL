@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-068dec7d";
+const CACHE_NAME = "lbt-8e3233d4";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -35,6 +35,7 @@ const PRECACHE_URLS = [
   "assets/inline-effect-glossary.css?v=f14d3776",
   "assets/items.css?v=1465d658",
   "assets/persona-codex.css?v=73906b7b",
+  "assets/persona-filter-refinement.css?v=129f7828",
   "assets/sections.css?v=6753610c",
   "assets/v52-overlay.css?v=bb012c34",
   "assets/v53-overlay.css?v=1b57bfe6",
@@ -60,7 +61,7 @@ const PRECACHE_URLS = [
   "js/ItemCodex.js?v=3c394422",
   "js/LivePreview.js?v=69b4d6d2",
   "js/OtherSections.js?v=9fcdbf09",
-  "js/PersonaCodex.js?v=0600d6f2",
+  "js/PersonaCodex.js?v=cfcfa99c",
   "js/SkillDeck.js?v=f176d667",
   "js/accounts-ui.js?v=f5f987dc",
   "js/cloud-backup.js?v=32acbafe",
@@ -87,7 +88,7 @@ const PRECACHE_URLS = [
   "js/share-link.js?v=61e00b15",
   "js/share-viewer.js?v=71f2da96",
   "js/state.js?v=7a4a8380",
-  "js/ui.js?v=f6ef7d76",
+  "js/ui.js?v=e66a7ae3",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
 ];
