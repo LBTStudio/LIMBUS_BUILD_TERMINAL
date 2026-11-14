@@ -615,6 +615,12 @@ textarea:focus-visible {
   background: var(--ui-surface);
   box-shadow: inset 0 0 0 1px var(--ui-accent);
 }
+/* A restored focus target may keep :focus-within alive after Cancel/Save.
+   While switching, the press compression must win over hover lift. */
+.acct-card.is-selecting:hover,
+.acct-card.is-selecting:focus-within {
+  transform: scale(.976);
+}
 .acct-card-hit:active {
   background: transparent;
 }
