@@ -1094,16 +1094,27 @@ button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
   right: 10px;
   bottom: 10px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  width: max-content;
   max-width: calc(100% - 20px);
   pointer-events: none;
+  white-space: nowrap;
 }
 .base-info-panel .piece-art-zoom-help,
 .base-info-panel .piece-art-zoom-reset {
   pointer-events: auto;
+  flex: 0 0 auto;
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  height: auto;
+  writing-mode: horizontal-tb !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 5px 8px;
