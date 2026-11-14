@@ -40,8 +40,8 @@ test("Basic workspace keeps the pawn image preview visible while the URL editor 
   assert.ok(base.includes("URL形式を確認"));
   assert.ok(base.includes("画像を読込めません"));
   assert.ok(base.includes("state.shareImageData"));
-  assert.ok(base.includes("piece-art-zoom-controls"), "全体表示とホイール操作の案内を画像枠内に表示する");
-  assert.ok(base.includes('className: "piece-art-zoom-reset"'), "全体表示へ戻す専用操作を用意する");
+  assert.ok(base.includes("piece-url-preview-zoom-controls"), "全体表示とホイール操作の案内を画像枠内に表示する");
+  assert.ok(base.includes('className: "piece-url-preview-zoom-reset"'), "全体表示へ戻す専用操作を用意する");
   assert.ok(base.includes('frame.addEventListener("wheel", handleWheel, { passive: false })'), "画像枠でホイールズームを受け付ける");
   assert.ok(base.includes("Math.min(4, imageZoom * Math.exp"), "ズーム倍率を4倍までに制限する");
   assert.ok(index.includes("white-space: nowrap !important") && index.includes("writing-mode: horizontal-tb !important"), "ズーム操作はスマホでも横書き一行で表示する");
