@@ -233,15 +233,18 @@ async function readMetrics() {
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
     const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.piece-hero-grid,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
     const buildTablistMetrics = (() => {
-      const element = document.querySelector('.build-tabs .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"]');
+      const element = document.querySelector('.build-tabs .build-group-nav[role="group"][aria-label="ビルドの作業分類"]');
       if (!element || !isVisible(element)) return null;
       const style = getComputedStyle(element);
-      const buttons = [...element.querySelectorAll(':scope > button[role="tab"]')].filter(isVisible);
+      const buttons = [...element.querySelectorAll(':scope > .build-group-button')].filter(isVisible);
       const buttonRects = buttons.map(button => {
         const r = button.getBoundingClientRect();
         return {x:r.x,y:r.y,width:r.width,height:r.height};
       });
       const rows = [...new Set(buttonRects.map(r => Math.round(r.y)))];
+      const tabRail = document.querySelector('.build-tabs .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"]');
+      const tabRailStyle = tabRail ? getComputedStyle(tabRail) : null;
+      const tabButtons = tabRail ? [...tabRail.querySelectorAll(':scope > button[role="tab"]')].filter(isVisible) : [];
       return {
         display: style.display,
         gridTemplateColumns: style.gridTemplateColumns,
@@ -250,9 +253,16 @@ async function readMetrics() {
         scrollWidth: element.scrollWidth,
         buttonCount: buttons.length,
         rowCount: rows.length,
-        buttonsBelowMinimum: buttonRects.filter(r => r.width < 40 || r.height < 40).length,
+        buttonsBelowMinimum: buttonRects.filter(r => r.width < 44 || r.height < 44).length,
         buttonsOutsideList: buttonRects.filter(r => r.x < element.getBoundingClientRect().x - 1
-          || r.x + r.width > element.getBoundingClientRect().right + 1).length
+          || r.x + r.width > element.getBoundingClientRect().right + 1).length,
+        tabCount: tabButtons.length,
+        tabButtonsBelowMinimum: tabButtons.filter(button => {
+          const r = button.getBoundingClientRect();
+          return r.width < 44 || r.height < 40;
+        }).length,
+        tabRailOverflowX: tabRailStyle?.overflowX || "missing",
+        tabRailScrollable: !!tabRail && tabRail.scrollWidth > tabRail.clientWidth + 2
       };
     })();
     return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,smallActionableTargets,touchTargetViolations,buildTablistMetrics,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
@@ -327,14 +337,16 @@ async function snap(name, note) {
     }
   }
   if (m.viewport.width <= 640 && m.buildTablistMetrics) {
-    const tabs = m.buildTablistMetrics;
-    if (tabs.buttonCount !== 9 || tabs.display !== "grid" || tabs.rowCount < 2
-        || tabs.scrollWidth > tabs.clientWidth + 2 || tabs.buttonsBelowMinimum > 0 || tabs.buttonsOutsideList > 0) {
+    const nav = m.buildTablistMetrics;
+    if (nav.buttonCount !== 3 || nav.display !== "grid" || nav.rowCount !== 1
+        || nav.scrollWidth > nav.clientWidth + 2 || nav.buttonsBelowMinimum > 0 || nav.buttonsOutsideList > 0
+        || nav.tabCount < 2 || nav.tabCount > 4 || nav.tabButtonsBelowMinimum > 0
+        || !["auto", "scroll"].includes(nav.tabRailOverflowX)) {
       audit.layoutWarnings.push({
         name: base,
-        type: "build-tabs-not-reflowed",
-        expected: "9 tabs in a 5-column grid with at least 2 rows and no clipped targets",
-        actual: tabs
+        type: "build-group-nav-not-reflowed",
+        expected: "3 build groups in one row with 44px targets and 2-4 scrollable subtabs at 44px minimum",
+        actual: nav
       });
     }
   }
@@ -1035,6 +1047,9 @@ async function captureProfile(browser, mode) {
     /* Basic keeps image URL registration, but deliberately has no always-visible
        portrait or miniature output. The shared LivePreview is the only preview. */
     await attempt("basic-ccfolia-workspace",async()=>{
+      const basicGroup=page.locator(".build-group-nav [data-build-group='character']").first();
+      await basicGroup.waitFor({state:"visible",timeout:5000});
+      if(await basicGroup.getAttribute("aria-pressed")!=="true") await click(basicGroup);
       const basicTab=page.locator("#btab-baseinfo");
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
@@ -1824,6 +1839,8 @@ async function captureProfile(browser, mode) {
     });
     await attempt("build-editor-operation-paths",async()=>{
       await go("ビルド");
+      const battleGroup=page.locator(".build-group-nav [data-build-group='battle']").first();
+      if(await battleGroup.getAttribute("aria-pressed")!=="true") await click(battleGroup);
       const skillTab=page.locator("#btab-skill");
       if(await visible(skillTab)){
         await click(skillTab);
@@ -1831,6 +1848,8 @@ async function captureProfile(browser, mode) {
         const addSkill=page.getByRole("button",{name:/スキル.*追加|追加.*スキル/}).first();
         if(await visible(addSkill)){await click(addSkill);await snap("build-skill-add","スキル追加操作後の編集状態");}
       }
+      const equipmentGroup=page.locator(".build-group-nav [data-build-group='equipment']").first();
+      if(await equipmentGroup.getAttribute("aria-pressed")!=="true") await click(equipmentGroup);
       const egoTab=page.locator("#btab-ego");
       if(await visible(egoTab)){
         await click(egoTab);
@@ -1841,11 +1860,16 @@ async function captureProfile(browser, mode) {
           await closeOverlay();
         }
       }
+      const basicGroup=page.locator(".build-group-nav [data-build-group='character']").first();
+      if(await basicGroup.getAttribute("aria-pressed")!=="true") await click(basicGroup);
       const basicTab=page.locator("#btab-baseinfo");
       if(await visible(basicTab)) await click(basicTab);
     });
     await attempt("build-item-picker-search",async()=>{
       await go("ビルド");
+      const equipmentGroup=page.locator(".build-group-nav [data-build-group='equipment']").first();
+      await equipmentGroup.waitFor({state:"visible",timeout:5000});
+      if(await equipmentGroup.getAttribute("aria-pressed")!=="true") await click(equipmentGroup);
       const itemTab=page.locator("#btab-items-build");
       if(!(await visible(itemTab))) throw new Error("Buildのアイテムタブが見つかりません");
       await click(itemTab);
@@ -2160,7 +2184,7 @@ async function main() {
       }
     }
   }
-  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","topbar-content-clipped","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-tabs-not-reflowed"].includes(item.type));
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","topbar-content-clipped","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-group-nav-not-reflowed"].includes(item.type));
   audit.overlayAccessibilityUnavailableCount=audit.accessibilityScans.filter((item)=>item.unavailable).length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
