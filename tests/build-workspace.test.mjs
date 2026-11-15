@@ -933,7 +933,9 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
   const purchaseCostOf = state.slice(state.indexOf("function purchaseCostOf"), state.indexOf("window.LBT_purchaseCostOf"));
   assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/);
-  assert.match(purchaseCostOf, /if \(!rule \|\| !\(Number\(rule\.lp\) > 0 \|\| Number\(rule\.shards\) > 0\)\) return null;/);
+  assert.match(purchaseCostOf, /if \(!action\.purchase \|\| action\.mode !== "n"\) return null;/);
+  assert.match(purchaseCostOf, /window\.DB\?\.normal_personas/);
+  assert.match(purchaseCostOf, /if \(!Number\.isSafeInteger\(lp\) \|\| lp <= 0 \|\| !Number\.isSafeInteger\(shards\) \|\| shards !== 0\) return null;/);
 });
 
 test("人格詳細はポップオーバーで開き、自動スクロールしない", () => {
