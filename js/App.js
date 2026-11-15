@@ -1452,9 +1452,8 @@ const HomeLauncher = ({
     title: "プレビュー・出力",
     description: "完成したシートを確認",
     run: () => navigate("baseinfo", {
-      basicFormatTab: "preview",
-      basicPreviewMode: "board",
-      previewOpen: false
+      previewOpen: true,
+      previewTab: "token"
     })
   };
   const utilityActions = [
@@ -1484,9 +1483,8 @@ const HomeLauncher = ({
     !needle || [item.title, item.description, item.terms].join(" ").toLocaleLowerCase("ja").includes(needle)
   );
   const preview = () => navigate("baseinfo", {
-    basicFormatTab: "preview",
-    basicPreviewMode: "board",
-    previewOpen: false
+    previewOpen: true,
+    previewTab: "token"
   });
 
   return h("section", {
