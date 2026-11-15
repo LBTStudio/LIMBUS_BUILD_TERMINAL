@@ -1843,27 +1843,50 @@ async function captureProfile(browser, mode) {
       await collapsePreviewIfOpen();
       await go("ホーム");
       await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
-      const launcher=page.locator(".btype-launcher-grid");
-      if(!(await visible(launcher))) throw new Error("ホームの目的別ランチャーが表示されません");
-      const actions=launcher.locator("button");
-      const count=await actions.count();
-      if(count<6) throw new Error("ホームの主要アクションが不足しています: "+count);
-      await snap("home-launcher-grid","ホームの主要アクション一覧");
-      const continuePanel=page.locator(".btype-continue-panel").first();
-      if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
-      // Exercise every launcher route against the disposable audit account.
-      for(let i=0;i<count;i++){
+      const launcher=page.locator(".btype-home-v2").first();
+      if(!(await visible(launcher))) throw new Error("新ホームの作成ランチャーが表示されません");
+      const primary=launcher.locator(".btype-home-primary-action");
+      const steps=launcher.locator(".btype-home-step");
+      const startCards=launcher.locator(".btype-home-start-card");
+      const footerActions=launcher.locator(".btype-home-footer-actions button");
+      const stepCount=await steps.count();
+      const cardCount=await startCards.count();
+      const footerCount=await footerActions.count();
+      if(await primary.count()!==1 || stepCount!==4 || cardCount!==2 || footerCount<3) {
+        throw new Error("新ホームの主要導線が不足しています: "+JSON.stringify({
+          primary:await primary.count(),steps:stepCount,startCards:cardCount,footerActions:footerCount
+        }));
+      }
+      await snap("home-launcher-grid","ホームの作成進捗と目的別導線一覧");
+      // Exercise the next-action control and every setup/preview step against the disposable audit account.
+      await click(primary);
+      await snap("home-primary-next-destination","ホームの次の作業ボタンから開いた画面");
+      await closeOverlay();
+      await collapsePreviewIfOpen();
+      await go("ホーム");
+      for(let i=0;i<stepCount;i++){
+        const action=page.locator(".btype-home-v2 .btype-home-step").nth(i);
+        const label=(await action.innerText()).trim().replace(/\\s+/g," ");
+        await click(action);
+        await snap("home-step-destination-"+i,"ホーム進捗ステップからの遷移先："+label);
         await closeOverlay();
         await collapsePreviewIfOpen();
         await go("ホーム");
-        const action=page.locator(".btype-launcher-grid button").nth(i);
-        if(!(await visible(action))) continue;
-        const label=(await action.innerText()).trim();
-        await click(action);
-        await snap("home-action-destination-"+label,"ホームランチャーからの遷移先："+label);
-        await closeOverlay();
-        await collapsePreviewIfOpen();
       }
+      // Verify both alternative starts: importing existing data and managing records.
+      await click(page.locator(".btype-home-v2 .btype-home-start-card").nth(0));
+      const importDialog=page.locator(".import-router-dialog").first();
+      await importDialog.waitFor({state:"visible",timeout:8000});
+      await snap("home-import-route-dialog","ホームから開いた既存データの取り込み先選択");
+      await page.keyboard.press("Escape").catch(()=>{});
+      await closeOverlay();
+      await go("ホーム");
+      await click(page.locator(".btype-home-v2 .btype-home-start-card").nth(1));
+      await page.waitForTimeout(250);
+      await snap("home-records-destination","ホームから開いた記録・所持品画面");
+      await go("ホーム");
+      const continuePanel=page.locator(".btype-continue-panel").first();
+      if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
     });
     await attempt("build-editor-operation-paths",async()=>{
       await go("ビルド");
