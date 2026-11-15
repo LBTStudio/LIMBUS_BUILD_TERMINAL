@@ -94,6 +94,12 @@ test("mobile UI audit validates three grouped build controls instead of the old 
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   assert.match(audit, /\.build-group-nav\[role="group"\]/);
   assert.match(audit, /buttonCount !== 3/);
+  assert.match(audit, /\.pv-ccfolia-preview \.pv-token-mode-switch > button/);
+  assert.match(audit, /\.ledger-result-entry-body details > summary/);
+  assert.match(audit, /button\.chip\.is-sm/);
+  const css = read("../assets/b-type-ui-parity.css");
+  assert.match(css, /pv-token-mode-switch\[role="group"\] > button\s*\{\s*min-height:44px/);
+  assert.match(css, /button\.chip\.is-sm\s*\{\s*min-width:44px/);
   assert.match(audit, /tabButtonsBelowMinimum/);
   const css = read("../assets/b-type-ui-parity.css");
   assert.match(css, /\.build-tabs\.is-b-workbench \.build-group-button small\{[^}]*color:#a39a89/);
