@@ -90,53 +90,39 @@ test("Shop catalog keeps category selection in one place and exposes one return 
 });
 
 
-test("mobile UI audit validates three grouped build controls instead of the old nine-tab grid", () => {
-  const audit = read("../tools/ui/capture-ui-audit.mjs");
-  assert.match(audit, /\.build-group-nav\[role="group"\]/);
-  assert.match(audit, /buttonCount !== 3/);
-  assert.match(audit, /\.pv-ccfolia-preview \.pv-token-mode-switch > button/);
-  assert.match(audit, /\.ledger-result-entry-body details > summary/);
-  assert.match(audit, /button\.chip\.is-sm/);
-  const css = read("../assets/b-type-ui-parity.css");
-  assert.match(css, /pv-token-mode-switch\[role="group"\] > button\s*\{\s*min-height:44px/);
-  assert.match(css, /button\.chip\.is-sm\s*\{\s*min-width:44px/);
-  assert.match(audit, /tabButtonsBelowMinimum/);
-  const paletteCss = read("../assets/b-type-ui-parity.css");
-  assert.match(paletteCss, /\.build-tabs\.is-b-workbench \.build-group-button small\{[^}]*color:#a39a89/);
-  assert.match(audit, /tabRailScrollable && !\["auto", "scroll"\]\.includes\(nav\.tabRailOverflowX\)/);
-  assert.doesNotMatch(audit, /buttonCount !== 9/);
-  assert.doesNotMatch(audit, /9 tabs in a 5-column grid/);
-});
-
-
-test("mobile build group names and subtabs stay on one line at touch size", () => {
+test("Build workspace exposes all nine destinations as one direct tab row", () => {
   const sections = read("../js/OtherSections.js");
-  const css = read("../assets/b-type-ui-parity.css");
+  assert.doesNotMatch(sections, /BUILD_TAB_GROUPS|build-group-nav|build-group-button/);
+  assert.match(sections, /BUILD_TABS\.map\(\(tab\) => h\("button", \{/);
+  assert.match(sections, /className: "build-tabs is-b-workbench subtabs btype-build-tabs"/);
+  assert.match(sections, /className: "segmented btype-build-tablist", role: "tablist", "aria-label": "ビルドセクション"/);
+  const tabSource = sections.slice(sections.indexOf("const BUILD_TABS = ["), sections.indexOf("if (typeof window !== \"undefined\")"));
+  for (const label of ["基本", "人格", "スキル", "パッシブ", "強化", "サポート", "E.G.O", "精神", "アイテム"]) {
+    assert.match(tabSource, new RegExp(`label: "${label}"`));
+  }
+});
+
+test("mobile UI audit checks nine direct build tabs in a five-column two-row grid", () => {
   const audit = read("../tools/ui/capture-ui-audit.mjs");
-  assert.match(sections, /label: "基本・人格", description: "基本・キャラクター"/);
-  assert.doesNotMatch(sections, /"aria-label": group\.label \+/, "use the visible tab group text as its accessible name");
-  assert.match(sections, /className: "build-group-button-label"/);
-  assert.match(sections, /h\("small", null, group\.tabIds\.length \+ "項目"\)/);
-  assert.match(css, /\.build-tabs\.is-b-workbench \.build-group-button-label[\s\S]*?white-space:nowrap !important/);
-  assert.match(css, /\.build-tabs\.is-b-workbench \.btype-build-tablist > \[role="tab"\][\s\S]*?white-space:nowrap !important/);
-  assert.match(css, /min-height:44px !important/);
-  assert.match(audit, /tabButtonsWrapping/);
-  assert.match(audit, /tabRailFlexWrap/);
-});
-
-
-test("index.html no longer overrides the grouped build navigation with the legacy nine-tab grid", () => {
+  assert.match(audit, /\.build-tabs \.btype-build-tablist\[role="tablist"\]\[aria-label="ビルドセクション"\]/);
+  assert.match(audit, /buttonCount !== 9/);
+  assert.match(audit, /rowCount < 2/);
+  assert.match(audit, /build-tabs-not-reflowed/);
+  assert.doesNotMatch(audit, /build-group-nav|buttonCount !== 3|build-group-nav-not-reflowed/);
   const index = read("../index.html");
-  assert.ok(index.includes('<style id="lbt-mobile-build-group-navigation-final">'));
-  assert.ok(index.includes("grid-template-columns: repeat(3, minmax(0, 1fr)) !important"));
-  assert.ok(index.includes("overflow-x: auto !important"));
-  assert.ok(index.includes("white-space: nowrap !important"));
-  assert.ok(!index.includes("lbt-mobile-build-tab-grid-final"));
-  assert.ok(!index.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
+  assert.ok(index.includes('<style id="lbt-mobile-build-tab-grid-final">'));
+  assert.ok(index.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
+  assert.ok(index.includes("min-height: 40px !important"));
 });
 
-
-test("build group count labels meet normal-text contrast against the dark surface", () => {
-  const css = read("../assets/b-type-ui-parity.css");
-  assert.match(css, /\.build-group-button small\{color:#918572\}/);
+test("nine mobile build tabs remain directly selectable without a hidden horizontal rail", () => {
+  const index = read("../index.html");
+  const finalTouchStyles = index.slice(index.indexOf('<style id="lbt-mobile-build-tab-grid-final">'));
+  assert.match(finalTouchStyles, /display: grid !important/);
+  assert.match(finalTouchStyles, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\) !important/);
+  assert.match(finalTouchStyles, /overflow: visible !important/);
+  assert.match(finalTouchStyles, /min-width: 40px !important/);
+  assert.match(finalTouchStyles, /min-height: 40px !important/);
+  assert.match(finalTouchStyles, /width: 100% !important/);
 });
+
