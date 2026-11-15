@@ -759,9 +759,9 @@ const AccountGate = () => {
         ) : null
       ),
               ),
-        h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
+        accounts.length > 0 ? h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
           h(window.LBTCloudBackupPanel || "div", { compact: true })
-        )
+        ) : null
       ),
       h("footer", { className: "acct-panel-foot" },
         h("span", null, accounts.length > 0 ? `${accounts.length}件のキャラクター・この端末内に保存` : "キャラクター名だけで開始できます"),
