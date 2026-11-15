@@ -341,7 +341,7 @@ async function snap(name, note) {
     if (nav.buttonCount !== 3 || nav.display !== "grid" || nav.rowCount !== 1
         || nav.scrollWidth > nav.clientWidth + 2 || nav.buttonsBelowMinimum > 0 || nav.buttonsOutsideList > 0
         || nav.tabCount < 2 || nav.tabCount > 4 || nav.tabButtonsBelowMinimum > 0
-        || !["auto", "scroll"].includes(nav.tabRailOverflowX)) {
+        || (nav.tabRailScrollable && !["auto", "scroll"].includes(nav.tabRailOverflowX))) {
       audit.layoutWarnings.push({
         name: base,
         type: "build-group-nav-not-reflowed",
