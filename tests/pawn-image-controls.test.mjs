@@ -52,6 +52,14 @@ test("画像の全身表示と従来サイズを維持する", () => {
   assert.doesNotMatch(css, /height: clamp\(145px, 22vh, 195px\) !important/);
 });
 
+test("スマホの拡大操作説明は折り返し、全体表示リセットは画面内の44px操作対象にする", () => {
+  assert.match(css, /@media \(max-width: 560px\)[\s\S]*?\.piece-url-preview-zoom-controls \{[\s\S]*?display: grid/);
+  assert.match(css, /\.piece-url-preview-zoom-help \{[\s\S]*?white-space: normal/);
+  assert.match(css, /\.piece-url-preview-zoom-reset \{[\s\S]*?min-height: 44px !important/);
+  assert.match(audit, /zoomResetLayout\.button\.right > zoomResetLayout\.viewportWidth/);
+  assert.match(audit, /zoomResetLayout\.help\.scrollWidth > zoomResetLayout\.help\.clientWidth/);
+});
+
 test("ブラウザー監査は拡大・ドラッグ移動・全体表示リセットを検証する", () => {
   assert.match(audit, /basic-image-preview-dragged/);
   assert.match(audit, /transformAfterDrag/);
