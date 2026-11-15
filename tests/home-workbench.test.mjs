@@ -27,6 +27,16 @@ test("Bタイプはビルドを主作業面にし、ホームを補助入口と�
   assert.match(state, /layoutVersion: ui\.layoutVersion/);
 });
 
+test("モバイル下部ナビはホームを独立した移動先にし、その他の選択状態と混同しない", () => {
+  const start = app.indexOf("const MobileBottomNavigation =");
+  const end = app.indexOf("const HomeLauncher =", start);
+  const nav = app.slice(start, end);
+  assert.match(nav, /id: "home", label: "ホーム", icon: "home", active: current === "home"/);
+  assert.match(nav, /currentSection: "home", previewOpen: false/);
+  assert.match(nav, /const otherActive = utilityOpen \|\| \["shop", "settings", "help"\]\.includes\(current\)/);
+  assert.match(bTypeCss, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+});
+
 test("基本タブは既存の駒整形コンポーネントを再利用し、キャラクター状態を二重管理しない", () => {
   assert.match(sections, /id: "baseinfo", label: "基本"/);
   assert.match(sections, /active\.id === "baseinfo"[\s\S]*?window\.LBT_BaseInfoWorkspace/);
