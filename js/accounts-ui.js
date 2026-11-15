@@ -598,7 +598,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
         ) : null
       ) : null,
               ),
-        accounts.length > 0 ? h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
+        total > 0 ? h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
           h(window.LBTCloudBackupPanel || "div", { compact: true })
         ) : null
       ),
