@@ -1922,6 +1922,14 @@ async function captureProfile(browser, mode) {
       await page.waitForTimeout(250);
       await snap("home-records-destination","ホームから開いた記録・所持品画面");
       await go("ホーム");
+      const accountTrigger=page.locator(".btype-home-footer-actions").getByRole("button",{name:/キャラクターを切り替える/});
+      await click(accountTrigger);
+      const accountManager=page.locator(".acct-panel").first();
+      await accountManager.waitFor({state:"visible",timeout:8000});
+      await snap("home-account-switcher","ホームのキャラクター切替から開いた管理画面");
+      await click(accountManager.locator(".acct-close").first());
+      await accountManager.waitFor({state:"hidden",timeout:8000});
+      await go("ホーム");
       const continuePanel=page.locator(".btype-continue-panel").first();
       if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
     });
