@@ -34,8 +34,8 @@ test("モバイル下部ナビはホームを独立した移動先にし、そ�
   assert.match(nav, /id: "home", label: "ホーム", icon: "home", active: current === "home"/);
   assert.match(nav, /currentSection: "home", previewOpen: false/);
   assert.match(nav, /const otherActive = utilityOpen \|\| \["shop", "settings", "help"\]\.includes\(current\)/);
-  assert.match(app, /const utilitySections = SECTIONS\\.filter\\(\\(s\\) => s\\.group === "utility" \\|\\| s\\.id === "shop"\\)/);
-  assert.doesNotMatch(app, /const utilitySections = SECTIONS\\.filter\\(\\(s\\) => s\\.group === "utility" \\|\\| s\\.id === "home"/, "Home is not duplicated inside the Other sheet");
+  assert.match(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "shop"\)/);
+  assert.doesNotMatch(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home"/, "Home is not duplicated inside the Other sheet");
   assert.match(bTypeCss, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
 });
 
