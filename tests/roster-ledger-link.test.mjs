@@ -15,6 +15,7 @@ import vm from "node:vm";
    --------------------------------------------------------------------------- */
 
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+const provenanceSource = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
 
 function loadReducer() {
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
@@ -25,6 +26,7 @@ function loadReducer() {
   };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(provenanceSource, context);
   vm.runInContext(source, context);
   return context.window.appReducer;
 }
@@ -66,7 +68,7 @@ test("人格の所持追加: 明細の ref.uid が所持の uid と一致する"
   assert.equal(s.entries[0].ref.kind, "rosterPersona");
   assert.equal(s.entries[0].ref.uid, uid);
   assert.equal(s.entries[0].resultId, "res-b");
-  assert.equal(s.entries[0].cost.lp, 0, "人格はガチャ費用ではなく、所持へ入れた時点で明細が立つ");
+  assert.equal(s.entries[0].cost.lp, 20, "未所持からの指定購入はルール価格20LPで明細へ記録する");
 });
 
 test("所持.passive と spirit も明示したリザルトへ帰属する（常に直近へ倒さない）", () => {
