@@ -1279,3 +1279,23 @@
     min-height: 44px;
   }
 }
+
+
+/* The two navigation rows are siblings: keep the category layer above its subtabs. */
+.build-tabs.is-b-workbench {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  width: 100%;
+}
+.build-tabs.is-b-workbench .build-group-nav {
+  flex: 0 0 auto;
+  width: 100%;
+  margin: 0;
+}
+.build-tabs.is-b-workbench .btype-build-tablist {
+  flex: 0 0 auto;
+  width: 100%;
+  margin: 0;
+}
