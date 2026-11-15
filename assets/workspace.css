@@ -2187,7 +2187,7 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 @media (max-width: 640px){
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: var(--topbar-h) 1fr 64px;
+    grid-template-rows: minmax(var(--topbar-h), auto) minmax(0, 1fr) 64px;
     grid-template-areas:
       "topbar"
       "focus"
