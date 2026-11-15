@@ -621,7 +621,7 @@
 .btype-home-more > summary {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px;
   color: #b8ad9a;
   font-size: 11px;
   cursor: pointer;
