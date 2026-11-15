@@ -1723,7 +1723,7 @@ async function captureProfile(browser, mode) {
             || step.left<entryLayout.progress.left-1 || step.right>entryLayout.progress.right+1)
           || entryLayout.progress.steps.some(step=>step.active
             ? step.noteDisplay==="none" || step.noteDisplay==="missing"
-            : step.noteDisplay!=="none"))) {
+            : step.noteDisplay!=="none")))) {
         throw new Error("新規リザルトの基本入力／320px進捗カードの幅・高さ・説明表示が期待どおりではありません: "+JSON.stringify(entryLayout));
       }
       await snap("ledger-result-entry-layout","新規リザルト記録フォームの基本情報・獲得チケット入力欄");
