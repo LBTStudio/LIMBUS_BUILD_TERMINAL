@@ -186,7 +186,7 @@ test("アクセス時のアカウント選択ゲートは毎回出て、選ん�
   assert.match(app, /window\.__LBT_BOOT_ACCOUNT_ID = id;/, "保存先を選んだアカウントに更新");
   assert.match(app, /dispatch\(\{ type: "RELOAD_ACCOUNT" \}\)/, "そのアカウントの保存領域で state を作り直す");
   assert.match(app, /const \[accountGateOpen, setAccountGateOpen\] = React\.useState\(\(\) => window\.LBT_accounts\?\.storageAvailable\?\.\(\) !== false\)/, "毎回ゲートを出す（保存領域が使えない時だけ素通し）");
-  assert.match(app, /React\.createElement\(AccountGate, null\)/, "ゲート中は本体を描画しない");
+  assert.match(app, /React\.createElement\(AccountGate, \{ onEditAccount: openAccountSwitcher \}\)/, "ゲート中は本体を描画せず、編集は App 経由で開く");
   assert.match(stateSource, /case "RELOAD_ACCOUNT":[\s\S]*?window\.LBT_accounts\?\.loadActive\?\.\(\)/, "reducer が選んだアカウントの保存領域を読み直す");
   assert.match(stateSource, /storageAvailable: \(\) => lbtStorage\(\) !== null/, "保存領域の有無を判定できるAPI");
 });
