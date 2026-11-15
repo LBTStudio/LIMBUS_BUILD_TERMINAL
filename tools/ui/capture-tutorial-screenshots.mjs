@@ -129,7 +129,7 @@ async function annotateAndSave(page, selector, fileBase, headline, detail) {
     await locator.evaluate((target) => {
       const scrollport = document.querySelector(".focus");
       const scrollTop = scrollport?.scrollTop || 0;
-      if (!scrollport || scrollTop <= 0 || scrollTop > 24) return;
+      if (!scrollport || scrollTop <= 0 || scrollTop > 96) return;
       const viewport = scrollport.getBoundingClientRect();
       const targetRect = target.getBoundingClientRect();
       const restoredTop = targetRect.top + scrollTop;
