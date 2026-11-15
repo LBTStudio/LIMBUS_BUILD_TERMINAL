@@ -110,6 +110,7 @@ async function createDisposableAccount(page,profile) {
       await existing.click({timeout:5000});
     }
   }
+  await gate.waitFor({ state: "hidden", timeout: 15000 }).catch(() => {});
   // B-type opens on its command launcher; explicitly selecting Home keeps the capture deterministic.
   const homeNav = page.locator(".rail-item[title='ホーム']");
   if (await visible(homeNav)) await homeNav.click();
