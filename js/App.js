@@ -1587,7 +1587,6 @@ const HomeLauncher = ({
       ),
       h("button", { type: "button", onClick: () => {
         if (typeof onOpenAccounts === "function") onOpenAccounts();
-        window.dispatchEvent(new CustomEvent("lbt:open-accounts"));
       } },
         h(Icon, { name: "users", size: 15 }), " キャラクターを切り替える"
       ),
@@ -2066,7 +2065,7 @@ const App = () => {
      前回の作業状態が別アカウントの画面へ漏れる経路を無くす。 */
   if (accountGateOpen) {
     return /* @__PURE__ */ React.createElement(React.Fragment, null,
-      React.createElement(AccountGate, null),
+      React.createElement(AccountGate, { onEditAccount: openAccountSwitcher }),
       React.createElement(AccountSwitcher, {
         open: accountSwitcherOpen,
         initialEditId: accountSwitcherInitialEditId,
