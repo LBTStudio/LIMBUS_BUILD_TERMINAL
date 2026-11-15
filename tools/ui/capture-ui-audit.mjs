@@ -193,6 +193,14 @@ async function readMetrics() {
       ".ledger-card-edit-save", ".ledger-card-edit-cancel", ".ledger-card-move-target",
       ".ledger-queue-move-target", ".ledger-result-object-actions > summary",
       ".ledger-persona-audit-disclosure > summary",
+      ".ledger-result-entry-body details > summary",
+      ".ledger-result-details > summary",
+      ".ledger-import-notes > summary",
+      ".ledger-held-result > summary",
+      ".ledger-history-editor-disclosure > summary",
+      ".ledger-result-reward-disclosure > summary",
+      ".pv-ccfolia-preview .pv-token-mode-switch > button",
+      "button.chip.is-sm",
       '.build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button',
       'button[aria-label*="閉じる"]'
     ].join(",");
