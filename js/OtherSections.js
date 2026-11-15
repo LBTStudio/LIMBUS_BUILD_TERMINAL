@@ -2471,7 +2471,7 @@ const BUILD_TABS = [
   { id: "items-build", label: "アイテム", num: "09", title: "OWNED ITEMS / 所持アイテム", subtitle: "持っていく個数と出力先を選ぶ", icon: "item", owned: false }
 ];
 const BUILD_TAB_GROUPS = [
-  { id: "character", label: "基本・キャラクター", tabIds: ["baseinfo", "persona"] },
+  { id: "character", label: "基本・人格", description: "基本・キャラクター", tabIds: ["baseinfo", "persona"] },
   { id: "battle", label: "戦闘データ", tabIds: ["skill", "passive", "enh"] },
   { id: "equipment", label: "装備・構成", tabIds: ["support", "ego", "spirit", "items-build"] }
 ];
@@ -3787,6 +3787,8 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
               className: "build-group-button" + (activeGroup.id === group.id ? " is-active" : ""),
               "data-build-group": group.id,
               "aria-pressed": activeGroup.id === group.id,
+              "aria-label": (group.description || group.label) + "、" + group.tabIds.length + "項目",
+              title: group.description || group.label,
               onClick: () => setTab(group.tabIds.includes(active.id) ? active.id : group.tabIds[0])
             },
               h("span", { className: "build-group-button-label" }, group.label),
