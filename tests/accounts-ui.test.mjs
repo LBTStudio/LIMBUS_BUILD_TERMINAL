@@ -164,7 +164,7 @@ test("未作成アカウントのアイコンは保留して作成後に適用�
 });
 
 test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
-  assert.match(ui, /const AccountGate = \(\) => \{/);
+  assert.match(ui, /const AccountGate = \(\{ onEditAccount \}\) => \{/);
   assert.match(ui, /h\("main", \{ className: "acct-gate" \}/, "ゲート表示中は本体が出ないので main ランドマークになる");
   assert.match(ui, /h\("h1", \{ className: "acct-kicker acct-gate-title", id: "acct-gate-title" \}/, "見出しは初回と既存選択で変わるh1（本体が無いため）");
   assert.match(ui, /role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-gate-title"/);
@@ -231,14 +231,14 @@ test("カードの選択領域は表示要素より前面、管理ボタンは�
 test("起動時のアカウント選択画面にも常時表示の編集ボタンを置き、対象アカウントを直接編集する", () => {
   const gateSource = ui.slice(ui.indexOf("const AccountGate"));
   assert.ok(gateSource.includes('className: "acct-gate-edit-btn"'), "起動時カードに専用の編集ボタン");
-  assert.ok(gateSource.includes("detail: { editId: entry.id }"), "クリックしたアカウントIDを渡す");
+  assert.ok(gateSource.includes("onEditAccount?.(entry.id)"), "クリックしたアカウントIDを App の管理画面へ渡す");
   assert.ok(gateSource.includes('"aria-haspopup": "dialog"'), "ダイアログを開く操作として明示");
   assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId, existingResults = \[\] \}\) => \{/);
   assert.match(ui, /if \(!open \|\| !initialEditId\) return;[\s\S]*?setEditingId\(entry\.id\)/, "対象IDを受け取り編集フォームへ入る");
   assert.ok(app.includes("accountSwitcherInitialEditId"), "編集対象IDを App で管理");
   assert.ok(app.includes("event.detail?.editId || null"), "イベントから対象IDを受け取る");
   assert.ok(app.includes("React.createElement(React.Fragment, null,"), "ゲートと共通編集UIを同時に描画");
-  assert.ok(app.includes("React.createElement(AccountGate, null),\n      React.createElement(AccountSwitcher,"), "ゲート表示中も共通編集UIをマウント");
+  assert.ok(app.includes("React.createElement(AccountGate, { onEditAccount: openAccountSwitcher }),\n      React.createElement(AccountSwitcher,"), "ゲートから同じ管理画面ハンドラーを開く");
   const editStyles = css.match(/\.acct-gate-edit-btn\s*\{([^}]*)\}/s)?.[1] || "";
   assert.match(editStyles, /z-index:\s*2/);
   assert.match(editStyles, /min-height:\s*30px/);
