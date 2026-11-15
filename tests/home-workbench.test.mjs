@@ -50,6 +50,8 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
   assert.match(home, /onClick: nextStep\.run/);
   assert.match(home, /次へ：/);
   assert.match(home, /プレビューを確認する/);
+  assert.match(home, /previewOpen: true/);
+  assert.match(home, /previewTab: "token"/);
   for (const target of ["baseinfo", "persona", "roster", "shop", "settings", "help"]) {
     assert.ok(app.includes(`navigate("${target}"`), `ホームから ${target} へ移動できる`);
   }
