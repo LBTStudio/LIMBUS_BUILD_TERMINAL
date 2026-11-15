@@ -3787,7 +3787,6 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
               className: "build-group-button" + (activeGroup.id === group.id ? " is-active" : ""),
               "data-build-group": group.id,
               "aria-pressed": activeGroup.id === group.id,
-              "aria-label": group.label + "：" + (group.description || group.label) + "、" + group.tabIds.length + "項目",
               title: group.description || group.label,
               onClick: () => setTab(group.tabIds.includes(active.id) ? active.id : group.tabIds[0])
             },
