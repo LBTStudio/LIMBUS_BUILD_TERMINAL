@@ -125,7 +125,7 @@ async function prepare(page) {
     };
     return visible(desktop) || visible(mobile);
   }, null, { timeout: 30000 });
-  await page.evaluate(() => window.dispatchEvent(new Event("lbt:open-accounts")));
+  await page.locator(".btype-home-footer-actions").getByRole("button", { name: /キャラクターを切り替える/ }).click();
   await page.locator(".acct-panel").waitFor({ state: "visible", timeout: 12000 });
   await page.waitForTimeout(250);
   const metrics = await page.evaluate(() => {
