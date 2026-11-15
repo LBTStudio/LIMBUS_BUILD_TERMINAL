@@ -81,6 +81,12 @@ test("新規リザルトは4段階の進行表示から各セクションへ直�
 });
 
 
+test("320px以下のリザルト進捗は選択中の説明だけを残してカードをコンパクトにする", () => {
+  assert.match(mobileCss, /@media \\(max-width: 360px\\)[\\s\\S]*?\\.ledger-result-step-copy small \\{ display: none; \\}/);
+  assert.match(mobileCss, /\\.ledger-result-step\\.is-active \\.ledger-result-step-copy small \\{ display: block; \\}/);
+  assert.match(mobileCss, /\\.ledger-result-step \\{[^}]*min-height: 44px/s);
+});
+
 test("リザルト一覧の並び順セレクトは40px以上のタッチ領域を確保する", () => {
   assert.match(sectionsCss, /\.ledger-results-sort\s*\{[^}]*min-height:\s*40px/s);
 });
