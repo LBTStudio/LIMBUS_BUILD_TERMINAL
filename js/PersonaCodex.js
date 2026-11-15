@@ -1433,10 +1433,14 @@ const addRoster = (p) => {
       isOwned: gated || ownedPersonaKeys.has(`${m}:${p.no}`),
       /* 特異人格は指定購入できない（core P203）。購入選択時は押せないようにする。 */
       purchaseBlocked: acquireHow === "purchase" && Boolean(personaPurchaseBlocked(p, m)),
-      onQuickAcquire: gated || (acquireHow === "purchase" && personaPurchaseBlocked(p, m))
+      onQuickAcquire: gated
+        || (acquireHow === "purchase" && personaPurchaseBlocked(p, m))
+        || (acquireHow === "ticket" && (Number(window.LBT_computeTicketBalance?.(state.results || [], state.entries || [])?.persona) || 0) < 1)
         ? null
         : (persona, modeHint) => acquirePersona(persona, modeHint),
-      quickAcquireLabel: `${resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 }).label} 獲得`
+      quickAcquireLabel: acquireHow === "ticket"
+        ? `人格抽出チケット 1枚（所持 ${Number(window.LBT_computeTicketBalance?.(state.results || [], state.entries || [])?.persona) || 0}枚）`
+        : `${resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 }).label} 獲得`
     }
   )))), /* @__PURE__ */ React.createElement(
     DetailDialog,
