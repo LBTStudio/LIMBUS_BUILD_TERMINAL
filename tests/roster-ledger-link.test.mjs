@@ -185,6 +185,40 @@ test("精神の試着（初期枠）は所持へは入るが購入明細は立�
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
 });
 
+test("group未設定の正規特殊強化5件は価格を照合して購入できる", () => {
+  const reducer = loadReducer();
+  const enhancements = db.special_enhancements.filter((entry) => !String(entry.group || "").trim());
+  assert.equal(enhancements.length, 5, "group未設定の正規特殊強化が5件ある");
+  for (const enhancement of enhancements) {
+    const price = Number(enhancement.shards);
+    assert.ok(Number.isSafeInteger(price) && price > 0, `${enhancement.name}: 正の欠片価格が設定されている`);
+    const action = {
+      type: "ADD_ENHANCEMENT",
+      group: String(enhancement.group || ""),
+      name: enhancement.name,
+      effect: enhancement.effect,
+      category: enhancement.category
+    };
+    const poor = {
+      ...base(),
+      results: [{ id: "res-poor", name: "残高不足", income: { lp: 0, shards: price - 1 } }]
+    };
+    assert.strictEqual(reducer(poor, action), poor, `${enhancement.name}: 欠片が1個不足すれば購入を拒否する`);
+
+    const funded = {
+      ...base(),
+      results: [{ id: "res-funded", name: "必要額", income: { lp: 0, shards: price } }]
+    };
+    const bought = reducer(funded, action);
+    assert.equal(bought.enhancements.length, 1, `${enhancement.name}: 必要額ちょうどで所持へ追加`);
+    assert.equal(bought.enhancements[0].group, "", `${enhancement.name}: 未設定groupを空文字へ正規化`);
+    assert.equal(bought.enhancements[0].shards, price, `${enhancement.name}: DB価格を所持記録へ反映`);
+    assert.equal(bought.entries.length, 1, `${enhancement.name}: 購入明細を1件記録`);
+    assert.equal(bought.entries[0].cost.shards, price, `${enhancement.name}: 購入明細にDB価格を記録`);
+    assert.equal(bought.entries[0].resultId, "res-funded");
+  }
+});
+
 test("人格・E.G.O の一括削除も購入明細を外し、undo で所持と明細を戻す", () => {
   const reducer = loadReducer();
   let s = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-a" });
