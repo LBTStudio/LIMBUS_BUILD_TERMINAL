@@ -2470,15 +2470,7 @@ const BUILD_TABS = [
   /* アイテムは人格を跨いで共有する。所持品の個数と出力先だけをここで決める。 */
   { id: "items-build", label: "アイテム", num: "09", title: "OWNED ITEMS / 所持アイテム", subtitle: "持っていく個数と出力先を選ぶ", icon: "item", owned: false }
 ];
-const BUILD_TAB_GROUPS = [
-  { id: "character", label: "基本・人格", description: "基本・キャラクター", tabIds: ["baseinfo", "persona"] },
-  { id: "battle", label: "戦闘データ", tabIds: ["skill", "passive", "enh"] },
-  { id: "equipment", label: "装備・構成", tabIds: ["support", "ego", "spirit", "items-build"] }
-];
-if (typeof window !== "undefined") {
-  window.LBT_BUILD_TABS = BUILD_TABS;
-  window.LBT_BUILD_TAB_GROUPS = BUILD_TAB_GROUPS;
-}
+if (typeof window !== "undefined") window.LBT_BUILD_TABS = BUILD_TABS;
 
 /* 取得（所持化）の共通部品。
 
@@ -3712,7 +3704,6 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
-  const activeGroup = BUILD_TAB_GROUPS.find((group) => group.tabIds.includes(active.id)) || BUILD_TAB_GROUPS[0];
   const setTab = (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } });
   /* 各タブの中身は既存コンポーネントをそのまま使う。owned は state.roster を唯一の基準とする。 */
   const owned = !!active.owned;
@@ -3779,23 +3770,9 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
     ),
     h("div", { className: "btype-work-layout" },
       h("div", { className: "btype-work-main" },
-        h("div", { className: "build-tabs is-b-workbench subtabs btype-build-tabs", "data-active-group": activeGroup.id },
-          h("div", { className: "build-group-nav", role: "group", "aria-label": "ビルドの作業分類" },
-            BUILD_TAB_GROUPS.map((group) => h("button", {
-              key: group.id,
-              type: "button",
-              className: "build-group-button" + (activeGroup.id === group.id ? " is-active" : ""),
-              "data-build-group": group.id,
-              "aria-pressed": activeGroup.id === group.id,
-              title: group.description || group.label,
-              onClick: () => setTab(group.tabIds.includes(active.id) ? active.id : group.tabIds[0])
-            },
-              h("span", { className: "build-group-button-label" }, group.label),
-              h("small", null, group.tabIds.length + "項目")
-            ))
-          ),
+        h("div", { className: "build-tabs is-b-workbench subtabs btype-build-tabs" },
           h("div", { className: "segmented btype-build-tablist", role: "tablist", "aria-label": "ビルドセクション" },
-            BUILD_TABS.filter((tab) => activeGroup.tabIds.includes(tab.id)).map((tab) => h("button", {
+            BUILD_TABS.map((tab) => h("button", {
               key: tab.id,
               type: "button",
               role: "tab",
