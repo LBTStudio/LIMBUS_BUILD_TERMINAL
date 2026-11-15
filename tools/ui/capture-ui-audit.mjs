@@ -800,7 +800,24 @@ async function boot() {
           throw new Error("SINNER SELECT編集ボタンが40x40px未満です: "+JSON.stringify(editRect));
         await click(edit);
         const manager=page.locator(".acct-overlay").first();
-        await manager.waitFor({state:"visible",timeout:5000});
+        try {
+          await manager.waitFor({state:"visible",timeout:5000});
+        } catch (error) {
+          const diagnostic = await page.evaluate(() => ({
+            accountGateVisible: !!document.querySelector(".acct-gate"),
+            gateEditButton: document.querySelector(".acct-gate-edit-btn")?.outerHTML || null,
+            accountOverlayCount: document.querySelectorAll(".acct-overlay").length,
+            accountPanelCount: document.querySelectorAll(".acct-panel").length,
+            accountList: window.LBT_accounts?.list?.() || null,
+            rootText: (document.querySelector("#root")?.innerText || document.body.innerText || "").slice(0, 1800),
+            activeElement: document.activeElement?.outerHTML?.slice(0, 600) || null
+          }));
+          throw new Error("SINNER SELECT編集ボタン後に管理画面が開きません: " + JSON.stringify({
+            original: error?.message || String(error),
+            diagnostic,
+            pageErrors: audit.pageErrors.filter(item => item.view === view)
+          }));
+        }
         const form=manager.locator(".acct-card--form").first();
         await form.waitFor({state:"visible",timeout:5000});
         await snap("account-gate-edit-form","起動時SINNER SELECTから対象アカウントの編集へ入った状態");
