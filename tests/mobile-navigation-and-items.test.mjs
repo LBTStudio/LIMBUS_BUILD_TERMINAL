@@ -55,8 +55,10 @@ test("実機のモバイル確認ページは端末全画面に追従し、確�
 });
 
 
-test("スマホのその他・取込ナビは現在地と開閉状態を反映する", () => {
-  assert.match(appSource, /const otherActive = utilityOpen \|\| \["home", "shop", "settings", "help"\]\.includes\(current\)/);
+test("スマホのホーム・その他・取込ナビは現在地と開閉状態を反映する", () => {
+  assert.match(appSource, /active: current === "home"/);
+  assert.match(appSource, /currentSection: "home", previewOpen: false/);
+  assert.match(appSource, /const otherActive = utilityOpen \|\| \["shop", "settings", "help"\]\.includes\(current\)/);
   assert.match(appSource, /active: importRouterOpen, expanded: importRouterOpen/);
   assert.match(appSource, /active: otherActive, expanded: utilityOpen/);
   assert.match(appSource, /"aria-expanded": item\.expanded/);
