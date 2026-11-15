@@ -71,7 +71,7 @@ test("UI audit covers desktop, tablet and mobile across Home, settings and all r
 
 test("Build workspace groups all nine existing tabs without changing their persisted IDs", () => {
   const sections = read("../js/OtherSections.js");
-  assert.match(sections, /id: "character", label: "基本・キャラクター", tabIds: \["baseinfo", "persona"\]/);
+  assert.match(sections, /id: "character", label: "基本・人格", description: "基本・キャラクター", tabIds: \["baseinfo", "persona"\]/);
   assert.match(sections, /id: "battle", label: "戦闘データ", tabIds: \["skill", "passive", "enh"\]/);
   assert.match(sections, /id: "equipment", label: "装備・構成", tabIds: \["support", "ego", "spirit", "items-build"\]/);
   assert.match(sections, /BUILD_TABS\.filter\(\(tab\) => activeGroup.tabIds.includes\(tab.id\)\)/);
