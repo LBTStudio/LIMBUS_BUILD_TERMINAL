@@ -88,3 +88,13 @@ test("Shop catalog keeps category selection in one place and exposes one return 
   assert.match(catalog, /className: "btype-shop-categories-trigger"/);
   assert.doesNotMatch(catalog, /shop-tabs/);
 });
+
+
+test("mobile UI audit validates three grouped build controls instead of the old nine-tab grid", () => {
+  const audit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(audit, /\.build-group-nav\[role="group"\]/);
+  assert.match(audit, /buttonCount !== 3/);
+  assert.match(audit, /tabButtonsBelowMinimum/);
+  assert.doesNotMatch(audit, /buttonCount !== 9/);
+  assert.doesNotMatch(audit, /9 tabs in a 5-column grid/);
+});
