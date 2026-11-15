@@ -480,17 +480,17 @@ async function runProfile(browser,profile) {
     await page.screenshot({ path: labelFormatPath, animations: "disabled" });
     results.screenshots.push({ file: path.relative(ROOT, labelFormatPath), profile: profile.name, state: "build-params-label-tab" });
 
-    // On phones, exercise the approved four-item bottom navigation; Home is reachable from Other.
+    // On phones, Home is a first-class destination beside the four core work areas.
     if (profile.width <= 640) {
       const mobileNav = page.locator(".btype-mobile-bottom-nav");
       const mobileLabels = (await mobileNav.locator("button").allTextContents()).map(text => text.trim());
-      recordCheck(profile.name + ": phone navigation matches the approved four destinations",
-        JSON.stringify(mobileLabels) === JSON.stringify(["ビルド", "記録", "取込", "その他"]),
+      recordCheck(profile.name + ": phone navigation exposes five direct destinations",
+        JSON.stringify(mobileLabels) === JSON.stringify(["ホーム", "ビルド", "記録", "取込", "その他"]),
         { mobileLabels });
-      await mobileNav.getByRole("button", { name: "その他", exact: true }).click();
-      const utilityHome = page.locator(".utility-section-grid").getByRole("button", { name: "ホーム", exact: true });
-      await utilityHome.waitFor({ state: "visible", timeout: 5000 });
-      await utilityHome.click();
+      const homeButton = mobileNav.getByRole("button", { name: "ホーム", exact: true });
+      await homeButton.click();
+      recordCheck(profile.name + ": Home is selected as the current mobile destination",
+        await homeButton.getAttribute("aria-current") === "page" && await homeButton.evaluate(node => node.classList.contains("is-active")));
     } else {
       await page.locator(".rail-item[title='ホーム']").click();
     }
