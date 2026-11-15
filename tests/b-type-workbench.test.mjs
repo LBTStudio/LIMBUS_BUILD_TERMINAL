@@ -132,3 +132,9 @@ test("index.html no longer overrides the grouped build navigation with the legac
   assert.ok(!index.includes("lbt-mobile-build-tab-grid-final"));
   assert.ok(!index.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
 });
+
+
+test("build group count labels meet normal-text contrast against the dark surface", () => {
+  const css = read("../assets/b-type-ui-parity.css");
+  assert.match(css, /\.build-group-button small\{color:#918572\}/);
+});
