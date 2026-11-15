@@ -22,7 +22,7 @@ test("B-type shell gives non-workbench pages the full canvas and scopes preview 
 
 test("B-type home prioritizes the next setup action and keeps secondary tools folded", () => {
   const app = read("../js/App.js");
-  assert.match(app, /className: "btype-home-v2"/);
+  assert.match(app, /className: "home-launcher btype-home btype-home-v2"/);
   assert.match(app, /className: "btype-home-primary"/);
   assert.match(app, /className: "btype-home-progress"/);
   assert.match(app, /className: "btype-home-start-grid"/);
