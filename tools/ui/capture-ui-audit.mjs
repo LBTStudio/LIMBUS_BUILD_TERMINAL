@@ -100,7 +100,7 @@ async function go(label) {
   if ((page.viewportSize()?.width || 1440) <= 640) {
     const nav = page.locator(".btype-mobile-bottom-nav");
     const directLabels = {
-      "ビルド": "ビルド", "記録": "記録", "記録・所持品": "記録",
+      "ホーム": "ホーム", "ビルド": "ビルド", "記録": "記録", "記録・所持品": "記録",
       "データ取り込み": "取込", "取込": "取込"
     };
     if (directLabels[label]) {
@@ -108,7 +108,7 @@ async function go(label) {
       if (await visible(direct)) return click(direct);
     }
     const utilityLabels = {
-      "ホーム": "ホーム", "ショップ": "ショップ", "設定": "詳細設定",
+      "ショップ": "ショップ", "設定": "詳細設定",
       "詳細設定": "詳細設定", "使い方": "使い方"
     };
     const utilityLabel = utilityLabels[label];
@@ -1331,7 +1331,8 @@ async function captureProfile(browser, mode) {
         await go(label);
         await snap("section-"+label,"主要セクション: "+label);
         if (mobile) {
-          const expectedNavLabel = ["ホーム", "ショップ", "設定", "使い方"].includes(label) ? "その他"
+          const expectedNavLabel = label === "ホーム" ? "ホーム"
+            : ["ショップ", "設定", "使い方"].includes(label) ? "その他"
             : label === "記録" ? "記録" : null;
           if (expectedNavLabel) {
             const currentNavItem = page.locator(".btype-mobile-bottom-nav button.is-active").filter({ hasText: expectedNavLabel }).first();
