@@ -351,8 +351,31 @@ async function createDisposableAccount(page,profile) {
       && resetControlGeometry.whiteSpace === "nowrap"
       && resetControlGeometry.writingMode === "horizontal-tb",
     resetControlGeometry);
-  const imageFrameBox = await portraitFrame.boundingBox();
-  if (!imageFrameBox) throw new Error(profile.name + ": portrait frame has no bounding box");
+  await portraitFrame.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(120);
+  const dragStart = await portraitFrame.evaluate(frame => {
+    const rect = frame.getBoundingClientRect();
+    const left = Math.max(1, rect.left);
+    const right = Math.min(innerWidth - 1, rect.right);
+    const top = Math.max(1, rect.top);
+    const bottom = Math.min(innerHeight - 1, rect.bottom);
+    const candidates = [
+      [(left + right) / 2, (top + bottom) / 2],
+      [left + (right - left) * 0.35, top + (bottom - top) * 0.35],
+      [left + (right - left) * 0.65, top + (bottom - top) * 0.35],
+      [left + (right - left) * 0.35, top + (bottom - top) * 0.65],
+      [left + (right - left) * 0.65, top + (bottom - top) * 0.65]
+    ];
+    for (const [x, y] of candidates) {
+      if (right - left < 24 || bottom - top < 24) break;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && frame.contains(hit)) {
+        return { x, y, hitTag: hit.tagName, hitClass: typeof hit.className === "string" ? hit.className : "", rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, visibleRect: { left, top, right, bottom }, hitFrame: true };
+      }
+    }
+    return { x: (left + right) / 2, y: (top + bottom) / 2, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, visibleRect: { left, top, right, bottom }, hitFrame: false, hitTag: document.elementFromPoint((left + right) / 2, (top + bottom) / 2)?.tagName || null };
+  });
+  if (!dragStart.hitFrame) throw new Error(profile.name + ": portrait frame is covered at every visible drag point: " + JSON.stringify(dragStart));
   const transformBeforeDrag = await portraitImage.evaluate(image => {
     const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
     return { scale: matrix.a, x: matrix.e, y: matrix.f };
@@ -360,9 +383,9 @@ async function createDisposableAccount(page,profile) {
   const panDirections = [[32, 20], [-32, 20], [32, -20], [-32, -20]];
   let panMoved = false;
   for (const [dx, dy] of panDirections) {
-    await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2, imageFrameBox.y + imageFrameBox.height / 2);
+    await page.mouse.move(dragStart.x, dragStart.y);
     await page.mouse.down();
-    await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2 + dx, imageFrameBox.y + imageFrameBox.height / 2 + dy, { steps: 5 });
+    await page.mouse.move(dragStart.x + dx, dragStart.y + dy, { steps: 5 });
     await page.mouse.up();
     try {
       await page.waitForFunction(({ before, minimum }) => {
@@ -384,7 +407,7 @@ async function createDisposableAccount(page,profile) {
   const panDistance = Math.abs(transformAfterDrag.x - transformBeforeDrag.x) + Math.abs(transformAfterDrag.y - transformBeforeDrag.y);
   recordCheck(profile.name + ": zoomed portrait can be repositioned by dragging",
     panMoved && transformAfterDrag.scale > 1 && panDistance > 4,
-    { transformBeforeDrag, transformAfterDrag, panDistance, attemptedDirections: panDirections });
+    { transformBeforeDrag, transformAfterDrag, panDistance, attemptedDirections: panDirections, dragStart });
 
   await resetPortrait.click();
   await page.waitForTimeout(120);
