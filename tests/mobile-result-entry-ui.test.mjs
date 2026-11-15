@@ -4,6 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const sections = read("../js/OtherSections.js");
+const sectionsCss = read("../assets/sections.css");
 const accountCss = read("../assets/v66-accounts.css");
 const mobileCss = read("../assets/v69-mobile-ui-audit.css");
 const index = read("../index.html");
@@ -77,4 +78,9 @@ test("新規リザルトは4段階の進行表示から各セクションへ直�
   }
   assert.match(sections, /scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth"/);
   assert.match(sections, /className: "ledger-result-step"/);
+});
+
+
+test("リザルト一覧の並び順セレクトは40px以上のタッチ領域を確保する", () => {
+  assert.match(sectionsCss, /\.ledger-results-sort\s*\{[^}]*min-height:\s*40px/s);
 });
