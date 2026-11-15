@@ -5067,7 +5067,7 @@ function appReducer(state, action) {
       if (action.purchase) {
         /* 購入は所持追加より先に価格と残高を検証する。
            UI側の事前確認だけでは、別経路dispatchや二重送信を防げない。 */
-        purchaseCost = purchaseCostOf(state, { type: "ADD_ROSTER_EGO", rank, no, purchase: true });
+        purchaseCost = purchaseCostOf(state, { type: "ADD_ROSTER_EGO", rank, no, purchase: true, acquisition: action.acquisition });
         if (!purchaseCost || !purchaseAffordability(state, purchaseCost).ok) return state;
       }
       const uid = makeOwnedUid("er");
