@@ -159,6 +159,8 @@ test("初回ホームは作成・取り込み・記録を主導線にし、そ�
   assert.match(home, /className: "btype-home-start-grid"/);
   assert.match(home, /className: "btype-home-more"/);
   assert.match(app, /onOpenAccounts: \(\) => openAccountSwitcher\(null\)/);
+  assert.doesNotMatch(home, /dispatchEvent\(new CustomEvent\("lbt:open-accounts"\)\)/,
+    "ホームからの切替は直接ハンドラーを一度だけ呼ぶ");
   assert.doesNotMatch(home, /btype-launcher-grid/);
   assert.match(bTypeCss, /\.btype-home-primary/);
   assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-home-start-grid,\s*\.btype-home-utility-list \{ grid-template-columns: minmax\(0,1fr\); \}/);
