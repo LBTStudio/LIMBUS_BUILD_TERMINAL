@@ -2160,4 +2160,17 @@ main.acct-gate {
   .acct-panel-accounts > .acct-grid:has(.acct-card--add:only-child) .acct-card--add { min-height: 64px; }
 }
 
+/* 320px級では編集ヘッダーの説明を省き、任意設定を閉じたまま保存操作を見せる。 */
+@media (max-width: 360px) {
+  .acct-panel.is-editing > .acct-panel-head {
+    padding: var(--s-2) var(--s-3);
+  }
+  .acct-panel.is-editing > .acct-panel-head .acct-kicker {
+    font-size: var(--fs-12);
+    letter-spacing: .06em;
+  }
+  .acct-panel.is-editing > .acct-panel-head .acct-lead { display: none; }
+  .acct-panel.is-editing .acct-card--form { gap: var(--s-1); padding: var(--s-3); }
+}
+
 }
