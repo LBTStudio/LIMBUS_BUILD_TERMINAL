@@ -198,7 +198,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.match(captureAudit, /"touch-target-too-small","build-group-nav-not-reflowed"\].includes\(item\.type\)/);
   assert.match(captureAudit, /criticalLayoutWarnings\.length/);
   assert.match(captureAudit, /const buildTablistMetrics/);
-  assert.match(captureAudit, /type: "build-tabs-not-reflowed"/);
+  assert.match(captureAudit, /type: "build-group-nav-not-reflowed"/);
 });
 
 test("画面・サブ画面の切替時は中央スクロールを先頭へ戻し、同一画面の編集では保持する", () => {
