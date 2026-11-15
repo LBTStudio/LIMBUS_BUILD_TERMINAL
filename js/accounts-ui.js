@@ -598,9 +598,9 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
         ) : null
       ) : null,
               ),
-        h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
+        accounts.length > 0 ? h("aside", { className: "acct-panel-cloud", "aria-label": "オンライン保全・復元" },
           h(window.LBTCloudBackupPanel || "div", { compact: true })
-        )
+        ) : null
       ),
       h("footer", { className: "acct-panel-foot" },
         h("span", null, total > 0 ? `${total}件のアカウント・この端末内に保存` : "保存領域なし"),
