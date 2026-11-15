@@ -85,6 +85,10 @@ test("320px以下のリザルト進捗は選択中の説明だけを残してカ
   assert.match(mobileCss, /@media \(max-width: 360px\)[\s\S]*?\.ledger-result-step-copy small \{ display: none; \}/);
   assert.match(mobileCss, /\.ledger-result-step\.is-active \.ledger-result-step-copy small \{ display: block; \}/);
   assert.match(mobileCss, /\.ledger-result-step \{[^}]*min-height: 44px/s);
+  assert.match(audit, /const progressGrid=progress\?\.querySelector\("\.ledger-result-progress-steps"\)/);
+  assert.match(audit, /entryLayout\.progress\.stepCount!==4/);
+  assert.match(audit, /entryLayout\.progress\.steps\.some\(step=>step\.height<44/);
+  assert.match(audit, /step\.active\s*\? step\.noteDisplay/);
 });
 
 test("リザルト一覧の並び順セレクトは40px以上のタッチ領域を確保する", () => {
