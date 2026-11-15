@@ -171,7 +171,7 @@ async function prepare(page) {
 
 async function openAccountManager(page) {
   if (await page.locator(".acct-panel").isVisible().catch(() => false)) return;
-  await page.evaluate(() => window.dispatchEvent(new Event("lbt:open-accounts")));
+  await page.locator(".btype-home-footer-actions").getByRole("button", { name: /キャラクターを切り替える/ }).click();
   await page.locator(".acct-panel").waitFor({ state: "visible", timeout: 12000 });
   await page.locator(".acct-panel-accounts > .acct-grid--manager").waitFor({ state: "visible", timeout: 8000 });
 }
