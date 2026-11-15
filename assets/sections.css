@@ -1609,9 +1609,11 @@
 .ledger-results-search,
 .ledger-results-sort {
   width: 100%; min-width: 0; min-height: 38px; padding: 0 var(--s-3);
+  /* Touch controls in the result ledger must meet the 40px mobile target. */
   border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2);
   color: var(--tx); font: 500 var(--fs-12) var(--f-body);
 }
+.ledger-results-sort { min-height: 40px; }
 .ledger-results-search:focus-visible,
 .ledger-results-sort:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ledger-results-search:disabled,
