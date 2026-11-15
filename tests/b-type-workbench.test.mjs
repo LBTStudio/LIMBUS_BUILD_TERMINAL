@@ -101,8 +101,8 @@ test("mobile UI audit validates three grouped build controls instead of the old 
   assert.match(css, /pv-token-mode-switch\[role="group"\] > button\s*\{\s*min-height:44px/);
   assert.match(css, /button\.chip\.is-sm\s*\{\s*min-width:44px/);
   assert.match(audit, /tabButtonsBelowMinimum/);
-  const css = read("../assets/b-type-ui-parity.css");
-  assert.match(css, /\.build-tabs\.is-b-workbench \.build-group-button small\{[^}]*color:#a39a89/);
+  const paletteCss = read("../assets/b-type-ui-parity.css");
+  assert.match(paletteCss, /\.build-tabs\.is-b-workbench \.build-group-button small\{[^}]*color:#a39a89/);
   assert.match(audit, /tabRailScrollable && !\["auto", "scroll"\]\.includes\(nav\.tabRailOverflowX\)/);
   assert.doesNotMatch(audit, /buttonCount !== 9/);
   assert.doesNotMatch(audit, /9 tabs in a 5-column grid/);
