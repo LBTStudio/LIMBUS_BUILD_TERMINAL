@@ -1875,7 +1875,7 @@ async function captureProfile(browser, mode) {
       }
       // Verify both alternative starts: importing existing data and managing records.
       await click(page.locator(".btype-home-v2 .btype-home-start-card").nth(0));
-      const importDialog=page.locator(".import-router-dialog").first();
+      const importDialog=page.locator(".import-router").first();
       await importDialog.waitFor({state:"visible",timeout:8000});
       await snap("home-import-route-dialog","ホームから開いた既存データの取り込み先選択");
       await page.keyboard.press("Escape").catch(()=>{});
