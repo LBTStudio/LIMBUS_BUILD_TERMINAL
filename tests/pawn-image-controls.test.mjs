@@ -57,3 +57,12 @@ test("ブラウザー監査は拡大・ドラッグ移動・全体表示リセ�
   assert.match(audit, /transformAfterDrag/);
   assert.match(audit, /立ち絵を拡大し、ドラッグで表示位置を調整した状態/);
 });
+
+
+test("preview drag regression scrolls the portrait into view and confirms a real pointer hit target", () => {
+  const regression = read("../tools/ui/capture-preview-control-regression.mjs");
+  assert.match(regression, /portraitFrame\.scrollIntoViewIfNeeded\(\)/);
+  assert.match(regression, /document\.elementFromPoint\(x, y\)/);
+  assert.match(regression, /if \(!dragStart\.hitFrame\)/);
+  assert.match(regression, /attemptedDirections: panDirections, dragStart/);
+});
