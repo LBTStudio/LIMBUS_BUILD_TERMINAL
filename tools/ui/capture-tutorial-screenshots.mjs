@@ -500,7 +500,7 @@ async function captureViewport(browser, mode) {
     // Use the same app event as the help index's "アカウント管理を開く" action.
     await page.evaluate(() => window.dispatchEvent(new Event("lbt:open-accounts")));
     await page.waitForTimeout(WAIT_MS);
-    const editButton = page.locator(".acct-card-actions .acct-edit-btn").first();
+    const editButton = page.locator(".acct-panel .acct-edit-btn").first();
     await editButton.waitFor({ state: "visible", timeout: 12000 });
     await editButton.click();
     await page.waitForTimeout(WAIT_MS);
