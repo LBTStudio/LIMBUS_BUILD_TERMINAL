@@ -48,6 +48,23 @@ test("作成・名前変更はインラインフォームで行い prompt に依
   assert.doesNotMatch(sections, /doSwitchAccount|doCreateAccount|doRenameAccount|doDeleteAccount/, "古いインライン実装の変数を残さない");
 });
 
+test("既存キャラクターの編集は名前を主項目にし、用途タグとアイコンを任意欄へ折りたたむ", () => {
+  const start = ui.indexOf("const AccountCard =");
+  const end = ui.indexOf("const AccountSwitcher =", start);
+  const card = ui.slice(start, end);
+  const edit = card.slice(card.indexOf("if (editing)"), card.indexOf("const cardLabel"));
+  assert.match(edit, /h\("label", \{ className: "acct-field" \}, h\("span", null, "キャラクター名"\)/);
+  assert.match(edit, /h\("details", \{ className: "acct-optional-settings" \}/);
+  assert.match(edit, /h\("summary", null, "用途タグ・アイコン（任意）"\)/);
+  assert.match(edit, /className: "acct-optional-settings-body"/);
+  assert.match(edit, /value: draft\.purpose/);
+  assert.match(edit, /className: "acct-icon-row"/);
+  assert.match(edit, /className: "acct-form-actions"/);
+  assert.match(ui, /is-editing/);
+  assert.match(ui, /editingId \? "キャラクターを編集" : creating \? "キャラクターを追加"/);
+  assert.match(css, /@media \(max-width: 360px\)[\s\S]*?\.acct-panel\.is-editing > \.acct-panel-head \.acct-lead \{ display: none; \}/);
+});
+
 test("アイコン保存・解除に失敗したとき成功扱いせず、通知を出す", () => {
   const editor = ui.slice(ui.indexOf("function useAccountIconEditor"), ui.indexOf("function AccountMark"));
   const switcher = ui.slice(ui.indexOf("const saveCreate ="), ui.indexOf("const doSelect ="));
