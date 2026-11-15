@@ -1898,6 +1898,10 @@ const App = () => {
      lbt:open-accounts イベントだけで開く（状態の所在を App に一元化）。 */
   const [accountSwitcherOpen, setAccountSwitcherOpen] = React.useState(false);
   const [accountSwitcherInitialEditId, setAccountSwitcherInitialEditId] = React.useState(null);
+  const openAccountSwitcher = (editId = null) => {
+    setAccountSwitcherInitialEditId(editId);
+    setAccountSwitcherOpen(true);
+  };
   /* 取り込みは accounts-ui からイベントで届く。状態の所在は App に一元する。 */
   React.useEffect(() => {
     const onImport = (event) => {
@@ -1997,7 +2001,7 @@ const App = () => {
       case "home":
         return React.createElement(HomeLauncher, {
           state, dispatch, saveStatus,
-          onOpenAccounts: () => window.dispatchEvent(new CustomEvent("lbt:open-accounts")),
+          onOpenAccounts: () => openAccountSwitcher(null),
           onOpenImportFile: () => fileRef.current?.click(),
           onExportState: () => exportState(state),
           onExportRoster: () => exportRoster(state),
