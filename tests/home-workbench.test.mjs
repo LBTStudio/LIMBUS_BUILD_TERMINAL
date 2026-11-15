@@ -12,6 +12,7 @@ const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
 const css = read("../assets/workspace.css");
 const bTypeCss = read("../assets/b-type-workbench.css");
+const uiHarness = read("../tools/ui/harness.mjs");
 const index = read("../index.html");
 
 test("Bタイプはビルドを主作業面にし、ホームを補助入口として残す", () => {
@@ -37,6 +38,8 @@ test("モバイル下部ナビはホームを独立した移動先にし、そ�
   assert.match(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "shop"\)/);
   assert.doesNotMatch(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home"/, "Home is not duplicated inside the Other sheet");
   assert.match(bTypeCss, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(uiHarness, /const directLabels = \{[\s\S]*?"ホーム": "ホーム"/, "mobile UI audit uses the direct Home destination");
+  assert.match(uiHarness, /if \(directLabels\[title\]\)/, "mobile routes use the direct-navigation path before Other");
 });
 
 test("基本タブは既存の駒整形コンポーネントを再利用し、キャラクター状態を二重管理しない", () => {
