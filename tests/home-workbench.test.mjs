@@ -76,6 +76,7 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
   assert.doesNotMatch(auditCapture, /\.import-router-dialog/, "存在しない旧ダイアログ名を使わない");
   assert.match(home, /記録・所持品を管理/);
   assert.match(home, /その他の機能を探す/);
+  assert.match(bTypeCss, /\\.btype-home-more > summary\\s*\\{[^}]*min-height:\\s*44px;/s, "ホームの補助機能開閉領域は44pxを確保");
   assert.match(home, /aria-label": "その他の機能を検索"/);
   assert.match(app, /openPersonaDraftImport: true/);
   assert.match(app, /recordImportTarget: "text"/);
