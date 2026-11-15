@@ -624,7 +624,7 @@ Object.assign(window, { AccountSwitcher, AccountChip, AccountSummary, BalanceChi
      - アカウントが2件以上ある場合の毎回確認
      1件のみの場合は選ぶ余地が無いので自動で抜ける（gate 不要）。
 --------------------------------------------------------------------------- */
-const AccountGate = () => {
+const AccountGate = ({ onEditAccount }) => {
 
   const [info, setInfo] = React.useState(readAccountInfo);
   const [creating, setCreating] = React.useState(false);
@@ -702,7 +702,7 @@ const AccountGate = () => {
             id: `acct-gate-edit-${entry.id}`,
             onClick: (event) => {
               event.stopPropagation();
-              window.dispatchEvent(new CustomEvent(ACCOUNTS_OPEN_EVENT, { detail: { editId: entry.id } }));
+              onEditAccount?.(entry.id);
             },
             "aria-haspopup": "dialog",
             "aria-label": `${entry.name} のアカウント設定を編集`,
