@@ -56,6 +56,9 @@ test("ホームは次に設定する項目を判定し、既存の編集画面�
     assert.ok(app.includes(`navigate("${target}"`), `ホームから ${target} へ移動できる`);
   }
   assert.match(home, /既存データを取り込む/);
+  const auditCapture = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(auditCapture, /page\.locator\("\.import-router"\)\.first\(\)/, "ホームの既存データ導線は実際の取り込み選択ダイアログを待つ");
+  assert.doesNotMatch(auditCapture, /\.import-router-dialog/, "存在しない旧ダイアログ名を使わない");
   assert.match(home, /記録・所持品を管理/);
   assert.match(home, /その他の機能を探す/);
   assert.match(home, /aria-label": "その他の機能を検索"/);
