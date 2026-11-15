@@ -1391,8 +1391,10 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, onOpenIm
    処理やデータ更新を複製せず、既存画面と既存アクションへ接続する。 */
 const MobileBottomNavigation = ({ current, isBuildWorkspace, importRouterOpen, utilityOpen, dispatch, onOpenImportRouter, onOpenUtilities }) => {
   const h = React.createElement;
-  const otherActive = utilityOpen || ["home", "shop", "settings", "help"].includes(current);
+  const otherActive = utilityOpen || ["shop", "settings", "help"].includes(current);
   const items = [
+    { id: "home", label: "ホーム", icon: "home", active: current === "home",
+      run: () => dispatch({ type: "SET_UI", ui: { currentSection: "home", previewOpen: false } }) },
     { id: "build", label: "ビルド", icon: "grid", active: isBuildWorkspace,
       run: () => dispatch({ type: "SET_UI", ui: { currentSection: "baseinfo", previewOpen: false } }) },
     { id: "record", label: "記録", icon: "roster", active: current === "roster",
@@ -2058,7 +2060,7 @@ const App = () => {
     { key: "share", icon: "share", label: "共有シートを開く", note: "整形されたHTMLの共有用プレビューを新規タブで開きます。", onClick: () => LBT_gen.openShareSheet(state) },
     { key: "json", icon: "copy", scope: "出力", label: "CCFOLIA JSONをコピー", note: "現在の出力対象をJSONとしてクリップボードへコピーします。", tone: "is-primary", onClick: copyJson }
   ];
-  const utilitySections = SECTIONS.filter((s) => s.group === "utility" || s.id === "home" || s.id === "shop");
+  const utilitySections = SECTIONS.filter((s) => s.group === "utility" || s.id === "shop");
 
   /* アカウント未選択なら本体を出さず、選択ゲートだけを描画する。
      「どのキャラクターのデータか」が決まるまで編集画面へ入れないことで、

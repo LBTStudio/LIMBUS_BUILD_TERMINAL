@@ -12,6 +12,7 @@ const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
 const css = read("../assets/workspace.css");
 const bTypeCss = read("../assets/b-type-workbench.css");
+const uiHarness = read("../tools/ui/harness.mjs");
 const index = read("../index.html");
 
 test("Bタイプはビルドを主作業面にし、ホームを補助入口として残す", () => {
@@ -25,6 +26,20 @@ test("Bタイプはビルドを主作業面にし、ホームを補助入口と�
   assert.match(state, /currentSection: "home"/);
   assert.match(state, /next\.ui\.layoutVersion !== "b-workbench-v2"/);
   assert.match(state, /layoutVersion: ui\.layoutVersion/);
+});
+
+test("モバイル下部ナビはホームを独立した移動先にし、その他の選択状態と混同しない", () => {
+  const start = app.indexOf("const MobileBottomNavigation =");
+  const end = app.indexOf("const HomeLauncher =", start);
+  const nav = app.slice(start, end);
+  assert.match(nav, /id: "home", label: "ホーム", icon: "home", active: current === "home"/);
+  assert.match(nav, /currentSection: "home", previewOpen: false/);
+  assert.match(nav, /const otherActive = utilityOpen \|\| \["shop", "settings", "help"\]\.includes\(current\)/);
+  assert.match(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "shop"\)/);
+  assert.doesNotMatch(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home"/, "Home is not duplicated inside the Other sheet");
+  assert.match(bTypeCss, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(uiHarness, /const directLabels = \{[\s\S]*?"ホーム": "ホーム"/, "mobile UI audit uses the direct Home destination");
+  assert.match(uiHarness, /if \(directLabels\[title\]\)/, "mobile routes use the direct-navigation path before Other");
 });
 
 test("基本タブは既存の駒整形コンポーネントを再利用し、キャラクター状態を二重管理しない", () => {

@@ -208,6 +208,7 @@ async function clickMainRoute(page, title) {
   if (width <= 640) {
     const nav = page.locator(".btype-mobile-bottom-nav");
     const directLabels = {
+      "ホーム": "ホーム",
       "ビルド": "ビルド",
       "記録・所持品": "記録",
       "記録": "記録",
