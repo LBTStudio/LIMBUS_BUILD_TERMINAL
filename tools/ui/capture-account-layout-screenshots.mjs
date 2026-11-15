@@ -126,7 +126,14 @@ async function prepare(page) {
     };
     return visible(desktop) || visible(mobile);
   }, null, { timeout: 30000 });
+  const viewportLabel = page.viewportSize()?.width <= 640 ? "390" : "1440";
+  await page.screenshot({
+    path: path.join(OUT, `home-character-switcher-entry-${viewportLabel}.png`),
+    fullPage: false,
+    animations: "disabled"
+  });
   const accountTrigger = page.locator(".btype-home-footer-actions").getByRole("button", { name: /キャラクターを切り替える/ });
+  await accountTrigger.waitFor({ state: "visible", timeout: 8000 });
   await accountTrigger.click();
   try {
     await page.locator(".acct-panel").waitFor({ state: "visible", timeout: 12000 });

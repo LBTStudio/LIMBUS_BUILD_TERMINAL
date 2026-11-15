@@ -177,6 +177,12 @@ test("初回ホームは作成・取り込み・記録を主導線にし、そ�
   assert.match(home, /className: "btype-home-start-grid"/);
   assert.match(home, /className: "btype-home-more"/);
   assert.match(app, /onOpenAccounts: \(\) => openAccountSwitcher\(null\)/);
+  assert.match(app, /const openAccountSwitcher = \(editId = null\) => \{[\s\S]*?setAccountSwitcherInitialEditId\(editId\);[\s\S]*?setAccountSwitcherOpen\(true\);/,
+    "ホームと起動ゲートの両方が同じ管理画面の開閉状態を使う");
+  assert.match(app, /React\.createElement\(AccountGate, \{ onEditAccount: openAccountSwitcher \}\)/,
+    "起動ゲートの編集操作はAppの管理画面へ直接接続する");
+  assert.match(app, /React\.createElement\(AccountSwitcher, \{\s*open: accountSwitcherOpen/,
+    "管理画面はAppの単一状態から描画する");
   assert.doesNotMatch(home, /dispatchEvent\(new CustomEvent\("lbt:open-accounts"\)\)/,
     "ホームからの切替は直接ハンドラーを一度だけ呼ぶ");
   assert.doesNotMatch(home, /btype-launcher-grid/);
