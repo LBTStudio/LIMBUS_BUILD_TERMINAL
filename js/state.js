@@ -2551,6 +2551,16 @@ function latestResultId(state) {
   return latestResultByDisplayOrder(state?.results)?.id || null;
 }
 
+/* resultId は外部入力・Undoバッファ・UI action から届く。
+   削除済みIDを帳簿に残すと、一覧に属さない明細が残高だけに影響する。
+   不明なIDを最新リザルトへ付け替えず、未分類(null)へ戻す。 */
+function knownResultId(state, candidate) {
+  if (candidate == null || candidate === "") return null;
+  const results = Array.isArray(state?.results) ? state.results : [];
+  const match = results.find((result) => result && String(result.id) === String(candidate));
+  return match ? match.id : null;
+}
+
 /* 前回の誤修正では results 配列末尾を最新とみなしたため、抽出時刻・封緘バッチ・
    直後に作られた明細が揃っている保存データは、表示上の最新リザルトへ一度だけ直す。
    証明バッチそのものは変更しない。日時・バッチ・同じ結果IDを持つ明細を照合できない
@@ -2930,7 +2940,8 @@ function normalizeVia(via) {
 
 function appendLedgerEntry(state, detail) {
   if (!detail || !detail.name) return state;
-  const resultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
+  const requestedResultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
+  const resultId = knownResultId(state, requestedResultId);
   return {
     ...state,
     entries: [...(state.entries || []), {
@@ -3078,28 +3089,43 @@ window.LBT_operationAffordability = operationAffordability;
 
   /* 購入 action が計上する金額。null は「購入ではない操作」。 */
 function purchaseCostOf(state, action) {
+  const positiveConfiguredCost = (raw, unit) => {
+    const cost = parsePriceText(raw, unit);
+    const amount = Number(cost?.[unit]);
+    const other = unit === "lp" ? "shards" : "lp";
+    return Number.isSafeInteger(amount) && amount > 0 && Number(cost?.[other] || 0) === 0
+      ? normalizeCurrency(cost)
+      : null;
+  };
+
   if (action.type === "ADD_ROSTER") {
-    if (!action.purchase) return null;
-    /* UI購入は cost を渡す。硝子窓取込は source="buy" だけを渡すので、
-       欠落額を0へ丸めず、現在の所持状態に応じたルール価格を解決する。 */
-    if (action.cost !== undefined && action.cost !== null) return normalizeCurrency(action.cost);
+    if (!action.purchase || action.mode !== "n") return null;
+    const definition = (window.DB?.normal_personas || []).find((persona) =>
+      String(persona?.no) === String(action.no));
+    if (!definition) return null;
     const ownsPersona = (state?.roster?.personas || []).length > 0;
     const rule = window.LBT_acquireCost?.("persona", "purchase", { ownsPersona });
-    if (!rule || !(Number(rule.lp) > 0 || Number(rule.shards) > 0)) return null;
+    const lp = Number(rule?.lp);
+    const shards = Number(rule?.shards || 0);
+    if (!Number.isSafeInteger(lp) || lp <= 0 || !Number.isSafeInteger(shards) || shards !== 0) return null;
     return normalizeCurrency(rule);
   }
+
   if (action.type === "ADD_ROSTER_EGO") {
     if (!action.purchase) return null;
     const definition = (window.DB?.egos || []).find((ego) =>
       ego.rank === action.rank && String(ego.no) === String(action.no));
     if (!definition) return null;
-    const rawPrice = definition.shards;
-    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
-    if (!hasExplicitPrice) return null;
-    const cost = priceEgo(action.rank, action.no);
-    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
+    /* ランダム抽出は個別購入額ではなく、ルール上の固定100欠片。 */
+    if (action.acquisition === "gachaPaid") {
+      const rule = window.LBT_acquireCost?.("ego", "gachaPaid", { rank: action.rank, no: action.no });
+      const shards = Number(rule?.shards);
+      return Number.isSafeInteger(shards) && shards > 0 && Number(rule?.lp || 0) === 0
+        ? normalizeCurrency(rule) : null;
+    }
+    return positiveConfiguredCost(definition.shards, "shards");
   }
+
   if (action.type === "ADD_ITEM") {
     const itemId = String(action.itemId || "");
     const special = (window.DB?.specialItems || []).find((item) => item?.id === itemId && item.specialResource);
@@ -3112,57 +3138,35 @@ function purchaseCostOf(state, action) {
     const alreadyOwned = (state?.inventory || []).some((entry) => entry?.itemId === itemId);
     return alreadyOwned ? null : priceItemById(state, itemId);
   }
+
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
     if (!name) return null;
-    const deathDefinition = (window.DB?.death_passives || []).find((entry) => entry?.name === name);
-    if (deathDefinition) {
-      const rawPrice = deathDefinition.shards;
-      const explicit = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-        || (typeof rawPrice === "string" && rawPrice.trim() !== "");
-      if (!explicit) return null;
-      const cost = priceSupport(name, "death");
-      return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
-    }
-    const definition = (window.DB?.support_passives || []).find((entry) => entry?.name === name);
-    if (!definition) return null;
-    const rawPrice = definition.lp;
-    const explicit = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
-    if (!explicit) return null;
-    const cost = priceSupport(name, "normal");
-    return Number.isFinite(cost?.lp) && cost.lp > 0 ? cost : null;
+    const death = (window.DB?.death_passives || []).find((entry) => entry?.name === name);
+    if (death) return positiveConfiguredCost(death.shards, "shards");
+    const normal = (window.DB?.support_passives || []).find((entry) => entry?.name === name);
+    return normal ? positiveConfiguredCost(normal.lp, "lp") : null;
   }
+
   if (action.type === "ADD_ROSTER_SPIRIT") {
     if (action.purchase === false) return null;
     const name = String(action.spirit?.name || "");
+    if (!name) return null;
     const definition = (window.DB?.spirits || []).find((entry) => entry?.name === name);
-    if (!definition) return null;
-    const rawPrice = definition.price;
-    const explicit = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
-    if (!explicit) return null;
-    const cost = priceSpirit(name);
-    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
+    return definition ? positiveConfiguredCost(definition.price, "shards") : null;
   }
+
   if (action.type === "ADD_ENHANCEMENT") {
     const group = String(action.group || "");
     const name = String(action.name || "");
     if (!name) return null;
     const catalog = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
-    const definition = catalog.find((entry) => entry?.name === name && entry?.group === group);
-    if (!definition) return null;
-    const rawPrice = definition.shards;
-    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
-      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
-    if (!hasExplicitPrice) return null;
-    const cost = priceEnhancement(group, name);
-    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
+    const definition = catalog.find((entry) => entry?.name === name && String(entry?.group || "") === group);
+    return definition ? positiveConfiguredCost(definition.shards, "shards") : null;
   }
   return null;
-}
-window.LBT_purchaseCostOf = purchaseCostOf;
+}window.LBT_purchaseCostOf = purchaseCostOf;
 /* ---------------------------------------------------------------------------
    ローカルアカウント（= キャラクター単位の保存領域）。
 
@@ -4043,9 +4047,7 @@ function applyRosterAdds(state, adds, options) {
   const hadPersonaBefore = personas.length > 0;
   const known = new Set(personas.map((p) => `${p.mode}:${p.no}`));
   const knownEgo = new Set(egos.map((e) => `${e.rank}:${e.no}`));
-  const startedAt = Date.now();
   let next = state;
-  let n = 0;
   let gainedPersona = false;
   for (const add of list) {
     /* 1件ごとに価格が違う抽出では、その件の record.cost を優先する。
@@ -4054,18 +4056,19 @@ function applyRosterAdds(state, adds, options) {
     if (add?.type === "ego") {
       if (knownEgo.has(`${add.rank}:${add.no}`)) continue;
       knownEgo.add(`${add.rank}:${add.no}`);
-      egos.push({ uid: `er-${startedAt}-${n}`, no: add.no, rank: add.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
+      const uid = makeOwnedUid("er");
+      egos.push({ uid, no: add.no, rank: add.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
       next = appendLedgerEntry(next, {
         kind: "ego",
         name: `${add.rank} No.${add.no}`,
         cost: own || priceEgo(add.rank, add.no),
         resultId: opts.resultId,
-        ref: { kind: "rosterEgo", uid: `er-${startedAt}-${n}` }
+        ref: { kind: "rosterEgo", uid }
       });
     } else if (add?.type === "persona") {
       if (known.has(`${add.mode}:${add.no}`)) continue;
       known.add(`${add.mode}:${add.no}`);
-      const uid = `pr-${startedAt}-${n}`;
+      const uid = makeOwnedUid("pr");
       personas.push({ uid, no: add.no, mode: add.mode, equipped: false, syncRank: null, syncMax: false, notes: "" });
       const persona = (add.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(add.no));
       next = appendLedgerEntry(next, {
@@ -4077,7 +4080,6 @@ function applyRosterAdds(state, adds, options) {
       });
       gainedPersona = true;
     }
-    n += 1;
   }
   /* 初めて人格を所持したアクションに限り、初期作成用チケットを1枚消す。
      2人目以降の追加では、報酬として受け取った通常チケットに触れない。
@@ -5065,7 +5067,7 @@ function appReducer(state, action) {
       if (action.purchase) {
         /* 購入は所持追加より先に価格と残高を検証する。
            UI側の事前確認だけでは、別経路dispatchや二重送信を防げない。 */
-        purchaseCost = purchaseCostOf(state, { type: "ADD_ROSTER_EGO", rank, no, purchase: true });
+        purchaseCost = purchaseCostOf(state, { type: "ADD_ROSTER_EGO", rank, no, purchase: true, acquisition: action.acquisition });
         if (!purchaseCost || !purchaseAffordability(state, purchaseCost).ok) return state;
       }
       const uid = makeOwnedUid("er");
@@ -5130,7 +5132,9 @@ function appReducer(state, action) {
         const uid = String(entry?.uid || "");
         if (!uid || present.has(uid)) continue;
         present.add(uid);
-        restoredRows.push(entry);
+        restoredRows.push(kind === "supports" || kind === "spirits"
+          ? { ...entry, resultId: knownResultId(state, entry.resultId) }
+          : entry);
       }
       const restored = kind === "personas"
         ? normalizeCustomPersonaRosterIdentity(restoredRows)
@@ -5149,7 +5153,7 @@ function appReducer(state, action) {
         const id = String(entry?.id || "");
         if (!id || entryIds.has(id)) continue;
         entryIds.add(id);
-        restoredEntries.push(entry);
+        restoredEntries.push({ ...entry, resultId: knownResultId(state, entry.resultId) });
       }
       return restoredEntries.length
         ? { ...withRoster, entries: [...(withRoster.entries || []), ...restoredEntries] }
@@ -5918,9 +5922,10 @@ case "ADD_CUSTOM_ITEM": {
       const isDeath = isDeathSupportPassiveRecord({ name });
       /* 購入なら明細と同じ直近リザルトへ。購入でない所持（報酬・取り込み）は
          明細が無いので、指定が無ければ未分類のままにする。 */
-      const resultId = action.resultId === undefined
+      const requestedResultId = action.resultId === undefined
         ? (action.purchase === false ? null : latestResultId(state))
         : action.resultId;
+      const resultId = knownResultId(state, requestedResultId);
       const entry = {
         uid: makeOwnedUid("spt"),
         name,
@@ -6053,7 +6058,7 @@ case "ADD_CUSTOM_ITEM": {
     case "SET_ROSTER_SUPPORT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const supports = (roster.supports || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));
@@ -6073,9 +6078,10 @@ case "ADD_CUSTOM_ITEM": {
         const cost = purchaseCostOf(state, { type: "ADD_ROSTER_SPIRIT", spirit: action.spirit, purchase: true });
         if (!cost || !purchaseAffordability(state, cost).ok) return state;
       }
-      const resultId = action.resultId === undefined
+      const requestedResultId = action.resultId === undefined
         ? (action.purchase === false ? null : latestResultId(state))
         : action.resultId;
+      const resultId = knownResultId(state, requestedResultId);
       const entry = {
         uid: makeOwnedUid("spr"),
         name,
@@ -6105,12 +6111,14 @@ case "ADD_CUSTOM_ITEM": {
       if (!name) return state;
       const current = state.enhancements || [];
       if (current.some((e) => e.name === name && e.group === group)) return state;
+      const purchaseCost = purchaseCostOf(state, { ...action, type: "ADD_ENHANCEMENT", group, name });
+      if (!purchaseCost || !purchaseAffordability(state, purchaseCost).ok) return state;
       const entry = {
         id: makeOwnedUid("enh"),
         group,
         name,
         effect: String(action.effect || ""),
-        shards: priceEnhancement(group, name).shards,
+        shards: purchaseCost.shards,
         category: String(action.category || "")
       };
       const next = { ...state, enhancements: [...current, entry] };
@@ -6653,7 +6661,7 @@ case "ADD_ENTRY":
           cost: normalizeCurrency(action.cost),
           /* 抽出チケットの消費明細。残数は全リザルトの収入からこの明細を差し引く。 */
           tickets: normalizeTickets(action.tickets),
-          resultId: action.resultId || null,
+          resultId: knownResultId(state, action.resultId),
           ref: action.ref && typeof action.ref === "object" ? {
             kind: String(action.ref.kind || ""),
             uid: String(action.ref.uid || ""),
@@ -6677,7 +6685,7 @@ case "ADD_ENTRY":
               ...(patch.name !== void 0 ? { name: String(patch.name).slice(0, 120) } : {}),
               ...(patch.cost !== void 0 ? { cost: normalizeCurrency(patch.cost) } : {}),
               ...(patch.tickets !== void 0 ? { tickets: normalizeTickets(patch.tickets) } : {}),
-              ...(patch.resultId !== void 0 ? { resultId: patch.resultId || null } : {}),
+              ...(patch.resultId !== void 0 ? { resultId: knownResultId(state, patch.resultId) } : {}),
               ...(patch.note !== void 0 ? { note: String(patch.note).slice(0, 2000) } : {})
             }
           : e))
@@ -6691,7 +6699,7 @@ case "ADD_ENTRY":
     case "SET_ENTRY_RESULT": {
       const target = (state.entries || []).find((e) => e.id === action.id);
       if (!target) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const entries = state.entries.map((e) => (e.id === action.id ? { ...e, resultId } : e));
       /* 所持レコードにも帰属を持つもの（サポパ・精神）は、通帳側の
          付け替えに合わせる。片方だけ動くと、同じ購入が別のリザルトを
@@ -6725,7 +6733,7 @@ case "ADD_ENTRY":
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const spirits = (roster.spirits || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));

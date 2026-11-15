@@ -267,7 +267,9 @@ test("舊保存データ（装備のみ）は未分類の所持へ移り、デ�
 
 test("帰属先（resultId）は読み書きで保持される", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
+  const before = baseState();
+  before.results = [{ id: "rs-1", name: "記録済みリザルト", date: "2026-11-15", income: { lp: 0, shards: 0 } }];
+  let s = reducer(before, { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
   const uid = s.roster.supports[0].uid;
   s = reducer(s, { type: "SET_ROSTER_SUPPORT_RESULT", uid, resultId: "rs-1" });
   assert.equal(s.roster.supports[0].resultId, "rs-1", "帰属を設定できる");

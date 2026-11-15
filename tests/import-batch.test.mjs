@@ -73,16 +73,18 @@ test("ADD_RESULT の直後の ADD_ENTRY はそのリザルトに帰属する", (
   assert.equal(after.entries[1].resultId, after.results[1].id, "2件目は第2回に帰属");
 });
 
-test("明示した resultId は上書きしない", () => {
-  const after = reducer(baseState(), {
+test("実在する resultId は直近リザルトへ上書きしない", () => {
+  const before = baseState();
+  before.results = [{ id: "existing-result", name: "既存リザルト", date: "2026-11-15", income: { lp: 10, shards: 0 } }];
+  const after = reducer(before, {
     type: "APPLY_IMPORT_BATCH",
     actions: [
       { type: "ADD_RESULT", name: "A", income: { lp: 10, shards: 0 } },
       { type: "ADD_RESULT", name: "B", income: { lp: 10, shards: 0 } },
-      { type: "ADD_ENTRY", kind: "support", name: "剃刀", cost: { lp: 10 }, resultId: "指定したID" }
+      { type: "ADD_ENTRY", kind: "support", name: "剃刀", cost: { lp: 10 }, resultId: "existing-result" }
     ]
   });
-  assert.equal(after.entries[0].resultId, "指定したID");
+  assert.equal(after.entries[0].resultId, "existing-result");
 });
 
 test("明示した未分類（null）は直近リザルトへ倒さない", () => {
