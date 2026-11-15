@@ -4,20 +4,12 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const DB_SOURCE = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+const PROVENANCE_SOURCE = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
 const STATE_SOURCE = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 
 function runtime() {
   const DB = JSON.parse(JSON.stringify(DB_SOURCE));
-  const window = {
-    DB,
-    LBT_acquireCost(kind, method, context = {}) {
-      if (kind === "persona" && method === "purchase") {
-        return { lp: context.ownsPersona ? 200 : 20, shards: 0 };
-      }
-      if (kind === "ego" && method === "gachaPaid") return { lp: 0, shards: 100 };
-      return null;
-    }
-  };
+  const window = { DB };
   const context = {
     window,
     console,
@@ -36,6 +28,7 @@ function runtime() {
   };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(PROVENANCE_SOURCE, context, { filename: "js/ledger-provenance.js" });
   vm.runInContext(STATE_SOURCE, context, { filename: "js/state.js" });
   return { reducer: window.appReducer, window, context, DB };
 }
