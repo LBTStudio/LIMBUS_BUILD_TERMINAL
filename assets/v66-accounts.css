@@ -2143,7 +2143,7 @@ main.acct-gate {
   background: var(--surface-inset);
 }
 .acct-optional-settings > summary {
-  min-height: 38px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   color: var(--tx-2);
