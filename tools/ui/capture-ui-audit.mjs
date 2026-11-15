@@ -1878,7 +1878,8 @@ async function captureProfile(browser, mode) {
       const importDialog=page.locator(".import-router").first();
       await importDialog.waitFor({state:"visible",timeout:8000});
       await snap("home-import-route-dialog","ホームから開いた既存データの取り込み先選択");
-      await page.keyboard.press("Escape").catch(()=>{});
+      await click(importDialog.locator(".import-router-close"));
+      await importDialog.waitFor({state:"hidden",timeout:5000});
       await closeOverlay();
       await go("ホーム");
       await click(page.locator(".btype-home-v2 .btype-home-start-card").nth(1));
