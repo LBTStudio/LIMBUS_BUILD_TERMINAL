@@ -245,6 +245,8 @@ window.addEventListener("load", function(){
   }
   /* 診断ログで確認した小さい操作領域を補正。コンパクトな情報密度は維持し、押せる高さだけを確保する。 */
   button.btn-sm,
+  button.btn,
+  button.secondary,
   .btype-back-link,
   .btype-record-hub .btype-page-heading > button.primary,
   .piece-art-actions > button,
@@ -384,28 +386,7 @@ window.addEventListener("load", function(){
     min-height: 40px;
   }
 
-  /* Nine build sections: use two rows rather than shrinking each tab below
-     a finger-sized width or hiding the final tabs in a horizontal scroller. */
-  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    width: 100%;
-    gap: 4px;
-    overflow: visible;
-  }
-  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button {
-    box-sizing: border-box;
-    min-width: 40px;
-    width: 100%;
-    min-height: 40px;
-    padding: 6px 3px;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    justify-content: center;
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.25;
-  }
+  /* Build groups and their active subtabs are sized in the final override below. */
 }
 </style>
 <style id="b-type-production-rollout">
@@ -740,6 +721,24 @@ window.addEventListener("load", function(){
     overflow-wrap: normal !important;
     justify-content: center;
     text-align: center;
+  }
+  /* Compact card actions also need genuine 40px hit areas on phone screens. */
+  .acct-card-actions .acct-icon-btn {
+    box-sizing: border-box;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  .acct-card-actions .acct-edit-btn {
+    min-height: 40px !important;
+  }
+  .p-card .p-fav {
+    box-sizing: border-box;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
   }
 }
 </style>
