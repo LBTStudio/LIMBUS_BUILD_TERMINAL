@@ -121,6 +121,24 @@ async function annotateAndSave(page, selector, fileBase, headline, detail) {
   const locator = typeof selector === "string" ? page.locator(selector).first() : selector;
   await locator.waitFor({ state: "visible", timeout: 12000 });
   await locator.scrollIntoViewIfNeeded();
+  if ((page.viewportSize()?.width || 1440) <= 640) {
+    // Playwright may move the mobile scrollport by only a few pixels to make a
+    // menu target fully intersecting. Restore that tiny top-edge adjustment
+    // when the target remains visible, so the first card header is not clipped
+    // underneath the topbar in the tutorial screenshot.
+    await locator.evaluate((target) => {
+      const scrollport = document.querySelector(".focus");
+      const scrollTop = scrollport?.scrollTop || 0;
+      if (!scrollport || scrollTop <= 0 || scrollTop > 24) return;
+      const viewport = scrollport.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const restoredTop = targetRect.top + scrollTop;
+      const restoredBottom = targetRect.bottom + scrollTop;
+      if (restoredTop >= viewport.top - 1 && restoredBottom <= viewport.bottom + 1) {
+        scrollport.scrollTop = 0;
+      }
+    });
+  }
   await page.waitForTimeout(80);
   const box = await locator.boundingBox();
   if (!box || box.width < 1 || box.height < 1) throw new Error("Target is not on-screen: " + fileBase);
