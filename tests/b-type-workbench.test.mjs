@@ -121,3 +121,14 @@ test("mobile build group names and subtabs stay on one line at touch size", () =
   assert.match(audit, /tabButtonsWrapping/);
   assert.match(audit, /tabRailFlexWrap/);
 });
+
+
+test("index.html no longer overrides the grouped build navigation with the legacy nine-tab grid", () => {
+  const index = read("../index.html");
+  assert.ok(index.includes('<style id="lbt-mobile-build-group-navigation-final">'));
+  assert.ok(index.includes("grid-template-columns: repeat(3, minmax(0, 1fr)) !important"));
+  assert.ok(index.includes("overflow-x: auto !important"));
+  assert.ok(index.includes("white-space: nowrap !important"));
+  assert.ok(!index.includes("lbt-mobile-build-tab-grid-final"));
+  assert.ok(!index.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
+});
