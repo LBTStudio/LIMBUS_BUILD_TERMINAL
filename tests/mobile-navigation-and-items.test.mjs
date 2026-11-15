@@ -7,7 +7,6 @@ const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8")
 const itemSource = readFileSync(new URL("../js/ItemCodex.js", import.meta.url), "utf8");
 const sectionsSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const mobilePreview = readFileSync(new URL("../mobile-preview.html", import.meta.url), "utf8");
-const workspace = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
 
 test("モバイルの下部ナビゲーションは横スクロールせず全機能を1段7列で常時表示し、操作・保存を右端に収める", () => {
   const v64r94 = refinements.slice(refinements.indexOf("v64r94"));
@@ -24,7 +23,7 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
   assert.match(v64r95, /\.topbar \.topbar-actions \{ display: none; \}/);
   assert.match(v64r95, /\.topbar > \.utility-trigger \{[\s\S]*?min-width: 104px;/);
   assert.match(v64r94, /grid-template-rows: var\(--topbar-h\) minmax\(0, 1fr\);/);
-  assert.match(workspace, /@media \(max-width: 640px\)\s*\{[\s\S]*?grid-template-rows: minmax\(var\(--topbar-h\), auto\) minmax\(0, 1fr\) 64px;/, "スマホの中央スクロール領域は実際のトップバー高より上へ食い込まない");
+  assert.match(v64r94, /grid-template-rows: minmax\(var\(--topbar-h\), auto\) minmax\(0, 1fr\);/, "最後に適用されるスマホGridも実際のトップバー高に追従する");
   assert.match(v64r94, /--lbt-mobile-rail-h: calc\(60px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   assert.match(v64r94, /\.focus \{ padding-bottom: calc\(var\(--lbt-mobile-rail-h\) \+ 12px\); \}/);
   assert.match(v64r94, /padding: 4px 4px calc\(4px \+ env\(safe-area-inset-bottom, 0px\)\);/);
