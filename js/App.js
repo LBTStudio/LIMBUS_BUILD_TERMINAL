@@ -1451,10 +1451,7 @@ const HomeLauncher = ({
     id: "preview",
     title: "プレビュー・出力",
     description: "完成したシートを確認",
-    run: () => navigate("baseinfo", {
-      previewOpen: true,
-      previewTab: "token"
-    })
+    run: () => navigate("baseinfo", { previewOpen: true, previewTab: "token" })
   };
   const utilityActions = [
     {
@@ -1482,10 +1479,7 @@ const HomeLauncher = ({
   const visibleUtilities = utilityActions.filter((item) =>
     !needle || [item.title, item.description, item.terms].join(" ").toLocaleLowerCase("ja").includes(needle)
   );
-  const preview = () => navigate("baseinfo", {
-    previewOpen: true,
-    previewTab: "token"
-  });
+  const preview = () => navigate("baseinfo", { previewOpen: true, previewTab: "token" });
 
   return h("section", {
     className: "home-launcher btype-home btype-home-v2",
