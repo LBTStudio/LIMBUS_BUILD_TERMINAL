@@ -490,8 +490,10 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
     "閉じた後に存在している起動元だけへフォーカスを戻す");
   assert.match(ui, /className: `acct-card acct-card--gate[^\n]*"data-account-id": entry\.id/,
     "初回ゲートのカードも管理画面と同じ安定IDで検証できる");
-  assert.match(ui, /window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_OPEN_EVENT, \{ detail: \{ editId: entry\.id \} \}\)\)/,
-    "ゲートの編集ボタンは対象アカウントを指定して管理画面を開く");
+  assert.match(ui, /onEditAccount\?\.\(entry\.id\)/,
+    "ゲートの編集ボタンは対象IDを App の管理画面へ直接渡す");
+  assert.match(app, /React\.createElement\(AccountGate, \{ onEditAccount: openAccountSwitcher \}\)/,
+    "起動ゲートから管理画面を同じ状態管理経路で開く");
   assert.match(ui, /const \[selectingId, setSelectingId\] = React\.useState\(null\)/,
     "初回ゲートも切替中のカード状態を保持する");
   assert.match(ui, /selectionTimer\.current !== null\) return/,
