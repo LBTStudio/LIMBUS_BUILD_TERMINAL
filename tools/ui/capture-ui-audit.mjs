@@ -717,11 +717,11 @@ async function boot() {
     if(await visible(add)) {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
-      const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      const name=page.locator(".acct-gate input[placeholder='キャラクター名']").first();
       if(await visible(name)) await name.fill("UI監査用キャラクター");
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
-      await page.waitForTimeout(900);
+      await page.locator(".acct-gate").waitFor({ state: "hidden", timeout: 12000 });
       if(!(await visible(mainNavigation().first()))) {
         await snap("account-create-submit-result","作成ボタン押下後、通常画面へ遷移しない場合の診断状態");
         audit.accountCreateDiagnostic=await page.evaluate(()=>{
@@ -730,7 +730,7 @@ async function boot() {
             storageAvailable:A?.storageAvailable?.(), accounts:A?.list?.(), activeId:A?.getActiveId?.(),
             gateText:document.querySelector(".acct-gate")?.innerText?.slice(0,1400)||"",
             visibleNotices:[...document.querySelectorAll('[role="alert"],[aria-live="assertive"],.toast,.toast-message')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;}).map(e=>(e.innerText||"").trim()).filter(Boolean).slice(0,10),
-            nameInput:document.querySelector(".acct-gate input[placeholder='キャラクター名など']")?.value||"",
+            nameInput:document.querySelector(".acct-gate input[placeholder='キャラクター名']")?.value||"",
             buttonState:[...document.querySelectorAll(".acct-gate button")].map(b=>({text:(b.innerText||"").trim(),disabled:b.disabled,cls:b.className})).slice(-8)
           };
         });
