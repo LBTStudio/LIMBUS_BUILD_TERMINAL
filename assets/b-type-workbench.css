@@ -179,7 +179,7 @@
   .btype-launcher-card:hover { transform: none; }
 }
 
-/* Approved B-type phone navigation: four dependable destinations, not a squeezed desktop rail. */
+/* B-type phone navigation: keep Home directly reachable beside the core work areas. */
 .btype-mobile-bottom-nav { display: none; }
 @media (max-width: 640px) {
   .app {
@@ -196,7 +196,7 @@
     inset-block-end: 0;
     z-index: 80;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
     min-height: calc(64px + env(safe-area-inset-bottom, 0px));
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
