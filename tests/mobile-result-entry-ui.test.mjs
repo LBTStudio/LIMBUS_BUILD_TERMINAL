@@ -70,5 +70,5 @@ test("変更したモバイルスタイルはメインHTMLから読み込まれ�
 
 
 test("リザルト一覧の並び順セレクトは40px以上のタッチ領域を確保する", () => {
-  assert.match(sectionsCss, /\.ledger-results-sort\\s*\\{[^}]*min-height:\\s*40px/s);
+  assert.match(sectionsCss, /\.ledger-results-sort\s*\{[^}]*min-height:\s*40px/s);
 });
