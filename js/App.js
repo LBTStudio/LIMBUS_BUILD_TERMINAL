@@ -1585,7 +1585,10 @@ const HomeLauncher = ({
       h("button", { type: "button", onClick: () => navigate("shop", { shopView: "overview" }) },
         h(Icon, { name: "item", size: 15 }), " ショップから探す"
       ),
-      h("button", { type: "button", onClick: onOpenAccounts },
+      h("button", { type: "button", onClick: () => {
+        if (typeof onOpenAccounts === "function") onOpenAccounts();
+        window.dispatchEvent(new CustomEvent("lbt:open-accounts"));
+      } },
         h(Icon, { name: "users", size: 15 }), " キャラクターを切り替える"
       ),
       h("button", { type: "button", onClick: onOpenUtilities },
