@@ -1172,17 +1172,7 @@
 }
 
 
-/* v73 interaction hierarchy: grouped navigation, visible context and short state transitions. */
-.build-tabs.is-b-workbench .build-group-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 7px}
-.build-tabs.is-b-workbench .build-group-button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;min-height:44px;padding:7px 11px;border:1px solid #393328;border-radius:8px;background:#171512;color:#aaa292;text-align:left;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
-.build-tabs.is-b-workbench .build-group-button-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:700}
-.build-tabs.is-b-workbench .build-group-button small{flex:0 0 auto;color:#a39a89;font:9px ui-monospace,monospace}
-.build-tabs.is-b-workbench .build-group-button small{color:#918572}
-.build-tabs.is-b-workbench .build-group-button:hover{border-color:#716043;color:#eee2c8;background:#242019}
-.build-tabs.is-b-workbench .build-group-button.is-active{border-color:#977945;color:#fff0c8;background:linear-gradient(120deg,#3a301f,#262017);box-shadow:inset 0 -2px #d6b56b}
-.build-tabs.is-b-workbench .build-group-button.is-active small{color:#d9bd80}
-.build-tabs.is-b-workbench .build-group-button:focus-visible{outline:2px solid #f0d99a;outline-offset:2px}
-.build-tabs.is-b-workbench .btype-build-tablist{scroll-behavior:smooth;scrollbar-width:thin}
+/* Workbench context labels, shop catalogue and result-entry progress. */
 .baseinfo-group-label{display:flex;align-items:center;gap:10px;min-width:0;margin:0 0 7px;padding:3px 2px;color:#e7d6b5}
 .baseinfo-group-index{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;border:1px solid #685437;border-radius:7px;background:#211c14;color:#d6b56b;font:800 10px ui-monospace,monospace}
 .baseinfo-group-label>div{display:grid;gap:2px;min-width:0}
@@ -1212,16 +1202,10 @@
 .ledger-result-step:focus-visible{outline:2px solid #f0d99a;outline-offset:2px}
 .ledger-result-entry-section,.ledger-result-entry-ticket-section,.ledger-result-entry-footer{scroll-margin-top:96px}
 @media(max-width:760px){
- .build-tabs.is-b-workbench .build-group-button{padding:7px 8px}
- .build-tabs.is-b-workbench .build-group-button-label{font-size:10px}
  .ledger-result-progress-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
  .ledger-result-step{min-height:48px}
 }
 @media(max-width:560px){
- .build-tabs.is-b-workbench .build-group-nav{gap:4px}
- .build-tabs.is-b-workbench .build-group-button{min-height:44px;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px}
- .build-tabs.is-b-workbench .build-group-button-label{white-space:normal;line-height:1.25}
- .build-tabs.is-b-workbench .build-group-button small{font-size:8px}
  .btype-shop-catalog-heading{align-items:flex-start;padding:11px;gap:8px}
  .btype-shop-catalog-heading h1{font-size:17px}
  .btype-shop-catalog-heading p{font-size:10px}
@@ -1235,73 +1219,8 @@
  .ledger-result-step-copy small{font-size:8px}
 }
 @media(prefers-reduced-motion:reduce){
- .build-group-button,.btype-shop-categories-trigger,.ledger-result-step{transition:none}
- .build-tabs.is-b-workbench .btype-build-tablist{scroll-behavior:auto}
+ .btype-shop-categories-trigger,.ledger-result-step{transition:none}
 }
-
-
-/* Group navigation is the mobile hierarchy; active subtabs stay readable and horizontally scrollable. */
-.build-tabs.is-b-workbench .build-group-nav {
-  grid-template-columns: repeat(3, minmax(44px, 1fr));
-}
-.build-tabs.is-b-workbench .build-group-button {
-  min-width: 44px;
-  min-height: 44px;
-}
-.build-tabs.is-b-workbench .btype-build-tablist {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  overscroll-behavior-inline: contain;
-}
-.build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
-  flex: 0 0 auto;
-  min-width: 44px;
-  min-height: 44px;
-  padding-inline: 12px;
-  white-space: nowrap;
-}
-@media(max-width:560px) {
-  .build-tabs.is-b-workbench .build-group-nav {
-    grid-template-columns: repeat(3, minmax(44px, 1fr));
-  }
-  .build-tabs.is-b-workbench .build-group-button {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
-    min-height: 44px;
-  }
-}
-
-
-/* The two navigation rows are siblings: keep the category layer above its subtabs. */
-.build-tabs.is-b-workbench {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 7px;
-  width: 100%;
-}
-.build-tabs.is-b-workbench .build-group-nav {
-  flex: 0 0 auto;
-  width: 100%;
-  margin: 0;
-}
-.build-tabs.is-b-workbench .btype-build-tablist {
-  flex: 0 0 auto;
-  width: 100%;
-  margin: 0;
-}
-
-
 /* Mobile touch follow-up: enlarge preview mode switches, disclosure rows and small chips. */
 @media(max-width:640px) {
   .pv-ccfolia-preview .pv-token-mode-switch[role="group"] > button {
