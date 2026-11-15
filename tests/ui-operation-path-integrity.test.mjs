@@ -209,7 +209,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
 test("チュートリアルのスマホ撮影は数pxの端スクロールだけ戻し、先頭カードの見出しを切らない", () => {
   const capture = read("../tools/ui/capture-tutorial-screenshots.mjs");
   assert.match(capture, /page\.viewportSize\(\)\?\.width \|\| 1440\) <= 640/);
-  assert.match(capture, /scrollTop <= 0 \|\| scrollTop > 24/);
+  assert.match(capture, /scrollTop <= 0 \|\| scrollTop > 96/);
   assert.match(capture, /const restoredTop = targetRect\.top \+ scrollTop/);
   assert.match(capture, /const restoredBottom = targetRect\.bottom \+ scrollTop/);
   assert.match(capture, /restoredTop >= viewport\.top - 1 && restoredBottom <= viewport\.bottom \+ 1/);
