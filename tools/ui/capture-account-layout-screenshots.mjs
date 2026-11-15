@@ -114,6 +114,7 @@ async function prepare(page) {
     if ((page.viewportSize()?.width || 1440) <= 640) await first.tap();
     else await first.click();
   }
+  await page.locator(".acct-gate").waitFor({ state: "hidden", timeout: 30000 });
   await page.waitForFunction(() => {
     const desktop = document.querySelector(".rail-item[title='ホーム']");
     const mobile = document.querySelector(".btype-mobile-bottom-nav");
