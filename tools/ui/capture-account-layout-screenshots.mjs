@@ -126,8 +126,26 @@ async function prepare(page) {
     };
     return visible(desktop) || visible(mobile);
   }, null, { timeout: 30000 });
-  await page.locator(".btype-home-footer-actions").getByRole("button", { name: /キャラクターを切り替える/ }).click();
-  await page.locator(".acct-panel").waitFor({ state: "visible", timeout: 12000 });
+  const accountTrigger = page.locator(".btype-home-footer-actions").getByRole("button", { name: /キャラクターを切り替える/ });
+  await accountTrigger.click();
+  try {
+    await page.locator(".acct-panel").waitFor({ state: "visible", timeout: 12000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      accountGateVisible: !!document.querySelector(".acct-gate"),
+      accountOverlayCount: document.querySelectorAll(".acct-overlay").length,
+      accountPanelCount: document.querySelectorAll(".acct-panel").length,
+      accountList: window.LBT_accounts?.list?.() || null,
+      homeTrigger: document.querySelector(".btype-home-footer-actions button:nth-child(2)")?.outerHTML || null,
+      rootText: (document.querySelector("#root")?.innerText || document.body.innerText || "").slice(0, 1800),
+      activeElement: document.activeElement?.outerHTML?.slice(0, 600) || null
+    }));
+    throw new Error("ホームのキャラクター切替操作で管理画面が開きません: " + JSON.stringify({
+      original: error?.message || String(error),
+      diagnostic,
+      pageErrors: errors
+    }));
+  }
   await page.waitForTimeout(250);
   const metrics = await page.evaluate(() => {
     const panel = document.querySelector(".acct-panel");
