@@ -263,19 +263,24 @@ const AccountCard = ({ entry, index, active, editing, selecting = false, draft, 
         onChange: (event) => setDraft({ ...draft, name: event.target.value }),
         onKeyDown: onDraftKeyDown(onSave)
       })),
-      h("label", { className: "acct-field" }, h("span", null, "用途タグ"), h("input", {
-        className: "input", value: draft.purpose, maxLength: 40, placeholder: "本番 / 検証 / 配布",
-        onChange: (event) => setDraft({ ...draft, purpose: event.target.value }),
-        onKeyDown: onDraftKeyDown(onSave)
-      })),
-      h("div", { className: "acct-icon-row" },
-        h("span", { className: "acct-icon-row-label" }, "アイコン"),
-        h(AccountMark, { icon, name: draft.name || entry.name }),
-        h("div", { className: "acct-icon-row-actions" },
-          h("button", { type: "button", className: "acct-upload-btn", onClick: onPickIcon }, "画像を選択"),
-          icon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: onClearIcon, title: "アイコンを外して頭文字に戻す" }, "解除") : null,
-        ),
-        h("p", { className: "acct-icon-row-note" }, "PNG・JPEG・WebPを自動で圧縮して端末内に保存します（最大24KB・正方形に中央切り抜き）。")
+      h("details", { className: "acct-optional-settings" },
+        h("summary", null, "用途タグ・アイコン（任意）"),
+        h("div", { className: "acct-optional-settings-body" },
+          h("label", { className: "acct-field" }, h("span", null, "用途タグ"), h("input", {
+            className: "input", value: draft.purpose, maxLength: 40, placeholder: "本番 / 検証 / 配布",
+            onChange: (event) => setDraft({ ...draft, purpose: event.target.value }),
+            onKeyDown: onDraftKeyDown(onSave)
+          })),
+          h("div", { className: "acct-icon-row" },
+            h("span", { className: "acct-icon-row-label" }, "アイコン"),
+            h(AccountMark, { icon, name: draft.name || entry.name }),
+            h("div", { className: "acct-icon-row-actions" },
+              h("button", { type: "button", className: "acct-upload-btn", onClick: onPickIcon }, "画像を選択"),
+              icon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: onClearIcon, title: "アイコンを外して頭文字に戻す" }, "解除") : null,
+            ),
+            h("p", { className: "acct-icon-row-note" }, "PNG・JPEG・WebPを自動で圧縮して端末内に保存します（最大24KB・正方形に中央切り抜き）。")
+          )
+        )
       ),
       h("section", { className: "acct-gara-row", "aria-label": "硝子窓の共有URL取り込み" },
         h("div", { className: "acct-gara-copy" },
@@ -523,11 +528,11 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
     className: `acct-overlay${closing ? " is-closing" : ""}`,
     onClick: (event) => { if (event.target === event.currentTarget) requestClose(); }
   },
-    h("section", { ref: panelRef, className: "acct-panel", role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-panel-title" },
+    h("section", { ref: panelRef, className: `acct-panel${editingId || creating ? " is-editing" : ""}`, role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-panel-title" },
       h("div", { className: "acct-panel-head" },
         h("div", null,
-          h("div", { className: "acct-kicker", id: "acct-panel-title" }, "キャラクターを切り替える"),
-          h("p", { className: "acct-lead" }, "選んだキャラクターのビルド・所持品・リザルトが開きます。新しいキャラクターもここから追加できます。")
+          h("div", { className: "acct-kicker", id: "acct-panel-title" }, editingId ? "キャラクターを編集" : creating ? "キャラクターを追加" : "キャラクターを切り替える"),
+          h("p", { className: "acct-lead" }, editingId ? "名前を変更できます。用途タグ・アイコンは必要な場合だけ設定します。" : creating ? "名前だけで作成できます。用途タグ・アイコンは後から設定できます。" : "選んだキャラクターのビルド・所持品・リザルトが開きます。新しいキャラクターもここから追加できます。")
         ),
         h("button", { type: "button", className: "acct-close", onClick: requestClose, title: "閉じる (Esc)", "aria-label": "アカウント切替を閉じる" }, h(Icon, { name: "x", size: 16 }))
       ),
