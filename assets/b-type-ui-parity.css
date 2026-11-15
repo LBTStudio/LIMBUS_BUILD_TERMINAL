@@ -1170,3 +1170,192 @@
     margin-top: 12px;
   }
 }
+
+
+/* v73 interaction hierarchy: grouped navigation, visible context and short state transitions. */
+.build-tabs.is-b-workbench .build-group-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 7px}
+.build-tabs.is-b-workbench .build-group-button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;min-height:44px;padding:7px 11px;border:1px solid #393328;border-radius:8px;background:#171512;color:#aaa292;text-align:left;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+.build-tabs.is-b-workbench .build-group-button-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:700}
+.build-tabs.is-b-workbench .build-group-button small{flex:0 0 auto;color:#a39a89;font:9px ui-monospace,monospace}
+.build-tabs.is-b-workbench .build-group-button small{color:#918572}
+.build-tabs.is-b-workbench .build-group-button:hover{border-color:#716043;color:#eee2c8;background:#242019}
+.build-tabs.is-b-workbench .build-group-button.is-active{border-color:#977945;color:#fff0c8;background:linear-gradient(120deg,#3a301f,#262017);box-shadow:inset 0 -2px #d6b56b}
+.build-tabs.is-b-workbench .build-group-button.is-active small{color:#d9bd80}
+.build-tabs.is-b-workbench .build-group-button:focus-visible{outline:2px solid #f0d99a;outline-offset:2px}
+.build-tabs.is-b-workbench .btype-build-tablist{scroll-behavior:smooth;scrollbar-width:thin}
+.baseinfo-group-label{display:flex;align-items:center;gap:10px;min-width:0;margin:0 0 7px;padding:3px 2px;color:#e7d6b5}
+.baseinfo-group-index{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;border:1px solid #685437;border-radius:7px;background:#211c14;color:#d6b56b;font:800 10px ui-monospace,monospace}
+.baseinfo-group-label>div{display:grid;gap:2px;min-width:0}
+.baseinfo-group-label strong{color:#e8dfcf;font-size:12px;font-weight:750}
+.baseinfo-group-label small{color:#948977;font-size:10px;line-height:1.45}
+.baseinfo-group-label--output{margin-top:14px}
+.btype-shop-catalog-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px;padding:13px 15px;border:1px solid #443a2b;border-radius:10px;background:linear-gradient(115deg,#211c15,#171512)}
+.btype-shop-catalog-heading>div{min-width:0}
+.btype-shop-catalog-heading h1{margin:3px 0 2px;color:#f0e7d6;font-size:19px;line-height:1.25}
+.btype-shop-catalog-heading p{margin:0;color:#a89c88;font-size:11px;line-height:1.5}
+.btype-shop-categories-trigger{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;gap:7px;min-height:40px;padding:8px 11px;border:1px solid #635238;border-radius:8px;background:#211c15;color:#e5cf9e;font-size:11px;font-weight:700;cursor:pointer;transition:background .16s ease,border-color .16s ease}
+.btype-shop-categories-trigger:hover{border-color:#ad8d53;background:#30271b}
+.btype-shop-categories-trigger:focus-visible{outline:2px solid #f0d99a;outline-offset:2px}
+.ledger-result-progress{display:grid;gap:8px;margin:0 0 14px;padding:11px;border:1px solid #443a2b;border-radius:10px;background:linear-gradient(130deg,#211c15,#171512);scroll-margin-top:88px}
+.ledger-result-progress-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.ledger-result-progress-heading strong{color:#e8ddc8;font-size:11px}
+.ledger-result-progress-heading small{color:#928775;font-size:10px}
+.ledger-result-progress-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.ledger-result-step{display:flex;align-items:flex-start;gap:8px;min-width:0;min-height:54px;padding:8px;border:1px solid #393328;border-radius:8px;background:#171512;color:#a99f8e;text-align:left;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
+.ledger-result-step-number{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;border:1px solid #51432c;border-radius:6px;color:#c6a565;font:800 10px ui-monospace,monospace}
+.ledger-result-step-copy{display:grid;gap:3px;min-width:0}
+.ledger-result-step-copy strong{color:#ddd1bb;font-size:10px;line-height:1.35}
+.ledger-result-step-copy small{color:#897f70;font-size:9px;line-height:1.35;overflow-wrap:anywhere}
+.ledger-result-step:hover{border-color:#6c5838;background:#211c15;color:#f1e7d5}
+.ledger-result-step.is-active{border-color:#977945;background:linear-gradient(120deg,#352b1d,#211c15);box-shadow:inset 0 -2px #d6b56b}
+.ledger-result-step.is-active .ledger-result-step-number{border-color:#a88a4f;background:#40331f;color:#ffe6ae}
+.ledger-result-step:focus-visible{outline:2px solid #f0d99a;outline-offset:2px}
+.ledger-result-entry-section,.ledger-result-entry-ticket-section,.ledger-result-entry-footer{scroll-margin-top:96px}
+@media(max-width:760px){
+ .build-tabs.is-b-workbench .build-group-button{padding:7px 8px}
+ .build-tabs.is-b-workbench .build-group-button-label{font-size:10px}
+ .ledger-result-progress-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ledger-result-step{min-height:48px}
+}
+@media(max-width:560px){
+ .build-tabs.is-b-workbench .build-group-nav{gap:4px}
+ .build-tabs.is-b-workbench .build-group-button{min-height:44px;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px}
+ .build-tabs.is-b-workbench .build-group-button-label{white-space:normal;line-height:1.25}
+ .build-tabs.is-b-workbench .build-group-button small{font-size:8px}
+ .btype-shop-catalog-heading{align-items:flex-start;padding:11px;gap:8px}
+ .btype-shop-catalog-heading h1{font-size:17px}
+ .btype-shop-catalog-heading p{font-size:10px}
+ .btype-shop-categories-trigger{min-height:40px;padding:7px 9px;font-size:10px}
+ .ledger-result-progress{padding:9px}
+ .ledger-result-progress-heading{align-items:flex-start;flex-direction:column;gap:2px}
+ .ledger-result-progress-steps{gap:5px}
+ .ledger-result-step{min-height:54px;padding:7px;gap:6px}
+ .ledger-result-step-number{flex-basis:23px;width:23px;height:23px}
+ .ledger-result-step-copy strong{font-size:10px}
+ .ledger-result-step-copy small{font-size:8px}
+}
+@media(prefers-reduced-motion:reduce){
+ .build-group-button,.btype-shop-categories-trigger,.ledger-result-step{transition:none}
+ .build-tabs.is-b-workbench .btype-build-tablist{scroll-behavior:auto}
+}
+
+
+/* Group navigation is the mobile hierarchy; active subtabs stay readable and horizontally scrollable. */
+.build-tabs.is-b-workbench .build-group-nav {
+  grid-template-columns: repeat(3, minmax(44px, 1fr));
+}
+.build-tabs.is-b-workbench .build-group-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.build-tabs.is-b-workbench .btype-build-tablist {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+.build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+@media(max-width:560px) {
+  .build-tabs.is-b-workbench .build-group-nav {
+    grid-template-columns: repeat(3, minmax(44px, 1fr));
+  }
+  .build-tabs.is-b-workbench .build-group-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
+    min-height: 44px;
+  }
+}
+
+
+/* The two navigation rows are siblings: keep the category layer above its subtabs. */
+.build-tabs.is-b-workbench {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  width: 100%;
+}
+.build-tabs.is-b-workbench .build-group-nav {
+  flex: 0 0 auto;
+  width: 100%;
+  margin: 0;
+}
+.build-tabs.is-b-workbench .btype-build-tablist {
+  flex: 0 0 auto;
+  width: 100%;
+  margin: 0;
+}
+
+
+/* Mobile touch follow-up: enlarge preview mode switches, disclosure rows and small chips. */
+@media(max-width:640px) {
+  .pv-ccfolia-preview .pv-token-mode-switch[role="group"] > button {
+    min-height:44px;
+    padding-block:8px;
+  }
+  .ledger-result-entry-body details > summary,
+  .ledger-result-details > summary,
+  .ledger-import-notes > summary,
+  .ledger-held-result > summary,
+  .ledger-history-editor-disclosure > summary,
+  .ledger-result-reward-disclosure > summary {
+    min-height:44px;
+    box-sizing:border-box;
+  }
+  button.chip.is-sm {
+    min-width:44px;
+  }
+}
+
+
+/* Compact mobile build navigation: keep category labels on one line and tabs unbroken. */
+@media(max-width:560px) {
+  .build-tabs.is-b-workbench .build-group-button {
+    flex-direction:row !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    gap:4px !important;
+    min-height:44px !important;
+    padding:7px 7px !important;
+  }
+  .build-tabs.is-b-workbench .build-group-button-label {
+    white-space:nowrap !important;
+    font-size:10px !important;
+    letter-spacing:-.02em;
+  }
+  .build-tabs.is-b-workbench .build-group-button small {
+    flex:0 0 auto !important;
+    white-space:nowrap !important;
+    font-size:8px !important;
+  }
+}
+.build-tabs.is-b-workbench .btype-build-tablist {
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  overscroll-behavior-inline:contain;
+}
+.build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
+  display:inline-flex !important;
+  flex:0 0 auto !important;
+  width:max-content !important;
+  min-width:44px !important;
+  min-height:44px !important;
+  white-space:nowrap !important;
+}

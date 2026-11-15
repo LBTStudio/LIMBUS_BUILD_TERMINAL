@@ -53,3 +53,12 @@ test("実機のモバイル確認ページは端末全画面に追従し、確�
   assert.match(mobilePreview, /@media \(max-width: 430px\) \{[\s\S]*?body \{ display: block; width: 100vw; min-height: 100dvh; height: 100dvh; padding: 0; overflow: hidden; \}/);
   assert.match(mobilePreview, /\.device \{ width: 100vw; max-width: none; height: 100dvh; border: 0;/);
 });
+
+
+test("スマホのその他・取込ナビは現在地と開閉状態を反映する", () => {
+  assert.match(appSource, /const otherActive = utilityOpen \|\| \["home", "shop", "settings", "help"\]\.includes\(current\)/);
+  assert.match(appSource, /active: importRouterOpen, expanded: importRouterOpen/);
+  assert.match(appSource, /active: otherActive, expanded: utilityOpen/);
+  assert.match(appSource, /"aria-expanded": item\.expanded/);
+  assert.match(appSource, /importRouterOpen, utilityOpen, dispatch, onOpenImportRouter/);
+});

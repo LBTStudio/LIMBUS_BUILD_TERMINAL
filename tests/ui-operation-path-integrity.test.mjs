@@ -169,16 +169,21 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.ok(touchStyles.includes(".ledger-row-move-action"));
   assert.ok(touchStyles.includes("min-width: 40px"));
   assert.ok(touchStyles.includes("min-height: 40px"));
+  assert.ok(touchStyles.includes(".ledger-row-move-action"));
+  assert.ok(touchStyles.includes(".ledger-row-release"));
   assert.ok(touchStyles.includes(".ledger-card .ledger-row-move-action"));
   assert.ok(touchStyles.includes(".ledger-card .ledger-row-release"));
+  assert.ok(touchStyles.includes(".ledger-result-object-actions > summary"));
   assert.ok(touchStyles.includes("height: 40px !important"));
-  assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr))"),
-    "9つのビルドタブをスマホで5列2段にし、幅を押し潰さない");
-  assert.ok(touchStyles.includes('<style id="lbt-mobile-build-tab-grid-final">'),
-    "最後のCSSとして強制横スクロール規則を上書きする");
-  assert.ok(touchStyles.includes("display: grid !important"));
-  assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
+  assert.ok(touchStyles.includes("grid-template-columns: repeat(3, minmax(0, 1fr))"),
+    "スマホのビルド分類を3群で一段にまとめる");
+  assert.ok(touchStyles.includes('<style id="lbt-mobile-build-group-navigation-final">'),
+    "HTML末尾の最終上書きも新しい分類階層に合わせる");
+  assert.ok(touchStyles.includes("display: flex !important"));
+  assert.ok(touchStyles.includes("overflow-x: auto !important"));
   assert.ok(touchStyles.includes('.btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] > button[role="tab"]'));
+  assert.ok(touchStyles.includes("white-space: nowrap !important"),
+    "分類名とサブタブのラベルが折り返されない");
 
   assert.match(captureAudit, /const touchTargetViolations/);
   assert.match(captureAudit, /".topbar-balance"/);
@@ -195,10 +200,10 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.match(captureAudit, /overlayAccessibilityViolationNodeCount/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
   assert.match(captureAudit, /type: "touch-target-too-small"/);
-  assert.match(captureAudit, /"touch-target-too-small","build-tabs-not-reflowed"\].includes\(item\.type\)/);
+  assert.match(captureAudit, /"touch-target-too-small","build-group-nav-not-reflowed"\].includes\(item\.type\)/);
   assert.match(captureAudit, /criticalLayoutWarnings\.length/);
   assert.match(captureAudit, /const buildTablistMetrics/);
-  assert.match(captureAudit, /type: "build-tabs-not-reflowed"/);
+  assert.match(captureAudit, /type: "build-group-nav-not-reflowed"/);
 });
 
 test("画面・サブ画面の切替時は中央スクロールを先頭へ戻し、同一画面の編集では保持する", () => {
@@ -209,7 +214,7 @@ test("画面・サブ画面の切替時は中央スクロールを先頭へ戻�
 });
 
 test("モバイルのアカウント編集・削除と人格お気に入りは40x40px以上のタップ領域を持つ", () => {
-  const mobileOverrides = index.slice(index.indexOf('<style id="lbt-mobile-build-tab-grid-final">'));
+  const mobileOverrides = index.slice(index.indexOf('<style id="lbt-mobile-build-group-navigation-final">'));
   assert.match(mobileOverrides, /\.acct-card-actions \.acct-icon-btn[\s\S]*?width: 40px !important[\s\S]*?height: 40px !important/);
   assert.match(mobileOverrides, /\.acct-card-actions \.acct-edit-btn[\s\S]*?min-height: 40px !important/);
   assert.match(mobileOverrides, /\.p-card \.p-fav[\s\S]*?width: 40px !important[\s\S]*?height: 40px !important/);
@@ -346,7 +351,7 @@ test("ブラウザ監査ハーネスは現在の画面構造と内部タブを�
 test("ショップと記録の内部タブを巡回するときは、カテゴリ／ライブラリの入口へ戻ってから次を開く", () => {
   assert.match(uiHarness, /async function openShopHub/);
   assert.match(uiHarness, /async function openRecordHub/);
-  assert.match(uiHarness, /btype-shop-catalog \.btype-back-link/);
+  assert.match(uiHarness, /btype-shop-catalog \.btype-shop-categories-trigger/);
   assert.match(uiHarness, /btype-record-detail \.btype-back-link/);
 });
 
@@ -442,7 +447,7 @@ test("各画面の主見出しを本文領域のH1として定義する", () => 
   assert.ok(sharedUi.includes('level === 1 ? "h1" : "h2"'));
   assert.ok(sections.includes('level: 1'));
   assert.ok(sections.includes('tab === "inventory" ? "アイテム"'));
-  assert.ok(sections.includes('level: 1, title: "SHOP / ショップ"'));
+  assert.ok(sections.includes('h("h1", null, activeShopCategory.label)'));
   assert.ok(workbenchCss.includes(".btype-command-hero :is(h1, h2)"));
 });
 

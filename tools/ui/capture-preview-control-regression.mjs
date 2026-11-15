@@ -194,6 +194,71 @@ async function createDisposableAccount(page,profile) {
       && portraitFit.naturalHeight > 0 && portraitFit.imageWithinFrame
       && portraitFit.transform === "matrix(1, 0, 0, 1, 0, 0)",
     portraitFit);
+  const zoomDragReset = page.getByRole("button", { name: "立ち絵を全体表示に戻す" });
+  const dragZoomBox = await portraitFrame.boundingBox();
+  if (!dragZoomBox) throw new Error(profile.name + ": portrait frame has no bounding box for drag zoom");
+  await page.mouse.move(dragZoomBox.x + dragZoomBox.width / 2, dragZoomBox.y + dragZoomBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(dragZoomBox.x + dragZoomBox.width / 2, dragZoomBox.y + dragZoomBox.height / 2 - 48, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a > 1.1;
+  }, null, { timeout: 5000 });
+  const dragZoomScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+  recordCheck(profile.name + ": dragging vertically at 1x zooms the portrait without a click",
+    dragZoomScale > 1.1 && dragZoomScale <= 4,
+    { dragZoomScale });
+  await zoomDragReset.click();
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && Math.abs(new DOMMatrixReadOnly(getComputedStyle(image).transform).a - 1) < 0.001;
+  }, null, { timeout: 5000 });
+  if (profile.mobile) {
+    const pinchOutcome = await portraitFrame.evaluate(frame => {
+      if (typeof Touch !== "function" || typeof TouchEvent !== "function") return { supported: false };
+      const rect = frame.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const makeTouch = (identifier, clientX) => new Touch({
+        identifier, target: frame, clientX, clientY: y, screenX: clientX, screenY: y,
+        radiusX: 1, radiusY: 1, force: 1
+      });
+      const dispatch = (type, touches, changedTouches) => {
+        const event = new TouchEvent(type, {
+          bubbles: true, cancelable: true,
+          touches, targetTouches: touches, changedTouches
+        });
+        frame.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      const firstStart = makeTouch(1, x - 22);
+      const secondStart = makeTouch(2, x + 22);
+      const startPrevented = dispatch("touchstart", [firstStart, secondStart], [firstStart, secondStart]);
+      const firstMove = makeTouch(1, x - 36);
+      const secondMove = makeTouch(2, x + 36);
+      const movePrevented = dispatch("touchmove", [firstMove, secondMove], [firstMove, secondMove]);
+      dispatch("touchend", [], [firstMove, secondMove]);
+      return { supported: true, startPrevented, movePrevented };
+    });
+    if (pinchOutcome.supported) {
+      await page.waitForFunction(() => {
+        const image = document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a > 1.2;
+      }, null, { timeout: 5000 });
+      const pinchScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+      recordCheck(profile.name + ": two-finger pinch zooms the portrait on touch devices",
+        pinchOutcome.startPrevented && pinchOutcome.movePrevented && pinchScale > 1.2 && pinchScale <= 4,
+        { pinchOutcome, pinchScale });
+      await zoomDragReset.click();
+      await page.waitForFunction(() => {
+        const image = document.querySelector(".piece-url-preview-featured-frame > img");
+        return image && Math.abs(new DOMMatrixReadOnly(getComputedStyle(image).transform).a - 1) < 0.001;
+      }, null, { timeout: 5000 });
+    } else {
+      recordCheck(profile.name + ": touch pinch event API is available for mobile zoom tests", false, pinchOutcome);
+    }
+  }
   const wheelOutcome = await portraitFrame.evaluate(frame => {
     const rect = frame.getBoundingClientRect();
     const event = new WheelEvent("wheel", {
@@ -216,6 +281,46 @@ async function createDisposableAccount(page,profile) {
     wheelOutcome.defaultPrevented && zoomScale > 1 && zoomScale <= 4
       && zoomed.transformOrigin !== "50% 50%",
     { wheelOutcome, zoomed, zoomScale });
+  const dispatchPreviewWheel = deltaY => portraitFrame.evaluate((frame, delta) => {
+    const rect = frame.getBoundingClientRect();
+    const event = new WheelEvent("wheel", {
+      deltaY: delta,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+      bubbles: true,
+      cancelable: true
+    });
+    frame.dispatchEvent(event);
+    return { defaultPrevented: event.defaultPrevented };
+  }, deltaY);
+  const wheelToMaximum = await dispatchPreviewWheel(-100000);
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a >= 3.99;
+  }, null, { timeout: 5000 });
+  const maximumWheelBoundary = await dispatchPreviewWheel(-240);
+  const maximumScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+  recordCheck(profile.name + ": wheel input at the 4x zoom cap is consumed without page scrolling",
+    wheelToMaximum.defaultPrevented && maximumWheelBoundary.defaultPrevented && maximumScale >= 3.99,
+    { wheelToMaximum, maximumWheelBoundary, maximumScale });
+  const wheelToMinimum = await dispatchPreviewWheel(100000);
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && Math.abs(new DOMMatrixReadOnly(getComputedStyle(image).transform).a - 1) < 0.001;
+  }, null, { timeout: 5000 });
+  const minimumWheelBoundary = await dispatchPreviewWheel(240);
+  const minimumScale = await portraitImage.evaluate(image => new DOMMatrixReadOnly(getComputedStyle(image).transform).a);
+  recordCheck(profile.name + ": wheel input at the 1x zoom floor is consumed without page scrolling",
+    wheelToMinimum.defaultPrevented && minimumWheelBoundary.defaultPrevented && Math.abs(minimumScale - 1) < 0.001,
+    { wheelToMinimum, minimumWheelBoundary, minimumScale });
+  const wheelRezoom = await dispatchPreviewWheel(-520);
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".piece-url-preview-featured-frame > img");
+    return image && new DOMMatrixReadOnly(getComputedStyle(image).transform).a > 1.1;
+  }, null, { timeout: 5000 });
+  recordCheck(profile.name + ": wheel zoom remains responsive after reaching both boundaries",
+    wheelRezoom.defaultPrevented,
+    { wheelRezoom });
   const resetPortrait = page.getByRole("button", { name: "立ち絵を全体表示に戻す" });
   await resetPortrait.waitFor({ state: "visible", timeout: 5000 });
   const resetControlGeometry = await resetPortrait.evaluate(button => {
@@ -246,30 +351,63 @@ async function createDisposableAccount(page,profile) {
       && resetControlGeometry.whiteSpace === "nowrap"
       && resetControlGeometry.writingMode === "horizontal-tb",
     resetControlGeometry);
-  const imageFrameBox = await portraitFrame.boundingBox();
-  if (!imageFrameBox) throw new Error(profile.name + ": portrait frame has no bounding box");
+  await portraitFrame.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(120);
+  const dragStart = await portraitFrame.evaluate(frame => {
+    const rect = frame.getBoundingClientRect();
+    const left = Math.max(1, rect.left);
+    const right = Math.min(innerWidth - 1, rect.right);
+    const top = Math.max(1, rect.top);
+    const bottom = Math.min(innerHeight - 1, rect.bottom);
+    const candidates = [
+      [(left + right) / 2, (top + bottom) / 2],
+      [left + (right - left) * 0.35, top + (bottom - top) * 0.35],
+      [left + (right - left) * 0.65, top + (bottom - top) * 0.35],
+      [left + (right - left) * 0.35, top + (bottom - top) * 0.65],
+      [left + (right - left) * 0.65, top + (bottom - top) * 0.65]
+    ];
+    for (const [x, y] of candidates) {
+      if (right - left < 24 || bottom - top < 24) break;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && frame.contains(hit)) {
+        return { x, y, hitTag: hit.tagName, hitClass: typeof hit.className === "string" ? hit.className : "", rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, visibleRect: { left, top, right, bottom }, hitFrame: true };
+      }
+    }
+    return { x: (left + right) / 2, y: (top + bottom) / 2, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, visibleRect: { left, top, right, bottom }, hitFrame: false, hitTag: document.elementFromPoint((left + right) / 2, (top + bottom) / 2)?.tagName || null };
+  });
+  if (!dragStart.hitFrame) throw new Error(profile.name + ": portrait frame is covered at every visible drag point: " + JSON.stringify(dragStart));
   const transformBeforeDrag = await portraitImage.evaluate(image => {
     const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
     return { scale: matrix.a, x: matrix.e, y: matrix.f };
   });
-  await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2, imageFrameBox.y + imageFrameBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(imageFrameBox.x + imageFrameBox.width / 2 + 32, imageFrameBox.y + imageFrameBox.height / 2 + 20, { steps: 5 });
-  await page.mouse.up();
-  await page.waitForFunction((before) => {
-    const image = document.querySelector(".piece-url-preview-featured-frame > img");
-    if (!image) return false;
-    const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
-    return Math.abs(matrix.e - before.x) + Math.abs(matrix.f - before.y) > 8;
-  }, transformBeforeDrag, { timeout: 5000 });
+  const panDirections = [[32, 20], [-32, 20], [32, -20], [-32, -20]];
+  let panMoved = false;
+  for (const [dx, dy] of panDirections) {
+    await page.mouse.move(dragStart.x, dragStart.y);
+    await page.mouse.down();
+    await page.mouse.move(dragStart.x + dx, dragStart.y + dy, { steps: 5 });
+    await page.mouse.up();
+    try {
+      await page.waitForFunction(({ before, minimum }) => {
+        const image = document.querySelector(".piece-url-preview-featured-frame > img");
+        if (!image) return false;
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
+        return Math.abs(matrix.e - before.x) + Math.abs(matrix.f - before.y) > minimum;
+      }, { before: transformBeforeDrag, minimum: 4 }, { timeout: 1100 });
+      panMoved = true;
+      break;
+    } catch {
+      /* At a pan boundary, try another direction before deciding the image is immovable. */
+    }
+  }
   const transformAfterDrag = await portraitImage.evaluate(image => {
     const matrix = new DOMMatrixReadOnly(getComputedStyle(image).transform);
     return { scale: matrix.a, x: matrix.e, y: matrix.f };
   });
+  const panDistance = Math.abs(transformAfterDrag.x - transformBeforeDrag.x) + Math.abs(transformAfterDrag.y - transformBeforeDrag.y);
   recordCheck(profile.name + ": zoomed portrait can be repositioned by dragging",
-    transformAfterDrag.scale > 1
-      && Math.abs(transformAfterDrag.x - transformBeforeDrag.x) + Math.abs(transformAfterDrag.y - transformBeforeDrag.y) > 8,
-    { transformBeforeDrag, transformAfterDrag });
+    panMoved && transformAfterDrag.scale > 1 && panDistance > 4,
+    { transformBeforeDrag, transformAfterDrag, panDistance, attemptedDirections: panDirections, dragStart });
 
   await resetPortrait.click();
   await page.waitForTimeout(120);

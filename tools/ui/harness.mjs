@@ -22,7 +22,13 @@ export const UI_VIEWS = [
     ["baseinfo", "基本"], ["persona", "人格"], ["skill", "スキル"],
     ["passive", "パッシブ"], ["enh", "強化"], ["support", "サポート"],
     ["ego", "E.G.O"], ["spirit", "精神"], ["items-build", "アイテム"]
-  ].map(([id, label]) => ({ kind: "build-tab", id, label: "ビルド / " + label })),
+  ].map(([id, label]) => ({
+    kind: "build-tab",
+    id,
+    group: ["baseinfo", "persona"].includes(id) ? "character"
+      : ["skill", "passive", "enh"].includes(id) ? "battle" : "equipment",
+    label: "ビルド / " + label
+  })),
   { kind: "shop-hub", label: "ショップ / カテゴリ" },
   ...[
     ["persona", "人格"], ["support", "サポート"], ["ego", "E.G.O"],
@@ -230,7 +236,7 @@ async function openShopHub(page) {
   await clickMainRoute(page, "ショップ");
   const hub = page.locator(".btype-shop-category-grid").first();
   if (!(await hub.isVisible().catch(() => false))) {
-    const back = page.locator(".btype-shop-catalog .btype-back-link").first();
+    const back = page.locator(".btype-shop-catalog .btype-shop-categories-trigger").first();
     await back.waitFor({ state: "visible", timeout: 8000 });
     await activateAuditTarget(page, back);
     await hub.waitFor({ state: "visible", timeout: 8000 });
@@ -257,6 +263,9 @@ export async function walkSections(page, { onSection } = {}) {
       await clickMainRoute(page, view.route);
     } else if (view.kind === "build-tab") {
       await clickMainRoute(page, "ビルド");
+      const group = page.locator(".build-group-nav [data-build-group=" + JSON.stringify(view.group) + "]").first();
+      await group.waitFor({ state: "visible", timeout: 8000 });
+      if (await group.getAttribute("aria-pressed") !== "true") await activateAuditTarget(page, group);
       const tab = page.getByRole("tablist", { name: "ビルドセクション" })
         .getByRole("tab", { name: view.label.replace("ビルド / ", ""), exact: true });
       await tab.waitFor({ state: "visible", timeout: 8000 });

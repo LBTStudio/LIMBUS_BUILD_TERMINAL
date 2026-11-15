@@ -40,7 +40,7 @@ test("Shop opens on the always-visible category hub and retains the real categor
   assert.match(shop, /const shopCategories = \[/);
   for (const tab of ["persona", "support", "ego", "spirit", "item", "gacha"]) {
     assert.match(shop, new RegExp('id: "' + tab + '"'), "category hub keeps " + tab);
-    assert.ok(shop.includes('["' + tab + '"'), "catalog tab remains " + tab);
+    assert.ok(shop.includes('"data-category": category.id'), "category hub has an action for " + tab);
   }
   assert.match(shop, /className: "btype-shop-category-card"/);
   assert.match(shop, /shopView: "catalog", shopTab: id/);
