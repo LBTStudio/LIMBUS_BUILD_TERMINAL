@@ -739,6 +739,10 @@ async function boot() {
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
   await mainNavigation().first().waitFor({state:"visible",timeout:25000});
+  /* アカウント初回作成直後の RELOAD_ACCOUNT は state の自動保存を400ms遅延で予約する。
+     その保存が終わる前に QA fixture を投入すると、古い初期状態が後から上書きされ、
+     高速なPC幅だけ人格・サポート・リザルトが空になる。最初の保存を完了させてから seed する。 */
+  await page.waitForTimeout(500);
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
