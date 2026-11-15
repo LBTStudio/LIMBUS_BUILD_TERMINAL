@@ -75,17 +75,18 @@ async function waitForApp(page) {
   // A fresh browser context has no app data. Create a disposable account only when
   // the app's first-run account gate requires one.
   if (await page.locator(".acct-gate").count()) {
-    const addButton = page.locator(".acct-card--add").filter({ hasText: "新しいキャラクター" });
+    const addButton = page.locator(".acct-card--add").first();
     if (await addButton.count()) {
       await addButton.first().click();
-      await page.locator(".acct-gate input[placeholder='キャラクター名など']").fill("操作ガイド撮影用");
+      await page.locator(".acct-gate input[placeholder='キャラクター名']").fill("操作ガイド撮影用");
       await page.getByRole("button", { name: "作成して開く", exact: true }).click();
+      await page.locator(".acct-gate").waitFor({ state: "hidden", timeout: 12000 });
     }
   }
   const isPhone = (page.viewportSize()?.width || 1440) <= 640;
   const buildEntry = isPhone
     ? page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "ビルド" })
-    : page.locator("button[title='ビルド']");
+    : page.locator(".rail-item[title='ビルド']");
   await buildEntry.waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(WAIT_MS);
 }
@@ -498,8 +499,23 @@ async function captureViewport(browser, mode) {
     // On narrow mobile layouts the top-bar account chip is intentionally hidden.
     // Use the same app event as the help index's "アカウント管理を開く" action.
     await page.evaluate(() => window.dispatchEvent(new Event("lbt:open-accounts")));
-    await page.waitForTimeout(WAIT_MS);
-    const editButton = page.locator(".acct-card-actions .acct-edit-btn").first();
+    const accountPanel = page.locator(".acct-panel").first();
+    try {
+      await accountPanel.waitFor({ state: "visible", timeout: 12000 });
+    } catch (error) {
+      const diagnostic = await page.evaluate(() => ({
+        accountOverlayCount: document.querySelectorAll(".acct-overlay").length,
+        accountPanelCount: document.querySelectorAll(".acct-panel").length,
+        gateVisible: !!document.querySelector(".acct-gate"),
+        accounts: window.LBT_accounts?.list?.() || null,
+        bodyText: (document.body.innerText || "").slice(0, 1500)
+      }));
+      throw new Error("チュートリアル撮影中にアカウント管理画面が開きません: " + JSON.stringify({
+        original: error?.message || String(error),
+        diagnostic
+      }));
+    }
+    const editButton = page.locator(".acct-panel .acct-edit-btn").first();
     await editButton.waitFor({ state: "visible", timeout: 12000 });
     await editButton.click();
     await page.waitForTimeout(WAIT_MS);

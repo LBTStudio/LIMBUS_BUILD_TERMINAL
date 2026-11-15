@@ -164,9 +164,9 @@ test("未作成アカウントのアイコンは保留して作成後に適用�
 });
 
 test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
-  assert.match(ui, /const AccountGate = \(\) => \{/);
+  assert.match(ui, /const AccountGate = \(\{ onEditAccount \}\) => \{/);
   assert.match(ui, /h\("main", \{ className: "acct-gate" \}/, "ゲート表示中は本体が出ないので main ランドマークになる");
-  assert.match(ui, /h\("h1", \{ className: "acct-kicker", id: "acct-gate-title" \}/, "見出しはh1（本体が無いため）");
+  assert.match(ui, /h\("h1", \{ className: "acct-kicker acct-gate-title", id: "acct-gate-title" \}/, "見出しは初回と既存選択で変わるh1（本体が無いため）");
   assert.match(ui, /role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-gate-title"/);
   /* 選んだアカウントで開く。ここで location.reload() すると常時ゲートと
      競合して「選んでもう一度ゲート」のループになるので使わない。 */
@@ -174,13 +174,19 @@ test("アクセス時のアカウント選択ゲートは毎回出て、選ん�
   assert.match(ui, /const ACCOUNTS_ENTERED_EVENT = "lbt:accounts-entered";/);
   assert.match(gateSource, /const choose = \(id\) => \{[\s\S]*?window\.LBT_accounts\?\.switch\?\.\(id\)[\s\S]*?window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_ENTERED_EVENT, \{ detail: \{ id \} \}\)\)/, "選択は切替+通知");
   assert.match(gateSource, /CustomEvent\(ACCOUNTS_ENTERED_EVENT, \{ detail: \{ id: created\.id \} \}\)/, "作成も切替+通知");
+  assert.match(gateSource, /最初のキャラクターを作る/, "初回は何をする画面かを日本語で案内");
+  assert.match(gateSource, /名前だけで始められます/, "初回作成に任意項目を要求しない");
+  assert.match(gateSource, /className: "acct-first-run-note"/, "作成後の流れを見せる");
+  assert.match(gateSource, /className: "acct-optional-settings"/, "用途タグとアイコンを折りたたむ");
+  assert.match(gateSource, /placeholder: "キャラクター名"/, "入力対象を明示する");
+  assert.match(gateSource, /accounts\.length > 0 \? h\("aside", \{ className: "acct-panel-cloud"/, "初回はクラウド保全設定よりキャラクター作成を優先する");
   assert.doesNotMatch(gateSource, /location\.reload\(\)/, "ゲート内で再読込に逃げない（常時ゲートとループする）");
   /* App は通知を受けて state を作り直し、保存の束縛先も差し替える。 */
   assert.match(app, /window\.addEventListener\("lbt:accounts-entered", onAccountsEntered\)/);
   assert.match(app, /window\.__LBT_BOOT_ACCOUNT_ID = id;/, "保存先を選んだアカウントに更新");
   assert.match(app, /dispatch\(\{ type: "RELOAD_ACCOUNT" \}\)/, "そのアカウントの保存領域で state を作り直す");
   assert.match(app, /const \[accountGateOpen, setAccountGateOpen\] = React\.useState\(\(\) => window\.LBT_accounts\?\.storageAvailable\?\.\(\) !== false\)/, "毎回ゲートを出す（保存領域が使えない時だけ素通し）");
-  assert.match(app, /React\.createElement\(AccountGate, null\)/, "ゲート中は本体を描画しない");
+  assert.match(app, /React\.createElement\(AccountGate, \{ onEditAccount: openAccountSwitcher \}\)/, "ゲート中は本体を描画せず、編集は App 経由で開く");
   assert.match(stateSource, /case "RELOAD_ACCOUNT":[\s\S]*?window\.LBT_accounts\?\.loadActive\?\.\(\)/, "reducer が選んだアカウントの保存領域を読み直す");
   assert.match(stateSource, /storageAvailable: \(\) => lbtStorage\(\) !== null/, "保存領域の有無を判定できるAPI");
 });
@@ -199,6 +205,9 @@ test("アイコンUIとゲートのCSSがトークンのみで定義されてい
   assert.match(css, /\.acct-gate \{/, "アクセス時のゲート");
   assert.match(css, /\.acct-card--gate \{/, "ゲート内のカード");
   assert.match(css, /\.acct-gate-cta \{/, "開く旨の導線");
+  assert.match(css, /\.acct-first-run-note/, "初回作成後の流れ");
+  assert.match(css, /\.acct-optional-settings/, "任意設定の折りたたみ");
+  assert.match(css, /\.acct-panel-accounts > \.acct-grid:has\(\.acct-card--add:only-child\)/, "初回作成ボタンを主CTAとして表示");
   assert.match(css, /\.acct-gate\s*\{[^}]*z-index:\s*10060;/s, "ゲートは背景レイヤーに残す");
   assert.match(css, /\.acct-overlay\s*\{[^}]*z-index:\s*10065;/s, "ゲートから開いた編集オーバーレイはゲートより前面");
 });
@@ -222,14 +231,14 @@ test("カードの選択領域は表示要素より前面、管理ボタンは�
 test("起動時のアカウント選択画面にも常時表示の編集ボタンを置き、対象アカウントを直接編集する", () => {
   const gateSource = ui.slice(ui.indexOf("const AccountGate"));
   assert.ok(gateSource.includes('className: "acct-gate-edit-btn"'), "起動時カードに専用の編集ボタン");
-  assert.ok(gateSource.includes("detail: { editId: entry.id }"), "クリックしたアカウントIDを渡す");
+  assert.ok(gateSource.includes("onEditAccount?.(entry.id)"), "クリックしたアカウントIDを App の管理画面へ渡す");
   assert.ok(gateSource.includes('"aria-haspopup": "dialog"'), "ダイアログを開く操作として明示");
   assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId, existingResults = \[\] \}\) => \{/);
   assert.match(ui, /if \(!open \|\| !initialEditId\) return;[\s\S]*?setEditingId\(entry\.id\)/, "対象IDを受け取り編集フォームへ入る");
   assert.ok(app.includes("accountSwitcherInitialEditId"), "編集対象IDを App で管理");
   assert.ok(app.includes("event.detail?.editId || null"), "イベントから対象IDを受け取る");
   assert.ok(app.includes("React.createElement(React.Fragment, null,"), "ゲートと共通編集UIを同時に描画");
-  assert.ok(app.includes("React.createElement(AccountGate, null),\n      React.createElement(AccountSwitcher,"), "ゲート表示中も共通編集UIをマウント");
+  assert.ok(app.includes("React.createElement(AccountGate, { onEditAccount: openAccountSwitcher }),\n      React.createElement(AccountSwitcher,"), "ゲートから同じ管理画面ハンドラーを開く");
   const editStyles = css.match(/\.acct-gate-edit-btn\s*\{([^}]*)\}/s)?.[1] || "";
   assert.match(editStyles, /z-index:\s*2/);
   assert.match(editStyles, /min-height:\s*30px/);
@@ -481,8 +490,10 @@ test("初回ゲートから編集を開いた場合も閉じた後に起動元�
     "閉じた後に存在している起動元だけへフォーカスを戻す");
   assert.match(ui, /className: `acct-card acct-card--gate[^\n]*"data-account-id": entry\.id/,
     "初回ゲートのカードも管理画面と同じ安定IDで検証できる");
-  assert.match(ui, /window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_OPEN_EVENT, \{ detail: \{ editId: entry\.id \} \}\)\)/,
-    "ゲートの編集ボタンは対象アカウントを指定して管理画面を開く");
+  assert.match(ui, /onEditAccount\?\.\(entry\.id\)/,
+    "ゲートの編集ボタンは対象IDを App の管理画面へ直接渡す");
+  assert.match(app, /React\.createElement\(AccountGate, \{ onEditAccount: openAccountSwitcher \}\)/,
+    "起動ゲートから管理画面を同じ状態管理経路で開く");
   assert.match(ui, /const \[selectingId, setSelectingId\] = React\.useState\(null\)/,
     "初回ゲートも切替中のカード状態を保持する");
   assert.match(ui, /selectionTimer\.current !== null\) return/,
