@@ -256,10 +256,11 @@ test("スマホの検索・プレビュー操作は最低40pxのタップ幅を�
 });
 
 test("アカウント切替モーダルはバナーランドマークを重複させず、ZIP取込見出しを一段ずつ下げる", () => {
-  const modalStart = accountsUI.indexOf('h("section", { ref: panelRef, className: "acct-panel"');
+  const modalStart = accountsUI.indexOf('h("section", { ref: panelRef, className:');
   const modalEnd = accountsUI.indexOf('total === 0', modalStart);
   const modal = accountsUI.slice(modalStart, modalEnd);
   assert.ok(modal.includes('h("div", { className: "acct-panel-head" }'));
+  assert.ok(modal.includes('acct-panel${editingId || creating ? " is-editing" : ""}'), "編集時はパネルの状態を明示する");
   assert.ok(!modal.includes('h("header", { className: "acct-panel-head" }'));
   assert.ok(garasumadoImportUI.includes('h("h3", { className: "gara-group-title" }, "ZIP / JSON ファイルから一括読み込み")'));
 });
