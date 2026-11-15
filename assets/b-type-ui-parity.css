@@ -1320,3 +1320,41 @@
     min-width:44px;
   }
 }
+
+
+/* Compact mobile build navigation: keep category labels on one line and tabs unbroken. */
+@media(max-width:560px) {
+  .build-tabs.is-b-workbench .build-group-button {
+    flex-direction:row !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    gap:4px !important;
+    min-height:44px !important;
+    padding:7px 7px !important;
+  }
+  .build-tabs.is-b-workbench .build-group-button-label {
+    white-space:nowrap !important;
+    font-size:10px !important;
+    letter-spacing:-.02em;
+  }
+  .build-tabs.is-b-workbench .build-group-button small {
+    flex:0 0 auto !important;
+    white-space:nowrap !important;
+    font-size:8px !important;
+  }
+}
+.build-tabs.is-b-workbench .btype-build-tablist {
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  overscroll-behavior-inline:contain;
+}
+.build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
+  display:inline-flex !important;
+  flex:0 0 auto !important;
+  width:max-content !important;
+  min-width:44px !important;
+  min-height:44px !important;
+  white-space:nowrap !important;
+}
