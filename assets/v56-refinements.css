@@ -2253,7 +2253,7 @@ details > summary {
     --lbt-mobile-rail-h: calc(60px + env(safe-area-inset-bottom, 0px));
     width: 100%;
     max-width: 100%;
-    grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+    grid-template-rows: minmax(var(--topbar-h), auto) minmax(0, 1fr);
     height: 100vh;
     height: 100svh;
     height: 100dvh;

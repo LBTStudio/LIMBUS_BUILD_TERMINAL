@@ -206,6 +206,16 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.match(captureAudit, /type: "build-group-nav-not-reflowed"/);
 });
 
+test("チュートリアルのスマホ撮影は数pxの端スクロールだけ戻し、先頭カードの見出しを切らない", () => {
+  const capture = read("../tools/ui/capture-tutorial-screenshots.mjs");
+  assert.match(capture, /page\.viewportSize\(\)\?\.width \|\| 1440\) <= 640/);
+  assert.match(capture, /scrollTop <= 0 \|\| scrollTop > 96/);
+  assert.match(capture, /const restoredTop = targetRect\.top \+ scrollTop/);
+  assert.match(capture, /const restoredBottom = targetRect\.bottom \+ scrollTop/);
+  assert.match(capture, /restoredTop >= viewport\.top - 1 && restoredBottom <= viewport\.bottom \+ 1/);
+  assert.match(capture, /scrollport\.scrollTop = 0/);
+});
+
 test("画面・サブ画面の切替時は中央スクロールを先頭へ戻し、同一画面の編集では保持する", () => {
   assert.match(app, /const mainScrollRouteKey = \[[\s\S]*?current,[\s\S]*?libraryTab[\s\S]*?shopView[\s\S]*?settingsView[\s\S]*?basicFormatTab/);
   assert.match(app, /React\.useLayoutEffect\(\(\) => \{[\s\S]*?previousMainScrollRouteKeyRef\.current = mainScrollRouteKey[\s\S]*?main\.scrollTop = 0/);

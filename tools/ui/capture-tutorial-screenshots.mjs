@@ -22,6 +22,7 @@ const OUT = path.resolve(ROOT, process.env.TUTORIAL_SCREENSHOT_DIR || "artifacts
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.TUTORIAL_SCREENSHOT_PORT || 4173);
 const WAIT_MS = 180;
+const CAPTURE_LAYOUT_DIAGNOSTICS = [];
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -121,7 +122,45 @@ async function annotateAndSave(page, selector, fileBase, headline, detail) {
   const locator = typeof selector === "string" ? page.locator(selector).first() : selector;
   await locator.waitFor({ state: "visible", timeout: 12000 });
   await locator.scrollIntoViewIfNeeded();
+  if ((page.viewportSize()?.width || 1440) <= 640) {
+    // Playwright may move the mobile scrollport by only a few pixels to make a
+    // menu target fully intersecting. Restore that tiny top-edge adjustment
+    // when the target remains visible, so the first card header is not clipped
+    // underneath the topbar in the tutorial screenshot.
+    await locator.evaluate((target) => {
+      const scrollport = document.querySelector(".focus");
+      const scrollTop = scrollport?.scrollTop || 0;
+      if (!scrollport || scrollTop <= 0 || scrollTop > 96) return;
+      const viewport = scrollport.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const restoredTop = targetRect.top + scrollTop;
+      const restoredBottom = targetRect.bottom + scrollTop;
+      if (restoredTop >= viewport.top - 1 && restoredBottom <= viewport.bottom + 1) {
+        scrollport.scrollTop = 0;
+      }
+    });
+  }
   await page.waitForTimeout(80);
+  if (/^(?:result-text-import|roster-import)-/.test(fileBase)) {
+    const metrics = await page.evaluate(() => {
+      const rect = element => {
+        if (!element) return null;
+        const r = element.getBoundingClientRect();
+        return { top: Math.round(r.top * 100) / 100, bottom: Math.round(r.bottom * 100) / 100, height: Math.round(r.height * 100) / 100 };
+      };
+      const focus = document.querySelector(".focus");
+      const header = focus?.querySelector(".card-header.owned-library-bar");
+      return {
+        scrollTop: focus?.scrollTop ?? null,
+        topbar: rect(document.querySelector(".topbar")),
+        focus: rect(focus),
+        resultHeader: rect(header),
+        resultNote: rect(header?.querySelector(".ledger-note"))
+      };
+    });
+    CAPTURE_LAYOUT_DIAGNOSTICS.push({ fileBase, ...metrics });
+    log("layout " + fileBase + " " + JSON.stringify(metrics));
+  }
   const box = await locator.boundingBox();
   if (!box || box.width < 1 || box.height < 1) throw new Error("Target is not on-screen: " + fileBase);
   await page.evaluate(({ target, title, note }) => {
@@ -581,7 +620,8 @@ async function main() {
       source: "Local LIMBUS BUILD TERMINAL UI rendered by Playwright Chromium",
       viewportModes: ["desktop 1440x1000", "mobile 390x844 deviceScaleFactor=2"],
       count: files.length,
-      files
+      files,
+      captureLayoutDiagnostics: CAPTURE_LAYOUT_DIAGNOSTICS
     };
     fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
     if (files.length < 10) throw new Error("Expected at least 10 screenshots, captured " + files.length);
