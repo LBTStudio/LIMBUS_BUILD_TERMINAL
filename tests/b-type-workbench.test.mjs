@@ -20,22 +20,22 @@ test("B-type shell gives non-workbench pages the full canvas and scopes preview 
   assert.match(app, /label: "記録・所持品"/);
 });
 
-test("B-type home has the prototype's command hero, searchable nine-action grid, and resume row", () => {
+test("B-type home prioritizes the next setup action and keeps secondary tools folded", () => {
   const app = read("../js/App.js");
-  assert.match(app, /className: "btype-command-hero"/);
-  assert.match(app, /className: "btype-command-search"/);
-  assert.match(app, /className: "btype-launcher-grid"/);
-  assert.match(app, /className: "btype-continue-panel"/);
-  assert.match(app, /"基本情報・駒整形"/);
-  assert.match(app, /"データを取り込む"/);
-  assert.match(app, /"保存・復元・共有"/);
-  assert.match(app, /onOpenImportRouter: openImportRouter/);
+  assert.match(app, /className: "home-launcher btype-home btype-home-v2"/);
+  assert.match(app, /className: "btype-home-primary"/);
+  assert.match(app, /className: "btype-home-progress"/);
+  assert.match(app, /className: "btype-home-start-grid"/);
+  assert.match(app, /className: "btype-home-more"/);
+  assert.match(app, /次へ：/);
+  assert.match(app, /既存データを取り込む/);
+  assert.match(app, /記録・所持品を管理/);
+  assert.match(app, /その他の機能を探す/);
 });
-
 test("B-type production styles adapt to tablet and mobile without disabling reduced motion", () => {
   const css = read("../assets/b-type-workbench.css");
-  assert.match(css, /\.btype-command-hero\s*\{/);
-  assert.match(css, /\.btype-launcher-grid\s*\{/);
+  assert.match(css, /\.btype-home-primary\s*\{/);
+  assert.match(css, /\.btype-home-start-grid\s*\{/);
   assert.match(css, /@media \(max-width: 850px\)/);
   assert.match(css, /@media \(max-width: 600px\)/);
   assert.match(css, /prefers-reduced-motion/);
@@ -114,9 +114,7 @@ test("mobile build group names and subtabs stay on one line at touch size", () =
   const css = read("../assets/b-type-ui-parity.css");
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   assert.match(sections, /label: "基本・人格", description: "基本・キャラクター"/);
-  assert.doesNotMatch(sections, /"aria-label": group\.label \+/, "use the visible tab-group text as the accessible name");
-  assert.match(sections, /className: "build-group-button-label"/);
-  assert.match(sections, /h\("small", null, group\.tabIds\.length \+ "項目"\)/);
+  assert.match(sections, /"aria-label": group\.label \+ "：" \+ \(group\.description \|\| group\.label\)/, "accessible name begins with the visible group label");
   assert.match(css, /\.build-tabs\.is-b-workbench \.build-group-button-label[\s\S]*?white-space:nowrap !important/);
   assert.match(css, /\.build-tabs\.is-b-workbench \.btype-build-tablist > \[role="tab"\][\s\S]*?white-space:nowrap !important/);
   assert.match(css, /min-height:44px !important/);
