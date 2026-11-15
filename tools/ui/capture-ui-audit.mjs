@@ -267,8 +267,10 @@ async function readMetrics() {
         tabCount: tabButtons.length,
         tabButtonsBelowMinimum: tabButtons.filter(button => {
           const r = button.getBoundingClientRect();
-          return r.width < 44 || r.height < 40;
+          return r.width < 44 || r.height < 44;
         }).length,
+        tabButtonsWrapping: tabButtons.filter(button => getComputedStyle(button).whiteSpace !== "nowrap").length,
+        tabRailFlexWrap: tabRailStyle?.flexWrap || "missing",
         tabRailOverflowX: tabRailStyle?.overflowX || "missing",
         tabRailScrollable: !!tabRail && tabRail.scrollWidth > tabRail.clientWidth + 2
       };
@@ -349,11 +351,12 @@ async function snap(name, note) {
     if (nav.buttonCount !== 3 || nav.display !== "grid" || nav.rowCount !== 1
         || nav.scrollWidth > nav.clientWidth + 2 || nav.buttonsBelowMinimum > 0 || nav.buttonsOutsideList > 0
         || nav.tabCount < 2 || nav.tabCount > 4 || nav.tabButtonsBelowMinimum > 0
+        || nav.tabButtonsWrapping > 0 || nav.tabRailFlexWrap !== "nowrap"
         || (nav.tabRailScrollable && !["auto", "scroll"].includes(nav.tabRailOverflowX))) {
       audit.layoutWarnings.push({
         name: base,
         type: "build-group-nav-not-reflowed",
-        expected: "3 build groups in one row with 44px targets and 2-4 scrollable subtabs at 44px minimum",
+        expected: "3 one-line build groups and 2-4 unwrapped subtabs with 44px targets",
         actual: nav
       });
     }
