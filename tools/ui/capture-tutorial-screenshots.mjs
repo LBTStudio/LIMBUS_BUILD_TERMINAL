@@ -75,17 +75,18 @@ async function waitForApp(page) {
   // A fresh browser context has no app data. Create a disposable account only when
   // the app's first-run account gate requires one.
   if (await page.locator(".acct-gate").count()) {
-    const addButton = page.locator(".acct-card--add").filter({ hasText: "新しいキャラクター" });
+    const addButton = page.locator(".acct-card--add").first();
     if (await addButton.count()) {
       await addButton.first().click();
-      await page.locator(".acct-gate input[placeholder='キャラクター名など']").fill("操作ガイド撮影用");
+      await page.locator(".acct-gate input[placeholder='キャラクター名']").fill("操作ガイド撮影用");
       await page.getByRole("button", { name: "作成して開く", exact: true }).click();
+      await page.locator(".acct-gate").waitFor({ state: "hidden", timeout: 12000 });
     }
   }
   const isPhone = (page.viewportSize()?.width || 1440) <= 640;
   const buildEntry = isPhone
     ? page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "ビルド" })
-    : page.locator("button[title='ビルド']");
+    : page.locator(".rail-item[title='ビルド']");
   await buildEntry.waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(WAIT_MS);
 }
