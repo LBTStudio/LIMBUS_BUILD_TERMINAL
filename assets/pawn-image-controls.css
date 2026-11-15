@@ -67,4 +67,50 @@
     min-height: 42px;
   }
 }
+
+/* Keep the zoom instructions and full-fit reset inside narrow portrait previews. */
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .base-info-panel .piece-url-preview-featured {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .base-info-panel .piece-url-preview-zoom-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    justify-content: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-inline: 0;
+  }
+  .base-info-panel .piece-url-preview-zoom-help {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0 !important;
+    margin: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+  }
+  .base-info-panel .piece-url-preview-zoom-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: start;
+    max-width: 100%;
+    min-height: 44px !important;
+    padding: 8px 12px;
+    white-space: normal;
+  }
+}
+
 .base-info-panel .piece-art-preview-live[hidden] { display: none !important; }
