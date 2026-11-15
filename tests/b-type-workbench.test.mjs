@@ -107,3 +107,17 @@ test("mobile UI audit validates three grouped build controls instead of the old 
   assert.doesNotMatch(audit, /buttonCount !== 9/);
   assert.doesNotMatch(audit, /9 tabs in a 5-column grid/);
 });
+
+
+test("mobile build group names and subtabs stay on one line at touch size", () => {
+  const sections = read("../js/OtherSections.js");
+  const css = read("../assets/b-type-ui-parity.css");
+  const audit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(sections, /label: "基本・人格", description: "基本・キャラクター"/);
+  assert.match(sections, /"aria-label": \(group.description \|\| group.label\)/);
+  assert.match(css, /\.build-tabs\.is-b-workbench \.build-group-button-label[\s\S]*?white-space:nowrap !important/);
+  assert.match(css, /\.build-tabs\.is-b-workbench \.btype-build-tablist > \[role="tab"\][\s\S]*?white-space:nowrap !important/);
+  assert.match(css, /min-height:44px !important/);
+  assert.match(audit, /tabButtonsWrapping/);
+  assert.match(audit, /tabRailFlexWrap/);
+});
