@@ -224,6 +224,7 @@ test("アイコンUIとゲートのCSSがトークンのみで定義されてい
   assert.match(css, /\.acct-gate-cta \{/, "開く旨の導線");
   assert.match(css, /\.acct-first-run-note/, "初回作成後の流れ");
   assert.match(css, /\.acct-optional-settings/, "任意設定の折りたたみ");
+  assert.match(css, /\.acct-optional-settings > summary\\s*\\{[^}]*min-height:\\s*44px;/s, "任意設定の開閉領域は44pxを確保");
   assert.match(css, /\.acct-panel-accounts > \.acct-grid:has\(\.acct-card--add:only-child\)/, "初回作成ボタンを主CTAとして表示");
   assert.match(css, /\.acct-gate\s*\{[^}]*z-index:\s*10060;/s, "ゲートは背景レイヤーに残す");
   assert.match(css, /\.acct-overlay\s*\{[^}]*z-index:\s*10065;/s, "ゲートから開いた編集オーバーレイはゲートより前面");
