@@ -1172,6 +1172,31 @@ async function captureProfile(browser, mode) {
       }
       await snap("basic-image-preview-dragged","立ち絵を拡大し、ドラッグで表示位置を調整した状態");
       const zoomReset=page.locator(".piece-url-preview-zoom-reset").first();
+      await zoomReset.scrollIntoViewIfNeeded();
+      if ((page.viewportSize()?.width || 1440) <= 560) {
+        const zoomResetLayout = await zoomReset.evaluate(el => {
+          const controls = el.closest(".piece-url-preview-zoom-controls");
+          const help = controls?.querySelector(".piece-url-preview-zoom-help");
+          const buttonRect = el.getBoundingClientRect();
+          const controlsRect = controls?.getBoundingClientRect();
+          return {
+            viewportWidth: innerWidth,
+            button: { left: buttonRect.left, right: buttonRect.right, width: buttonRect.width, height: buttonRect.height },
+            controls: controlsRect ? { left: controlsRect.left, right: controlsRect.right, width: controlsRect.width } : null,
+            help: help ? { clientWidth: help.clientWidth, scrollWidth: help.scrollWidth } : null
+          };
+        });
+        if (!zoomResetLayout.controls
+          || zoomResetLayout.button.left < -1
+          || zoomResetLayout.button.right > zoomResetLayout.viewportWidth + 1
+          || zoomResetLayout.button.width <= 0
+          || zoomResetLayout.button.height < 40
+          || zoomResetLayout.controls.right > zoomResetLayout.viewportWidth + 1
+          || !zoomResetLayout.help
+          || zoomResetLayout.help.scrollWidth > zoomResetLayout.help.clientWidth + 1) {
+          throw new Error("スマホの全体表示リセット操作が画面内に収まりません: " + JSON.stringify(zoomResetLayout));
+        }
+      }
       await click(zoomReset);
       await page.waitForFunction(() => {
         const image=document.querySelector(".piece-url-preview-featured-frame > img");
