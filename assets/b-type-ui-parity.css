@@ -1237,3 +1237,45 @@
  .build-group-button,.btype-shop-categories-trigger,.ledger-result-step{transition:none}
  .build-tabs.is-b-workbench .btype-build-tablist{scroll-behavior:auto}
 }
+
+
+/* Group navigation is the mobile hierarchy; active subtabs stay readable and horizontally scrollable. */
+.build-tabs.is-b-workbench .build-group-nav {
+  grid-template-columns: repeat(3, minmax(44px, 1fr));
+}
+.build-tabs.is-b-workbench .build-group-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.build-tabs.is-b-workbench .btype-build-tablist {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+.build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+@media(max-width:560px) {
+  .build-tabs.is-b-workbench .build-group-nav {
+    grid-template-columns: repeat(3, minmax(44px, 1fr));
+  }
+  .build-tabs.is-b-workbench .build-group-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .build-tabs.is-b-workbench .btype-build-tablist > [role="tab"] {
+    min-height: 44px;
+  }
+}
