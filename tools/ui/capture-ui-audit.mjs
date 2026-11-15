@@ -2125,13 +2125,14 @@ async function captureProfile(browser, mode) {
           const grid=panel?.querySelector(".acct-panel-accounts > .acct-grid--manager");
           const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
           const button=editor?.querySelector(".acct-import-toggle");
+          const optionalSettings=editor?.querySelector("details.acct-optional-settings");
+          const formActions=editor?.querySelector(".acct-form-actions");
           const backupPanel=panel?.querySelector(".acct-panel-cloud");
           const backup=backupPanel?.querySelector(".lbt-cloud-panel");
           const backupHidden=!backupPanel || getComputedStyle(backupPanel).display==="none"
             || !backup || getComputedStyle(backup).display==="none";
           const rect=(node)=>node?node.getBoundingClientRect():null;
-          const er=rect(editor), br=rect(button), gr=rect(grid);
-          const style=editor?getComputedStyle(editor):null;
+          const er=rect(editor), br=rect(button), gr=rect(grid), ar=rect(formActions);
           return {
             editorHeight:er?.height||0,
             editorScrollHeight:editor?.scrollHeight||0,
@@ -2143,12 +2144,18 @@ async function captureProfile(browser, mode) {
             buttonVisible:!!br && br.width>0 && br.height>0 && br.bottom<=window.innerHeight && br.top>=0,
             buttonBottom:br?.bottom||0,
             gridBottom:gr?.bottom||0,
-            buttonBottomWithinEditor:!!er && !!br && br.bottom<=er.bottom+1
+            buttonBottomWithinEditor:!!er && !!br && br.bottom<=er.bottom+1,
+            optionalSettingsCollapsed:!!optionalSettings && !optionalSettings.open,
+            formActionCount:formActions?.querySelectorAll("button").length||0,
+            formActionsVisible:!!ar && ar.width>0 && ar.height>0 && ar.top>=0 && ar.bottom<=window.innerHeight,
+            formActionsWithinEditor:!!er && !!ar && ar.bottom<=er.bottom+1
           };
         });
         audit.accountEditorLayout = audit.accountEditorLayout || {};
         audit.accountEditorLayout[view] = editorMetrics;
         if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor || !editorMetrics.backupPanelHidden
+          || !editorMetrics.optionalSettingsCollapsed || editorMetrics.formActionCount < 2 || !editorMetrics.formActionsWithinEditor
+          || (view === "mobile-narrow" && !editorMetrics.formActionsVisible)
           || editorMetrics.gridDisplay !== "flex" || editorMetrics.editorHeight < editorMetrics.editorScrollHeight - 2) {
           throw new Error("編集中フォームが全列に展開されず、取込ボタンがカード内に収まっていません: " + JSON.stringify(editorMetrics));
         }
