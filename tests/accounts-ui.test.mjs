@@ -166,7 +166,7 @@ test("未作成アカウントのアイコンは保留して作成後に適用�
 test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
   assert.match(ui, /const AccountGate = \(\) => \{/);
   assert.match(ui, /h\("main", \{ className: "acct-gate" \}/, "ゲート表示中は本体が出ないので main ランドマークになる");
-  assert.match(ui, /h\("h1", \{ className: "acct-kicker", id: "acct-gate-title" \}/, "見出しはh1（本体が無いため）");
+  assert.match(ui, /h\("h1", \{ className: "acct-kicker acct-gate-title", id: "acct-gate-title" \}/, "見出しはh1（本体が無いため）");
   assert.match(ui, /role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-gate-title"/);
   /* 選んだアカウントで開く。ここで location.reload() すると常時ゲートと
      競合して「選んでもう一度ゲート」のループになるので使わない。 */
