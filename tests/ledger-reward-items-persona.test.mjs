@@ -407,7 +407,9 @@ test("ガチャ抽出バッチのE.G.Oは所持と抽出費用明細へ自動反
       grantedShards: 0
     }]
   };
-  const next = window.__testApplyDrawBatchEffects(baseState(), batch, "res-gacha", {});
+  const before = baseState();
+  before.results = [{ id: "res-gacha", name: "抽出セッション", date: "2026-11-15", income: { lp: 0, shards: 100 } }];
+  const next = window.__testApplyDrawBatchEffects(before, batch, "res-gacha", {});
   assert.equal(next.roster.egos.length, 1);
   assert.equal(next.roster.egos[0].rank, "TETH");
   assert.equal(String(next.roster.egos[0].no), "1");
