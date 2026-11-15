@@ -3151,7 +3151,7 @@ function purchaseCostOf(state, action) {
     const name = String(action.name || "");
     if (!name) return null;
     const catalog = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
-    const definition = catalog.find((entry) => entry?.name === name && entry?.group === group);
+    const definition = catalog.find((entry) => entry?.name === name && String(entry?.group || "") === group);
     if (!definition) return null;
     const rawPrice = definition.shards;
     const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
