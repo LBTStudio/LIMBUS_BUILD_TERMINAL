@@ -1299,3 +1299,24 @@
   width: 100%;
   margin: 0;
 }
+
+
+/* Mobile touch follow-up: enlarge preview mode switches, disclosure rows and small chips. */
+@media(max-width:640px) {
+  .pv-ccfolia-preview .pv-token-mode-switch[role="group"] > button {
+    min-height:44px;
+    padding-block:8px;
+  }
+  .ledger-result-entry-body details > summary,
+  .ledger-result-details > summary,
+  .ledger-import-notes > summary,
+  .ledger-held-result > summary,
+  .ledger-history-editor-disclosure > summary,
+  .ledger-result-reward-disclosure > summary {
+    min-height:44px;
+    box-sizing:border-box;
+  }
+  button.chip.is-sm {
+    min-width:44px;
+  }
+}
