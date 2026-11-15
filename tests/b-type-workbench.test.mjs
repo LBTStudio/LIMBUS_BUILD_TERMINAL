@@ -114,7 +114,7 @@ test("mobile build group names and subtabs stay on one line at touch size", () =
   const css = read("../assets/b-type-ui-parity.css");
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   assert.match(sections, /label: "基本・人格", description: "基本・キャラクター"/);
-  assert.match(sections, /"aria-label": group\.label \+ "：" \+ \(group\.description \|\| group\.label\)/, "accessible name begins with the visible group label");
+  assert.doesNotMatch(sections, /"aria-label": group\.label \+/, "the visible tab-group text remains the accessible name");
   assert.match(css, /\.build-tabs\.is-b-workbench \.build-group-button-label[\s\S]*?white-space:nowrap !important/);
   assert.match(css, /\.build-tabs\.is-b-workbench \.btype-build-tablist > \[role="tab"\][\s\S]*?white-space:nowrap !important/);
   assert.match(css, /min-height:44px !important/);
