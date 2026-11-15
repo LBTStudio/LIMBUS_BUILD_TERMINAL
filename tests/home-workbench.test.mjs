@@ -172,5 +172,5 @@ test("初回キャラクター作成は名前だけで進め、用途タグと�
   assert.doesNotMatch(gate, /SINNER SELECT/);
   assert.match(accountsCss, /\.acct-first-run-note/);
   assert.match(accountsCss, /\.acct-optional-settings/);
-  assert.match(accountsCss, /\.acct-gate-panel > \.acct-grid:has\(\.acct-card--add:only-child\)/);
+  assert.match(accountsCss, /\.acct-panel-accounts > \.acct-grid:has\(\.acct-card--add:only-child\)/);
 });
