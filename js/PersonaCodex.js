@@ -803,11 +803,32 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
       toast(`『${persona.name}』は既に所持しています`);
       return;
     }
+    /* 配布チケットは無料価格の購入へ偽装せず、reducer内で残数確認・消費・所持追加を一括する。 */
+    if (acquireHow === "ticket") {
+      const balance = window.LBT_computeTicketBalance?.(state.results || [], state.entries || []);
+      if (!balance || Number(balance.persona) < 1) {
+        toast("人格抽出チケットがありません", "assertive");
+        return;
+      }
+      dispatch({ type: "ACQUIRE_ROSTER_WITH_TICKET", kind: "persona", mode: personaMode, no: persona.no });
+      toast(successMessage || `『${persona.name}』を人格抽出チケットで獲得しました`, "assertive");
+      return;
+    }
+
     /* 指定購入は通常人格だけ。特異人格は抽出のみ。 */
     const blocked = acquireHow === "purchase" ? personaPurchaseBlocked(persona, personaMode) : null;
     if (blocked) { toast(blocked, "assertive"); return; }
-    const cost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (state.roster?.personas || []).length > 0 });
-    /* reducer は残高不足なら state を変更せず return する。判定自体が無い状態でも成功通知を出さない。 */
+    const acquisition = acquireHow === "gacha" ? "gachaPaid" : "purchase";
+    const action = { type: "ADD_ROSTER", mode: personaMode, no: persona.no, purchase: true, acquisition };
+    const cost = window.LBT_purchaseCostOf?.(state, action);
+    const displayedCost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (state.roster?.personas || []).length > 0 });
+    /* reducerと表示が同じ取得ルールを参照していることを確認し、古い価格表示で請求しない。 */
+    if (!cost || !displayedCost
+      || Number(cost.lp) !== Number(displayedCost.lp || 0)
+      || Number(cost.shards) !== Number(displayedCost.shards || 0)) {
+      toast("取得費用を検証できません。価格情報を再読込してください", "assertive");
+      return;
+    }
     const affordability = window.LBT_purchaseAffordability?.(state, cost);
     if (!affordability) {
       toast("取得費用を検証できません。ページを再読み込みしてください", "assertive");
@@ -817,8 +838,8 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
       toast(affordability.reason || "残高が不足しています", "assertive");
       return;
     }
-    dispatch({ type: "ADD_ROSTER", mode: personaMode, no: persona.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
-    toast(successMessage || `${persona.name} を獲得しました（${cost.label}）`, "assertive");
+    dispatch(action);
+    toast(successMessage || `${persona.name} を獲得しました（${displayedCost.label || "無料"}）`, "assertive");
   };
 
 
