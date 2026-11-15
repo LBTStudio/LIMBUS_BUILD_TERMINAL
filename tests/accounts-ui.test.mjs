@@ -234,6 +234,12 @@ test("起動時のアカウント選択画面にも常時表示の編集ボタ�
   assert.ok(gateSource.includes("detail: { editId: entry.id }"), "クリックしたアカウントIDを渡す");
   assert.ok(gateSource.includes('"aria-haspopup": "dialog"'), "ダイアログを開く操作として明示");
   assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId, existingResults = \[\] \}\) => \{/);
+  const managerStart = ui.indexOf("const AccountSwitcher =");
+  const gateStart = ui.indexOf("const AccountGate =", managerStart);
+  const managerSource = ui.slice(managerStart, gateStart);
+  assert.match(managerSource, /const total = info\.accounts\.length;/, "管理画面の件数は読み込んだアカウント一覧から取得");
+  assert.match(managerSource, /total > 0 \? h\("aside", \{ className: "acct-panel-cloud"/, "管理画面のオンライン保全パネルを描画");
+  assert.doesNotMatch(managerSource, /\baccounts\.length\b/, "管理画面に未定義の accounts 変数を残さない");
   assert.match(ui, /if \(!open \|\| !initialEditId\) return;[\s\S]*?setEditingId\(entry\.id\)/, "対象IDを受け取り編集フォームへ入る");
   assert.ok(app.includes("accountSwitcherInitialEditId"), "編集対象IDを App で管理");
   assert.ok(app.includes("event.detail?.editId || null"), "イベントから対象IDを受け取る");
