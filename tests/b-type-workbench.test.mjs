@@ -20,22 +20,22 @@ test("B-type shell gives non-workbench pages the full canvas and scopes preview 
   assert.match(app, /label: "記録・所持品"/);
 });
 
-test("B-type home has the prototype's command hero, searchable nine-action grid, and resume row", () => {
+test("B-type home prioritizes the next setup action and keeps secondary tools folded", () => {
   const app = read("../js/App.js");
-  assert.match(app, /className: "btype-command-hero"/);
-  assert.match(app, /className: "btype-command-search"/);
-  assert.match(app, /className: "btype-launcher-grid"/);
-  assert.match(app, /className: "btype-continue-panel"/);
-  assert.match(app, /"基本情報・駒整形"/);
-  assert.match(app, /"データを取り込む"/);
-  assert.match(app, /"保存・復元・共有"/);
-  assert.match(app, /onOpenImportRouter: openImportRouter/);
+  assert.match(app, /className: "btype-home-v2"/);
+  assert.match(app, /className: "btype-home-primary"/);
+  assert.match(app, /className: "btype-home-progress"/);
+  assert.match(app, /className: "btype-home-start-grid"/);
+  assert.match(app, /className: "btype-home-more"/);
+  assert.match(app, /次へ：/);
+  assert.match(app, /既存データを取り込む/);
+  assert.match(app, /記録・所持品を管理/);
+  assert.match(app, /その他の機能を探す/);
 });
-
 test("B-type production styles adapt to tablet and mobile without disabling reduced motion", () => {
   const css = read("../assets/b-type-workbench.css");
-  assert.match(css, /\.btype-command-hero\s*\{/);
-  assert.match(css, /\.btype-launcher-grid\s*\{/);
+  assert.match(css, /\.btype-home-primary\s*\{/);
+  assert.match(css, /\.btype-home-start-grid\s*\{/);
   assert.match(css, /@media \(max-width: 850px\)/);
   assert.match(css, /@media \(max-width: 600px\)/);
   assert.match(css, /prefers-reduced-motion/);
