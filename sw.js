@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-809fc373";
+const CACHE_NAME = "lbt-b04dbe56";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -37,7 +37,7 @@ const PRECACHE_URLS = [
   "assets/pawn-image-controls.css?v=44a22311",
   "assets/persona-codex.css?v=73906b7b",
   "assets/persona-filter-refinement.css?v=129f7828",
-  "assets/sections.css?v=9f02b02b",
+  "assets/sections.css?v=7a5c166a",
   "assets/v52-overlay.css?v=bb012c34",
   "assets/v53-overlay.css?v=1b57bfe6",
   "assets/v56-refinements.css?v=99afde4a",
