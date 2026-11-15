@@ -499,7 +499,22 @@ async function captureViewport(browser, mode) {
     // On narrow mobile layouts the top-bar account chip is intentionally hidden.
     // Use the same app event as the help index's "アカウント管理を開く" action.
     await page.evaluate(() => window.dispatchEvent(new Event("lbt:open-accounts")));
-    await page.waitForTimeout(WAIT_MS);
+    const accountPanel = page.locator(".acct-panel").first();
+    try {
+      await accountPanel.waitFor({ state: "visible", timeout: 12000 });
+    } catch (error) {
+      const diagnostic = await page.evaluate(() => ({
+        accountOverlayCount: document.querySelectorAll(".acct-overlay").length,
+        accountPanelCount: document.querySelectorAll(".acct-panel").length,
+        gateVisible: !!document.querySelector(".acct-gate"),
+        accounts: window.LBT_accounts?.list?.() || null,
+        bodyText: (document.body.innerText || "").slice(0, 1500)
+      }));
+      throw new Error("チュートリアル撮影中にアカウント管理画面が開きません: " + JSON.stringify({
+        original: error?.message || String(error),
+        diagnostic
+      }));
+    }
     const editButton = page.locator(".acct-panel .acct-edit-btn").first();
     await editButton.waitFor({ state: "visible", timeout: 12000 });
     await editButton.click();
