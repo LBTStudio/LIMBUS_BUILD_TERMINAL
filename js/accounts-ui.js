@@ -258,7 +258,7 @@ const AccountCard = ({ entry, index, active, editing, selecting = false, draft, 
   if (editing) {
     return h("div", { className: `acct-card acct-card--form${importOpen ? " acct-card--import-open" : ""}`, style: { "--i": index }, "data-account-id": entry.id },
       h("span", { className: "acct-form-kicker" }, "編集中"),
-      h("label", { className: "acct-field" }, h("span", null, "アカウント名"), h("input", {
+      h("label", { className: "acct-field" }, h("span", null, "キャラクター名"), h("input", {
         className: "input", value: draft.name, autoFocus: true, maxLength: 40,
         onChange: (event) => setDraft({ ...draft, name: event.target.value }),
         onKeyDown: onDraftKeyDown(onSave)
