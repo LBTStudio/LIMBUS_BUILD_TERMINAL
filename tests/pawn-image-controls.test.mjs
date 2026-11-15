@@ -60,7 +60,7 @@ test("ブラウザー監査は拡大・ドラッグ移動・全体表示リセ�
 
 
 test("preview drag regression scrolls the portrait into view and confirms a real pointer hit target", () => {
-  const regression = read("../tools/ui/capture-preview-control-regression.mjs");
+  const regression = readFileSync(new URL("../tools/ui/capture-preview-control-regression.mjs", import.meta.url), "utf8");
   assert.match(regression, /portraitFrame\.scrollIntoViewIfNeeded\(\)/);
   assert.match(regression, /document\.elementFromPoint\(x, y\)/);
   assert.match(regression, /if \(!dragStart\.hitFrame\)/);
