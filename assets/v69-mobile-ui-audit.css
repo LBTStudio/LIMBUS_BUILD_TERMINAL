@@ -835,3 +835,13 @@
     grid-column: 1 / -1;
   }
 }
+
+@media (max-width: 360px) {
+  /* 320px以下ではステップ名を優先し、非選択段階の補足を畳む。選択中の補足は残す。 */
+  .ledger-result-progress { gap: 6px; padding: 9px; }
+  .ledger-result-progress-heading { align-items: flex-start; flex-wrap: wrap; gap: 2px 8px; }
+  .ledger-result-step { align-items: center; gap: 6px; min-height: 44px; padding: 6px; }
+  .ledger-result-step-number { flex-basis: 23px; width: 23px; height: 23px; }
+  .ledger-result-step-copy small { display: none; }
+  .ledger-result-step.is-active .ledger-result-step-copy small { display: block; }
+}

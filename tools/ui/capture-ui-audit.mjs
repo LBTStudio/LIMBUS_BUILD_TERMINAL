@@ -1675,6 +1675,21 @@ async function captureProfile(browser, mode) {
         });
         const ticketGrid=card?.querySelector(".ledger-result-entry-ticket-section .ledger-ticket-grid");
         const ticketColumns=ticketGrid?getComputedStyle(ticketGrid).gridTemplateColumns.trim().split(/\s+/).length:0;
+        const progress=card?.querySelector(".ledger-result-progress");
+        const progressRect=progress?.getBoundingClientRect();
+        const progressGrid=progress?.querySelector(".ledger-result-progress-steps");
+        const progressGridStyle=progressGrid?getComputedStyle(progressGrid):null;
+        const progressSteps=[...(progressGrid?.querySelectorAll(".ledger-result-step")||[])].map(button=>{
+          const r=button.getBoundingClientRect();
+          const note=button.querySelector(".ledger-result-step-copy small");
+          return {
+            active:button.classList.contains("is-active"),
+            left:r.left,
+            right:r.right,
+            height:r.height,
+            noteDisplay:note?getComputedStyle(note).display:"missing"
+          };
+        });
         return {
           exists:!!card,
           cardTop:cardRect?.top??null,
@@ -1684,7 +1699,16 @@ async function captureProfile(browser, mode) {
           documentWidth:document.documentElement.scrollWidth,
           bodyWidth:body?.getBoundingClientRect().width||0,
           labels,
-          ticketColumns
+          ticketColumns,
+          progress:progressRect?{
+            left:progressRect.left,
+            right:progressRect.right,
+            width:progressRect.width,
+            height:progressRect.height,
+            stepCount:progressSteps.length,
+            columns:progressGridStyle?progressGridStyle.gridTemplateColumns.trim().split(/\s+/).length:0,
+            steps:progressSteps
+          }:null
         };
       });
       if(!entryLayout.exists || entryLayout.cardTop===null || entryLayout.cardTop<entryLayout.topbarBottom+8
@@ -1692,8 +1716,15 @@ async function captureProfile(browser, mode) {
         || entryLayout.labels.some(field=>!field.visible || !field.label || field.inputWidth<80)
         || (view.startsWith("mobile") && (entryLayout.documentWidth>entryLayout.viewportWidth+2
           || entryLayout.labels.some(field=>field.inputLeft<0 || field.inputRight>entryLayout.viewportWidth+1)
-          || entryLayout.ticketColumns!==2))) {
-        throw new Error("新規リザルトの基本入力ラベル／スマホ幅の収まりが期待どおりではありません: "+JSON.stringify(entryLayout));
+          || entryLayout.ticketColumns!==2))
+        || (view==="mobile-narrow" && (!entryLayout.progress || entryLayout.progress.stepCount!==4
+          || entryLayout.progress.columns!==2
+          || entryLayout.progress.steps.some(step=>step.height<44
+            || step.left<entryLayout.progress.left-1 || step.right>entryLayout.progress.right+1)
+          || entryLayout.progress.steps.some(step=>step.active
+            ? step.noteDisplay==="none" || step.noteDisplay==="missing"
+            : step.noteDisplay!=="none")))) {
+        throw new Error("新規リザルトの基本入力／320px進捗カードの幅・高さ・説明表示が期待どおりではありません: "+JSON.stringify(entryLayout));
       }
       await snap("ledger-result-entry-layout","新規リザルト記録フォームの基本情報・獲得チケット入力欄");
       const nameInput=page.getByRole("textbox",{name:"リザルトの名称",exact:true});
