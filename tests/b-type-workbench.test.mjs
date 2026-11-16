@@ -95,6 +95,12 @@ test("Shop catalog keeps category selection in one place and exposes one return 
 test("mobile build navigation audit verifies nine direct tabs in a five-column grid", () => {
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   const index = read("../index.html");
+  const sw = read("../sw.js");
+  for (const asset of ["assets/b-type-ui-parity.css", "js/OtherSections.js"]) {
+    const ref = index.match(new RegExp(asset.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  const index = read("../index.html");
+  assert.match(audit, /\.btype-build-tablist\[role="tablist"\]/);") + "\\\\?v=[a-f0-9]{8}"))?.[0];
+    assert.ok(ref && sw.includes(`"${ref}"`), "service worker precache must follow the current build asset: " + asset);
+  }
   assert.match(audit, /\.btype-build-tablist\[role="tablist"\]/);
   assert.match(audit, /nav\.buttonCount !== 9/);
   assert.match(audit, /nav\.gridColumnCount !== 5/);
