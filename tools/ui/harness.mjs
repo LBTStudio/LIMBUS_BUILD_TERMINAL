@@ -25,8 +25,6 @@ export const UI_VIEWS = [
   ].map(([id, label]) => ({
     kind: "build-tab",
     id,
-    group: ["baseinfo", "persona"].includes(id) ? "character"
-      : ["skill", "passive", "enh"].includes(id) ? "battle" : "equipment",
     label: "ビルド / " + label
   })),
   { kind: "shop-hub", label: "ショップ / カテゴリ" },
@@ -265,9 +263,6 @@ export async function walkSections(page, { onSection } = {}) {
       await clickMainRoute(page, view.route);
     } else if (view.kind === "build-tab") {
       await clickMainRoute(page, "ビルド");
-      const group = page.locator(".build-group-nav [data-build-group=" + JSON.stringify(view.group) + "]").first();
-      await group.waitFor({ state: "visible", timeout: 8000 });
-      if (await group.getAttribute("aria-pressed") !== "true") await activateAuditTarget(page, group);
       const tab = page.getByRole("tablist", { name: "ビルドセクション" })
         .getByRole("tab", { name: view.label.replace("ビルド / ", ""), exact: true });
       await tab.waitFor({ state: "visible", timeout: 8000 });
