@@ -69,6 +69,14 @@ test("UI audit covers desktop, tablet and mobile across Home, settings and all r
 });
 
 
+test("shared UI and axe harness walks the nine direct Build tabs without category navigation", () => {
+  const harness = read("../tools/ui/harness.mjs");
+  assert.match(harness, /kind: "build-tab"/);
+  assert.match(harness, /getByRole\("tablist", \{ name: "ビルドセクション" \}\)/);
+  assert.match(harness, /getByRole\("tab", \{ name: view\.label\.replace/);
+  assert.doesNotMatch(harness, /build-group-nav|data-build-group|view\.group/);
+});
+
 test("Build workspace exposes all nine existing destinations in one direct tab rail", () => {
   const sections = read("../js/OtherSections.js");
   for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
