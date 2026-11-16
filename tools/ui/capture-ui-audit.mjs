@@ -253,7 +253,7 @@ async function readMetrics() {
       return {
         display: style.display,
         gridTemplateColumns: style.gridTemplateColumns,
-        gridColumnCount: style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length,
+        gridColumnCount: style.gridTemplateColumns.trim().split(" ").filter(Boolean).length,
         overflowX: style.overflowX,
         clientWidth: element.clientWidth,
         scrollWidth: element.scrollWidth,
