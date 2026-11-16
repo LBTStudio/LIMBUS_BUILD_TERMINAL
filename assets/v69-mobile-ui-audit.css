@@ -453,9 +453,15 @@
 }
 .ledger-result-entry-ticket-section .ledger-ticket-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 9px;
   min-width: 0;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field--pack-select { grid-column: span 2; }
+.ledger-result-entry-ticket-section .ledger-ticket-field--pack-count { grid-column: span 1; }
+.ledger-result-entry-ticket-section .ledger-ticket-field--pack-select .select {
+  font-size: 12px;
+  text-overflow: ellipsis;
 }
 .ledger-result-entry-ticket-section .ledger-ticket-field {
   display: grid;
@@ -727,6 +733,10 @@
   .ledger-result-entry-ticket-section .ledger-ticket-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 9px;
+  }
+  .ledger-result-entry-ticket-section .ledger-ticket-field--pack-select,
+  .ledger-result-entry-ticket-section .ledger-ticket-field--pack-count {
+    grid-column: 1 / -1;
   }
   .ledger-result-entry-card .ledger-result-reward-disclosure > summary {
     min-height: 48px;
