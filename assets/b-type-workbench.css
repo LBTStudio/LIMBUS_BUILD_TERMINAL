@@ -660,7 +660,8 @@
 @media (max-width: 600px) {
   .btype-home-v2 { gap: 16px; }
   .btype-home-primary { gap: 16px; padding: 17px 14px; border-radius: 11px; }
-  .btype-home-primary-copy h1 { font-size: 25px; }
+  /* Keep the Japanese heading on one balanced line on narrow phones. */
+  .btype-home-primary-copy h1 { font-size: clamp(19px, 5.4vw, 22px); max-width: 100%; }
   .btype-home-context { align-items: flex-start; flex-direction: column; gap: 6px; }
   .btype-home-save { padding-left: 0; border-left: 0; }
   .btype-home-primary-action { width: 100%; min-width: 0; justify-content: center; }
