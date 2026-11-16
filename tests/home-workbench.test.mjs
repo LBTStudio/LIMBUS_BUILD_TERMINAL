@@ -98,6 +98,7 @@ test("新ホームは狭い画面でも縦一列になり、キーボード操�
   assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-home-progress ol \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
   assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-home-start-grid,[\s\S]*?\.btype-home-utility-list \{ grid-template-columns: minmax\(0,1fr\); \}/);
   assert.match(bTypeCss, /\.btype-home-primary \{[\s\S]*?grid-template-columns: minmax\(0,1fr\);/);
+  assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-home-primary-copy h1 \{ font-size: clamp\(19px, 5\.4vw, 22px\); max-width: 100%; \}/, "narrow phone heading shrinks fluidly instead of orphaning the final character");
 });
 
 test("Bタイプのナビは制作・データ管理・補助を区別し、取り込み先を選べる", () => {
