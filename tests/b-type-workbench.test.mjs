@@ -96,8 +96,13 @@ test("mobile build navigation audit verifies nine direct tabs in a five-column g
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   const index = read("../index.html");
   const sw = read("../sw.js");
-  for (const asset of ["assets/b-type-ui-parity.css", "js/OtherSections.js"]) {
-    const ref = index.match(new RegExp(asset.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  const index = read("../index.html");
+  const assetRefs = [
+    index.match(/assets\/b-type-ui-parity\.css\?v=[a-f0-9]{8}/)?.[0],
+    index.match(/js\/OtherSections\.js\?v=[a-f0-9]{8}/)?.[0]
+  ];
+  for (const ref of assetRefs) {
+    assert.ok(ref && sw.includes(`"${ref}"`), "service worker precache must include the current build assets");
+  }
   assert.match(audit, /\.btype-build-tablist\[role="tablist"\]/);") + "\\\\?v=[a-f0-9]{8}"))?.[0];
     assert.ok(ref && sw.includes(`"${ref}"`), "service worker precache must follow the current build asset: " + asset);
   }
