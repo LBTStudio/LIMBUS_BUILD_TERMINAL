@@ -69,14 +69,16 @@ test("UI audit covers desktop, tablet and mobile across Home, settings and all r
 });
 
 
-test("Build workspace groups all nine existing tabs without changing their persisted IDs", () => {
+test("Build workspace exposes all nine existing destinations in one direct tab rail", () => {
   const sections = read("../js/OtherSections.js");
-  assert.match(sections, /id: "character", label: "基本・人格", description: "基本・キャラクター", tabIds: \["baseinfo", "persona"\]/);
-  assert.match(sections, /id: "battle", label: "戦闘データ", tabIds: \["skill", "passive", "enh"\]/);
-  assert.match(sections, /id: "equipment", label: "装備・構成", tabIds: \["support", "ego", "spirit", "items-build"\]/);
-  assert.match(sections, /BUILD_TABS\.filter\(\(tab\) => activeGroup.tabIds.includes\(tab.id\)\)/);
+  for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
+    assert.ok(sections.includes('{ id: "' + id + '", label:'), "missing direct build tab: " + id);
+  }
+  assert.match(sections, /BUILD_TABS\.map\(\(tab\) => h\("button"/);
+  assert.match(sections, /className: "segmented btype-build-tablist"/);
   assert.match(sections, /id: "btab-" \+ tab.id/);
   assert.match(sections, /id: "bpanel-" \+ tab.id/);
+  assert.doesNotMatch(sections, /BUILD_TAB_GROUPS|build-group-nav|activeGroup/);
 });
 test("Shop catalog keeps category selection in one place and exposes one return control", () => {
   const sections = read("../js/OtherSections.js");
@@ -90,53 +92,29 @@ test("Shop catalog keeps category selection in one place and exposes one return 
 });
 
 
-test("mobile UI audit validates three grouped build controls instead of the old nine-tab grid", () => {
+test("mobile build navigation audit verifies nine direct tabs in a five-column grid", () => {
   const audit = read("../tools/ui/capture-ui-audit.mjs");
-  assert.match(audit, /\.build-group-nav\[role="group"\]/);
-  assert.match(audit, /buttonCount !== 3/);
+  const index = read("../index.html");
+  assert.match(audit, /\.btype-build-tablist\[role="tablist"\]/);
+  assert.match(audit, /nav\.buttonCount !== 9/);
+  assert.match(audit, /nav\.gridColumnCount !== 5/);
+  assert.match(audit, /nav\.rowCount !== 2/);
+  assert.match(index, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\) !important/);
+  assert.match(index, /min-height: 40px !important/);
   assert.match(audit, /\.pv-ccfolia-preview \.pv-token-mode-switch > button/);
   assert.match(audit, /\.ledger-result-entry-body details > summary/);
   assert.match(audit, /button\.chip\.is-sm/);
-  const css = read("../assets/b-type-ui-parity.css");
-  assert.match(css, /pv-token-mode-switch\[role="group"\] > button\s*\{\s*min-height:44px/);
-  assert.match(css, /button\.chip\.is-sm\s*\{\s*min-width:44px/);
-  assert.match(audit, /tabButtonsBelowMinimum/);
-  const paletteCss = read("../assets/b-type-ui-parity.css");
-  assert.match(paletteCss, /\.build-tabs\.is-b-workbench \.build-group-button small\{[^}]*color:#a39a89/);
-  assert.match(audit, /tabRailScrollable && !\["auto", "scroll"\]\.includes\(nav\.tabRailOverflowX\)/);
-  assert.doesNotMatch(audit, /buttonCount !== 9/);
-  assert.doesNotMatch(audit, /9 tabs in a 5-column grid/);
 });
 
-
-test("mobile build group names and subtabs stay on one line at touch size", () => {
+test("the mobile build grid has no intermediate category row", () => {
   const sections = read("../js/OtherSections.js");
   const css = read("../assets/b-type-ui-parity.css");
-  const audit = read("../tools/ui/capture-ui-audit.mjs");
-  assert.match(sections, /label: "基本・人格", description: "基本・キャラクター"/);
-  assert.doesNotMatch(sections, /"aria-label": group\.label \+/, "use the visible tab group text as its accessible name");
-  assert.match(sections, /className: "build-group-button-label"/);
-  assert.match(sections, /h\("small", null, group\.tabIds\.length \+ "項目"\)/);
-  assert.match(css, /\.build-tabs\.is-b-workbench \.build-group-button-label[\s\S]*?white-space:nowrap !important/);
-  assert.match(css, /\.build-tabs\.is-b-workbench \.btype-build-tablist > \[role="tab"\][\s\S]*?white-space:nowrap !important/);
-  assert.match(css, /min-height:44px !important/);
-  assert.match(audit, /tabButtonsWrapping/);
-  assert.match(audit, /tabRailFlexWrap/);
-});
-
-
-test("index.html no longer overrides the grouped build navigation with the legacy nine-tab grid", () => {
   const index = read("../index.html");
-  assert.ok(index.includes('<style id="lbt-mobile-build-group-navigation-final">'));
-  assert.ok(index.includes("grid-template-columns: repeat(3, minmax(0, 1fr)) !important"));
-  assert.ok(index.includes("overflow-x: auto !important"));
-  assert.ok(index.includes("white-space: nowrap !important"));
-  assert.ok(!index.includes("lbt-mobile-build-tab-grid-final"));
-  assert.ok(!index.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
-});
-
-
-test("build group count labels meet normal-text contrast against the dark surface", () => {
-  const css = read("../assets/b-type-ui-parity.css");
-  assert.match(css, /\.build-group-button small\{color:#918572\}/);
+  const audit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(sections, /BUILD_TABS\.map\(\(tab\) => h\("button"/);
+  assert.doesNotMatch(sections, /基本・人格|戦闘データ|装備・構成|BUILD_TAB_GROUPS|build-group-nav/);
+  assert.doesNotMatch(css, /build-group-nav|build-group-button/);
+  assert.ok(index.includes('<style id="lbt-mobile-build-tab-grid-final">'));
+  assert.ok(!index.includes("lbt-mobile-build-group-navigation-final"));
+  assert.doesNotMatch(audit, /build-group-nav|data-build-group/);
 });
