@@ -232,6 +232,12 @@ test("モバイルのアカウント編集・削除と人格お気に入りは40
   assert.match(captureAudit, /\.p-fav/);
 });
 
+test("axe巡回ハーネスはビルド9タブを直接開き、旧分類ナビに依存しない", () => {
+  assert.match(uiHarness, /kind: "build-tab"/);
+  assert.match(uiHarness, /const tablist = page\.getByRole\("tablist", \{ name: "ビルドセクション" \}\)/);
+  assert.match(uiHarness, /tablist\.getByRole\("tab", \{ name: view\.label\.replace\("ビルド \/ ", ""\), exact: true \}\)/);
+  assert.doesNotMatch(uiHarness, /build-group-nav|data-build-group|view\.group/);
+});
 test("UI監査はSINNER SELECTの初期画面を含むダイアログをaxe診断する", () => {
   assert.ok(uiAuditWorkflow.includes("Install axe-core for accessibility diagnostics"));
   assert.ok(uiAuditWorkflow.includes("node tools/ui/axe-detail.mjs"));
