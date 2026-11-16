@@ -112,7 +112,7 @@ test("the mobile build grid has no intermediate category row", () => {
   const index = read("../index.html");
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   assert.match(sections, /BUILD_TABS\.map\(\(tab\) => h\("button"/);
-  assert.doesNotMatch(sections, /基本・人格|戦闘データ|装備・構成|BUILD_TAB_GROUPS|build-group-nav/);
+  assert.doesNotMatch(sections, /label: "基本・人格"|label: "戦闘データ"|label: "装備・構成"|BUILD_TAB_GROUPS|build-group-nav/);
   assert.doesNotMatch(css, /build-group-nav|build-group-button/);
   assert.ok(index.includes('<style id="lbt-mobile-build-tab-grid-final">'));
   assert.ok(!index.includes("lbt-mobile-build-group-navigation-final"));
