@@ -106,6 +106,7 @@ test("mobile build navigation audit verifies nine direct tabs in a five-column g
   assert.match(audit, /\.btype-build-tablist\[role="tablist"\]/);
   assert.match(audit, /nav\.buttonCount !== 9/);
   assert.match(audit, /nav\.gridColumnCount !== 5/);
+  assert.match(audit, /gridTemplateColumns\.trim\(\)\.split\(" "\)\.filter\(Boolean\)\.length/, "computed CSS grid tracks are counted by serialized track separators");
   assert.match(audit, /nav\.rowCount !== 2/);
   assert.match(index, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\) !important/);
   assert.match(index, /min-height: 40px !important/);
