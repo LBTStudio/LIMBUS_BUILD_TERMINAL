@@ -1006,6 +1006,28 @@ async function captureProfile(browser, mode) {
           }
         }
         if(label==="サポート") {
+          await attempt("support-passive-detail-pane", async () => {
+            const item = page.locator(".spirit-item").first();
+            await item.waitFor({ state: "visible", timeout: 5000 });
+            const name = (await item.locator(".spirit-item-name").innerText()).trim();
+            await click(item);
+            const detail = page.locator("#support-passive-detail");
+            await detail.waitFor({ state: "visible", timeout: 5000 });
+            await detail.scrollIntoViewIfNeeded();
+            const detailText = (await detail.innerText()).replace(/\s+/g, " ");
+            if (!detailText.includes(name)) throw new Error("サポートパッシブ詳細に選択名が表示されません: " + name + " / " + detailText.slice(0, 240));
+            const layout = await page.locator(".codex.support-passive-codex").evaluate(el => {
+              const main = el.querySelector(".codex-main")?.getBoundingClientRect();
+              const pane = el.querySelector(":scope > #support-passive-detail")?.getBoundingClientRect();
+              return { main: main ? { left: main.left, right: main.right, top: main.top } : null,
+                detail: pane ? { left: pane.left, right: pane.right, top: pane.top } : null };
+            });
+            if (!layout.main || !layout.detail) throw new Error("詳細ペインが一覧と同じCodex直下にありません: " + JSON.stringify(layout));
+            if ((page.viewportSize()?.width || 1440) > 1280 && layout.detail.left < layout.main.right - 2) {
+              throw new Error("デスクトップで詳細ペインが一覧の右側に配置されません: " + JSON.stringify(layout));
+            }
+            await snap("support-passive-detail-visible", "サポートパッシブを選び、右側の詳細ペインに効果と装備操作が表示された状態");
+          });
           for(const sel of [".support-card",".support-row",".support-item",".p-card","[class*='support-passive']"]) {
             const item=page.locator(sel).first();
             if(await visible(item)) { await item.hover().catch(()=>{}); await snap("support-passive-hover","サポート候補のホバー状態"); break; }
