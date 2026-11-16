@@ -56,9 +56,11 @@ test("人格図鑑のクイック獲得ボタンは全面選択ボタンより�
   assert.match(personaCss, /\.p-card \.p-card-quick-acquire\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*2/s);
   assert.match(personaCss, /\.p-card-hit\s*\{/);
   const guard = personaSource.indexOf("const affordability = window.LBT_purchaseAffordability?.(state, cost)");
-  const dispatch = personaSource.indexOf('dispatch({ type: "ADD_ROSTER", mode: personaMode', guard);
+  const action = personaSource.indexOf('const action = { type: "ADD_ROSTER", mode: personaMode', guard);
+  const dispatch = personaSource.indexOf("dispatch(action);", action);
   const success = personaSource.indexOf("toast(successMessage ||", dispatch);
   assert.ok(guard >= 0, "共通購入処理に残高チェックがある");
-  assert.ok(dispatch > guard, "残高確認後にだけ action を dispatch する");
+  assert.ok(action > guard, "残高確認後に取得 action を構築する");
+  assert.ok(dispatch > action, "価格検証済み action だけを dispatch する");
   assert.ok(success > dispatch, "成功通知は購入処理の後に限る");
 });
