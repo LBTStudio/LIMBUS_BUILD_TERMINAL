@@ -4880,7 +4880,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     return h("div", { className: "ledger-ticket-inputs" },
       h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
       h("div", { className: "ledger-ticket-grid" },
-        ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
+        ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field ledger-ticket-field--common" },
           h("span", null, ticketLabel(kind)),
           h("input", {
             className: "ledger-input ledger-input--num",
@@ -4890,22 +4890,23 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
             "aria-label": `${ticketLabel(kind)} の枚数`,
             onChange: (e) => onChange({ ...current, [kind]: Number(e.target.value) || 0 })
           }))),
-        packs.length > 0 && h("label", { className: "ledger-ticket-field" },
+        packs.length > 0 && h("label", { className: "ledger-ticket-field ledger-ticket-field--pack-select" },
           h("span", null, "特定抽出パック"),
           h("select", {
             className: "select",
             value: pickPack,
-            "aria-label": "特定抽出パックの選択",
+            title: pickPack,
+            "aria-label": `特定抽出パック: ${pickPack}`,
             onChange: (e) => setPackPick(e.target.value)
           }, packs.map((p) => h("option", { key: p.name, value: p.name }, p.name)))),
-        packs.length > 0 && h("label", { className: "ledger-ticket-field" },
-          h("span", null, ticketLabel("pack", pickPack)),
+        packs.length > 0 && h("label", { className: "ledger-ticket-field ledger-ticket-field--pack-count" },
+          h("span", null, "パック抽出チケット（枚数）"),
           h("input", {
             className: "ledger-input ledger-input--num",
             id: `${idPrefix}-pack`,
             type: "number", min: "0", inputMode: "numeric",
             value: String(Number(current?.pack?.[pickPack]) || 0),
-            "aria-label": `${ticketLabel("pack", pickPack)} の枚数`,
+            "aria-label": `${pickPack} の抽出チケットの枚数`,
             onChange: (e) => onChange({ ...current, pack: { ...current?.pack, [pickPack]: Number(e.target.value) || 0 } })
           }))));
   };
