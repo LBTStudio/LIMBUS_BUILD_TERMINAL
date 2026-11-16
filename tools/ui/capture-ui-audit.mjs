@@ -1026,6 +1026,35 @@ async function captureProfile(browser, mode) {
             if ((page.viewportSize()?.width || 1440) > 1280 && layout.detail.left < layout.main.right - 2) {
               throw new Error("デスクトップで詳細ペインが一覧の右側に配置されません: " + JSON.stringify(layout));
             }
+            /* 1280px は codex が2列から1列へ切り替わる境界。
+               詳細が sticky のままだと一覧や固定フィルターへ重なるため、実ブラウザで配置を測る。 */
+            if (!mobile) {
+              const originalViewport = page.viewportSize();
+              try {
+                await page.setViewportSize({ width: 1280, height: Math.max(720, originalViewport.height) });
+                await page.waitForTimeout(120);
+                const breakpointLayout = await detail.evaluate(node => {
+                  const codex = node.closest(".codex");
+                  const main = codex?.querySelector(":scope > .codex-main");
+                  const paneRect = node.getBoundingClientRect();
+                  const mainRect = main?.getBoundingClientRect();
+                  return {
+                    position: getComputedStyle(node).position,
+                    detailTop: paneRect.top,
+                    mainBottom: mainRect?.bottom ?? null,
+                    gridColumns: codex ? getComputedStyle(codex).gridTemplateColumns : ""
+                  };
+                });
+                if (breakpointLayout.position !== "static" || breakpointLayout.mainBottom === null
+                  || breakpointLayout.detailTop < breakpointLayout.mainBottom - 2) {
+                  throw new Error("1280px幅で詳細ペインが通常フローに戻らず、一覧へ重なっています: " + JSON.stringify(breakpointLayout));
+                }
+                await snap("support-passive-detail-1280-breakpoint", "1280px幅で一覧の下に詳細ペインが配置され、重なりがない状態");
+              } finally {
+                await page.setViewportSize(originalViewport);
+                await page.waitForTimeout(120);
+              }
+            }
             await snap("support-passive-detail-visible", "サポートパッシブを選び、右側の詳細ペインに効果と装備操作が表示された状態");
           });
           for(const sel of [".support-card",".support-row",".support-item",".p-card","[class*='support-passive']"]) {
