@@ -116,3 +116,14 @@
     white-space: nowrap;
   }
 }
+
+/* Reserve a small-phone clearance above the fixed bottom navigation. */
+@media (max-width: 360px) and (max-height: 700px) {
+  .base-info-panel .piece-url-preview-featured-frame {
+    height: 180px !important;
+    min-height: 180px;
+  }
+  .base-info-panel .piece-url-preview-list {
+    padding-bottom: 4px !important;
+  }
+}
