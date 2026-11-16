@@ -68,3 +68,51 @@
   }
 }
 .base-info-panel .piece-art-preview-live[hidden] { display: none !important; }
+
+/* Keep the zoom instructions and full-fit reset in one compact row on phones.
+   Stacking them pushes the difference thumbnails behind the fixed bottom navigation
+   on 320x640 screens even when the main portrait itself is correctly sized. */
+@media (max-width: 560px) {
+  .base-info-panel .piece-url-preview {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .base-info-panel .piece-url-preview-featured {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .base-info-panel .piece-url-preview-zoom-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-content: stretch;
+    gap: 6px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-inline: 0;
+  }
+  .base-info-panel .piece-url-preview-zoom-help {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0 !important;
+    margin: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+  .base-info-panel .piece-url-preview-zoom-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    max-width: 100%;
+    min-height: 44px !important;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+}
