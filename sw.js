@@ -21,8 +21,11 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-7b6d64fb";
+const CACHE_NAME = "lbt-8dc1a756";
 const PRECACHE_URLS = [
+  "index.html",
+  "share.html",
+  "mobile-preview.html",
   "assets/b-type-ui-parity.css?v=dcffca44",
   "assets/b-type-workbench.css?v=cfece1f8",
   "assets/cloud-backup.css?v=e566fbbd",
@@ -53,7 +56,6 @@ const PRECACHE_URLS = [
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "index.html",
   "js/App.js?v=5a66ee80",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=b6e306c8",
@@ -88,8 +90,6 @@ const PRECACHE_URLS = [
   "js/share-viewer.js?v=71f2da96",
   "js/state.js?v=b1c307e2",
   "js/ui.js?v=e66a7ae3",
-  "mobile-preview.html",
-  "share.html",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
 ];
