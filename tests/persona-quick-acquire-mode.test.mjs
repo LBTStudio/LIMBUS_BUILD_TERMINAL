@@ -35,10 +35,13 @@ test("クイック獲得と詳細獲得は元の一覧モードを獲得処理�
 
 test("指定購入は残高不足で reducer が拒否する前に理由を出す", () => {
   const guard = codexSource.indexOf("const affordability = window.LBT_purchaseAffordability?.(state, cost)");
-  const dispatch = codexSource.indexOf('dispatch({ type: "ADD_ROSTER", mode: personaMode', guard);
-  const success = codexSource.indexOf("toast(successMessage ||", guard);
+  const action = codexSource.indexOf('const action = { type: "ADD_ROSTER", mode: personaMode', guard);
+  const dispatch = codexSource.indexOf("dispatch(action);", action);
+  const success = codexSource.indexOf("toast(successMessage ||", dispatch);
   assert.ok(guard >= 0, "共通購入処理に残高チェックがある");
-  assert.ok(dispatch > guard, "残高確認後にだけ action を dispatch する");
+  assert.ok(action > guard, "残高確認後に取得 action を構築する");
+  assert.ok(dispatch > action, "価格検証済み action だけを dispatch する");
   assert.ok(success > dispatch, "成功通知は dispatch 行の後に限る");
+  assert.match(codexSource, /ACQUIRE_ROSTER_WITH_TICKET/);
   assert.match(codexSource.slice(guard, dispatch), /!affordability\.ok/);
 });
