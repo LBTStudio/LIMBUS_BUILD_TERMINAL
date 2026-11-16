@@ -41,6 +41,29 @@ test("モバイルの新規リザルト入力は2列以内で、入力・追加�
   assert.match(mobileCss, /\.ledger-result-entry-footer \.ledger-result-submit \.btn\s*\{[^}]*min-height: 50px/s);
 });
 
+test("特定抽出パックは選択欄を広く取り、枚数ラベルを短く保つ", () => {
+  const start = sections.lastIndexOf("const TicketInputs =");
+  const end = sections.indexOf("/* 硝子窓からの取り込み", start);
+  const source = sections.slice(start, end);
+  assert.match(source, /ledger-ticket-field--common/);
+  assert.match(source, /ledger-ticket-field--pack-select/);
+  assert.match(source, /ledger-ticket-field--pack-count/);
+  assert.match(source, /title: pickPack/);
+  assert.ok(source.includes('"aria-label": `特定抽出パック: ${pickPack}`'));
+  assert.ok(source.includes('h("span", null, "パック抽出チケット（枚数）")'));
+  assert.ok(source.includes('"aria-label": `${pickPack} の抽出チケットの枚数`'));
+  assert.match(mobileCss, /\.ledger-result-entry-ticket-section \.ledger-ticket-grid\s*\{[^}]*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/s);
+  assert.match(mobileCss, /\.ledger-result-entry-ticket-section \.ledger-ticket-field--pack-select \{ grid-column: span 2; \}/);
+  assert.match(mobileCss, /\.ledger-result-entry-ticket-section \.ledger-ticket-field--pack-count \{ grid-column: span 1; \}/);
+  assert.match(mobileCss, /\.ledger-result-entry-ticket-section \.ledger-ticket-field--pack-select \.select \{[^}]*text-overflow: ellipsis/s);
+  assert.match(mobileCss, /\.ledger-result-entry-ticket-section \.ledger-ticket-field--pack-count \{[^}]*grid-column: 1 \/ -1/s);
+});
+test("モバイルの特定抽出パック選択と枚数入力はチケットグリッド内で全幅になる", () => {
+  assert.match(mobileCss, /\.ledger-result-entry-ticket-section \.ledger-ticket-field--pack-select,\s*\.ledger-result-entry-ticket-section \.ledger-ticket-field--pack-count\s*\{[^}]*grid-column: 1 \/ -1/s);
+  const auditMetrics = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(auditMetrics, /packSelect\.width<entryLayout\.ticketFields\.grid\.width-1/);
+  assert.match(auditMetrics, /packCount\.width<entryLayout\.ticketFields\.grid\.width-1/);
+});
 test("既存リザルト編集もスマホでは見出し・収入・チケット入力をタッチ向けに展開する", () => {
   assert.match(mobileCss, /\.ledger-card-wrap\.is-editing \.ledger-card \.card-header\.is-editing\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/s);
   assert.match(mobileCss, /\.ledger-card-wrap\.is-editing \.ledger-card-edit-head-field \.ledger-input\s*\{[^}]*min-height: 44px/s);

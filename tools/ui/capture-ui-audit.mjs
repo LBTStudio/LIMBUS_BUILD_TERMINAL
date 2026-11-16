@@ -1702,6 +1702,18 @@ async function captureProfile(browser, mode) {
         });
         const ticketGrid=card?.querySelector(".ledger-result-entry-ticket-section .ledger-ticket-grid");
         const ticketColumns=ticketGrid?getComputedStyle(ticketGrid).gridTemplateColumns.trim().split(/\s+/).length:0;
+        const ticketRect=(element)=>{
+          if(!element)return null;
+          const r=element.getBoundingClientRect();
+          return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};
+        };
+        const packSelectField=ticketGrid?.querySelector(".ledger-ticket-field--pack-select");
+        const packCountField=ticketGrid?.querySelector(".ledger-ticket-field--pack-count");
+        const packSelect=packSelectField?.querySelector("select");
+        const packSelectLabel=packSelectField?.querySelector("span");
+        const packCountLabel=packCountField?.querySelector("span");
+        const commonTicketWidths=[...(ticketGrid?.querySelectorAll(".ledger-ticket-field--common")||[])]
+          .map(field=>field.getBoundingClientRect().width);
         const progress=card?.querySelector(".ledger-result-progress");
         const progressRect=progress?.getBoundingClientRect();
         const progressGrid=progress?.querySelector(".ledger-result-progress-steps");
@@ -1727,6 +1739,18 @@ async function captureProfile(browser, mode) {
           bodyWidth:body?.getBoundingClientRect().width||0,
           labels,
           ticketColumns,
+          ticketFields:{
+            commonCount:commonTicketWidths.length,
+            commonMaxWidth:commonTicketWidths.length?Math.max(...commonTicketWidths):0,
+            grid:ticketRect(ticketGrid),
+            packSelect:ticketRect(packSelectField),
+            packSelectControl:ticketRect(packSelect),
+            packSelectValue:packSelect?.value||"",
+            packSelectTitle:packSelect?.title||"",
+            packSelectLabel:packSelectLabel?.textContent?.trim()||"",
+            packCount:ticketRect(packCountField),
+            packCountLabel:packCountLabel?.textContent?.trim()||""
+          },
           progress:progressRect?{
             left:progressRect.left,
             right:progressRect.right,
@@ -1743,8 +1767,26 @@ async function captureProfile(browser, mode) {
         || entryLayout.labels.some(field=>!field.visible || !field.label || field.inputWidth<80)
         || (view.startsWith("mobile") && (entryLayout.documentWidth>entryLayout.viewportWidth+2
           || entryLayout.labels.some(field=>field.inputLeft<0 || field.inputRight>entryLayout.viewportWidth+1)
-          || entryLayout.ticketColumns!==2))
-        || (view==="mobile-narrow" && (!entryLayout.progress || entryLayout.progress.stepCount!==4
+          || entryLayout.ticketColumns!==2
+           || !entryLayout.ticketFields.packSelect || !entryLayout.ticketFields.packCount
+           || entryLayout.ticketFields.packSelect.left<0
+           || entryLayout.ticketFields.packSelect.right>entryLayout.viewportWidth+1
+           || entryLayout.ticketFields.packCount.left<0
+           || entryLayout.ticketFields.packCount.right>entryLayout.viewportWidth+1
+           || !entryLayout.ticketFields.grid
+           || entryLayout.ticketFields.packSelect.left<entryLayout.ticketFields.grid.left-1
+           || entryLayout.ticketFields.packSelect.right>entryLayout.ticketFields.grid.right+1
+           || entryLayout.ticketFields.packCount.left<entryLayout.ticketFields.grid.left-1
+           || entryLayout.ticketFields.packCount.right>entryLayout.ticketFields.grid.right+1
+           || entryLayout.ticketFields.packSelect.width<entryLayout.ticketFields.grid.width-1
+           || entryLayout.ticketFields.packCount.width<entryLayout.ticketFields.grid.width-1))
+        || (!view.startsWith("mobile") && (!entryLayout.ticketFields.packSelect
+           || !entryLayout.ticketFields.packCount
+           || entryLayout.ticketFields.commonCount!==3
+           || entryLayout.ticketFields.packSelect.width<entryLayout.ticketFields.commonMaxWidth*1.7
+           || entryLayout.ticketFields.packSelectTitle!==entryLayout.ticketFields.packSelectValue
+           || entryLayout.ticketFields.packCountLabel!=="パック抽出チケット（枚数）"))
+         || (view==="mobile-narrow" && (!entryLayout.progress || entryLayout.progress.stepCount!==4
           || entryLayout.progress.columns!==2
           || entryLayout.progress.steps.some(step=>step.height<44
             || step.left<entryLayout.progress.left-1 || step.right>entryLayout.progress.right+1)
