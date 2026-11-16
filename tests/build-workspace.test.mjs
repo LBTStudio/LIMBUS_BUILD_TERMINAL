@@ -276,6 +276,20 @@ test("build のサポートとE.G.Oの既定表示（サポートはゲート、
   assert.match(sections, /const spiritSource = React\.useMemo\(\(\) => \{[\s\S]*?if \(!gated\) return DB\.spirits;/);
 });
 
+test("ビルド側のサポートパッシブ詳細は一覧と独立した表示ペインに出る", () => {
+  const support = sections.slice(sections.indexOf("const SupportSection ="), sections.indexOf("const EGO_RANKS"));
+  assert.match(support, /className: "codex support-passive-codex"/);
+  assert.match(support, /"aria-pressed": isSel/);
+  assert.match(support, /"aria-controls": "support-passive-detail"/);
+  assert.match(support, /const revealSupportDetail = \(\) =>/);
+  assert.match(support, /detail\.scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", block: "start" \}\)/);
+  assert.match(support, /selected \? h\("div", \{ className: "codex-detail", id: "support-passive-detail", role: "region"/);
+  assert.match(support, /: h\("div", \{ className: "codex-detail", id: "support-passive-detail", role: "region"/);
+  /* .codex-detail は .codex-main の閉じ括弧の後に来る＝右側詳細ペインの直下。 */
+  assert.match(support, /className: "codex-main"[\s\S]*?\n      \),\n      selected \? h\("div", \{ className: "codex-detail", id: "support-passive-detail"/);
+  assert.match(support, /一覧から選択すると詳細が表示されます/);
+});
+
 test("強化は所持の直接編集ではなく購入・返却のreducerを通す", () => {
   const panel = sections.slice(sections.indexOf("const EnhancementSection ="), sections.indexOf("/* 人格・スキル・パッシブ・強化"));
   assert.match(panel, /const action = \{\s*type: "ADD_ENHANCEMENT"/);
