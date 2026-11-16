@@ -175,15 +175,15 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.ok(touchStyles.includes(".ledger-card .ledger-row-release"));
   assert.ok(touchStyles.includes(".ledger-result-object-actions > summary"));
   assert.ok(touchStyles.includes("height: 40px !important"));
-  assert.ok(touchStyles.includes("grid-template-columns: repeat(3, minmax(0, 1fr))"),
-    "スマホのビルド分類を3群で一段にまとめる");
-  assert.ok(touchStyles.includes('<style id="lbt-mobile-build-group-navigation-final">'),
-    "HTML末尾の最終上書きも新しい分類階層に合わせる");
-  assert.ok(touchStyles.includes("display: flex !important"));
-  assert.ok(touchStyles.includes("overflow-x: auto !important"));
+  assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"),
+    "9つのビルド項目を5列グリッドへ直接配置する");
+  assert.ok(touchStyles.includes('<style id="lbt-mobile-build-tab-grid-final">'),
+    "HTML末尾の最終上書きも旧来の直接選択グリッドへ戻す");
+  assert.ok(touchStyles.includes("display: grid !important"));
+  assert.ok(touchStyles.includes("min-height: 40px !important"));
   assert.ok(touchStyles.includes('.btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] > button[role="tab"]'));
-  assert.ok(touchStyles.includes("white-space: nowrap !important"),
-    "分類名とサブタブのラベルが折り返されない");
+  assert.ok(touchStyles.includes("overflow-wrap: anywhere !important"),
+    "狭い画面でも全9項目のラベルをセル内へ収める");
 
   assert.match(captureAudit, /const touchTargetViolations/);
   assert.match(captureAudit, /".topbar-balance"/);
@@ -200,10 +200,10 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.match(captureAudit, /overlayAccessibilityViolationNodeCount/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
   assert.match(captureAudit, /type: "touch-target-too-small"/);
-  assert.match(captureAudit, /"touch-target-too-small","build-group-nav-not-reflowed"\].includes\(item\.type\)/);
+  assert.match(captureAudit, /"touch-target-too-small","build-tab-grid-not-reflowed"\].includes\(item\.type\)/);
   assert.match(captureAudit, /criticalLayoutWarnings\.length/);
   assert.match(captureAudit, /const buildTablistMetrics/);
-  assert.match(captureAudit, /type: "build-group-nav-not-reflowed"/);
+  assert.match(captureAudit, /type: "build-tab-grid-not-reflowed"/);
 });
 
 test("チュートリアルのスマホ撮影は数pxの端スクロールだけ戻し、先頭カードの見出しを切らない", () => {
@@ -224,7 +224,7 @@ test("画面・サブ画面の切替時は中央スクロールを先頭へ戻�
 });
 
 test("モバイルのアカウント編集・削除と人格お気に入りは40x40px以上のタップ領域を持つ", () => {
-  const mobileOverrides = index.slice(index.indexOf('<style id="lbt-mobile-build-group-navigation-final">'));
+  const mobileOverrides = index.slice(index.indexOf('<style id="lbt-mobile-build-tab-grid-final">'));
   assert.match(mobileOverrides, /\.acct-card-actions \.acct-icon-btn[\s\S]*?width: 40px !important[\s\S]*?height: 40px !important/);
   assert.match(mobileOverrides, /\.acct-card-actions \.acct-edit-btn[\s\S]*?min-height: 40px !important/);
   assert.match(mobileOverrides, /\.p-card \.p-fav[\s\S]*?width: 40px !important[\s\S]*?height: 40px !important/);
