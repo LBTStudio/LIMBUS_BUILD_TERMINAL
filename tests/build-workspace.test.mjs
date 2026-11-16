@@ -175,7 +175,7 @@ test("未所持のカードからその場で買える", () => {
   assert.match(codex, /onQuickAcquire: gated[\s\S]{0,420}?acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)[\s\S]{0,300}?acquireHow === "ticket"[\s\S]{0,300}?LBT_computeTicketBalance/);
   assert.match(codex, /quickAcquireLabel: acquireHow === "ticket"[\s\S]{0,300}?人格抽出チケット 1枚/);
   assert.match(codex, /isOwned: gated \|\| ownedPersonaKeys\.has\(`\$\{m\}:\$\{p\.no\}`\)/);
-  assert.match(codex, /quickAcquireLabel: `\$\{resolveAcquireCost\("persona", acquireHow/);
+  assert.match(codex, /quickAcquireLabel: acquireHow === "ticket"[\s\S]{0,300}?resolveAcquireCost\("persona", acquireHow/);
   assert.match(css, /\.p-card-quick-acquire \{[\s\S]*?border: 1px solid var\(--gold-line\);/);
 });
 
