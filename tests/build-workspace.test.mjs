@@ -172,9 +172,10 @@ test("未所持のE.G.O は装備ではなく指定購入を主操作にする",
 test("未所持のカードからその場で買える", () => {
   const codex = read("../js/PersonaCodex.js");
   assert.match(codex, /className: "p-card-quick-acquire"/);
-  assert.match(codex, /onQuickAcquire: gated \|\| \(acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)\)/);
+  assert.match(codex, /onQuickAcquire: gated[\s\S]{0,420}?acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)[\s\S]{0,300}?acquireHow === "ticket"[\s\S]{0,300}?LBT_computeTicketBalance/);
+  assert.match(codex, /quickAcquireLabel: acquireHow === "ticket"[\s\S]{0,300}?人格抽出チケット 1枚/);
   assert.match(codex, /isOwned: gated \|\| ownedPersonaKeys\.has\(`\$\{m\}:\$\{p\.no\}`\)/);
-  assert.match(codex, /quickAcquireLabel: `\$\{resolveAcquireCost\("persona", acquireHow/);
+  assert.match(codex, /quickAcquireLabel: acquireHow === "ticket"[\s\S]{0,300}?resolveAcquireCost\("persona", acquireHow/);
   assert.match(css, /\.p-card-quick-acquire \{[\s\S]*?border: 1px solid var\(--gold-line\);/);
 });
 
@@ -410,7 +411,7 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
   assert.match(codex, /const addRoster = \(p\) => \{[\s\S]{0,180}?acquirePersona\(p, m, "所持リストへ追加"\);/);
   /* 購入選択中は特異人格カードの獲得ボタン自体を出さない。 */
   assert.match(codex, /purchaseBlocked: acquireHow === "purchase" && Boolean\(personaPurchaseBlocked\(p, m\)\)/);
-  assert.match(codex, /onQuickAcquire: gated \|\| \(acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)\)\s*\?\s*null/);
+  assert.match(codex, /onQuickAcquire: gated[\s\S]{0,420}?acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)[\s\S]{0,300}?acquireHow === "ticket"[\s\S]{0,300}?\? null/);
   assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
 });
 
@@ -946,10 +947,10 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(addRoster, /cost: normalizeCurrency\(purchaseCost\),/);
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
   const purchaseCostOf = state.slice(state.indexOf("function purchaseCostOf"), state.indexOf("window.LBT_purchaseCostOf"));
-  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/);
-  assert.match(purchaseCostOf, /if \(!action\.purchase \|\| action\.mode !== "n"\) return null;/);
-  assert.match(purchaseCostOf, /window\.DB\?\.normal_personas/);
-  assert.match(purchaseCostOf, /if \(!Number\.isSafeInteger\(lp\) \|\| lp <= 0 \|\| !Number\.isSafeInteger\(shards\) \|\| shards !== 0\) return null;/);
+  assert.match(purchaseCostOf, /const acquisition = action\.acquisition === "gachaPaid" \? "gachaPaid" : "purchase";/);
+  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", acquisition, \{ ownsPersona \}\)/);
+  assert.match(purchaseCostOf, /acquisition === "purchase" && mode !== "n"/);
+  assert.match(purchaseCostOf, /if \(!Number\.isSafeInteger\(lp\) \|\| lp < 0 \|\| !Number\.isSafeInteger\(shards\) \|\| shards !== 0\) return null;/);
 });
 
 test("人格詳細はポップオーバーで開き、自動スクロールしない", () => {
@@ -1007,8 +1008,11 @@ test("人格の所持化は取得方法を選べるワンボタンになり、�
   /* 装備ボタンは所持済みのときだけ出す。 */
   assert.match(codex, /isInRoster && \/\* @__PURE__ \*\/ React\.createElement\(Button, \{ variant: "primary", onClick: onEquip/);
   assert.match(codex, /const \[acquireHow, setAcquireHow\] = React\.useState\("purchase"\);/);
-  /* 導入は購入として明細に落ちる。 */
-  assert.match(codex, /dispatch\(\{ type: "ADD_ROSTER", mode: personaMode, no: persona\.no, purchase: true, cost: \{ lp: cost\.lp \|\| 0, shards: cost\.shards \|\| 0 \} \}\);/);
+  /* 選択方法に応じて、通常購入／有料抽出／配布チケットを異なる action にする。 */
+  assert.match(codex, /const acquisition = acquireHow === "gacha" \? "gachaPaid" : "purchase";/);
+  assert.match(codex, /const action = \{ type: "ADD_ROSTER", mode: personaMode, no: persona\.no, purchase: true, acquisition \};/);
+  assert.match(codex, /dispatch\(action\);/);
+  assert.match(codex, /ACQUIRE_ROSTER_WITH_TICKET/);
 /* 固有バフの案内は実装どおり「装備中パネル」を指す。 */
   assert.match(codex, /\\u88C5\\u5099\\u4E2D\\u30DA\\u30F3\\u30EB\\u306E\\u300C\\u56FA\\u6709\\u30D0\\u30D5/);
   /* 案内は「装備中パネル」を指すため、素の「パネルの…」だけにはしない。
@@ -1110,7 +1114,7 @@ test("E.G.O検索の簡易詳細もポップオーバーで開き、購入導線
   assert.match(sections, /h\(DetailDialog, \{ open: !!selected, onClose: \(\) => setSelected\(null\), label: "E\.G\.O 詳細" \}, h\(EgoQuickDetail/);
   /* 未所持のときは購入（明細つき）。所持済みのときは購入導線を重ねない。 */
   assert.match(sections, /onAcquire && acquireHow && onAcquireHowChange && !isOwned \? h\(AcquireBar, \{ state, kind: "ego", name: ego\.name, no: ego\.no, rank: ego\.rank, how: acquireHow, setHow: onAcquireHowChange, onAcquire \}\) : null/);
-  assert.match(sections, /onAcquire: \(\) => acquireEgoFromCatalog\(state, dispatch, selected\)/);
+  assert.match(sections, /onAcquire: \(\) => acquireEgoFromCatalog\(state, dispatch, selected, acquireHow\)/);
   /* 「購入せず所持に追加」（明細なし）を残す。 */
   assert.match(sections, /"購入せず所持に追加"/);
 });

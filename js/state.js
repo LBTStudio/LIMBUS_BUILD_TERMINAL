@@ -3099,18 +3099,23 @@ function purchaseCostOf(state, action) {
   };
 
   if (action.type === "ADD_ROSTER") {
-    if (!action.purchase || action.mode !== "n") return null;
-    const definition = (window.DB?.normal_personas || []).find((persona) =>
-      String(persona?.no) === String(action.no));
+    if (!action.purchase) return null;
+    const mode = action.mode === "t" ? "t" : action.mode === "n" ? "n" : "";
+    const catalog = mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+    const definition = catalog.find((persona) => String(persona?.no) === String(action.no));
     if (!definition) return null;
+    const acquisition = action.acquisition === "gachaPaid" ? "gachaPaid" : "purchase";
+    /* 特異人格は指定購入できないが、有料抽出では通常人格と同じ抽出ルールを使う。
+       指定購入／抽出の別と種別を reducer 側でも照合し、UIの表示価格は信用しない。 */
+    if (acquisition === "purchase" && mode !== "n") return null;
     const ownsPersona = (state?.roster?.personas || []).length > 0;
-    const rule = window.LBT_acquireCost?.("persona", "purchase", { ownsPersona });
+    const rule = window.LBT_acquireCost?.("persona", acquisition, { ownsPersona });
     const lp = Number(rule?.lp);
     const shards = Number(rule?.shards || 0);
-    if (!Number.isSafeInteger(lp) || lp <= 0 || !Number.isSafeInteger(shards) || shards !== 0) return null;
+    if (!Number.isSafeInteger(lp) || lp < 0 || !Number.isSafeInteger(shards) || shards !== 0) return null;
+    if (acquisition === "purchase" && lp <= 0) return null;
     return normalizeCurrency(rule);
   }
-
   if (action.type === "ADD_ROSTER_EGO") {
     if (!action.purchase) return null;
     const definition = (window.DB?.egos || []).find((ego) =>
@@ -4861,6 +4866,50 @@ function appReducer(state, action) {
       const take = Math.min(use, available);
       if (take <= 0) return state;
       return appendTicketSpend(state, kind, pack, take, action.ref, action.resultId, action.importResultKey);
+    }
+    case "ACQUIRE_ROSTER_WITH_TICKET": {
+      const kind = action.kind;
+      if (kind !== "persona" && kind !== "ego") return state;
+      const balance = computeTicketBalance(state.results || [], state.entries || []);
+      if (ticketTotal(balance, kind, null) < 1) return state;
+
+      let identity;
+      let addAction;
+      if (kind === "persona") {
+        const mode = action.mode === "t" ? "t" : action.mode === "n" ? "n" : "";
+        const no = String(action.no ?? "").trim();
+        if (!mode || !no) return state;
+        const catalog = mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+        if (!catalog.some((persona) => String(persona?.no) === no)) return state;
+        if ((state.roster?.personas || []).some((persona) => persona.mode === mode && String(persona.no) === no)) return state;
+        identity = { kind: "persona", mode, no };
+        addAction = { type: "ADD_ROSTER", mode, no, via: action.via, skipInitialTicketConsumption: true };
+      } else {
+        const rank = String(action.rank || "").trim();
+        const no = String(action.no ?? "").trim();
+        if (!rank || !no) return state;
+        if (!(window.DB?.egos || []).some((ego) => ego.rank === rank && String(ego.no) === no)) return state;
+        if ((state.roster?.egos || []).some((ego) => ego.rank === rank && String(ego.no) === no)) return state;
+        identity = { kind: "ego", rank, no };
+        addAction = { type: "ADD_ROSTER_EGO", rank, no, via: action.via };
+      }
+
+      /* 初回人格取得時に残っている初期チケットは初期作成リザルトへ一度だけ記録する。
+         既に使用済み／初期リザルトが特定不能なら、通常の配布チケットを記録する。 */
+      const initialPersonaSpend = kind === "persona"
+        ? consumeInitialPersonaTicket(state, action.resultId)
+        : state;
+      const spent = initialPersonaSpend !== state
+        ? initialPersonaSpend
+        : appendTicketSpend(state, kind, null, 1, {
+          kind: "catalogAcquire",
+          target: identity
+        }, action.resultId);
+      const acquired = appReducer(spent, addAction);
+      const added = kind === "persona"
+        ? (acquired.roster?.personas || []).some((persona) => persona.mode === addAction.mode && String(persona.no) === String(addAction.no))
+        : (acquired.roster?.egos || []).some((ego) => ego.rank === addAction.rank && String(ego.no) === String(addAction.no));
+      return added ? acquired : state;
     }
     /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
        （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は
