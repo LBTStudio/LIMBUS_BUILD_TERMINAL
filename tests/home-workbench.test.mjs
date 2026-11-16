@@ -93,6 +93,7 @@ test("ホームの取り込みショートカットは既存の取込フォー�
 });
 
 test("新ホームは狭い画面でも縦一列になり、キーボード操作を見失わない", () => {
+  assert.match(bTypeCss, /\.btype-home-primary-copy h1 \{[\s\S]*?max-width: 100%;/, "home heading can use the full width of its own column");
   assert.match(bTypeCss, /\.btype-home-primary-action:focus-visible/);
   assert.match(bTypeCss, /\.btype-home-step:focus-visible/);
   assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-home-progress ol \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
