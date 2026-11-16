@@ -1223,7 +1223,7 @@ async function captureProfile(browser, mode) {
           stickyTabsBottom:tabs?.bottom??0,navTop:navRect?.top??innerHeight,
           imageBelowTabs:!!frame&&frame.top>=(tabs?.bottom??0)+6,
           imageBeforeBottomNav:!!frame&&frame.bottom<=(navRect?.top??innerHeight),
-          controlsBeforeBottomNav:!!strip&&strip.bottom<=(navRect?.top??innerHeight)
+          controlsBeforeBottomNav:!!strip&&strip.bottom<=(navRect?.top??innerHeight)-4
         };
       });
       if(!imageGeometry.imageBelowTabs || !imageGeometry.imageBeforeBottomNav || !imageGeometry.controlsBeforeBottomNav) {
