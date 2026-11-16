@@ -1742,6 +1742,7 @@ async function captureProfile(browser, mode) {
           ticketFields:{
             commonCount:commonTicketWidths.length,
             commonMaxWidth:commonTicketWidths.length?Math.max(...commonTicketWidths):0,
+            grid:ticketRect(ticketGrid),
             packSelect:ticketRect(packSelectField),
             packSelectControl:ticketRect(packSelect),
             packSelectValue:packSelect?.value||"",
@@ -1772,8 +1773,13 @@ async function captureProfile(browser, mode) {
            || entryLayout.ticketFields.packSelect.right>entryLayout.viewportWidth+1
            || entryLayout.ticketFields.packCount.left<0
            || entryLayout.ticketFields.packCount.right>entryLayout.viewportWidth+1
-           || entryLayout.ticketFields.packSelect.width<entryLayout.viewportWidth*.72
-           || entryLayout.ticketFields.packCount.width<entryLayout.viewportWidth*.72))
+           || !entryLayout.ticketFields.grid
+           || entryLayout.ticketFields.packSelect.left<entryLayout.ticketFields.grid.left-1
+           || entryLayout.ticketFields.packSelect.right>entryLayout.ticketFields.grid.right+1
+           || entryLayout.ticketFields.packCount.left<entryLayout.ticketFields.grid.left-1
+           || entryLayout.ticketFields.packCount.right>entryLayout.ticketFields.grid.right+1
+           || entryLayout.ticketFields.packSelect.width<entryLayout.ticketFields.grid.width-1
+           || entryLayout.ticketFields.packCount.width<entryLayout.ticketFields.grid.width-1))
         || (!view.startsWith("mobile") && (!entryLayout.ticketFields.packSelect
            || !entryLayout.ticketFields.packCount
            || entryLayout.ticketFields.commonCount!==3
