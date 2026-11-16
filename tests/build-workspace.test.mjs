@@ -15,6 +15,8 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").repl
 const app = read("../js/App.js");
 const sections = read("../js/OtherSections.js");
 const css = read("../assets/workspace.css");
+const personaCodexCss = read("../assets/persona-codex.css");
+const overlayCss = read("../assets/v53-overlay.css");
 const reducer = read("../js/state.js");
 
 test("ビルドを主とし、コードクスは廃止済み", () => {
@@ -288,6 +290,11 @@ test("ビルド側のサポートパッシブ詳細は一覧と独立した表�
   /* .codex-detail は .codex-main の閉じ括弧の後に来る＝右側詳細ペインの直下。 */
   assert.match(support, /className: "codex-main"[\s\S]*?\n      \),\n      selected \? h\("div", \{ className: "codex-detail", id: "support-passive-detail"/);
   assert.match(support, /一覧から選択すると詳細が表示されます/);
+});
+
+test("サポートパッシブ詳細は単一列になる1280px以下で一覧に重ならない", () => {
+  assert.match(personaCodexCss, /@media\s*\(max-width:\s*1280px\)\s*\{\s*\.codex\s*\{\s*grid-template-columns:\s*1fr;/);
+  assert.match(overlayCss, /@media\s*\(min-width:\s*641px\)\s*and\s*\(max-width:\s*1280px\)\s*\{\s*\.codex\s*\{\s*grid-template-columns:\s*1fr;\s*\}\s*\.codex-detail\s*\{\s*position:\s*static;/);
 });
 
 test("強化は所持の直接編集ではなく購入・返却のreducerを通す", () => {
