@@ -55,7 +55,7 @@ test("画像の全身表示と従来サイズを維持する", () => {
 test("320x640の小型画面では差分列と固定ナビの間に余白を確保する", () => {
   assert.match(css, /@media \(max-width: 360px\) and \(max-height: 700px\)[\s\S]*?height: 180px !important[\s\S]*?min-height: 180px/);
   assert.match(css, /\.piece-url-preview-list \{[\s\S]*?padding-bottom: 4px !important/);
-  assert.match(audit, /strip\.bottom <= \(navRect\?\.top \?\? innerHeight\) - 4/);
+  assert.ok(audit.includes("controlsBeforeBottomNav:!!strip&&strip.bottom<=(navRect?.top??innerHeight)-4"));
 });
 
 test("スマホのズーム説明と全体表示リセットは同じ行に収まり、固定ナビに隠れない", () => {
