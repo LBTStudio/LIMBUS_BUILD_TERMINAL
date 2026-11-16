@@ -10,6 +10,19 @@ const db = JSON.parse(readFileSync(resolve(ROOT, "data/db.json"), "utf8"));
 const coreCorpus = readFileSync(resolve(ROOT, "data/provenance/core.paragraphs.txt"), "utf8");
 const packCorpus = readFileSync(resolve(ROOT, "data/provenance/pack1.paragraphs.txt"), "utf8");
 const source = readFileSync(resolve(ROOT, "js/InlineEffectGlossary.js"), "utf8");
+const audit = JSON.parse(readFileSync(resolve(ROOT, "data/provenance/three-book-audit.json"), "utf8"));
+const layoutFull = readFileSync(resolve(ROOT, "data/provenance/layout_full.txt"), "utf8");
+const packExtracted = JSON.parse(readFileSync(resolve(ROOT, "data/provenance/pack1-extracted.json"), "utf8"));
+const pack1Text = readFileSync(resolve(ROOT, "data/provenance/pack1.txt"), "utf8");
+const packExtractedDescriptions = new Map();
+for (const group of ["normal_personas", "tokui_personas", "egos", "support_passives", "spirits"]) {
+  for (const record of packExtracted[group] || []) {
+    for (const buff of record.unique_buffs || []) {
+      if (!packExtractedDescriptions.has(buff.name)) packExtractedDescriptions.set(buff.name, []);
+      packExtractedDescriptions.get(buff.name).push(buff.desc);
+    }
+  }
+}
 
 function loadGlossary() {
   const sandbox = { window: {} };
@@ -39,10 +52,10 @@ test("official status definitions expose their rulebook page and a useful explan
 
 test("common rule glossary includes buffs, neutral statuses, accumulations and special terms without bracket notation", () => {
   const api = loadGlossary();
-  const text = "バリアと煙。挑発値、電圧、血餐、自己共振回路、弾丸、爆発。";
+  const text = "バリアと煙。挑発値、電圧、血餐、自己共振回路、破裂爆発、振動爆発。";
   const pieces = api.tokenize(text, db, "人格スキル:検証用人格");
   const terms = pieces.filter((piece) => piece.term);
-  for (const term of ["バリア", "煙", "挑発値", "電圧", "血餐", "自己共振回路", "弾丸", "爆発"]) {
+  for (const term of ["バリア", "煙", "挑発値", "電圧", "血餐", "自己共振回路", "破裂爆発", "振動爆発"]) {
     assert.ok(terms.some((piece) => piece.term === term), term + " は角括弧なしで共通辞典から解決する");
   }
   for (const piece of terms) assert.equal(piece.entries.length, 1, piece.term + " は共通定義を1件だけ表示");
@@ -600,4 +613,140 @@ test("normal と tokui で no が重複し所属が欠ける別人格を、同�
   assert.equal(reference.entries.length, 1);
   assert.equal(reference.entries[0].ownerName, "N社握る者");
   assert.ok(reference.entries[0].description.includes("特異側の説明"));
+});
+
+test("用語リファレンスの全定義は三者監査の印刷テキストと完全一致する", () => {
+  const terms = loadGlossary().officialTerms;
+  const expected = new Map(audit.glossary_definitions.map((entry) => [entry.data.name, entry]));
+  assert.equal(expected.size, 99, "監査対象の用語数");
+  assert.equal(Object.keys(terms).length, expected.size + 5, "監査99語 + p.303の3語 + p.314の2語");
+
+  for (const [name, definition] of expected) {
+    const actual = terms[name];
+    assert.ok(actual, name + " が用語リファレンスに存在する");
+    assert.equal(actual.text, definition.data.desc, name + " の定義文が原文と違う");
+    assert.equal(actual.group, definition.printed_category, name + " の分類が原文と違う");
+    assert.equal(actual.source, "基本ルール p." + definition.pages.join("／"), name + " の出典ページが違う");
+  }
+});
+
+test("p.303 の用語は紙面の全文を表示する", () => {
+  const terms = loadGlossary().officialTerms;
+  const printed = layoutFull.replace(/\s+/gu, "");
+  for (const [name, text] of [
+    ["状態", "バフ・デバフを1以上持っている場合のことを、そのバフ・デバフ名の後ろに「状態」とつけて呼びます。例：出血状態、火傷状態"],
+    ["持ち越し", "「持ち越し」は、[1R]持続のバフ・デバフを指定の数だけ、次のRまで持続させる処理です。"],
+    ["中立バフ", "有利・不利両方の効果を併せ持ったものや、それ自体には効果が無いもの、特殊な動作をするものは、バフ・デバフとは別に、中立バフという枠組みに分類されます。"]
+  ]) {
+    assert.equal(terms[name].text, text, name + " の定義文");
+    assert.equal(terms[name].source, "基本ルール p.303", name + " の出典");
+    assert.equal(terms[name].group, "用語", name + " の分類");
+    assert.ok(printed.includes(text), name + " の定義が紙面に実在する");
+  }
+});
+
+test("特殊処理の用語は p.314 の印刷テキストと一致する", () => {
+  const terms = loadGlossary().officialTerms;
+  const lines = layoutFull.split(/\r?\n/u);
+  const termIndex = lines.findIndex((line) => /^\s*破裂爆発\s+対象の破裂の数だけHPダメージを与える\s*$/u.test(line));
+  assert.ok(termIndex >= 0, "layout_full.txt に破裂爆発の定義行がある");
+  let headingIndex = -1;
+  for (let index = termIndex; index >= 0; index -= 1) {
+    if (lines[index].includes("特殊処理一覧")) { headingIndex = index; break; }
+  }
+  const pageEnd = lines.findIndex((line, index) => index > termIndex && line.trim() === "314");
+  assert.ok(headingIndex >= 0 && pageEnd > headingIndex, "layout_full.txt の p.314 特殊処理一覧を特定できる");
+  const p314 = lines.slice(headingIndex, pageEnd).join("").replace(/\s+/gu, "");
+
+  for (const [name, text] of [
+    ["破裂爆発", "対象の破裂の数だけHPダメージを与える"],
+    ["振動爆発", "対象の振動の数だけSANダメージを与える"]
+  ]) {
+    assert.equal(terms[name].text, text, name + " の定義文");
+    assert.equal(terms[name].source, "基本ルール p.314", name + " の出典");
+    assert.equal(terms[name].group, "特殊処理", name + " の分類");
+    assert.ok(p314.includes(name + text), name + " の定義が p.314 の紙面に実在する");
+  }
+});
+
+test("原典にない一般化・捏造した用語を混ぜていない", () => {
+  const terms = loadGlossary().officialTerms;
+  for (const invented of ["弾丸", "爆発", "混乱", "指令"]) {
+    assert.equal(Object.hasOwn(terms, invented), false, invented + " は原典の用語一覧にない");
+  }
+});
+
+test("DBの長い説明文を切り詰めずに全文表示する", () => {
+  const longText = "長文検証用の効果。" + "破裂爆発のダメージ計算を含む詳細な説明。".repeat(30);
+  assert.ok(longText.length >= 500, "検証用の説明文は500文字以上");
+  const fixture = {
+    normal_personas: [{
+      name: "検証用人格",
+      unique_buffs: [{ name: "長文検証用バフ", desc: longText, type: "バフ", initial: 1, max: 10 }]
+    }],
+    tokui_personas: [], egos: [], support_passives: [], death_passives: [],
+    normal_enhancements: [], special_enhancements: [], spirits: [], items: []
+  };
+  const api = loadGlossary();
+  const entry = (api.buildGlossary(fixture).get("長文検証用バフ") || [])
+    .find((row) => row.category === "バフ");
+  assert.ok(entry, "固有バフが辞書に載る");
+  assert.ok(entry.description.includes(longText), "辞書の説明文に全文が残る");
+  assert.ok(entry.description.endsWith("最大値：10"), "末尾のメタデータまで切り詰められない");
+
+  const piece = api.tokenize("長文検証用バフ", fixture, "人格固有バフ:検証用人格", fixture.normal_personas[0])
+    .find((part) => part.term === "長文検証用バフ");
+  assert.ok(piece, "本文中の用語として解決できる");
+  assert.ok(piece.entries[0].description.includes(longText), "ポップアップに渡る説明文に全文が残る");
+  assert.ok(piece.entries[0].description.endsWith("最大値：10"), "ポップアップの末尾まで切り詰められない");
+  assert.equal(/\bshortText\b/u.test(source), false, "切り詰めヘルパーが残っていない");
+});
+
+test("抽出パックの全用語は印刷された効果文をそのまま表示する", () => {
+  const terms = loadGlossary().packTerms;
+  assert.equal(Object.keys(terms).length, 129, "パック用語数");
+  const glossaryPageOverrides = new Set(["狙撃姿勢", "組札", "炎蝶の棺"]);
+  const withoutMax = (text) => String(text).replace(/\n?（最大\d+）$/u, "");
+  let matched = 0;
+  for (const [term, entry] of Object.entries(terms)) {
+    const text = entry[2];
+    assert.ok(text.trim(), term + " の効果文が空");
+    const extracted = packExtractedDescriptions.get(term);
+    if (!extracted) continue;
+    if (glossaryPageOverrides.has(term)) continue;
+    assert.ok(extracted.some((desc) => desc === text || desc === withoutMax(text)),
+      term + " の効果文が抽出原文と違う");
+    matched += 1;
+  }
+  assert.equal(matched, 93, "抽出原文と一致する用語数（狙撃姿勢・組札・炎蝶の棺は紙面の用語ページを優先）");
+});
+
+test("抽出データにないパック用語も紙面の効果文を使う", () => {
+  const terms = loadGlossary().packTerms;
+  const flat = (pack1Text + "\n" + packCorpus).replace(/（最大\s*\d+）/gu, "").replace(/\s+/gu, "");
+  const normalize = (text) => String(text).replace(/（最大\s*\d+）/gu, "").replace(/\s+/gu, "");
+  const combined = {
+    "仕返し帳簿": ["[長弟・長妹]", "[末兄・末姉]"],
+    "ドッケビの火": ["ムク工房-イェ[鋭]二式抜刀/推力：ドッケビの火"],
+    "弾丸-胞子弾": ["[基本]", "[散弾]"]
+  };
+  for (const [term, entry] of Object.entries(terms)) {
+    if (packExtractedDescriptions.has(term)) continue;
+    assert.ok(entry[2].trim(), term + " の効果文が空");
+    if (combined[term]) {
+      for (const heading of combined[term]) assert.ok(entry[2].includes(heading), term + " の見出し " + heading);
+      if (term === "ドッケビの火") {
+        assert.ok(flat.includes(normalize(entry[2].split("\n").slice(1).join(""))), term + " の本文が紙面に実在する");
+      } else {
+        for (const part of entry[2].split("\n\n")) {
+          assert.ok(flat.includes(normalize(part)), term + " の本文が紙面に実在する");
+        }
+      }
+      continue;
+    }
+    assert.ok(flat.includes(normalize(entry[2])), term + " の本文が紙面に実在する");
+  }
+  for (const term of ["狙撃姿勢", "組札", "炎蝶の棺"]) {
+    assert.ok(flat.includes(normalize(terms[term][2])), term + " は紙面の用語ページ本文と一致する");
+  }
 });
