@@ -4956,6 +4956,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
    アカウント選択画面で行う。ここでは扱わない。 */
   const [editing, setEditing] = React.useState(null);
+  /* リザルト編集の数値欄。空入力を 0 として確定させず、保存時に入力を促す。 */
+  const [resultFieldErrors, setResultFieldErrors] = React.useState({});
 
   const [resultQuery, setResultQuery] = React.useState("");
   const [resultSort, setResultSort] = React.useState("newest");
@@ -5031,16 +5033,43 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     setTicketPersonaQuery("");
     setTicketEgoQuery("");
     setInitialPersonaQuery("");
+    setResultFieldErrors({});
     setTicketRewardItemId("");
     setTicketRewardItemName("");
     setTicketRewardItemQty("1");
   };
-  const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); };
+  const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); setResultFieldErrors({}); };
+  /* リザルト単位の削除。明細も一緒に消える（未分類へ戻さない）ため、
+     破壊操作として確認を取り、Undo で差し戻せることを案内する。 */
+  const deleteResult = (result) => {
+    if (!result || !result.id) return;
+    const entryCount = (state.entries || []).filter((entry) => entry.resultId === result.id).length;
+    const detail = entryCount
+      ? `このリザルトに紐づく明細 ${entryCount}件も削除されます（未分類へは戻しません）。`
+      : "このリザルトに紐づく明細はありません。";
+    if (!confirm(`リザルト「${result.name}」を削除しますか？\n${detail}\nこの画面では Ctrl+Z で取り消せますが、再読込後は取り消せません。`)) return;
+    cancelResultEditor();
+    dispatch({ type: "REMOVE_RESULT", id: result.id });
+    toast(`リザルト「${result.name}」を削除しました`);
+    /* カードが DOM から消えてフォーカスが body へ飛ばないよう、
+       再描画後に残った一覧の編集ボタンへ移す。 */
+    requestAnimationFrame(() => {
+      document.querySelector(".ledger-card-edit-btn")?.focus({ preventScroll: true });
+    });
+  };
+  const clearFieldError = (key) => setResultFieldErrors((previous) => {
+    if (!previous[key]) return previous;
+    const next = { ...previous };
+    delete next[key];
+    return next;
+  });
   const updateResultDraftField = (field, value) => {
     setTicketDraft((draft) => draft ? { ...draft, [field]: value } : draft);
+    clearFieldError(field);
   };
   const updateResultDraftTicket = (kind, value) => {
     setTicketDraft((draft) => draft ? { ...draft, tickets: { ...draft.tickets, [kind]: value } } : draft);
+    clearFieldError(`ticket:${kind}`);
   };
   const updateResultDraftPack = (pack, value) => {
     setTicketDraft((draft) => draft ? {
@@ -5102,6 +5131,22 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const saveResultEditor = (result) => {
     const draft = ticketDraft;
     if (!draft || draft.id !== result.id) return;
+    /* 空文字を 0 として確定させない。入力途中の空欄を保存しても黙って 0 に
+       ならず、どの欄か明示して入力を促す（0 を入れる意思は「0」と打つ）。 */
+    const numericFields = [
+      ["lp", draft.lp, "獲得LP"],
+      ["shards", draft.shards, "獲得欠片"],
+      ["ticket:persona", draft.tickets?.persona, ticketLabel("persona")],
+      ["ticket:ego", draft.tickets?.ego, ticketLabel("ego")],
+      ["ticket:choice", draft.tickets?.choice, ticketLabel("choice")]
+    ];
+    const blanks = numericFields.filter(([, value]) => String(value ?? "").trim() === "");
+    if (blanks.length) {
+      setResultFieldErrors(Object.fromEntries(blanks.map(([key]) => [key, true])));
+      toast(`${blanks.map(([, , label]) => label).join("・")} が空です。数値を入力してください（0 の場合は「0」）`);
+      return;
+    }
+    setResultFieldErrors({});
     const nonNegativeInteger = (value) => Math.max(0, Math.floor(Number(value) || 0));
     const nextPack = Object.fromEntries(
       Object.entries(draft.tickets?.pack || {})
@@ -6697,11 +6742,10 @@ h(Card, { className: "ledger-card" },
             : h("button", {
                 type: "button",
                 className: "ledger-card-edit-btn",
-                title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
+                title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します。別のリザルトを開くと未保存の変更は破棄されます",
                 "aria-label": `${result.name} の登録情報を編集`,
                 "aria-expanded": false,
                 "aria-pressed": false,
-                disabled: ticketPanel !== null && !isEditing,
                 onClick: (event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -6718,6 +6762,7 @@ h(Card, { className: "ledger-card" },
                     h("input", {
                       className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
                       "aria-label": "獲得LP", value: ticketDraft.lp,
+                      "aria-invalid": Boolean(resultFieldErrors.lp),
                       onChange: (event) => updateResultDraftField("lp", event.target.value)
                     })
                   ),
@@ -6726,6 +6771,7 @@ h(Card, { className: "ledger-card" },
                     h("input", {
                       className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
                       "aria-label": "獲得欠片", value: ticketDraft.shards,
+                      "aria-invalid": Boolean(resultFieldErrors.shards),
                       onChange: (event) => updateResultDraftField("shards", event.target.value)
                     })
                   )
@@ -6738,6 +6784,7 @@ h(Card, { className: "ledger-card" },
                       h("input", {
                         className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
                         "aria-label": ticketLabel(kind) + " の枚数",
+                        "aria-invalid": Boolean(resultFieldErrors[`ticket:${kind}`]),
                         value: String(Number(ticketDraft.tickets?.[kind]) || 0),
                         onChange: (event) => updateResultDraftTicket(kind, event.target.value)
                       })
@@ -6932,6 +6979,14 @@ h(Card, { className: "ledger-card" },
                   : h("p", { className: "ledger-empty-note" }, "報酬アイテムは未記録です。")
               )
             ),
+              h("div", { className: "ledger-card-edit-danger", role: "group", "aria-label": "このリザルトを削除" },
+                h("button", {
+                  type: "button", className: "ledger-card-edit-delete",
+                  title: "このリザルトと紐づく明細を削除（Ctrl+Z で取り消せます）",
+                  "aria-label": `${result.name} を削除（明細も削除されます）`,
+                  onClick: (event) => { event.preventDefault(); event.stopPropagation(); deleteResult(result); }
+                }, "このリザルトを削除")
+              ),
               !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },
                   bigNum(result.income?.lp || 0, "lp"),

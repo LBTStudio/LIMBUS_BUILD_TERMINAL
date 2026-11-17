@@ -149,6 +149,7 @@
   /* Restore a consistent high-contrast focus ring even where component rules
      replace outline color with a project-specific token. */
   .ledger-card-edit-btn:focus-visible,
+  .ledger-card-edit-delete:focus-visible,
   .ledger-unknown-label:focus-visible,
   .preview-edge-toggle:focus-visible,
   .pv-sec-head:focus-visible,

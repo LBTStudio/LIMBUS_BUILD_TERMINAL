@@ -441,7 +441,49 @@ test("リザルト登録情報はカード内で直接編集し、移動先プ�
   assert.match(reducer, /case "UPDATE_RESULT"[\s\S]{0,900}?tickets: normalizeTickets\(action\.income\?\.tickets\)/);
   assert.match(sections, /"変更を保存"/);
 });
- 
+
+test("リザルト編集の削除は編集フッターに単独で置き、確認つきで明細ごと消える", () => {
+  assert.match(sections, /className: "ledger-card-edit-danger"/);
+  assert.match(sections, /className: "ledger-card-edit-delete"/);
+  assert.match(sections, /const deleteResult = \(result\) => \{/);
+  /* ヘッダの保存・取消と同じ行に置かない（320px で折り返して危険ボタンが孤立する）。 */
+  assert.doesNotMatch(sections, /key: "delete", type: "button"/);
+  assert.match(sections, /const entryCount = \(state\.entries \|\| \[\]\)\.filter\(\(entry\) => entry\.resultId === result\.id\)\.length/);
+  assert.match(sections, /if \(!confirm\(`リザルト「\$\{result\.name\}」を削除しますか？/);
+  assert.match(sections, /明細 \$\{entryCount\}件も削除されます/);
+  assert.match(sections, /再読込後は取り消せません/);
+  assert.match(sections, /type: "REMOVE_RESULT", id: result\.id/);
+  assert.match(sections, /cancelResultEditor\(\);[\s\S]{0,120}?type: "REMOVE_RESULT"/);
+  assert.match(sections, /document\.querySelector\("\.ledger-card-edit-btn"\)\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(sections, /"このリザルトを削除"/);
+  assert.match(sections, /aria-label": `\$\{result\.name\} を削除（明細も削除されます）`/);
+  assert.match(reducer, /case "REMOVE_RESULT"[\s\S]{0,600}?entries: \(state\.entries \|\| \[\]\)\.filter\(\(e\) => e\.resultId !== action\.id\)/);
+  const css = readFileSync(new URL("../assets/sections.css", import.meta.url), "utf8");
+  assert.match(css, /\.ledger-card-edit-danger\s*\{/);
+  assert.match(css, /\.ledger-card-edit-delete\s*\{/);
+  assert.match(css, /\.ledger-card-edit-delete:hover\s*\{/);
+  const mobileCss = readFileSync(new URL("../assets/v69-mobile-ui-audit.css", import.meta.url), "utf8");
+  assert.match(mobileCss, /is-editing \.ledger-card-edit-danger \.ledger-card-edit-delete\s*\{/);
+  assert.doesNotMatch(mobileCss, /is-editing \.ledger-card-edit-delete\s*\{/);
+  const a11yCss = readFileSync(new URL("../assets/v68-interaction-a11y.css", import.meta.url), "utf8");
+  assert.match(a11yCss, /\.ledger-card-edit-delete:focus-visible/);
+});
+
+test("リザルト編集の数値欄は空文字を0にせず、別リザルトへ自由に切り替えられる", () => {
+  assert.match(sections, /const \[resultFieldErrors, setResultFieldErrors\] = React\.useState\(\{\}\)/);
+  assert.match(sections, /const blanks = numericFields\.filter\(\(\[, value\]\) => String\(value \?\? ""\)\.trim\(\) === ""\)/);
+  assert.match(sections, /if \(blanks\.length\) \{[\s\S]{0,300}?setResultFieldErrors[\s\S]{0,200}?toast[\s\S]{0,200}?return;/);
+  assert.match(sections, /"aria-invalid": Boolean\(resultFieldErrors\.lp\)/);
+  assert.match(sections, /"aria-invalid": Boolean\(resultFieldErrors\.shards\)/);
+  assert.match(sections, /"aria-invalid": Boolean\(resultFieldErrors\[`ticket:\$\{kind\}`\]\)/);
+  assert.match(sections, /clearFieldError\(`ticket:\$\{kind\}`\)/);
+  assert.match(sections, /setResultFieldErrors\(\{\}\);/);
+  assert.match(sections, /setResultFieldErrors\(\{\}\);[\s\S]{0,120}?const nonNegativeInteger/);
+  /* 編集中でも他カードの編集ボタンはdisabledにしない（未保存変更の破棄はtitleで案内）。 */
+  assert.doesNotMatch(sections, /disabled: ticketPanel !== null && !isEditing/);
+  assert.match(sections, /別のリザルトを開くと未保存の変更は破棄されます/);
+});
+
 test("所持ライブラリはサポパ/精神も自分の中身を出す（EGOのまま開かない）", () => {
   /* 以前は人格/E.G.O の二分岐しか無く、サポパ/精神タブが E.G.O を出し続けた。 */
   assert.match(sections, /: libraryTab === "egos" \? \(roster\.egos \|\| \[\]\)\.map/);
