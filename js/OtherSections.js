@@ -3018,7 +3018,14 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       ROUTES.map((r) => h("button", {
         key: r.id, type: "button", role: "radio", "aria-checked": route === r.id,
         className: route === r.id ? "is-active" : "", disabled: !!pending,
-        onClick: () => { setRoute(r.id); setLast(null); }
+        onClick: () => {
+          setRoute(r.id);
+          /* テーマパックへ入った時はLP払いを初期選択にする。
+             直前の人格/E.G.Oチケット選択を引き継ぐと、
+             パックチケットを持たない利用者には抽出不能に見えてしまう。 */
+          if (r.id === "pack") setPay("paid");
+          setLast(null);
+        }
       }, r.label))),
     /* 出所（core:346-349 など）は利用者には無意味なので出さない。
        規則番号はコードと provenance に残せば足りる。
@@ -3028,10 +3035,16 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       h("span", null, "パック　"),
       h("select", {
         className: "select", value: activePack, "aria-label": "特定抽出パック", disabled: !!pending,
-        onChange: (e) => { setPackName(e.target.value); setLast(null); }
+        onChange: (e) => {
+          const nextPack = e.target.value;
+          setPackName(nextPack);
+          /* 別パックへ移って専用チケットが無い場合はLP払いへ戻す。 */
+          if (pay === "ticket" && !(Number(ticketBalanceAll.pack?.[nextPack]) > 0)) setPay("paid");
+          setLast(null);
+        }
       }, packs.map((p) => h("option", { key: p.name, value: p.name }, `${p.name}（1d${p.die}・LP ${p.lp}）`)))),
     h("div", { className: "segmented", role: "radiogroup", "aria-label": "支払い方法" },
-      [["paid", "通貨で払う"], ["ticket", `${ticketLabel(ticketKind, ticketPack)} ×${held}`]].map(([v, label]) => h("button", {
+      [["paid", route === "pack" ? "LPで抽出" : "通貨で払う"], ["ticket", `${ticketLabel(ticketKind, ticketPack)} ×${held}`]].map(([v, label]) => h("button", {
         key: v, type: "button", role: "radio", "aria-checked": pay === v,
         className: pay === v ? "is-active" : "", disabled: !!pending,
         onClick: () => { setPay(v); setLast(null); }
