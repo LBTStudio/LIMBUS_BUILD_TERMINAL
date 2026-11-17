@@ -1672,7 +1672,7 @@
 .ledger-card-edit-save,
 .ledger-card-edit-cancel,
 .ledger-card-edit-delete {
-  position: relative; z-index: 4; min-height: 28px; padding: 0 var(--s-2);
+  position: relative; z-index: 4; min-height: 32px; padding: 0 var(--s-2);
   border: 1px solid var(--line-strong); border-radius: var(--r);
   background: var(--surface-2); color: var(--tx-2);
   font: 600 var(--fs-11) var(--f-body); white-space: nowrap; cursor: pointer;

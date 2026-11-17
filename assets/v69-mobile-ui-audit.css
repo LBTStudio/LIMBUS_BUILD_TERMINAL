@@ -808,13 +808,16 @@
     gap: 8px;
   }
   .ledger-card-wrap.is-editing .ledger-card-edit-save,
-  .ledger-card-wrap.is-editing .ledger-card-edit-cancel {
-    flex: 1 1 120px;
+  .ledger-card-wrap.is-editing .ledger-card-edit-cancel,
+  .ledger-card-wrap.is-editing .ledger-card-edit-delete {
+    flex: 0 0 auto;
     min-height: 44px;
   }
-  .ledger-card-wrap.is-editing .ledger-card-edit-danger .ledger-card-edit-delete {
-    width: 100%;
-    min-height: 44px;
+  /* 長い抽出チケット名が 1 行で押し出して 320px で 21px はみ出すのを防ぐ。 */
+  .ledger-card-wrap.is-editing .ledger-card-edit-inline .ledger-ticket-field > span {
+    overflow-wrap: anywhere;
+    white-space: normal;
+    min-width: 0;
   }
   .ledger-card-wrap.is-editing .ledger-card-edit-income {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -831,7 +834,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .ledger-card-wrap.is-editing .ledger-history-editor {
-    padding: 11px;
+    padding: 8px;
   }
 }
 @media (max-width: 380px) {

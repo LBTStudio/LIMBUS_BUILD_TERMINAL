@@ -6815,7 +6815,7 @@ h(Card, { className: "ledger-card" },
                   title: "このリザルトと紐づく明細を削除（Ctrl+Z で取り消せます）",
                   "aria-label": `${result.name} を削除（明細も削除されます）`,
                   onClick: (event) => { event.preventDefault(); event.stopPropagation(); deleteResult(result); }
-                }, "このリザルトを削除")
+                }, "削除")
               ),
               ),
               isEditing && isInitialResult && h("div", { className: "ledger-initial-persona-fields stack-2", "aria-label": "初期人格の取得確認" },
@@ -6873,17 +6873,17 @@ h(Card, { className: "ledger-card" },
                   : null
               ),
               isEditing && h("details", { className: "ledger-history-editor-disclosure" },
-                h("summary", null, "取得人格・E.G.O・報酬アイテムを編集（過去リザルトにも複数登録できます）"),
-                h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得人格・E.G.Oと報酬アイテムの編集" },
+                h("summary", { title: "取得人格・E.G.O・報酬アイテムを編集（過去リザルトにも複数登録できます）" }, "取得・報酬を編集"),
+                h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得物と報酬の編集" },
                 h("div", { className: "ledger-reward-item-head" },
-                  h("span", { className: "t-label" }, "取得人格・E.G.O・報酬アイテム"),
-                  h("span", { className: "ledger-note" }, "古いリザルトも複数の取得人格を登録できます。保存すると不足している人格は所持へ追加します。")
+                  h("span", { className: "t-label" }, "取得人格"),
+                  h("span", { className: "ledger-note", title: "古いリザルトも複数の取得人格を登録できます。保存すると不足している人格は所持へ追加します。" }, "保存で不足人格を所持へ追加")
                 ),
                 h("div", { className: "ledger-persona-search" },
                   h("input", {
                     className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
                     "aria-label": "このリザルトで取得した人格をDBから検索",
-                    placeholder: "人格名またはNo.で検索して追加…",
+                    placeholder: "人格名 / No. で検索",
                     value: ticketPersonaQuery,
                     onChange: (event) => setTicketPersonaQuery(event.target.value)
                   }),
@@ -6900,7 +6900,7 @@ h(Card, { className: "ledger-card" },
                         ))
                       )
                     : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
-                        ticketPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます（最大8件）。"
+                        ticketPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "名前 / No. で検索（最大8件）"
                       )
                 ),
                 (ticketDraft.personaAcquisitions || []).length > 0
@@ -6909,17 +6909,17 @@ h(Card, { className: "ledger-card" },
                       h("small", null, entry.mode === "t" ? "特異" : "通常"),
                       h("button", { type: "button", "aria-label": (entry.name || entry.no) + " の取得記録を外す", onClick: () => removeResultDraftPersona(entry.mode, entry.no) }, "×")
                     )))
-                  : h("p", { className: "ledger-empty-note" }, "取得人格はまだ登録されていません。初期作成の最初の人格は上の欄から記録できます。"),
+                  : h("p", { className: "ledger-empty-note" }, "登録なし（初期人格は上の欄）"),
                 h("section", { className: "ledger-reward-item-editor ledger-ego-reward-editor", "aria-label": "取得E.G.O" },
                   h("div", { className: "ledger-reward-item-head" },
-                    h("span", { className: "t-label" }, "取得E.G.O"),
-                    h("span", { className: "ledger-note" }, "過去リザルトの取得記録を追加できます。未所持分は購入費用なしで所持へ追加します。")
+                    h("span", { className: "t-label" }, "E.G.O"),
+                    h("span", { className: "ledger-note", title: "過去リザルトの取得記録を追加できます。未所持分は購入費用なしで所持へ追加します。" }, "未所持分を所持へ追加")
                   ),
                   h("div", { className: "ledger-persona-search" },
                     h("input", {
                       className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
                       "aria-label": "このリザルトで取得したE.G.OをDBから検索",
-                      placeholder: "E.G.O名・ランク・No.で検索して追加…",
+                      placeholder: "E.G.O名 / No. で検索",
                       value: ticketEgoQuery,
                       onChange: (event) => setTicketEgoQuery(event.target.value)
                     }),
@@ -6936,7 +6936,7 @@ h(Card, { className: "ledger-card" },
                           ))
                         )
                       : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
-                          ticketEgoQuery.trim() ? "DB内に一致するE.G.Oがありません。表記を変えて検索してください。" : "E.G.O名・ランク・No.を入力すると候補が表示されます（最大8件）。"
+                          ticketEgoQuery.trim() ? "DB内に一致するE.G.Oがありません。表記を変えて検索してください。" : "名前 / No. で検索（最大8件）"
                         )
                   ),
                   (ticketDraft.egoAcquisitions || []).length > 0
@@ -6945,11 +6945,11 @@ h(Card, { className: "ledger-card" },
                         h("small", null, entry.rank),
                         h("button", { type: "button", "aria-label": (entry.name || entry.no) + " の取得E.G.O記録を外す", onClick: () => removeResultDraftEgo(entry.rank, entry.no) }, "×")
                       )))
-                    : h("p", { className: "ledger-empty-note" }, "取得E.G.Oはまだ登録されていません。")
+                    : h("p", { className: "ledger-empty-note" }, "登録なし")
                 ),
                 h("div", { className: "ledger-reward-item-head" },
                   h("span", { className: "t-label" }, "報酬アイテム"),
-                  h("span", { className: "ledger-note" }, "硝子の破片や通常アイテムを登録できます。報酬分は所持数へ加算し、過去履歴の数量を減らしても消費済みの在庫は自動で戻しません。")
+                  h("span", { className: "ledger-note", title: "報酬分は所持数へ加算します。過去履歴の数量を減らしても消費済みの在庫は自動で戻りません" }, "報酬分を所持へ加算")
                 ),
                 h("div", { className: "ledger-reward-item-controls" },
                   h("select", {
@@ -6984,7 +6984,7 @@ h(Card, { className: "ledger-card" },
                       h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
                       h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => updateResultDraftField("rewardItems", removeRewardItemDraft(ticketDraft.rewardItems || [], index)) }, "×")
                     )))
-                  : h("p", { className: "ledger-empty-note" }, "報酬アイテムは未記録です。")
+                  : h("p", { className: "ledger-empty-note" }, "登録なし")
               )
             ),
               !isEditing && h("div", { className: "ledger-card-income" },

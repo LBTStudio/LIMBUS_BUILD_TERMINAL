@@ -462,7 +462,7 @@ test("リザルト編集の削除は編集フッターに単独で置き、確�
   assert.match(sections, /type: "REMOVE_RESULT", id: result\.id/);
   assert.match(sections, /cancelResultEditor\(\);[\s\S]{0,120}?type: "REMOVE_RESULT"/);
   assert.match(sections, /document\.querySelector\("\.ledger-card-edit-btn"\)\?\.focus\(\{ preventScroll: true \}\)/);
-  assert.match(sections, /"このリザルトを削除"/);
+  assert.match(sections, /}, "削除"\)/);
   assert.match(sections, /aria-label": `\$\{result\.name\} を削除（明細も削除されます）`/);
   assert.match(reducer, /case "REMOVE_RESULT"[\s\S]{0,600}?entries: \(state\.entries \|\| \[\]\)\.filter\(\(e\) => e\.resultId !== action\.id\)/);
   const css = readFileSync(new URL("../assets/sections.css", import.meta.url), "utf8");
@@ -470,8 +470,9 @@ test("リザルト編集の削除は編集フッターに単独で置き、確�
   assert.match(css, /\.ledger-card-edit-delete\s*\{/);
   assert.match(css, /\.ledger-card-edit-delete:hover\s*\{/);
   const mobileCss = readFileSync(new URL("../assets/v69-mobile-ui-audit.css", import.meta.url), "utf8");
-  assert.match(mobileCss, /is-editing \.ledger-card-edit-danger \.ledger-card-edit-delete\s*\{/);
-  assert.doesNotMatch(mobileCss, /is-editing \.ledger-card-edit-delete\s*\{/);
+  /* 保存・取消・削除を同じ幅・同じ高さに揃え、縦積みにしない。 */
+  assert.match(mobileCss, /is-editing \.ledger-card-edit-save,[\s\S]{0,180}?is-editing \.ledger-card-edit-delete\s*\{[\s\S]{0,120}?flex: 0 0 auto/);
+  assert.match(mobileCss, /is-editing \.ledger-card-edit-inline \.ledger-ticket-field > span\s*\{[\s\S]{0,160}?overflow-wrap: anywhere[\s\S]{0,80}?white-space: normal/);
   const a11yCss = readFileSync(new URL("../assets/v68-interaction-a11y.css", import.meta.url), "utf8");
   assert.match(a11yCss, /\.ledger-card-edit-delete:focus-visible/);
 });
@@ -489,6 +490,19 @@ test("リザルト編集の数値欄は空文字を0にせず、別リザルト�
   /* 編集中でも他カードの編集ボタンはdisabledにしない（未保存変更の破棄はtitleで案内）。 */
   assert.doesNotMatch(sections, /disabled: ticketPanel !== null && !isEditing/);
   assert.match(sections, /別のリザルトを開くと未保存の変更は破棄されます/);
+});
+
+test("取得・報酬の編集は1行サマリとフラットな内容で情報密度を保つ", () => {
+  assert.match(sections, /h\("summary", \{ title: "[^"]+" \}, "取得・報酬を編集"\)/);
+  assert.match(sections, /"aria-label": "取得物と報酬の編集"/);
+  assert.match(sections, /"保存で不足人格を所持へ追加"/);
+  assert.match(sections, /h\("span", \{ className: "t-label" \}, "E\.G\.O"\)/);
+  assert.match(sections, /"報酬分を所持へ加算"/);
+  const parity = readFileSync(new URL("../assets/b-type-ui-parity.css", import.meta.url), "utf8");
+  assert.match(parity, /\.ledger-history-editor-disclosure > summary\s*\{[\s\S]{0,160}?white-space: nowrap/);
+  assert.match(parity, /\.ledger-history-editor-disclosure\[open\] > \.ledger-history-editor\s*\{[\s\S]{0,160}?border: 0[\s\S]{0,80}?background: transparent/);
+  assert.match(parity, /\.ledger-history-editor \.ledger-reward-item-head \.t-label\s*\{ font-size: 13px; \}/);
+  assert.match(parity, /\.ledger-history-editor \.ledger-reward-item-chip\s*\{[\s\S]{0,120}?font-size: 12px/);
 });
 
 test("所持ライブラリはサポパ/精神も自分の中身を出す（EGOのまま開かない）", () => {

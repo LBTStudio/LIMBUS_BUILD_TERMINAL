@@ -502,6 +502,28 @@
 .ledger-result-reward-disclosure[open] > .ledger-result-reward-content {
   margin: 8px;
 }
+/* 取得・報酬の編集は補助操作。折り返す長文見出しと二重枠をやめ、
+   1行サマリ＋フラットな内容で情報密度を保つ。 */
+.ledger-history-editor-disclosure > summary {
+  min-height: 36px; padding: 5px 10px;
+  font-size: 13px; line-height: 1.4; white-space: nowrap;
+  gap: 4px 8px;
+}
+.ledger-history-editor-disclosure > summary::after { font-size: 13px; }
+.ledger-history-editor-disclosure[open] > .ledger-history-editor {
+  margin: 0; padding: 8px 10px 10px;
+  border: 0; border-radius: 0; background: transparent;
+}
+.ledger-history-editor.stack-2 { gap: 8px; }
+.ledger-history-editor .ledger-reward-item-head { gap: 3px 8px; }
+.ledger-history-editor .ledger-reward-item-head .t-label { font-size: 13px; }
+.ledger-history-editor .ledger-note { font-size: 11px; line-height: 1.4; }
+.ledger-history-editor .ledger-reward-item-chip {
+  min-height: 26px; padding: 2px 6px 2px 8px; font-size: 12px;
+}
+.ledger-history-editor .ledger-reward-item-chip button {
+  width: 26px; min-height: 26px; font-size: 13px;
+}
 .ledger-result-detail-group,
 .ledger-detail-group { min-width: 0; }
 @media (max-width: 900px) {
