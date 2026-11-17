@@ -44,7 +44,7 @@ function loadDB(){
           return r.json();
         });
       }
-      readJSON("data/db.json?v=16b6df9e", {priority:"high"}).then(function(db){
+      readJSON("data/db.json?v=e0594573", {priority:"high"}).then(function(db){
         return Promise.allSettled([
           readJSON("data/items.json?v=b185394a"),
           readJSON("data/gacha-theme-packs.json?v=8d4dced2"),
@@ -87,7 +87,7 @@ function loadDB(){
       });
     }
     Promise.all([
-      readXHR("data/db.json?v=16b6df9e"),
+      readXHR("data/db.json?v=e0594573"),
       readXHR("data/items.json?v=b185394a"),
       readXHR("data/gacha-theme-packs.json?v=8d4dced2", true),
       readXHR("data/special-items.json?v=aaa21cfb")
@@ -1099,7 +1099,8 @@ button, .btn, [role="button"] { font-size: var(--ui-type-sm); }
 <script src="js/roster-resolver.js?v=bb84f9f2"></script>
 <script src="js/result-log-parser.js?v=e1bc2df5"></script>
 <script src="js/garasumado-memo-parse.js?v=d9b43c6a"></script>
-<script src="js/result-text-import.js?v=025e4edc"></script>
+<script src="js/discord-log-import.js?v=dd273ab5"></script>
+<script src="js/result-text-import.js?v=dc80c16c"></script>
 <script src="js/ledger-provenance.js?v=564bc607"></script>
 <script src="js/ledger-import-reconcile.js?v=cd2638b5"></script>
 <script src="js/garasumado-roster-import.js?v=81e62e2c"></script>

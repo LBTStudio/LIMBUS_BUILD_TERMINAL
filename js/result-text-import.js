@@ -1115,6 +1115,13 @@
   }
 
   function parseText(rawText) {
+    /* Discord に貼られる ｜区切り無しの手書きリザルトは専用モジュールへ委譲。
+       ｜区切り・▼▽・『』形式は以下従来どおりparserが処理する。 */
+    if (typeof window !== "undefined" && window.LBT_discordImport
+      && typeof window.LBT_discordImport.isDiscordText === "function"
+      && window.LBT_discordImport.isDiscordText(rawText)) {
+      return window.LBT_discordImport.parseText(rawText);
+    }
     const originalText = String(rawText ?? "");
     if (/^\s*[▼▽]\s*\S/m.test(originalText) && /(?:日時|報酬|現在所持LP|現在所持欠片)/.test(originalText)) {
       return parseLedgerJournal(originalText);
@@ -1309,6 +1316,9 @@
   /* 提案済みリザルト + 明細を reducer の action 並びへ落とす。
      excluded: Set(添字) を渡すと、その明細は作らない。 */
   function plan(parsed, options) {
+    if (parsed && parsed.discord === true && typeof window !== "undefined" && window.LBT_discordImport) {
+      return window.LBT_discordImport.plan(parsed, options);
+    }
     const opts = options || {};
     const excluded = opts.excluded || new Set();
     const actions = [];
