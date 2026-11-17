@@ -445,6 +445,13 @@ test("リザルト登録情報はカード内で直接編集し、移動先プ�
 test("リザルト編集の削除は編集フッターに単独で置き、確認つきで明細ごと消える", () => {
   assert.match(sections, /className: "ledger-card-edit-danger"/);
   assert.match(sections, /className: "ledger-card-edit-delete"/);
+  /* 見た目で「編集の外」に出ないよう、編集中コンテナの内側に置かれていること。
+     静的テキスト上で tickets 欄の後・初期人格欄の前にあることを確認する。 */
+  const ticketsAt = sections.indexOf('className: "ledger-card-edit-tickets"');
+  const dangerAt = sections.indexOf('className: "ledger-card-edit-danger"');
+  const initialAt = sections.indexOf('className: "ledger-initial-persona-fields');
+  assert.ok(ticketsAt >= 0 && dangerAt > ticketsAt && initialAt > dangerAt,
+    "削除ボタンは編集フォーム内（チケット欄と初期人格欄の間）に置く");
   assert.match(sections, /const deleteResult = \(result\) => \{/);
   /* ヘッダの保存・取消と同じ行に置かない（320px で折り返して危険ボタンが孤立する）。 */
   assert.doesNotMatch(sections, /key: "delete", type: "button"/);

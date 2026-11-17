@@ -6808,7 +6808,15 @@ h(Card, { className: "ledger-card" },
                       })
                     )
                   )
-                )
+                ),
+              h("div", { className: "ledger-card-edit-danger", role: "group", "aria-label": "このリザルトを削除" },
+                h("button", {
+                  type: "button", className: "ledger-card-edit-delete",
+                  title: "このリザルトと紐づく明細を削除（Ctrl+Z で取り消せます）",
+                  "aria-label": `${result.name} を削除（明細も削除されます）`,
+                  onClick: (event) => { event.preventDefault(); event.stopPropagation(); deleteResult(result); }
+                }, "このリザルトを削除")
+              ),
               ),
               isEditing && isInitialResult && h("div", { className: "ledger-initial-persona-fields stack-2", "aria-label": "初期人格の取得確認" },
                 h("span", { className: "t-label" }, "初期作成 / 最初に得た人格"),
@@ -6979,14 +6987,6 @@ h(Card, { className: "ledger-card" },
                   : h("p", { className: "ledger-empty-note" }, "報酬アイテムは未記録です。")
               )
             ),
-              h("div", { className: "ledger-card-edit-danger", role: "group", "aria-label": "このリザルトを削除" },
-                h("button", {
-                  type: "button", className: "ledger-card-edit-delete",
-                  title: "このリザルトと紐づく明細を削除（Ctrl+Z で取り消せます）",
-                  "aria-label": `${result.name} を削除（明細も削除されます）`,
-                  onClick: (event) => { event.preventDefault(); event.stopPropagation(); deleteResult(result); }
-                }, "このリザルトを削除")
-              ),
               !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },
                   bigNum(result.income?.lp || 0, "lp"),
