@@ -1023,11 +1023,10 @@ async function captureProfile(browser, mode) {
                 detail: pane ? { left: pane.left, right: pane.right, top: pane.top } : null };
             });
             if (!layout.main || !layout.detail) throw new Error("詳細ペインが一覧と同じCodex直下にありません: " + JSON.stringify(layout));
-            if ((page.viewportSize()?.width || 1440) > 1280 && layout.detail.left < layout.main.right - 2) {
+            if ((page.viewportSize()?.width || 1440) > 1024 && layout.detail.left < layout.main.right - 2) {
               throw new Error("デスクトップで詳細ペインが一覧の右側に配置されません: " + JSON.stringify(layout));
             }
-            /* 1280px は codex が2列から1列へ切り替わる境界。
-               詳細が sticky のままだと一覧や固定フィルターへ重なるため、実ブラウザで配置を測る。 */
+            /* 1280px は一覧を見ながら詳細を参照できる幅なので、1440px と同じ二列構成を維持する。 */
             if (!mobile) {
               const originalViewport = page.viewportSize();
               try {
@@ -1040,16 +1039,20 @@ async function captureProfile(browser, mode) {
                   const mainRect = main?.getBoundingClientRect();
                   return {
                     position: getComputedStyle(node).position,
+                    detailLeft: paneRect.left,
                     detailTop: paneRect.top,
-                    mainBottom: mainRect?.bottom ?? null,
+                    mainRight: mainRect?.right ?? null,
+                    mainTop: mainRect?.top ?? null,
                     gridColumns: codex ? getComputedStyle(codex).gridTemplateColumns : ""
                   };
                 });
-                if (breakpointLayout.position !== "static" || breakpointLayout.mainBottom === null
-                  || breakpointLayout.detailTop < breakpointLayout.mainBottom - 2) {
-                  throw new Error("1280px幅で詳細ペインが通常フローに戻らず、一覧へ重なっています: " + JSON.stringify(breakpointLayout));
+                const columnCount = breakpointLayout.gridColumns.trim().split(/\s+/).filter(Boolean).length;
+                if (columnCount !== 2 || breakpointLayout.position !== "sticky"
+                  || breakpointLayout.mainRight === null || breakpointLayout.detailLeft < breakpointLayout.mainRight - 2
+                  || breakpointLayout.mainTop === null || Math.abs(breakpointLayout.detailTop - breakpointLayout.mainTop) > 4) {
+                  throw new Error("1280px幅で一覧と詳細の二列配置が維持されていません: " + JSON.stringify(breakpointLayout));
                 }
-                await snap("support-passive-detail-1280-breakpoint", "1280px幅で一覧の下に詳細ペインが配置され、重なりがない状態");
+                await snap("support-passive-detail-1280-two-column", "1280px幅で一覧の右側に詳細ペインを並べた状態");
               } finally {
                 await page.setViewportSize(originalViewport);
                 await page.waitForTimeout(120);

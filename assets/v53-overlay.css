@@ -345,10 +345,8 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   .codex-search{ flex: 1 1 100%; }
 }
 
-/* 1024px 帯でも codex-detail の占有を緩和（タブレット縦） */
-/* .codex は 1280px 以下で単一列になるため、詳細も通常フローへ戻す。
-   1025〜1280px で sticky のまま残ると、一覧や固定フィルターの背面に潜る。 */
-@media (min-width: 641px) and (max-width: 1280px){
+/* 1024px 以下では一覧と詳細を縦に並べ、詳細を通常フローへ戻す。 */
+@media (min-width: 641px) and (max-width: 1024px){
   .codex{ grid-template-columns: 1fr; }
   .codex-detail{ position: static; }
 }

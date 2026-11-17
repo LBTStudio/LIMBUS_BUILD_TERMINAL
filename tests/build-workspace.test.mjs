@@ -292,9 +292,10 @@ test("ビルド側のサポートパッシブ詳細は一覧と独立した表�
   assert.match(support, /一覧から選択すると詳細が表示されます/);
 });
 
-test("サポートパッシブ詳細は単一列になる1280px以下で一覧に重ならない", () => {
-  assert.match(personaCodexCss, /@media\s*\(max-width:\s*1280px\)\s*\{\s*\.codex\s*\{\s*grid-template-columns:\s*1fr;/);
-  assert.match(overlayCss, /@media\s*\(min-width:\s*641px\)\s*and\s*\(max-width:\s*1280px\)\s*\{\s*\.codex\s*\{\s*grid-template-columns:\s*1fr;\s*\}\s*\.codex-detail\s*\{\s*position:\s*static;/);
+test("サポートパッシブ詳細は1280pxで一覧の右側に並び、1024px以下で縦並びになる", () => {
+  assert.match(personaCodexCss, /\.codex\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*1fr 380px;/);
+  assert.match(personaCodexCss, /@media\s*\(max-width:\s*1024px\)\s*\{\s*\.codex\s*\{\s*grid-template-columns:\s*1fr;/);
+  assert.match(overlayCss, /@media\s*\(min-width:\s*641px\)\s*and\s*\(max-width:\s*1024px\)\s*\{\s*\.codex\s*\{\s*grid-template-columns:\s*1fr;\s*\}\s*\.codex-detail\s*\{\s*position:\s*static;/);
 });
 
 test("強化は所持の直接編集ではなく購入・返却のreducerを通す", () => {
