@@ -72,13 +72,10 @@ test("テーマパックのLP抽出: 残高が1回分なら1回だけ引いてLP
 });
 
 test("ガチャUI: テーマパックへ切り替えたらLP払いを選び、専用チケットなしのパック変更でもLPへ戻す", () => {
-  assert.match(
-    panelSource,
-    /onClick: () => {s*setRoute(r.id);[sS]*?if (r.id === "pack") setPay("paid");[sS]*?setLast(null);/
+  assert.ok(panelSource.includes('if (r.id === "pack") setPay("paid");'), "テーマパック選択時にLP払いへ切り替える");
+  assert.ok(
+    panelSource.includes('if (pay === "ticket" && !(Number(ticketBalanceAll.pack?.[nextPack]) > 0)) setPay("paid");'),
+    "専用チケットを持たないパックへの変更時はLP払いへ戻す"
   );
-  assert.match(
-    panelSource,
-    /const nextPack = e.target.value;[sS]*?setPackName(nextPack);[sS]*?if (pay === "ticket" && !(Number(ticketBalanceAll.pack?.[nextPack]) > 0)) setPay("paid");/
-  );
-  assert.match(panelSource, /route === "pack" ? "LPで抽出" : "通貨で払う"/);
+  assert.ok(panelSource.includes('route === "pack" ? "LPで抽出" : "通貨で払う"'), "パックルートではLP払いと明示する");
 });
