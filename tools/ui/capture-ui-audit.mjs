@@ -1023,8 +1023,40 @@ async function captureProfile(browser, mode) {
                 detail: pane ? { left: pane.left, right: pane.right, top: pane.top } : null };
             });
             if (!layout.main || !layout.detail) throw new Error("詳細ペインが一覧と同じCodex直下にありません: " + JSON.stringify(layout));
-            if ((page.viewportSize()?.width || 1440) > 1280 && layout.detail.left < layout.main.right - 2) {
+            if ((page.viewportSize()?.width || 1440) > 1024 && layout.detail.left < layout.main.right - 2) {
               throw new Error("デスクトップで詳細ペインが一覧の右側に配置されません: " + JSON.stringify(layout));
+            }
+            /* 1280px は一覧を見ながら詳細を参照できる幅なので、1440px と同じ二列構成を維持する。 */
+            if (!mobile) {
+              const originalViewport = page.viewportSize();
+              try {
+                await page.setViewportSize({ width: 1280, height: Math.max(720, originalViewport.height) });
+                await page.waitForTimeout(120);
+                const breakpointLayout = await detail.evaluate(node => {
+                  const codex = node.closest(".codex");
+                  const main = codex?.querySelector(":scope > .codex-main");
+                  const paneRect = node.getBoundingClientRect();
+                  const mainRect = main?.getBoundingClientRect();
+                  return {
+                    position: getComputedStyle(node).position,
+                    detailLeft: paneRect.left,
+                    detailTop: paneRect.top,
+                    mainRight: mainRect?.right ?? null,
+                    mainTop: mainRect?.top ?? null,
+                    gridColumns: codex ? getComputedStyle(codex).gridTemplateColumns : ""
+                  };
+                });
+                const columnCount = breakpointLayout.gridColumns.trim().split(/\s+/).filter(Boolean).length;
+                if (columnCount !== 2 || breakpointLayout.position !== "sticky"
+                  || breakpointLayout.mainRight === null || breakpointLayout.detailLeft < breakpointLayout.mainRight - 2
+                  || breakpointLayout.mainTop === null || Math.abs(breakpointLayout.detailTop - breakpointLayout.mainTop) > 4) {
+                  throw new Error("1280px幅で一覧と詳細の二列配置が維持されていません: " + JSON.stringify(breakpointLayout));
+                }
+                await snap("support-passive-detail-1280-two-column", "1280px幅で一覧の右側に詳細ペインを並べた状態");
+              } finally {
+                await page.setViewportSize(originalViewport);
+                await page.waitForTimeout(120);
+              }
             }
             await snap("support-passive-detail-visible", "サポートパッシブを選び、右側の詳細ペインに効果と装備操作が表示された状態");
           });
@@ -1073,6 +1105,88 @@ async function captureProfile(browser, mode) {
             const after=await page.locator(".spp-slot.is-filled").count();
             if(after!==before-1) throw new Error("サポート解除で1枠だけ外れません: "+before+" -> "+after);
             await snap("support-slot-remove-action","サポートの解除ボタンを押し、選択中の枠が1つだけ外れた状態");
+          });
+          await attempt("support-passive-purchase-flow", async () => {
+            /* 画面からの購入操作を実際に通す。DBの未所持候補を選び、
+               価格表示・残高判定・購入ボタン・所持化・装備・通帳明細を確認する。 */
+            const fixture = await page.evaluate(() => {
+              const state = window.LBT_accounts?.loadActive?.();
+              const ownedNames = new Set((state?.roster?.supports || []).map(entry => entry.name));
+              const target = (window.DB?.support_passives || []).find(entry =>
+                Number(entry?.lp) > 0 && !ownedNames.has(entry.name)
+              );
+              if (!state || !target) return { ok: false, reason: "購入テスト用の未所持サポートがありません" };
+              const cost = window.LBT_purchaseCostOf?.(state, {
+                type: "ADD_ROSTER_SUPPORT", spp: target, purchase: true
+              });
+              const balance = window.LBT_computeLedgerBalance?.(state.results || [], state.entries || []);
+              if (!cost || !balance) return { ok: false, reason: "価格または通帳残高を解決できません" };
+              return {
+                ok: true,
+                name: target.name,
+                lp: Number(cost.lp) || 0,
+                shards: Number(cost.shards) || 0,
+                beforeLp: Number(balance.lp) || 0,
+                beforeShards: Number(balance.shards) || 0
+              };
+            });
+            if (!fixture.ok) throw new Error(fixture.reason);
+            if (fixture.lp <= 0 || fixture.beforeLp < fixture.lp || fixture.beforeShards < fixture.shards) {
+              throw new Error("購入テスト用の残高が価格を満たしません: " + JSON.stringify(fixture));
+            }
+
+            const showAll = page.getByRole("button", { name: "未所持も表示（全体から選ぶ）", exact: true });
+            if (await visible(showAll)) await click(showAll);
+            const candidate = page.locator(".spirit-item").filter({
+              has: page.locator(".spirit-item-name").getByText(fixture.name, { exact: true })
+            }).first();
+            await candidate.waitFor({ state: "visible", timeout: 5000 });
+            await click(candidate);
+
+            const detail = page.locator("#support-passive-detail");
+            await detail.waitFor({ state: "visible", timeout: 5000 });
+            const buy = detail.getByRole("button", { name: "購入して装備", exact: true });
+            if (!(await visible(buy))) {
+              throw new Error("未所持サポートの詳細に「購入して装備」ボタンがありません: " + (await detail.innerText()).slice(0, 240));
+            }
+            const displayed = (await detail.innerText()).replace(/\\s+/g, " ");
+            if (!displayed.includes("LP " + fixture.lp)) {
+              throw new Error("購入価格が詳細に表示されていません: " + displayed.slice(0, 240));
+            }
+            await click(buy);
+
+            await page.waitForFunction((name) => {
+              const state = window.LBT_accounts?.loadActive?.();
+              const owned = (state?.roster?.supports || []).find(entry => entry.name === name);
+              return !!owned && owned.equipped === true
+                && (state.entries || []).some(entry => entry.kind === "support" && entry.name === name);
+            }, fixture.name, { timeout: 7000 });
+
+            const after = await page.evaluate((name) => {
+              const state = window.LBT_accounts.loadActive();
+              const owned = (state.roster?.supports || []).find(entry => entry.name === name);
+              const entries = (state.entries || []).filter(entry =>
+                entry.kind === "support" && entry.name === name && entry.ref?.uid === owned?.uid
+              );
+              const balance = window.LBT_computeLedgerBalance(state.results || [], state.entries || []);
+              return {
+                equipped: !!owned?.equipped,
+                quantity: (state.roster?.supports || []).filter(entry => entry.name === name).length,
+                entryCount: entries.length,
+                cost: entries[0]?.cost || null,
+                lp: Number(balance.lp) || 0,
+                shards: Number(balance.shards) || 0
+              };
+            }, fixture.name);
+            if (!after.equipped || after.quantity !== 1 || after.entryCount !== 1
+              || Number(after.cost?.lp) !== fixture.lp || Number(after.cost?.shards) !== fixture.shards
+              || after.lp !== fixture.beforeLp - fixture.lp
+              || after.shards !== fixture.beforeShards - fixture.shards) {
+              throw new Error("購入後の所持・装備・通帳残高が一致しません: " + JSON.stringify({ fixture, after }));
+            }
+            const remainingBuyButton = detail.getByRole("button", { name: "購入して装備", exact: true });
+            if (await visible(remainingBuyButton)) throw new Error("購入完了後も未購入向けボタンが残っています");
+            await snap("support-passive-purchase-confirmed", "未所持サポートを購入し、装備・LP支出・通帳明細が反映された状態");
           });
         }
       });

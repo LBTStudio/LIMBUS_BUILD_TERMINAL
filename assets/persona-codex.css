@@ -248,7 +248,7 @@
   gap: var(--s-5);
   min-height: 600px;
 }
-@media (max-width: 1280px){
+@media (max-width: 1024px){
   .codex { grid-template-columns: 1fr; }
 }
 
