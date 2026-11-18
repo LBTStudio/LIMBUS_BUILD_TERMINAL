@@ -1703,13 +1703,20 @@ async function captureProfile(browser, mode) {
       const unclassifiedEntry=destinationDrawer.locator(".ledger-queue-item").filter({hasText:"包帯"}).first();
       await unclassifiedEntry.waitFor({state:"visible",timeout:5000});
       await snap("ledger-unclassified-drawer-populated","リザルトから解除した明細が未分類ドロワーへ戻った状態");
-      await click(unclassifiedEntry.getByRole("button",{name:"包帯 の移動先を選択",exact:true}));
-      const reassignmentSearch=destinationDrawer.locator('.ledger-classification-targets-pane [aria-label="移動先のリザルトを検索"]');
-      await reassignmentSearch.waitFor({state:"visible",timeout:5000});
-      await reassignmentSearch.fill("UI監査用セッション");
       const originalDestination=destinationDrawer.locator(".ledger-classification-target").filter({hasText:"UI監査用セッション"}).first();
       await originalDestination.waitFor({state:"visible",timeout:5000});
-      await click(originalDestination);
+      if ((page.viewportSize()?.width || 1440) > 640) {
+        /* PC/tablet: the queue handle itself must carry the selected object to the result target. */
+        const dragHandle=unclassifiedEntry.locator(".ledger-queue-drag-handle").first();
+        await dragHandle.dragTo(originalDestination);
+      } else {
+        /* Phone: use the explicit select -> search -> tap route instead of native HTML D&D. */
+        await click(unclassifiedEntry.getByRole("button",{name:"包帯 の移動先を選択",exact:true}));
+        const reassignmentSearch=destinationDrawer.locator('.ledger-classification-targets-pane [aria-label="移動先のリザルトを検索"]');
+        await reassignmentSearch.waitFor({state:"visible",timeout:5000});
+        await reassignmentSearch.fill("UI監査用セッション");
+        await click(originalDestination);
+      }
       /* useAppState persists mutations after a 400ms debounce */
       await page.waitForTimeout(550);
       const restoredAssignment=await page.evaluate(()=>{
