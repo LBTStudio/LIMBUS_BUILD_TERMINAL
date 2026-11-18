@@ -6066,7 +6066,7 @@ const importHeldPersonas = () => {
       }
     },
       h("aside", {
-        className: "ledger-queue-drawer ledger-classification-source",
+        className: "ledger-queue-drawer",
         onClick: (event) => event.stopPropagation(),
         ...dropTargetProps("__queue")
       },
@@ -6086,7 +6086,7 @@ const importHeldPersonas = () => {
           h("span", { className: "ledger-note" },
             "現在の帰属：" + (movingEntry.resultId ? (results.find((result) => result.id === movingEntry.resultId)?.name || "名称未設定") : "未分類")),
           movingEntry.resultId && h("button", {
-            type: "button", className: "ledger-queue-transfer-unclassify", onClick: () => moveEntry(movingEntry.id, null)
+            type: "button", className: "ledger-queue-move-target", onClick: () => moveEntry(movingEntry.id, null)
           }, "未分類へ戻す"),
           h("button", { type: "button", className: "ledger-queue-transfer-cancel", onClick: cancelMoveEntry }, "選択を解除")
         ),
