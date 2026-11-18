@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").repl
 const css = read("../assets/v74-ledger-multicolumn.css");
 const classificationCss = read("../assets/v75-ledger-classification.css");
 const source = read("../js/OtherSections.js");
+const auditSource = read("../tools/ui/capture-ui-audit.mjs");
 
 test("リザルト一覧はPC3列・タブレット2列・スマホ1列で表示する", () => {
   assert.match(css, /\.ledger-cards\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\) !important/s);
@@ -80,4 +81,17 @@ test("分類ワークベンチは既存明細のドラッグ移動とモバイ�
   assert.ok(classificationCss.includes("@media (max-width: 640px) {"));
   assert.match(classificationCss, /ledger-results-page-jump select/);
   assert.match(classificationCss, /min-height: 40px;/);
+});
+
+test("モバイル分類画面は縦スクロールでき、移動先カードに十分な表示領域を確保する", () => {
+  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?grid-template-rows: auto auto;/);
+  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?overflow-y: auto;/);
+  assert.match(classificationCss, /\.ledger-classification-targets-pane\s*\{[^}]*min-height: 380px;/);
+  assert.match(classificationCss, /\.ledger-classification-results-grid\s*\{[^}]*min-height: 190px;[^}]*max-height: 230px;/);
+});
+
+test("操作監査はPC/タブレットのドラッグとスマートフォンのタップ代替を実行する", () => {
+  assert.match(auditSource, /dragHandle\.dragTo\(originalDestination\)/);
+  assert.match(auditSource, /Phone: use the explicit select -> search -> tap route/);
+  assert.match(auditSource, /\.ledger-queue-drag-handle/);
 });
