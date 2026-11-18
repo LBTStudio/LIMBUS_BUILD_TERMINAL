@@ -202,7 +202,7 @@ test("複数明細の帰属変更は一括処理され、費用と他の明細�
   const before = balance(s.results, s.entries);
 
   s = reducer(s, { type: "SET_ENTRIES_RESULT", ids: [first.id, second.id, third.id, "missing-id"], resultId: bId });
-  assert.equal(s.entries.length, 3, "一括移動で明細数は変わらない");
+  assert.equal(s.entries.length, 4, "一括移動で明細数は変わらない");
   assert.equal(s.entries.find((entry) => entry.id === first.id).resultId, bId);
   assert.equal(s.entries.find((entry) => entry.id === second.id).resultId, bId);
   assert.equal(s.entries.find((entry) => entry.id === untouched.id).resultId, null, "選択外は未分類のまま");
