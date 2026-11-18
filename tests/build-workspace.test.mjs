@@ -1503,7 +1503,7 @@ test("通帳は長大なリザルト一覧から未分類移動・ページ操�
 
 test("スマートフォンの通帳ではコマンドバーを通常フローに戻し、検索・ページ送りだけを固定する", () => {
   const workbenchCss = read("../assets/v73-ledger-workbench.css");
-  assert.match(workbenchCss, /@media \\(max-width: 560px\\)[\\s\\S]*?\\.ledger-command-bar\\s*\\{[^}]*position:\\s*static/s);
-  assert.match(workbenchCss, /@media \\(max-width: 560px\\)[\\s\\S]*?\\.ledger-results-toolbar\\s*\\{[^}]*top:\\s*54px/s);
-  assert.match(workbenchCss, /@media \\(max-width: 560px\\)[\\s\\S]*?\\.ledger-results-toolbar\\s*\\{[^}]*scroll-margin-top:\\s*64px/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*position:\s*static/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*top:\s*54px/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*scroll-margin-top:\s*64px/s);
 });
