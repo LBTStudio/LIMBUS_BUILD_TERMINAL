@@ -1679,6 +1679,28 @@ async function captureProfile(browser, mode) {
       const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
       await resultsEntry.waitFor({state:"visible",timeout:5000});
       await click(resultsEntry);
+      const queueTrigger=page.locator(".ledger-command-bar button[aria-haspopup='dialog']").first();
+      await queueTrigger.waitFor({state:"visible",timeout:5000});
+      await click(queueTrigger);
+      const queueDrawer=page.locator(".ledger-queue-drawer");
+      await queueDrawer.waitFor({state:"visible",timeout:5000});
+      await snap("ledger-unclassified-drawer","リザルト一覧の途中から開いた未分類オブジェクトパネル");
+      await click(queueDrawer.locator(".ledger-queue-drawer-close"));
+      const assignedResult=page.locator(".ledger-card-wrap").filter({hasText:"UI監査用セッション"}).first();
+      const assignedDetails=assignedResult.locator(".ledger-result-details");
+      await click(assignedDetails.locator("summary").first());
+      const assignedActions=assignedDetails.locator(".ledger-result-object-actions").first();
+      await click(assignedActions.locator("summary").first());
+      const assignedMove=assignedActions.locator(".ledger-row-move-action").first();
+      await assignedMove.waitFor({state:"visible",timeout:5000});
+      await click(assignedMove);
+      const destinationDrawer=page.locator(".ledger-queue-drawer");
+      await destinationDrawer.waitFor({state:"visible",timeout:5000});
+      await destinationDrawer.locator('[aria-label="移動先のリザルトを検索"]').waitFor({state:"visible",timeout:5000});
+      await snap("ledger-entry-destination-search","割り当て済み明細から開いた全リザルト対象の移動先検索");
+      await click(destinationDrawer.locator(".ledger-queue-drawer-close"));
+      const cancelMove=page.locator(".ledger-move-mode button").first();
+      if(await visible(cancelMove)) await click(cancelMove);
       const initialCard=page.locator(".ledger-card-wrap").filter({hasText:"初期作成"}).first();
       await initialCard.waitFor({state:"visible",timeout:5000});
       await click(initialCard.locator(".ledger-card-edit-btn").first());
@@ -1779,6 +1801,9 @@ async function captureProfile(browser, mode) {
       const name="QA報酬アイテム・人格入力テスト";
       const entryCard=page.locator(".ledger-result-entry-card").first();
       if(!(await visible(entryCard))) throw new Error("新規リザルトの入力フォームが表示されていません");
+      const entryToggle=entryCard.locator(".ledger-new-entry-toggle");
+      if(await entryToggle.getAttribute("aria-expanded")!=="true") await click(entryToggle);
+      await entryCard.locator(".ledger-result-entry-body").waitFor({state:"visible",timeout:5000});
       await entryCard.evaluate(el=>{
         el.scrollIntoView({block:"start",inline:"nearest",behavior:"instant"});
         const topbarBottom=document.querySelector(".topbar")?.getBoundingClientRect().bottom??48;
@@ -2436,7 +2461,7 @@ async function main() {
     "記録の取り込みメニュー（3つの入口）",
      "記録・所持品のカテゴリ：リザルト","記録・所持品のカテゴリ：人格","記録・所持品のカテゴリ：E.G.O","記録・所持品のカテゴリ：サポパ","記録・所持品のカテゴリ：精神","記録・所持品のカテゴリ：アイテム",
      "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
-     "初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
+     "未分類オブジェクトのパネルを開いた状態","割り当て済み明細から全リザルトの移動先を検索する状態","初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
      "過去リザルトへ複数取得人格を追加した編集状態","過去リザルトの取得人格・E.G.Oが所持へ反映された状態",
      "新規リザルト記録フォームの基本情報・獲得チケット入力欄",
      "硝子の破片とカタログ外の外付け義体を追加した報酬入力欄","報酬アイテムと報酬人格の履歴・所持在庫が一致した状態",
