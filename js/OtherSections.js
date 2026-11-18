@@ -6729,7 +6729,13 @@ h(Card, { className: "ledger-card" },
                 key: "cancel", type: "button", className: "ledger-card-edit-cancel",
                 title: "変更を破棄", "aria-label": `${result.name} の編集をキャンセル`,
                 onClick: (event) => { event.preventDefault(); event.stopPropagation(); cancelResultEditor(); }
-              }, "取消")
+              }, "取消"),
+              h("button", {
+                key: "delete", type: "button", className: "ledger-card-edit-delete",
+                title: "このリザルトと紐づく明細を削除（Ctrl+Z で取り消せます）",
+                "aria-label": `${result.name} を削除（明細も削除されます）`,
+                onClick: (event) => { event.preventDefault(); event.stopPropagation(); deleteResult(result); }
+              }, "削除")
             ]
           : movingEntry
             ? h("button", {
@@ -6809,14 +6815,6 @@ h(Card, { className: "ledger-card" },
                     )
                   )
                 ),
-              h("div", { className: "ledger-card-edit-danger", role: "group", "aria-label": "このリザルトを削除" },
-                h("button", {
-                  type: "button", className: "ledger-card-edit-delete",
-                  title: "このリザルトと紐づく明細を削除（Ctrl+Z で取り消せます）",
-                  "aria-label": `${result.name} を削除（明細も削除されます）`,
-                  onClick: (event) => { event.preventDefault(); event.stopPropagation(); deleteResult(result); }
-                }, "削除")
-              ),
               ),
               isEditing && isInitialResult && h("div", { className: "ledger-initial-persona-fields stack-2", "aria-label": "初期人格の取得確認" },
                 h("span", { className: "t-label" }, "初期作成 / 最初に得た人格"),

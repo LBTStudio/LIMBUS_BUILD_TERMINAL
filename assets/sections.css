@@ -1681,13 +1681,7 @@
 .ledger-card-edit-btn:disabled { opacity: .5; cursor: not-allowed; }
 .ledger-card-edit-save { border-color: var(--gold-line); background: var(--gold-tint); color: var(--gold-hi); }
 .ledger-card-edit-cancel { background: transparent; }
-/* 削除は編集フッターへ単独で置く。ヘッダの「保存・取消」と同じ行に並べると
-   320px 幅で折り返して危険ボタンが孤立するため。 */
-.ledger-card-edit-danger {
-  display: flex; justify-content: flex-end;
-  padding-top: var(--s-2);
-  border-top: 1px solid var(--line);
-}
+/* 削除は保存・取消と同じヘッダ行（ledger-card-actions）に置く。 */
 .ledger-card-edit-delete {
   background: color-mix(in oklab, var(--err) 8%, var(--surface-2));
   border-color: color-mix(in oklab, var(--err) 46%, var(--line));

@@ -442,19 +442,17 @@ test("リザルト登録情報はカード内で直接編集し、移動先プ�
   assert.match(sections, /"変更を保存"/);
 });
 
-test("リザルト編集の削除は編集フッターに単独で置き、確認つきで明細ごと消える", () => {
-  assert.match(sections, /className: "ledger-card-edit-danger"/);
+test("リザルト編集の削除は保存・取消と同じヘッダ行に置き、確認つきで明細ごと消える", () => {
   assert.match(sections, /className: "ledger-card-edit-delete"/);
-  /* 見た目で「編集の外」に出ないよう、編集中コンテナの内側に置かれていること。
-     静的テキスト上で tickets 欄の後・初期人格欄の前にあることを確認する。 */
-  const ticketsAt = sections.indexOf('className: "ledger-card-edit-tickets"');
-  const dangerAt = sections.indexOf('className: "ledger-card-edit-danger"');
-  const initialAt = sections.indexOf('className: "ledger-initial-persona-fields');
-  assert.ok(ticketsAt >= 0 && dangerAt > ticketsAt && initialAt > dangerAt,
-    "削除ボタンは編集フォーム内（チケット欄と初期人格欄の間）に置く");
+  /* 情報密度のため、保存・取消・削除は同じ ledger-card-actions 行に並べる。 */
+  const actionsAt = sections.indexOf('className: "ledger-card-actions"');
+  const saveAt = sections.indexOf('key: "save"');
+  const cancelAt = sections.indexOf('key: "cancel"');
+  const deleteAt = sections.indexOf('key: "delete"');
+  assert.ok(actionsAt >= 0 && deleteAt > actionsAt && deleteAt > saveAt && deleteAt > cancelAt,
+    "削除ボタンは保存・取消と同じヘッダアクション行に置く");
+  assert.doesNotMatch(sections, /ledger-card-edit-danger/);
   assert.match(sections, /const deleteResult = \(result\) => \{/);
-  /* ヘッダの保存・取消と同じ行に置かない（320px で折り返して危険ボタンが孤立する）。 */
-  assert.doesNotMatch(sections, /key: "delete", type: "button"/);
   assert.match(sections, /const entryCount = \(state\.entries \|\| \[\]\)\.filter\(\(entry\) => entry\.resultId === result\.id\)\.length/);
   assert.match(sections, /if \(!confirm\(`リザルト「\$\{result\.name\}」を削除しますか？/);
   assert.match(sections, /明細 \$\{entryCount\}件も削除されます/);
@@ -466,7 +464,7 @@ test("リザルト編集の削除は編集フッターに単独で置き、確�
   assert.match(sections, /aria-label": `\$\{result\.name\} を削除（明細も削除されます）`/);
   assert.match(reducer, /case "REMOVE_RESULT"[\s\S]{0,600}?entries: \(state\.entries \|\| \[\]\)\.filter\(\(e\) => e\.resultId !== action\.id\)/);
   const css = readFileSync(new URL("../assets/sections.css", import.meta.url), "utf8");
-  assert.match(css, /\.ledger-card-edit-danger\s*\{/);
+  assert.doesNotMatch(css, /\.ledger-card-edit-danger\s*\{/);
   assert.match(css, /\.ledger-card-edit-delete\s*\{/);
   assert.match(css, /\.ledger-card-edit-delete:hover\s*\{/);
   const mobileCss = readFileSync(new URL("../assets/v69-mobile-ui-audit.css", import.meta.url), "utf8");
