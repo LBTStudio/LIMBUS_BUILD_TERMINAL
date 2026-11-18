@@ -4614,21 +4614,23 @@ const DrawLedgerPanel = ({ state }) => {
   const lp = checked.reduce((n, c) => n + sumRecords(c.batch, "lp"), 0);
   const shards = checked.reduce((n, c) => n + sumRecords(c.batch, "shards"), 0);
 
-  return h(Card, { className: "draw-ledger" },
-    h("div", { className: "card-header owned-library-bar" },
-      h("span", { className: "t-label" }, "抽出リスト"),
-      /* 件数は常に書く（0件も0件）。無いことを隠すと、
-         「まだ抽っていない」と「記録が消えた」が同じに見える。 */
-      h("span", { className: "ledger-note" },
+  return h("details", { className: "draw-ledger draw-ledger-disclosure" },
+    h("summary", { className: "draw-ledger-disclosure-summary" },
+      h("span", { className: "draw-ledger-disclosure-title" }, "抽出リスト"),
+      h("span", { className: "draw-ledger-disclosure-status" },
         batches.length === 0
           ? "0件"
-          : `${checked.length}件・${checked.length - broken}件のハッシュ鎖が正常`),
-      /* 受け取った証明画像を照合する入口。検証はこの端末で完結する
-         （相手の環境やサーバーに依存しない）。 */
-      h("label", { className: "btn btn-sm", style: { cursor: "pointer" } },
-        "証明画像を検証",
-        h("input", { type: "file", accept: "image/png", onChange: verifyProofFile, style: { display: "none" } }))),
-    h("div", { className: "card-body stack-2" },
+          : broken === 0
+            ? `${checked.length}件・ハッシュ鎖 全件正常`
+            : `${checked.length}件・要確認 ${broken}件`),
+      h("span", { className: "draw-ledger-disclosure-action" }, "詳細")
+    ),
+    h("div", { className: "draw-ledger-disclosure-content" },
+      h("div", { className: "draw-ledger-disclosure-tools" },
+        h("label", { className: "btn btn-sm", style: { cursor: "pointer" } },
+          "証明画像を検証",
+          h("input", { type: "file", accept: "image/png", onChange: verifyProofFile, style: { display: "none" } }))),
+      h("div", { className: "card-body stack-2" },
       /* 空の理由と次にできることを書く。「まだ無い」だけでは、
          どこで抽するのか分からない。 */
       /* 受け取った証明画像の照合結果。埋め込みデータの一覧を出し、
@@ -4719,6 +4721,7 @@ const DrawLedgerPanel = ({ state }) => {
               h("span", { className: "ledger-note" }, "結果と検証要素（署名・錨）を1枚にまとめます")))
         );
       }))
+    )
   );
 };
 
@@ -6646,11 +6649,6 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     )
     ),
 
-    /* 抽出リスト。ガチャの結果をハッシュ鎖つきで残す場所。
-       通帳（明細）と並べて置くのは、同じ支出の証明に属するから。
-       ただしここでは計算しない。鎖は読み手側で再計算して確かめる。 */
-    h(DrawLedgerPanel, { state }),
-
     /* リザルトカード。ドラッグ先とクリック移動先を同じカードへ統一。 */
     movingEntry && h("div", { className: "ledger-move-mode", role: "status" },
       h("span", null, `「${movingEntry.name}」の移動先を選択中です。対象カードの「ここへ移動」を押してください。`),
@@ -7364,7 +7362,9 @@ h(Card, { className: "ledger-card" },
           onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
         }, "次へ")
       )
-    )
+    ),
+    /* 抽出リストはリザルトを読み終えた後段へ移し、参照を邪魔しないよう折りたたむ。 */
+    h(DrawLedgerPanel, { state })
   );
 };
 
