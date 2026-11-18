@@ -2112,10 +2112,16 @@ async function captureProfile(browser, mode) {
          This makes the 200-row test independent of whichever tab the preceding
          regression happened to leave selected. */
       const openLedgerFromRecordHub = async () => {
-        await go("記録");
         const recordBack = page.locator(".btype-back-link").filter({hasText:"記録・所持品へ戻る"}).first();
+        let resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        /* Prefer the currently visible route. Only navigate to 記録 when neither
+           the hub nor its detail back-link is present. */
         if (await visible(recordBack)) await click(recordBack);
-        const resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        if (!(await visible(resultsEntry))) {
+          await go("記録");
+          if (await visible(recordBack)) await click(recordBack);
+          resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        }
         await resultsEntry.waitFor({state:"visible",timeout:5000});
         await click(resultsEntry);
         const toolbar = page.locator(".ledger-results-toolbar").first();
