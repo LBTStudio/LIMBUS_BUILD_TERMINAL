@@ -1698,6 +1698,24 @@ async function captureProfile(browser, mode) {
       await destinationDrawer.waitFor({state:"visible",timeout:5000});
       await destinationDrawer.locator('[aria-label="移動先のリザルトを検索"]').waitFor({state:"visible",timeout:5000});
       await snap("ledger-entry-destination-search","割り当て済み明細から開いた全リザルト対象の移動先検索");
+      await click(destinationDrawer.locator(".ledger-queue-move-target"));
+      const unclassifiedEntry=destinationDrawer.locator(".ledger-queue-item").filter({hasText:"包帯"}).first();
+      await unclassifiedEntry.waitFor({state:"visible",timeout:5000});
+      await snap("ledger-unclassified-drawer-populated","リザルトから解除した明細が未分類ドロワーへ戻った状態");
+      await click(unclassifiedEntry.getByRole("button",{name:"包帯 の移動先を選択",exact:true}));
+      const reassignmentSearch=destinationDrawer.locator('[aria-label="移動先のリザルトを検索"]');
+      await reassignmentSearch.waitFor({state:"visible",timeout:5000});
+      await reassignmentSearch.fill("UI監査用セッション");
+      const originalDestination=destinationDrawer.locator(".ledger-queue-destination").filter({hasText:"UI監査用セッション"}).first();
+      await originalDestination.waitFor({state:"visible",timeout:5000});
+      await click(originalDestination);
+      const restoredAssignment=await page.evaluate(()=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        return (saved.entries||[]).some(entry=>entry.name==="包帯"&&entry.resultId&&
+          (saved.results||[]).some(result=>result.id===entry.resultId&&result.name==="UI監査用セッション"));
+      });
+      if(!restoredAssignment) throw new Error("未分類から元のリザルトへの再割り当てが保存されません");
+      await snap("ledger-entry-reassigned-from-queue","未分類ドロワーの検索から元のリザルトへ再割り当てした状態");
       await click(destinationDrawer.locator(".ledger-queue-drawer-close"));
       const cancelMove=page.locator(".ledger-move-mode button").first();
       if(await visible(cancelMove)) await click(cancelMove);
@@ -2554,7 +2572,7 @@ async function main() {
     "記録の取り込みメニュー（3つの入口）",
      "記録・所持品のカテゴリ：リザルト","記録・所持品のカテゴリ：人格","記録・所持品のカテゴリ：E.G.O","記録・所持品のカテゴリ：サポパ","記録・所持品のカテゴリ：精神","記録・所持品のカテゴリ：アイテム",
      "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
-     "未分類オブジェクトのパネルを開いた状態","割り当て済み明細から全リザルトの移動先を検索する状態",
+     "未分類オブジェクトのパネルを開いた状態","割り当て済み明細から全リザルトの移動先を検索する状態","未分類へ解除した明細がドロワーに表示された状態","未分類明細を元のリザルトへ再割り当てした状態",
     "200件のリザルトを12件ずつ表示する先頭ページ","200件中の最終ページと末尾8件","200件全体を対象にしたリザルト検索","初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
      "過去リザルトへ複数取得人格を追加した編集状態","過去リザルトの取得人格・E.G.Oが所持へ反映された状態",
      "新規リザルト記録フォームの基本情報・獲得チケット入力欄",
