@@ -1679,6 +1679,48 @@ async function captureProfile(browser, mode) {
       const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
       await resultsEntry.waitFor({state:"visible",timeout:5000});
       await click(resultsEntry);
+      const queueTrigger=page.locator(".ledger-command-bar button[aria-haspopup='dialog']").first();
+      await queueTrigger.waitFor({state:"visible",timeout:5000});
+      await click(queueTrigger);
+      const queueDrawer=page.locator(".ledger-queue-drawer");
+      await queueDrawer.waitFor({state:"visible",timeout:5000});
+      await snap("ledger-unclassified-drawer","リザルト一覧の途中から開いた未分類オブジェクトパネル");
+      await click(queueDrawer.locator(".ledger-queue-drawer-close"));
+      const assignedResult=page.locator(".ledger-card-wrap").filter({hasText:"UI監査用セッション"}).first();
+      const assignedDetails=assignedResult.locator(".ledger-result-details");
+      await click(assignedDetails.locator("summary").first());
+      const assignedActions=assignedDetails.locator(".ledger-result-object-actions").first();
+      await click(assignedActions.locator("summary").first());
+      const assignedMove=assignedActions.locator(".ledger-row-move-action").first();
+      await assignedMove.waitFor({state:"visible",timeout:5000});
+      await click(assignedMove);
+      const destinationDrawer=page.locator(".ledger-queue-drawer");
+      await destinationDrawer.waitFor({state:"visible",timeout:5000});
+      await destinationDrawer.locator('[aria-label="移動先のリザルトを検索"]').waitFor({state:"visible",timeout:5000});
+      await snap("ledger-entry-destination-search","割り当て済み明細から開いた全リザルト対象の移動先検索");
+      await click(destinationDrawer.locator(".ledger-queue-move-target"));
+      const unclassifiedEntry=destinationDrawer.locator(".ledger-queue-item").filter({hasText:"包帯"}).first();
+      await unclassifiedEntry.waitFor({state:"visible",timeout:5000});
+      await snap("ledger-unclassified-drawer-populated","リザルトから解除した明細が未分類ドロワーへ戻った状態");
+      await click(unclassifiedEntry.getByRole("button",{name:"包帯 の移動先を選択",exact:true}));
+      const reassignmentSearch=destinationDrawer.locator('[aria-label="移動先のリザルトを検索"]');
+      await reassignmentSearch.waitFor({state:"visible",timeout:5000});
+      await reassignmentSearch.fill("UI監査用セッション");
+      const originalDestination=destinationDrawer.locator(".ledger-queue-destination").filter({hasText:"UI監査用セッション"}).first();
+      await originalDestination.waitFor({state:"visible",timeout:5000});
+      await click(originalDestination);
+      /* useAppState persists mutations after a 400ms debounce */
+      await page.waitForTimeout(550);
+      const restoredAssignment=await page.evaluate(()=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        return (saved.entries||[]).some(entry=>entry.name==="包帯"&&entry.resultId&&
+          (saved.results||[]).some(result=>result.id===entry.resultId&&result.name==="UI監査用セッション"));
+      });
+      if(!restoredAssignment) throw new Error("未分類から元のリザルトへの再割り当てが保存されません");
+      await snap("ledger-entry-reassigned-from-queue","未分類ドロワーの検索から元のリザルトへ再割り当てした状態");
+      await click(destinationDrawer.locator(".ledger-queue-drawer-close"));
+      const cancelMove=page.locator(".ledger-move-mode button").first();
+      if(await visible(cancelMove)) await click(cancelMove);
       const initialCard=page.locator(".ledger-card-wrap").filter({hasText:"初期作成"}).first();
       await initialCard.waitFor({state:"visible",timeout:5000});
       await click(initialCard.locator(".ledger-card-edit-btn").first());
@@ -1779,6 +1821,9 @@ async function captureProfile(browser, mode) {
       const name="QA報酬アイテム・人格入力テスト";
       const entryCard=page.locator(".ledger-result-entry-card").first();
       if(!(await visible(entryCard))) throw new Error("新規リザルトの入力フォームが表示されていません");
+      const entryToggle=entryCard.locator(".ledger-new-entry-toggle");
+      if(await entryToggle.getAttribute("aria-expanded")!=="true") await click(entryToggle);
+      await entryCard.locator(".ledger-result-entry-body").waitFor({state:"visible",timeout:5000});
       await entryCard.evaluate(el=>{
         el.scrollIntoView({block:"start",inline:"nearest",behavior:"instant"});
         const topbarBottom=document.querySelector(".topbar")?.getBoundingClientRect().bottom??48;
@@ -2052,6 +2097,103 @@ async function captureProfile(browser, mode) {
       },{name,prosthesisId});
       if(!editCheck.rewardItems.some((item)=>item.itemId===prosthesisId)||editCheck.quantity!==1) throw new Error("既存リザルト編集で標準アイテム報酬が在庫へ反映されません: "+JSON.stringify(editCheck));
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
+    });
+    await attempt("record-200-result-pagination",async()=>{
+      /* The preceding reward regression can leave the ledger view open. Reuse
+         that view instead of looking for the task-card entry a second time. */
+      let ledgerToolbar=page.locator(".ledger-results-toolbar").first();
+      if(!(await visible(ledgerToolbar))){
+        await go("記録");
+        const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        await resultsEntry.waitFor({state:"visible",timeout:5000});
+        await click(resultsEntry);
+        ledgerToolbar=page.locator(".ledger-results-toolbar").first();
+        await ledgerToolbar.waitFor({state:"visible",timeout:5000});
+      }
+      const originalState=await page.evaluate(()=>{
+        const current=window.LBT_accounts?.loadActive?.();
+        if(!current||!Array.isArray(current.results)) return null;
+        const original=JSON.parse(JSON.stringify(current));
+        const template=current.results[0]||{
+          income:{lp:0,shards:0,tickets:{}},personaAcquisitions:[],egoAcquisitions:[],rewardItems:[],consumedItems:[]
+        };
+        const baseResults=current.results.slice(0,199);
+        const extraCount=Math.max(0,199-baseResults.length);
+        const extras=Array.from({length:extraCount},(_,i)=>({
+          ...template,
+          id:"ui-audit-long-result-"+String(i+1).padStart(3,"0"),
+          name:"QA長期リザルト "+String(i+1).padStart(3,"0"),
+          date:"2026-11-18",
+          income:{...(template.income||{}),lp:0,shards:0,tickets:{...(template.income?.tickets||{}),persona:0,ego:0,choice:0,pack:{}}},
+          initialPersona:null,
+          personaAcquisitions:[],
+          egoAcquisitions:[],
+          rewardItems:[],
+          consumedItems:[]
+        }));
+        const finalResult={
+          ...template,
+          id:"ui-audit-long-result-200",
+          name:"QA長期リザルト 200",
+          date:"2026-11-18",
+          income:{...(template.income||{}),lp:0,shards:0,tickets:{...(template.income?.tickets||{}),persona:0,ego:0,choice:0,pack:{}}},
+          initialPersona:null,
+          personaAcquisitions:[],
+          egoAcquisitions:[],
+          rewardItems:[],
+          consumedItems:[]
+        };
+        const next={...current,results:[...baseResults,...extras,finalResult]};
+        if(next.results.length!==200) throw new Error("200件の試験リザルトを作成できません: "+next.results.length);
+        if(window.LBT_accounts.saveActive(next)!==true) throw new Error("200件の試験リザルトを保存できません");
+        return {state:original,searchName:finalResult.name};
+      });
+      if(!originalState?.state || !originalState?.searchName) throw new Error("試験用アカウントの保存データを取得できません");
+      try {
+        await page.reload({waitUntil:"domcontentloaded"});
+        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+        let toolbar=page.locator(".ledger-results-toolbar").first();
+        if(!(await visible(toolbar))){
+          await go("記録");
+          const resultsEntryAfterReload=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+          await resultsEntryAfterReload.waitFor({state:"visible",timeout:5000});
+          await click(resultsEntryAfterReload);
+          toolbar=page.locator(".ledger-results-toolbar").first();
+          await toolbar.waitFor({state:"visible",timeout:5000});
+        }
+        const pageNumber=toolbar.locator(".ledger-results-page-number").first();
+        const countText=await toolbar.locator(".ledger-results-count").innerText();
+        const firstPage=await pageNumber.innerText();
+        const firstPageCards=await page.locator(".ledger-card-wrap").count();
+        if(!/200\s*\/\s*200\s*件/.test(countText)||firstPage.trim()!=="1 / 17"||firstPageCards!==12) {
+          throw new Error("200件の先頭ページが12件ずつ表示されません: "+JSON.stringify({countText,firstPage,firstPageCards}));
+        }
+        await snap("ledger-200-results-first-page","200件のリザルトを12件ずつ表示する先頭ページ");
+        await click(toolbar.getByRole("button",{name:"最後のページ",exact:true}));
+        const lastPage=await pageNumber.innerText();
+        const lastPageCards=await page.locator(".ledger-card-wrap").count();
+        if(lastPage.trim()!=="17 / 17"||lastPageCards!==8) {
+          throw new Error("200件の最終ページへ移動できません: "+JSON.stringify({lastPage,lastPageCards}));
+        }
+        await snap("ledger-200-results-last-page","200件中の最終ページと末尾8件");
+        const search=toolbar.locator('[aria-label="リザルトを検索"]');
+        await search.fill(originalState.searchName);
+        await page.waitForTimeout(180);
+        const searchCount=await toolbar.locator(".ledger-results-count").innerText();
+        const searchPage=await pageNumber.innerText();
+        const searchCards=await page.locator(".ledger-card-wrap").count();
+        if(!/1\s*\/\s*200\s*件/.test(searchCount)||searchPage.trim()!=="1 / 1"||searchCards!==1) {
+          throw new Error("200件全体からのリザルト検索が一致しません: "+JSON.stringify({searchCount,searchPage,searchCards}));
+        }
+        await snap("ledger-200-results-search","200件全体を対象にしたリザルト検索");
+      } finally {
+        await page.evaluate((saved)=>{
+          if(window.LBT_accounts?.saveActive?.(saved)!==true) throw new Error("監査用リザルトデータを復元できません");
+        },originalState.state);
+        await page.reload({waitUntil:"domcontentloaded"});
+        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+        await go("記録");
+      }
     });
     await attempt("home-launcher-review",async()=>{
       await closeOverlay();
@@ -2428,7 +2570,7 @@ async function main() {
   audit.overlayAccessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
   audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states",
     "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes, with loaded primary and face images in image settings","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation",
-    "new result entry labels, resource inputs and reward-ticket layout at every viewport","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
+    "new result entry labels, resource inputs and reward-ticket layout at every viewport","200-result pagination, last-page navigation and global search at every viewport","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "基本画面のステータス（ST）編集パネル","基本画面のラベル（パラメータ）編集パネル","駒の画像設定：基本画像と差分画像を読み込み、固定ナビに隠れず表示","初期状態から立ち絵プレビューを展開","駒画像プレビューを折りたたみ、作業スペースを広げた状態","立ち絵を拡大し、ドラッグで表示位置を調整した状態","共通プレビュー：CCFOLIA盤面","共通プレビュー：CCFOLIAキャラクター編集画面","共通プレビュー：実際のCCFOLIA出力JSON",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
@@ -2436,7 +2578,8 @@ async function main() {
     "記録の取り込みメニュー（3つの入口）",
      "記録・所持品のカテゴリ：リザルト","記録・所持品のカテゴリ：人格","記録・所持品のカテゴリ：E.G.O","記録・所持品のカテゴリ：サポパ","記録・所持品のカテゴリ：精神","記録・所持品のカテゴリ：アイテム",
      "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
-     "初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
+     "未分類オブジェクトのパネルを開いた状態","割り当て済み明細から全リザルトの移動先を検索する状態","未分類へ解除した明細がドロワーに表示された状態","未分類明細を元のリザルトへ再割り当てした状態",
+    "200件のリザルトを12件ずつ表示する先頭ページ","200件中の最終ページと末尾8件","200件全体を対象にしたリザルト検索","初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
      "過去リザルトへ複数取得人格を追加した編集状態","過去リザルトの取得人格・E.G.Oが所持へ反映された状態",
      "新規リザルト記録フォームの基本情報・獲得チケット入力欄",
      "硝子の破片とカタログ外の外付け義体を追加した報酬入力欄","報酬アイテムと報酬人格の履歴・所持在庫が一致した状態",

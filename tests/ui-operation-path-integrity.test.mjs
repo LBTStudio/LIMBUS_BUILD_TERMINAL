@@ -111,7 +111,7 @@ test("リザルト収入は非負整数として検証し、報酬入力の後�
   assert.match(add, /lp: incomeLp,[\s\S]{0,60}shards: incomeShards/);
 
   const formStart = sections.indexOf('"リザルトを記録"');
-  const formEnd = sections.indexOf("importPanel && h", formStart);
+  const formEnd = sections.indexOf('h("div", { className: "ledger-cards" }', formStart);
   const form = sections.slice(formStart, formEnd);
   const saveAt = form.indexOf("onClick: addResult");
   assert.ok(saveAt > form.indexOf("報酬人格"), "報酬人格入力の後に確定ボタンを置く");

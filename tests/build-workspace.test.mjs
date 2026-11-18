@@ -1453,3 +1453,82 @@ test("右側プレビューはデスクトップで初期表示し、小画面�
   assert.match(state, /未設定時はデスクトップで表示、小画面では折り畳み/);
   assert.doesNotMatch(app, /previewOpen[^\n]*!isNarrow/);
 });
+
+test("リザルト一覧を優先し、抽出リストは後段の折りたたみ領域に置く", () => {
+  const resultSections = read("../js/OtherSections.js");
+  const resultCss = read("../assets/v67-persona-redesign.css");
+  const ledgerStart = resultSections.indexOf("const LedgerPanel =");
+  const toolbar = resultSections.indexOf('className: "ledger-results-toolbar"', ledgerStart);
+  const pagination = resultSections.indexOf('className: "ledger-results-pagination"', ledgerStart);
+  const drawCall = resultSections.indexOf('h(DrawLedgerPanel, { state })', ledgerStart);
+  assert.ok(ledgerStart >= 0 && toolbar > ledgerStart, "リザルト一覧のツールバーがある");
+  assert.ok(pagination > toolbar, "一覧のページ送りがある");
+  assert.ok(drawCall > pagination, "抽出リストがリザルト一覧・ページ送りより後にある");
+  const drawStart = resultSections.indexOf("const DrawLedgerPanel =");
+  const drawEnd = resultSections.indexOf("/* バッチの支出合計", drawStart);
+  const drawSource = resultSections.slice(drawStart, drawEnd);
+  assert.match(drawSource, /return h\("details", \{[^}]*className: "draw-ledger draw-ledger-disclosure"/);
+  assert.match(drawSource, /h\("summary", \{ className: "draw-ledger-disclosure-summary" \}/);
+  assert.match(drawSource, /draw-ledger-disclosure-status/);
+  assert.doesNotMatch(drawSource, /open\s*:\s*true/);
+  assert.match(resultCss, /\.draw-ledger-disclosure-summary\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(resultCss, /\.draw-ledger-disclosure-summary:focus-visible/);
+});
+
+test("通帳は長大なリザルト一覧から未分類移動・ページ操作へ戻らずアクセスできる", () => {
+  const sections = read("../js/OtherSections.js");
+  const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  assert.match(sections, /className: "ledger-command-bar"/);
+  assert.match(sections, /"aria-haspopup": "dialog"/);
+  assert.match(sections, /className: "ledger-queue-drawer"/);
+  assert.match(sections, /role: "dialog"/);
+  assert.match(sections, /const moveDestinationMatches = allSortedResults\.filter/);
+  assert.match(sections, /className: "ledger-results-toolbar-pages"/);
+  assert.match(sections, /onClick: \(\) => setResultPage\(resultPageCount - 1\)/);
+  const entry = sections.indexOf('className: "ledger-result-entry-card" +');
+  const cards = sections.indexOf('className: "ledger-cards"');
+  const toolbar = sections.indexOf('className: "ledger-results-toolbar", id: "ledger-results-section"');
+  assert.ok(entry < toolbar && toolbar < cards, "新規記録フォームの後ろ、リザルトカードの直前に検索・ページ送りを置く");
+  assert.ok(sections.indexOf('className: "ledger-result-entry-card" +') < sections.indexOf('className: "ledger-cards"'), "新規記録を展開しても一覧末尾までスクロールせず使える");
+  assert.match(sections, /newResultEntryOpen \? " is-open" : ""/);
+  assert.match(sections, /className: "ledger-manual-expense-disclosure"/);
+  assert.doesNotMatch(sections, /className: "ledger-queue"/);
+  assert.match(workbenchCss, /\.ledger-cards\s*\{[^}]*grid-template-columns:\s*minmax\(0,1fr\)/s);
+  assert.match(workbenchCss, /\.ledger-command-bar\s*\{[^}]*position:\s*sticky/s);
+  assert.match(workbenchCss, /\.ledger-results-toolbar\s*\{[^}]*position:\s*sticky/s);
+  assert.match(workbenchCss, /\.ledger-queue-overlay\s*\{[^}]*position:\s*fixed/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-queue-drawer\s*\{[^}]*height:\s*min\(78dvh/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*display:\s*grid[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[\s\S]*?overflow:\s*visible/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-action\s*\{[^}]*min-height:\s*40px/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(108px,\s*124px\)/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar-pages\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
+});
+
+test("スマートフォンの記録画面では新規入力欄の後ろに検索・ページ送りを配置する", () => {
+  const sections = read("../js/OtherSections.js");
+  const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  const entry = sections.indexOf('className: "ledger-result-entry-card" +');
+  const toolbar = sections.indexOf('className: "ledger-results-toolbar", id: "ledger-results-section"');
+  const cards = sections.indexOf('className: "ledger-cards"');
+  assert.ok(entry < toolbar && toolbar < cards, "入力フォームに検索バーが重ならない順序");
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*position:\s*static/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*top:\s*54px/s);
+});
+
+test("320px幅の新規リザルト見出しは一段で表示し、操作ボタンを二列に分ける", () => {
+  const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  assert.ok(workbenchCss.includes("@media (max-width: 360px)"));
+  assert.ok(workbenchCss.includes(".ledger-result-entry-card-head {"));
+  assert.ok(workbenchCss.includes("grid-template-columns: repeat(2, minmax(0, 1fr));"));
+  assert.ok(workbenchCss.includes(".ledger-result-entry-card-head > .t-label"));
+  assert.ok(workbenchCss.includes("grid-column: 1 / -1;"));
+  assert.ok(workbenchCss.includes(".ledger-result-entry-card-head .ledger-new-entry-toggle"));
+});
+
+test("タブレット幅では記録操作バーが入力進捗ナビに重ならない", () => {
+  const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  assert.ok(workbenchCss.includes("@media (min-width: 561px) and (max-width: 1100px)"));
+  const tabletRule = workbenchCss.slice(workbenchCss.indexOf("@media (min-width: 561px) and (max-width: 1100px)"));
+  assert.match(tabletRule, /\.ledger-command-bar\s*\{[^}]*position:\s*static/s);
+  assert.match(tabletRule, /\.ledger-command-bar\s*\{[^}]*top:\s*auto/s);
+});

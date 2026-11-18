@@ -4614,21 +4614,23 @@ const DrawLedgerPanel = ({ state }) => {
   const lp = checked.reduce((n, c) => n + sumRecords(c.batch, "lp"), 0);
   const shards = checked.reduce((n, c) => n + sumRecords(c.batch, "shards"), 0);
 
-  return h(Card, { className: "draw-ledger" },
-    h("div", { className: "card-header owned-library-bar" },
-      h("span", { className: "t-label" }, "抽出リスト"),
-      /* 件数は常に書く（0件も0件）。無いことを隠すと、
-         「まだ抽っていない」と「記録が消えた」が同じに見える。 */
-      h("span", { className: "ledger-note" },
+  return h("details", { id: "ledger-draw-ledger", className: "draw-ledger draw-ledger-disclosure" },
+    h("summary", { className: "draw-ledger-disclosure-summary" },
+      h("span", { className: "draw-ledger-disclosure-title" }, "抽出リスト"),
+      h("span", { className: "draw-ledger-disclosure-status" },
         batches.length === 0
           ? "0件"
-          : `${checked.length}件・${checked.length - broken}件のハッシュ鎖が正常`),
-      /* 受け取った証明画像を照合する入口。検証はこの端末で完結する
-         （相手の環境やサーバーに依存しない）。 */
-      h("label", { className: "btn btn-sm", style: { cursor: "pointer" } },
-        "証明画像を検証",
-        h("input", { type: "file", accept: "image/png", onChange: verifyProofFile, style: { display: "none" } }))),
-    h("div", { className: "card-body stack-2" },
+          : broken === 0
+            ? `${checked.length}件・ハッシュ鎖 全件正常`
+            : `${checked.length}件・要確認 ${broken}件`),
+      h("span", { className: "draw-ledger-disclosure-action" }, "詳細")
+    ),
+    h("div", { className: "draw-ledger-disclosure-content" },
+      h("div", { className: "draw-ledger-disclosure-tools" },
+        h("label", { className: "btn btn-sm", style: { cursor: "pointer" } },
+          "証明画像を検証",
+          h("input", { type: "file", accept: "image/png", onChange: verifyProofFile, style: { display: "none" } }))),
+      h("div", { className: "card-body stack-2" },
       /* 空の理由と次にできることを書く。「まだ無い」だけでは、
          どこで抽するのか分からない。 */
       /* 受け取った証明画像の照合結果。埋め込みデータの一覧を出し、
@@ -4719,6 +4721,7 @@ const DrawLedgerPanel = ({ state }) => {
               h("span", { className: "ledger-note" }, "結果と検証要素（署名・錨）を1枚にまとめます")))
         );
       }))
+    )
   );
 };
 
@@ -4741,6 +4744,17 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
   const [movingEntryId, setMovingEntryId] = React.useState(null);
+  const [queueOpen, setQueueOpen] = React.useState(false);
+  const [queueSearch, setQueueSearch] = React.useState("");
+  const [moveDestinationQuery, setMoveDestinationQuery] = React.useState("");
+  React.useEffect(() => {
+    if (!queueOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setQueueOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [queueOpen]);
   const rewardItemCatalog = React.useMemo(() => {
     const source = [
       ...(window.DB?.items || []),
@@ -4752,6 +4766,7 @@ const LedgerPanel = ({ state, dispatch }) => {
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
+  const [newResultEntryOpen, setNewResultEntryOpen] = React.useState(false);
   const [newResultError, setNewResultError] = React.useState("");
   const [activeNewResultStage, setActiveNewResultStage] = React.useState("session");
   const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
@@ -5265,7 +5280,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     ].map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
     return searchable.includes(searchNeedle);
   });
-  const sortedResults = [...matchingResults].sort((a, b) => {
+  const compareResults = (a, b) => {
     if (resultSort === "name") return String(a.name || "").localeCompare(String(b.name || ""), "ja");
     const stamp = (result) => {
       const parsed = Date.parse(String(result.date || "") + "T00:00:00Z");
@@ -5275,7 +5290,9 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     if (difference) return resultSort === "oldest" ? difference : -difference;
     const createdDifference = (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0);
     return resultSort === "oldest" ? createdDifference : -createdDifference;
-  });
+  };
+  const sortedResults = [...matchingResults].sort(compareResults);
+  const allSortedResults = [...results].sort(compareResults);
   const resultPageCount = Math.max(1, Math.ceil(sortedResults.length / RESULTS_PAGE_SIZE));
   const safeResultPage = Math.min(resultPage, resultPageCount - 1);
   const pageResults = sortedResults.slice(
@@ -5293,8 +5310,15 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const unclassified = entries.filter((e) => !e.resultId);
   const movingEntry = movingEntryId ? entries.find((entry) => entry.id === movingEntryId) || null : null;
 
-  /* リザルトごとの明細と支出合計。導出なので保存しない。 */
-  const byResult = (id) => entries.filter((e) => e.resultId === id);
+  /* 明細はリザルト別に一度だけ束ね、カードごとの全件filterを避ける。 */
+  const entriesByResult = new Map();
+  for (const entry of entries) {
+    if (!entry.resultId) continue;
+    const group = entriesByResult.get(entry.resultId) || [];
+    group.push(entry);
+    entriesByResult.set(entry.resultId, group);
+  }
+  const byResult = (id) => entriesByResult.get(id) || [];
   const sumOf = (list) => list.reduce(
     (acc, e) => ({ lp: acc.lp + (Number(e?.cost?.lp) || 0), shards: acc.shards + (Number(e?.cost?.shards) || 0) }),
     { lp: 0, shards: 0 }
@@ -5305,6 +5329,20 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     const hit = (window.LBT_LEDGER_ENTRY_KINDS || []).find((k) => k.id === id);
     return hit ? hit.label : id || "その他";
   };
+  const normalizeQueueText = (value) => String(value || "").normalize("NFKC")
+    .replace(/[\\s\\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
+  const queueNeedle = normalizeQueueText(queueSearch);
+  const queueFilteredEntries = unclassified.filter((entry) => {
+    if (!queueNeedle) return true;
+    return normalizeQueueText([
+      entry.name, kindLabel(entry.kind), entry.cost?.lp, entry.cost?.shards
+    ].join(" ")).includes(queueNeedle);
+  });
+  const destinationNeedle = normalizeQueueText(moveDestinationQuery);
+  const moveDestinationMatches = allSortedResults.filter((result) => {
+    if (!destinationNeedle) return true;
+    return normalizeQueueText([result.name, result.date].join(" ")).includes(destinationNeedle);
+  });
   /* 帰属の移動。ドラッグ中のIDは state と dataTransfer の両方に持たせる。
      state だけだと、ドラッグ中に再レンダーが入ったときに古い値を参照して
      drop が無音で失敗する。dataTransfer はドラッグ操作そのものが持つ値なので、
@@ -5321,14 +5359,20 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     setDragId(null);
     setOverId(null);
     setMovingEntryId(null);
+    setMoveDestinationQuery("");
   };
-  /* ドラッグが難しいタッチ環境／キーボード向け。明細を選んでから移動先カードを押す。 */
+  /* タッチ・キーボードでは、移動先カードを探さずドロワーから選ぶ。 */
   const startMoveEntry = (entry) => {
     setDragId(null);
     setOverId(null);
     setMovingEntryId((current) => current === entry.id ? null : entry.id);
+    setMoveDestinationQuery("");
+    setQueueOpen(true);
   };
-  const cancelMoveEntry = () => setMovingEntryId(null);
+  const cancelMoveEntry = () => {
+    setMovingEntryId(null);
+    setMoveDestinationQuery("");
+  };
   /* 行のドラッグ属性。未分類とリザルトで同じものを使う。 */
 const dragProps = (entry) => ({
   draggable: true,
@@ -5493,6 +5537,7 @@ const readDragId = (event) => {
     setNewRewardItemName("");
     setNewRewardItemQty("1");
     setResultPage(0);
+    setNewResultEntryOpen(false);
   };
 
 /* 硝子窓の読み込み結果をアカウント全体へ入れる。
@@ -5917,14 +5962,23 @@ const importHeldPersonas = () => {
     { id: "confirm", number: "04", title: "確認・記録", note: newResult.name.trim() ? "記録内容を確認" : "名称入力後に記録" }
   ];
   const jumpToNewResultStage = (stage) => {
+    setNewResultEntryOpen(true);
     setActiveNewResultStage(stage);
     if (stage === "rewards") {
       const disclosure = document.querySelector(".ledger-result-reward-disclosure");
       if (disclosure) disclosure.open = true;
     }
-    const target = document.getElementById("ledger-result-stage-" + stage);
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    target?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+    requestAnimationFrame(() => document.getElementById("ledger-result-stage-" + stage)
+      ?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" }));
+  };
+  const jumpToLedgerSection = (id) => {
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  };
+  const openNewResultForm = () => {
+    setNewResultEntryOpen(true);
+    requestAnimationFrame(() => jumpToLedgerSection("ledger-new-result-entry"));
   };
 
   /* --- 描画 ------------------------------------------------------------- */
@@ -5948,55 +6002,160 @@ const importHeldPersonas = () => {
       )
     ),
 
-    personaAudit && h("details", { className: "ledger-persona-audit-disclosure" },
-      h("summary", null,
-        h("span", null, "PERSONA AUDIT / 人格取得の照合"),
-        h("span", { className: "ledger-note" }, "不足 " + personaAudit.missing.length + " 件 · 未記録 " + personaAudit.unrecorded.length + " 件")
+    h("nav", { className: "ledger-command-bar", "aria-label": "記録のクイック操作" },
+      h("button", {
+        type: "button", className: "ledger-command-action is-queue",
+        "aria-haspopup": "dialog", "aria-expanded": queueOpen,
+        onClick: () => setQueueOpen(true)
+      },
+        h("span", null, "未分類"), h("b", null, unclassified.length)
       ),
-      h(Card, { className: "ledger-persona-audit-card" },
-      h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "PERSONA AUDIT / 人格照合"),
-        h("span", { className: "ledger-note" }, "取得記録と現在所持を比較。所持・収支は自動変更しません。")
+      h("button", { type: "button", className: "ledger-command-action", onClick: openNewResultForm },
+        h("span", null, "新規記録"), h("b", null, "＋")
       ),
-      h("div", { className: "card-body stack-2" },
-        h("div", { className: "ledger-balance-sub" },
-          "取得記録の人格 ", h("b", { className: "ledger-stat" }, String(personaAudit.expectedCount)),
-          " 件 / 現在所持 ", h("b", { className: "ledger-stat" }, String(personaAudit.actualCount)),
-          " 件 / 一致 ", h("b", { className: "ledger-stat" }, String(personaAudit.matchedCount)), " 件"
-        ),
-        !personaAudit.initialConfigured && h("div", { className: "ledger-held-result", role: "status" },
-          h("p", { className: "ledger-note" }, personaAudit.initialNeedsPersona
-            ? "初期作成の入手方法は記録されていますが、最初に得た人格が未選択です。初期作成リザルトの「編集」から選択してください。"
-            : "初期作成で「指定購入」か「ランダム抽出」か、最初に得た人格がまだ確定していません。初期作成リザルトの「編集」から記録できます。")
-        ),
-        personaAudit.initialConfigured && h("p", { className: "ledger-note" },
-          "初期人格：", personaAudit.initialPersona?.name || ("No." + personaAudit.initialPersona?.no),
-          "（", personaAudit.initialMethod === "selected" ? "指定購入（選択）" : "ランダム抽出", "）"
-        ),
-        personaAudit.missing.length > 0
-          ? h("div", { className: "ledger-held-result", role: "alert" },
-              h("p", { className: "ledger-note" }, "取得記録にはあるのに現在所持にない人格が " + personaAudit.missing.length + " 件あります。所持削除・登録漏れ・取得記録の誤りを確認してください。"),
-              h("ul", { className: "ledger-warn-list" }, personaAudit.missing.map((entry) => h("li", { key: entry.mode + ":" + entry.no }, entry.name + "（" + entry.mode.toUpperCase() + " No." + entry.no + "） — 記録：" + entry.sources.join(" / ")))
-            ))
-          : personaAudit.initialConfigured ? h("p", { className: "ledger-note" }, "記録済みの取得人格は、現在所持の範囲で欠落していません。") : null,
-        personaAudit.unrecorded.length > 0 && h("details", { className: "ledger-held-result" },
-          h("summary", null, "取得記録に紐づかない現在所持 " + personaAudit.unrecorded.length + " 件"),
-          h("p", { className: "ledger-note" }, "過去の取得履歴が未記録、旧データ由来、または別経路の入手である可能性があります。これだけで所持ミスとは断定しません。"),
-          h("ul", { className: "ledger-warn-list" }, personaAudit.unrecorded.map((entry) => h("li", { key: entry.mode + ":" + entry.no }, entry.name + "（" + entry.mode.toUpperCase() + " No." + entry.no + "）")))
-        ),
-        (personaAudit.unresolvedEvidence > 0 || personaAudit.unresolvedDraws > 0) && h("p", { className: "ledger-note", role: "status" },
-          "未照合の取得証跡 " + personaAudit.unresolvedEvidence + " 件 / 抽選の適用状態または取得品を確定できない記録 " + personaAudit.unresolvedDraws + " 件があります。自動で人格を推測していません。"
-        )
-      )
+      h("button", { type: "button", className: "ledger-command-action", onClick: () => jumpToLedgerSection("ledger-results-section") },
+        h("span", null, "リザルト"), h("b", null, results.length)
+      ),
+      h("button", { type: "button", className: "ledger-command-action", onClick: () => jumpToLedgerSection("ledger-draw-ledger") },
+        h("span", null, "抽出履歴"), h("b", null, "›")
       )
     ),
-
+    queueOpen && h("div", {
+      className: "ledger-queue-overlay",
+      onClick: () => setQueueOpen(false)
+    },
+      h("aside", {
+        className: "ledger-queue-drawer",
+        role: "dialog",
+        "aria-modal": true,
+        "aria-labelledby": "ledger-queue-drawer-title",
+        onClick: (event) => event.stopPropagation(),
+        onKeyDown: (event) => {
+          if (event.key === "Escape") { setQueueOpen(false); return; }
+          if (event.key !== "Tab") return;
+          const focusable = [...event.currentTarget.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])")];
+          if (!focusable.length) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        },
+        ...dropTargetProps("__queue")
+      },
+        h("div", { className: "ledger-queue-drawer-head" },
+          h("div", { className: "ledger-queue-drawer-title-wrap" },
+            h("strong", { id: "ledger-queue-drawer-title" }, "未分類オブジェクト"),
+            h("span", { className: "ledger-queue-drawer-count" }, unclassified.length + "件")
+          ),
+          h("button", {
+            type: "button", className: "ledger-queue-drawer-close", autoFocus: true,
+            "aria-label": "未分類パネルを閉じる",
+            onClick: () => setQueueOpen(false)
+          }, "閉じる")
+        ),
+        movingEntry && h("section", { className: "ledger-queue-transfer", "aria-label": "明細の移動先" },
+          h("div", { className: "ledger-queue-transfer-head" },
+            h("span", { className: "t-label" }, "移動対象"),
+            h("strong", null, movingEntry.name)
+          ),
+          h("div", { className: "ledger-queue-destination-picker" },
+            h("p", { className: "ledger-queue-current-owner" },
+              "現在の帰属：",
+              movingEntry.resultId
+                ? (results.find((result) => result.id === movingEntry.resultId)?.name || "名称未設定")
+                : "未分類"
+            ),
+            h("label", { className: "ledger-queue-search-label" },
+              h("span", null, "移動先のリザルトを検索"),
+              h("input", {
+                type: "search", className: "ledger-queue-search",
+                placeholder: "リザルト名・日付で検索",
+                value: moveDestinationQuery,
+                "aria-label": "移動先のリザルトを検索",
+                onChange: (event) => setMoveDestinationQuery(event.target.value)
+              })
+            ),
+            h("div", { className: "ledger-queue-destination-list" },
+              moveDestinationMatches
+                .filter((result) => result.id !== movingEntry.resultId)
+                .map((result) => h("button", {
+                  key: result.id, type: "button", className: "ledger-queue-destination",
+                  onClick: () => moveEntry(movingEntry.id, result.id)
+                },
+                  h("span", null, result.name || "名称未設定"),
+                  h("small", null, result.date || "日付なし")
+                )),
+              moveDestinationMatches.filter((result) => result.id !== movingEntry.resultId).length === 0
+                && h("p", { className: "ledger-empty-note" }, "一致する移動先がありません。検索語を変えてください。")
+            ),
+            movingEntry.resultId && h("button", {
+              type: "button", className: "ledger-queue-move-target",
+              onClick: () => moveEntry(movingEntry.id, null)
+            }, "未分類へ戻す")
+          ),
+          h("button", {
+            type: "button", className: "ledger-queue-transfer-cancel",
+            onClick: cancelMoveEntry
+          }, "移動をやめる")
+        ),
+        h("label", { className: "ledger-queue-search-label ledger-queue-filter" },
+          h("span", null, "未分類の明細を絞り込む"),
+          h("input", {
+            type: "search", className: "ledger-queue-search",
+            placeholder: "オブジェクト名・種別で検索",
+            value: queueSearch,
+            "aria-label": "未分類オブジェクトを検索",
+            onChange: (event) => setQueueSearch(event.target.value)
+          })
+        ),
+        h("div", { className: "ledger-queue-drawer-list" },
+          unclassified.length === 0
+            ? h("p", { className: "ledger-empty-note" }, "未分類はありません。リザルトの明細から「解除」するとここへ戻ります。")
+            : queueFilteredEntries.length === 0
+              ? h("p", { className: "ledger-empty-note" }, "検索に一致する未分類明細がありません。")
+              : queueFilteredEntries.map((entry) => h("div", {
+                  key: entry.id, className: "ledger-queue-item", ...dragProps(entry)
+                },
+                  h("div", { className: "ledger-queue-item-main" },
+                    h("strong", null, entry.name),
+                    h("span", null,
+                      kindLabel(entry.kind) + " · " +
+                      (entry.cost && entry.cost.lp ? entry.cost.lp + " LP"
+                        : entry.cost && entry.cost.shards ? entry.cost.shards + " 欠片" : "費用なし"))
+                  ),
+                  h("div", { className: "ledger-queue-item-actions" },
+                    h("button", {
+                      type: "button", className: "ledger-queue-item-move",
+                      "aria-label": entry.name + " の移動先を選択",
+                      onClick: () => startMoveEntry(entry)
+                    }, movingEntryId === entry.id ? "移動先を選択中" : "移動先"),
+                    h("button", {
+                      type: "button", className: "ledger-queue-item-delete",
+                      "aria-label": entry.name + " を削除",
+                      onClick: () => {
+                        if (movingEntryId === entry.id) cancelMoveEntry();
+                        dispatch({ type: "PURGE_ENTRY", id: entry.id });
+                      }
+                    }, "削除")
+                  )
+                ))
+        )
+      )
+    ),
     /* リザルトの追加。
        取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
        開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
-    h(Card, { className: "ledger-result-entry-card" },
+    h(Card, {
+      className: "ledger-result-entry-card" + (newResultEntryOpen ? " is-open" : ""),
+      id: "ledger-new-result-entry"
+    },
       h("div", { className: "card-header ledger-result-entry-card-head" },
         h("span", { className: "t-label" }, "リザルトを記録"),
+        h(Button, {
+          size: "sm", variant: "secondary", className: "ledger-new-entry-toggle",
+          "aria-expanded": newResultEntryOpen,
+          onClick: () => setNewResultEntryOpen((open) => !open)
+        }, newResultEntryOpen ? "入力を閉じる" : "新規入力"),
         /* 取り込みの入口。3つを畳んで隠す。
            heldOpen は既存の人格リスト自身の開閉なので使わない。 */
         h(Button, {
@@ -6249,419 +6408,12 @@ const importHeldPersonas = () => {
       )
     ),
 
-    importPanel && h("div", { id: "ledger-glass-import-panel", role: "region", "aria-label": "硝子窓から一括取り込む", className: "ledger-gara-wrap" },
-    h("div", { className: "card-header owned-library-bar" },
-    h("span", { className: "t-label" }, "硝子窓から一括取り込む"),
-    h("span", { className: "ledger-note" }, "共有URLからシナリオをまとめて読み取り、リザルトを複数一括で作ります。1件ごとではなく全体へ反映します"),
-    h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setImportPanel(false) }, "閉じる")
-    ),
-    typeof window.GarasumadoImportPanel === "function"
-    ? h(window.GarasumadoImportPanel, {
-      onClose: () => setImportPanel(false),
-      /* 取込済み共有IDを判定して、同じ人格を再取り込み候補に出さない。 */
-      existingPersonas: state.roster?.personas || [],
-      /* 確定結果は画面に出るので、ここでは閉じない（閉じるのは確定結果の「閉じる」）。 */
-      onApply: (applied) => applyGarasumadoImport(applied)
-    })
-    : h("p", { className: "ledger-note" }, "取り込み画面が読み込まれていません。ページを再読み込みしてください。")
-    ),
-
-    /* テキスト流し込み。貼り付けた直後に「何ことになるか」を見せる。
-       読めなかった行は黙って落とさず、理由ごと一覧に出す。
-       決定できない金額は既定で入れず、外す判断は利用者に返す。 */
-    textPanel && h("div", { id: "ledger-text-import-panel", role: "region", "aria-label": "テキスト流し込み", className: "ledger-gara-wrap" },
-      h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "テキスト流し込み"),
-        h("span", { className: "ledger-note" }, "【シナリオ名】と 報酬｜購入｜追加購入｜ の行を貼り付けると、リザルトと支出の提案になります。入れる前に内容を確認できます"),
-        h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setTextPanel(false) }, "閉じる")
-      ),
-      h("div", { className: "card-body stack-2" },
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "記録のテキスト"),
-          h("textarea", {
-            className: "ledger-textarea",
-            "aria-label": "記録のテキスト",
-            rows: 8,
-            placeholder: "【シナリオA】(作：作者名)\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)",
-            value: textDraft,
-            onChange: (e) => {
-              setTextDraft(e.target.value);
-              setTextExcluded(new Set());
-              setTextIdentityExcluded(new Set());
-              setTextIdentityResolved({});
-              setTextTicketResolved({});
-              setDismissedTextWarnings(new Set());
-            }
-          })
-        ),
-        parsedText && parsedText.records.map((rec, ri) => h("div", { key: `rec-${ri}`, className: "stack-2" },
-          h("span", { className: "t-label" },
-            `${rec.title || "無題"}${rec.author ? `（作：${rec.author}）` : ""} — ${rec.date ? `日時 ${rec.date}` : "日時未記載"} — 収入 LP ${rec.income.lp} / 欠片 ${rec.income.shards}`
-            + (rec.tickets.length ? ` / チケット獲得 ${textTicketSummary(rec.tickets, ri)}` : "")
-            + (rec.ticketUses?.length ? ` / チケット消費 ${textTicketSummary(rec.ticketUses, ri)}` : "")),
-          textUnknownTicketsForRecord(rec, ri).length > 0 && h("div", { className: "ledger-held-result", role: "group", "aria-label": "未確定チケットの分類" },
-            h("p", { className: "ledger-note" }, "チケット種別が原文だけでは確定できません。下で分類を選ぶまで、該当する収入・消費は残高へ反映しません。"),
-            h("div", { className: "stack-2" }, textUnknownTicketsForRecord(rec, ri).map(({ ticket, key }) => h("div", { key, className: "ledger-unknown-row" },
-              h("span", { className: "ledger-note" }, `${ticket.raw || ticket.sourceLine || "抽出チケット"} ×${ticket.count}`),
-              h("select", {
-                className: "select",
-                value: textTicketResolved[key]?.kind || "",
-                "aria-label": `チケット種別の手動指定：${ticket.raw || "抽出チケット"}`,
-                onChange: (event) => setTextTicketResolved((previous) => {
-                  const next = { ...previous };
-                  const kind = event.target.value;
-                  if (!kind) delete next[key];
-                  else next[key] = { kind, ...(kind === "pack" ? { pack: previous[key]?.pack || "" } : {}) };
-                  return next;
-                })
-              },
-                h("option", { value: "" }, "未確定のまま"),
-                h("option", { value: "persona" }, "人格抽出チケット"),
-                h("option", { value: "ego" }, "E.G.O抽出チケット"),
-                h("option", { value: "choice" }, "選択抽出チケット"),
-                h("option", { value: "pack" }, "テーマパック権")
-              ),
-              textTicketResolved[key]?.kind === "pack" && h("input", {
-                className: "input",
-                value: textTicketResolved[key]?.pack || "",
-                placeholder: "パック名を入力",
-                "aria-label": `テーマパック権の名前：${ticket.raw || "抽出チケット"}`,
-                onChange: (event) => setTextTicketResolved((previous) => ({
-                  ...previous, [key]: { kind: "pack", pack: event.target.value }
-                }))
-              })
-            )))
-          ),
-          rec.deltas.length > 0 && h("span", { className: "ledger-note" },
-            `増減の注記 ${rec.deltas.map((d) => `${d.currency === "lp" ? "LP" : "欠片"} ${d.value > 0 ? "+" : ""}${d.value}`).join(" / ")} は残高差なので収入には入れていません`),
-          rec.consumedItems?.length > 0 && h("span", { className: "ledger-note" },
-            "過去の消費履歴：" + rec.consumedItems.map((item) => `${item.itemName} ×${item.quantity}（${item.detail}）`).join(" / ")),
-          rec.itemGains?.length > 0 && h("span", { className: "ledger-note" },
-            "アイテム報酬（取り込み時に所持アイテムへ追加）：" + rec.itemGains.map((item) => `${item.itemName} ×${item.quantity}`).join(" / ")),
-          rec.raw?.length > 0 && h("details", { className: "ledger-import-notes" },
-            h("summary", null, `元ログの注記 ${rec.raw.length}行（同期CT・報酬名などを保存）`),
-            h("p", { className: "ledger-note" }, rec.raw.join("\n"))),
-          textPlan?.identities?.some((candidate) => candidate.recordIndex === ri) && h("div", { className: "ledger-held-result", role: "group", "aria-label": "履歴内の人格候補" },
-            h("p", { className: "ledger-note" }, "履歴内の人格候補（取り込むものにチェック。曖昧な略称は候補を選んでください）"),
-            h("div", { className: "stack-2" }, textPlan.identities.filter((candidate) => candidate.recordIndex === ri).map((candidate) => {
-              const checked = Boolean(candidate.name) && !candidate.owned && !candidate.duplicate && !textIdentityExcluded.has(candidate.key);
-              return h("div", { key: candidate.key, className: "ledger-unknown-row" },
-                candidate.name
-                  ? h("label", { className: "chip is-sm" },
-                      h("input", {
-                        type: "checkbox",
-                        checked,
-                        disabled: candidate.owned || candidate.duplicate,
-                        onChange: (e) => setTextIdentityExcluded((previous) => {
-                          const next = new Set(previous);
-                          if (e.target.checked) next.delete(candidate.key); else next.add(candidate.key);
-                          return next;
-                        })
-                      }),
-                      h("span", null, candidate.name),
-                      h("span", { className: "ledger-note" }, candidate.owned ? "（所持済み）" : candidate.duplicate ? "（同じ取込内で重複）" : `（DB照合：${candidate.confidence}）`),
-                      h("span", { className: "ledger-note" }, ` 原文：${candidate.source}`)
-                    )
-                  : h("div", { className: "stack-2" },
-                      h("span", { className: "ledger-note" }, `未確定：${candidate.source}`),
-                      candidate.options?.length
-                        ? h("div", { className: "chips-group" }, candidate.options.map((option) => h("button", {
-                            key: option.name,
-                            type: "button",
-                            className: "chip chip-candidate",
-                            onClick: () => {
-                              setTextIdentityResolved((previous) => ({ ...previous, [candidate.key]: option.name }));
-                              setTextIdentityExcluded((previous) => { const next = new Set(previous); next.delete(candidate.key); return next; });
-                            }
-                          }, h("span", { className: "chip-candidate-kind" }, "人格"), option.name)))
-                        : h("span", { className: "ledger-note" }, "DB一致なし。自動追加はしません。")
-                    )
-              );
-            })
-            )
-          ),
-          rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
-            h("input", {
-              type: "checkbox",
-              checked: !spend.needsDecision && !textExcluded.has(`${ri}:${si}`),
-              disabled: Boolean(spend.needsDecision),
-              onChange: (e) => setTextExcluded((prev) => {
-                const next = new Set(prev);
-                const exclusionKey = `${ri}:${si}`;
-                if (e.target.checked) next.delete(exclusionKey); else next.add(exclusionKey);
-                return next;
-              })
-            }),
-            h("span", null, `${spend.name} ${spend.cost.lp ? `${spend.cost.lp}LP ` : ""}${spend.cost.shards ? `${spend.cost.shards}欠片` : ""}`.trim()),
-            spend.needsDecision && h("span", { className: "ledger-note" }, `（${spend.reason}）`)
-          ))
-        )),
-        visibleTextWarnings.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
-          h("p", { className: "ledger-note" }, `未確認の警告が ${visibleTextWarnings.length} 件あります。原文を確認してください。内容を確認して問題がなければ、各警告の「確認済みとして閉じる」で表示を消せます。`),
-          h("ul", { className: "ledger-warn-list" }, visibleTextWarnings.map((s) => h("li", { key: textWarningKey(s) },
-            s.recordTitle && h("p", { className: "t-label" }, `対象リザルト：${s.recordTitle}`),
-            h("div", null, `${s.text || s.name || s.key || "（行を特定できません）"}：${s.reason || "不明"}`),
-            s.guidance && h("p", { className: "ledger-note" }, `確認方法：${s.guidance}`),
-            isReviewableTextWarning(s) && h(Button, {
-              size: "sm", variant: "quiet",
-              "aria-label": `確認済みとして警告を閉じる：${s.text || s.name || s.key || "対象の行"}`,
-              onClick: () => setDismissedTextWarnings((previous) => new Set([...previous, textWarningKey(s)]))
-            }, "確認済みとして閉じる")
-          )))
-        ),
-        h(Button, {
-          size: "sm", variant: "primary", icon: "check",
-          disabled: !textPlan || !textPlan.actions.length,
-          onClick: applyTextImport
-        }, "取り込む")
-      )
-    ),
-
-    importNote && h(Card, { className: "ledger-export-card" },
-    h("div", { className: "card-header owned-library-bar" },
-    h("span", { className: "t-label" }, "取り込み結果"),
-    h("span", { className: "ledger-note" }, importNote.summary)
-    ),
-    h("div", { className: "card-body stack-2" },
-    importNote.skippedCount > 0 && h("div", { className: "ledger-held-result", role: "status" },
-    h("p", { className: "ledger-note" }, `入れなかったものが ${importNote.skippedCount} 件あります：`),
-    /* 取り込み口が2つある（硝子窓は {key,name}、テキスト流しは {text}）。
-       形の違う行を同じ枠に出すので、取りこぼさない順に全部見る。
-       どれも無ければ「行を特定できない」と書く。空欄は読者を嘘に導く。 */
-    h("ul", { className: "ledger-warn-list" }, importNote.skipped.map((s, i) => h("li", { key: i },
-      `${s.text || s.name || s.key || "（行を特定できません）"}：${s.reason || s.kind || "不明"}`)))
-    ),
-    h(Button, { size: "sm", variant: "ghost", onClick: () => setImportNote(null) }, "閉じる")
-    )
-    ),
-
-    /* 手動の支出・消耗。DBに価格が無いものと、戦闘で消えたものをここで記録する。 */
-    h(Card, null,
-      h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "支出・消耗を記録"),
-        h("span", { className: "ledger-note" }, "所持や強化から自動で入る分はここで打ちません")
-      ),
-      h("div", { className: "card-body stack-2" },
-        h("div", { className: "ledger-add-row" },
-          h("input", {
-            className: "ledger-input ledger-input--wide",
-            placeholder: "例：自作のトークン、使った包帯",
-            value: newEntry.name,
-            "aria-label": "明細の名称",
-            onChange: (e) => setNewEntry((p) => ({ ...p, name: e.target.value }))
-          }),
-          h("select", {
-            className: "ledger-input ledger-input--kind",
-            value: newEntry.kind,
-            "aria-label": "明細の種別",
-            onChange: (e) => setNewEntry((p) => ({ ...p, kind: e.target.value }))
-          }, (window.LBT_LEDGER_ENTRY_KINDS || [
-            { id: "expense", label: "手動支出" },
-            { id: "consumption", label: "消耗" }
-          ]).map((k) => h("option", { key: k.id, value: k.id }, k.label))),
-          h("input", {
-            className: "ledger-input ledger-input--num",
-            placeholder: "LP",
-            inputMode: "numeric",
-            value: newEntry.lp,
-            "aria-label": "消費LP",
-            onChange: (e) => setNewEntry((p) => ({ ...p, lp: e.target.value }))
-          }),
-          h("input", {
-            className: "ledger-input ledger-input--num",
-            placeholder: "欠片",
-            inputMode: "numeric",
-            value: newEntry.shards,
-            "aria-label": "消費欠片",
-            onChange: (e) => setNewEntry((p) => ({ ...p, shards: e.target.value }))
-          }),
-          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addEntry, disabled: !String(newEntry.name || "").trim() }, "記録")
-        )
-      )
-    ),
-
-    /* 所持人格リストの一括取込。貼り付けたテキストから DB 上の人格名を拾い、
-       何を足すかを確認してから所持へ加える。
-       入口は記録フォームの「取り込む」に畳んで隠した。 */
-    heldOpen && h(Card, { className: "ledger-gara-wrap" },
-      h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "所持人格リストを取り込む"),
-        h(Button, {
-          size: "sm",
-          variant: "quiet",
-          icon: "x",
-          onClick: closeHeld
-        }, "閉じる")
-      ),
-      h("div", { className: "card-body stack-2" },
-        h("textarea", {
-          className: "ledger-input ledger-held-paste",
-          rows: 4,
-          placeholder: "例：黒雲会組員\n剣契殺手A",
-          "aria-label": "所持人格リスト",
-          value: heldPaste,
-          onChange: (e) => setHeldPaste(e.target.value)
-        }),
-        heldScan.found.length > 0 && h("p", { className: "ledger-note" },
-        `検出 ${heldScan.found.length} 件。内容を確認して「保存する」を押してください。`),
-        h("div", { className: "ledger-add-row" },
-          h(Button, {
-            size: "sm",
-            variant: "ghost",
-            icon: "search",
-            onClick: () => setHeldScan(scanHeldPersonas(heldPaste, heldResolved)),
-            disabled: !heldPaste.trim()
-          }, "検出する"),
-          heldScan.found.length > 0 && h(Button, {
-            size: "sm",
-            variant: "primary",
-            icon: "check",
-            onClick: importHeldPersonas,
-            disabled: !heldScan.found.some((p) => !p.owned)
-          }, `${heldScan.found.filter((p) => !p.owned).length}件を保存する`),
-          heldScan.found.length > 0 && h(Button, {
-            size: "sm",
-            variant: "ghost",
-            onClick: () => setHeldScan({ found: [], unknown: [], unknownCount: 0 })
-          }, "クリア")
-        ),
-        heldScan.found.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
-          h("p", { className: "ledger-note" },
-            `検出 ${heldScan.found.length} 件（所持済み ${heldScan.found.filter((p) => p.owned).length} 件・未所持 ${heldScan.found.filter((p) => !p.owned).length} 件）`),
-          h("div", { className: "chips-group" }, heldScan.found.map((p) => h("span", {
-            key: `${p.kind}:${p.kind === "ego" ? p.rank + ":" + p.no : p.kind === "persona" ? p.mode + ":" + p.no : p.name}`,
-            className: `chip chip-held${p.owned ? " is-owned" : ""}`,
-            title: `${HELD_KIND_LABEL[p.kind]}${p.kind === "ego" ? ` ${p.rank} No.${p.no}` : p.kind === "persona" ? ` ${p.mode.toUpperCase()} No.${p.no}` : ""}`
-          }, h("span", { className: "chip-candidate-kind" }, HELD_KIND_LABEL[p.kind]), p.name)))
-        ),
-heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: "group", "aria-label": "判定できなかった名前" },
-        h("p", { className: "ledger-note" },
-        `${heldScan.unknownCount} 件が見つかりませんでした。近い候補から選べば取り込めます。`),
-        h("div", { className: "ledger-held-unknown-list" }, heldScan.unknown.map((entry) => {
-        const label = typeof entry === "string" ? entry : entry.text;
-        /* 文字一致の候補を先に並べる。候補が0にならないことが最優先。 */
-        const options = [
-          ...(typeof entry === "object" && entry.candidates ? entry.candidates : []),
-          ...(window.LBT_fuzzyNameCandidatesAcross?.(window.DB, label, 6) || [])
-        ].filter((o, i, arr) => arr.findIndex((x) => x.name === o.name) === i);
-        const open = heldPicking === label;
-        return h("div", { key: label, className: `ledger-unknown-row${open ? " is-open" : ""}` },
-        h("button", {
-        type: "button",
-        className: "ledger-unknown-label",
-        "aria-expanded": open,
-        onClick: () => setHeldPicking(open ? null : label)
-        },
-        h("span", { className: "ledger-unknown-text" }, label),
-        h("span", { className: "ledger-unknown-count" }, `候補 ${options.length}`)),
-        open && options.length > 0 && h("div", { className: "ledger-unknown-candidates" },
-        h("div", { className: "chips-group" }, options.map((opt) => h("button", {
-        key: opt.name,
-        type: "button",
-        className: "chip chip-candidate",
-        title: `一致度 ${Math.round(opt.score)}`,
-        onClick: () => {
-        setHeldResolved((r) => ({ ...r, [label]: opt.name }));
-        setHeldPicking(null);
-        }
-        },
-        opt.kind ? h("span", { className: "chip-candidate-kind" }, FUZZY_KIND_LABEL[opt.kind]) : null,
-        opt.name
-        ))),
-        h("div", { className: "ledger-add-row" },
-        h(Button, {
-        size: "xs",
-        variant: "ghost",
-        onClick: () => {
-        setHeldResolved((r) => {
-        const next = { ...r };
-        delete next[label];
-        return next;
-        });
-        setHeldPicking(null);
-        }
-        }, "未確定に戻す"),
-        h(Button, {
-        size: "xs",
-        variant: "ghost",
-        onClick: () => {
-        setHeldPaste(heldPaste.split(/[\n\r]+/).filter((l) => l.trim() !== label).join("\n"));
-        setHeldPicking(null);
-        }
-        }, "この行を消す")
-        )
-        ),
-        open && options.length === 0 && h("p", { className: "ledger-note" },
-        "近い候補がありません。貼り付けた文字列を確認してください。")
-);
-        }))
-        ),
-      )
-    ),
-
-    /* 未分類。ここが帰属待ちのキュー。空でも受け皿として残す。 */
-    h("div", {
-      className: `ledger-card-wrap${overId === "__queue" ? " is-over" : ""}`,
-      ...dropTargetProps("__queue")
-    },
-    h(Card, { className: "ledger-queue" },
-      h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "未分類"),
-        h("span", { className: "ledger-note" }, "ドラッグ、または「移動」から選択して帰属できます"),
-        movingEntry && h("button", {
-          type: "button", className: "ledger-queue-move-target",
-          disabled: !movingEntry.resultId,
-          title: !movingEntry.resultId ? "この明細はすでに未分類です" : "選択中の明細を未分類へ戻す",
-          onClick: () => moveEntry(movingEntry.id, null)
-        }, !movingEntry.resultId ? "未分類（現在地）" : "未分類へ移動")
-      ),
-      h("div", { className: "card-body stack-2" },
-        unclassified.length === 0
-          ? h("p", { className: "ledger-empty-note" }, "未分類は空です。リザルトから明細をここへドラッグすると戻せます。")
-          : null,
-        unclassified.map((entry) => h("div", {
-          key: entry.id,
-          className: "ledger-row",
-          ...dragProps(entry)
-        },
-          h("span", { className: "ledger-row-name" }, entry.name),
-          h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
-          h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
-          h("button", {
-            type: "button", className: "ledger-row-move-action",
-            "aria-pressed": movingEntryId === entry.id,
-            "aria-label": `${entry.name} の移動先を選択`,
-            title: "ドラッグできない場合は、移動先カードを選べます",
-            onClick: () => startMoveEntry(entry)
-          }, movingEntryId === entry.id ? "選択中" : "移動"),
-          h("button", {
-            type: "button",
-            className: "ledger-row-trash",
-            title: "削除する（Ctrl+Z で取り消せます）",
-            "aria-label": `${entry.name} を削除する`,
-            onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
-          }, "削除")
-        ))
-      )
-    )
-    ),
-
-    /* 抽出リスト。ガチャの結果をハッシュ鎖つきで残す場所。
-       通帳（明細）と並べて置くのは、同じ支出の証明に属するから。
-       ただしここでは計算しない。鎖は読み手側で再計算して確かめる。 */
-    h(DrawLedgerPanel, { state }),
-
-    /* リザルトカード。ドラッグ先とクリック移動先を同じカードへ統一。 */
-    movingEntry && h("div", { className: "ledger-move-mode", role: "status" },
-      h("span", null, `「${movingEntry.name}」の移動先を選択中です。対象カードの「ここへ移動」を押してください。`),
-      h(Button, { size: "sm", variant: "ghost", onClick: cancelMoveEntry }, "移動をやめる")
-    ),
-    h("div", { className: "ledger-results-toolbar" },
+        h("div", { className: "ledger-results-toolbar", id: "ledger-results-section" },
       h("span", { className: "ledger-results-count" },
         "リザルト " + sortedResults.length + " / " + results.length + " 件"),
       h("input", {
         type: "search", className: "ledger-results-search",
-        placeholder: "名称・日付・LP・欠片を検索", "aria-label": "リザルトを検索",
+        placeholder: "セッション名・人格・E.G.O・アイテムを検索", "aria-label": "リザルトを検索",
         value: resultQuery, disabled: ticketPanel !== null,
         onChange: (event) => { setResultQuery(event.target.value); setResultPage(0); }
       }),
@@ -6673,6 +6425,25 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         h("option", { value: "newest" }, "新しい順"),
         h("option", { value: "oldest" }, "古い順"),
         h("option", { value: "name" }, "名称順")
+      ),
+      h("div", { className: "ledger-results-toolbar-pages", "aria-label": "リザルトページ移動" },
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
+          "aria-label": "最初のページ", onClick: () => setResultPage(0)
+        }, "最初"),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
+          "aria-label": "前のページ", onClick: () => setResultPage(Math.max(0, safeResultPage - 1))
+        }, "前へ"),
+        h("span", { className: "ledger-results-page-number" }, (safeResultPage + 1) + " / " + resultPageCount),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
+          "aria-label": "次のページ", onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
+        }, "次へ"),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
+          "aria-label": "最後のページ", onClick: () => setResultPage(resultPageCount - 1)
+        }, "最後")
       )
     ),
     h("div", { className: "ledger-cards" },
@@ -7364,7 +7135,405 @@ h(Card, { className: "ledger-card" },
           onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
         }, "次へ")
       )
+    ),
+    importPanel && h("div", { id: "ledger-glass-import-panel", role: "region", "aria-label": "硝子窓から一括取り込む", className: "ledger-gara-wrap" },
+    h("div", { className: "card-header owned-library-bar" },
+    h("span", { className: "t-label" }, "硝子窓から一括取り込む"),
+    h("span", { className: "ledger-note" }, "共有URLからシナリオをまとめて読み取り、リザルトを複数一括で作ります。1件ごとではなく全体へ反映します"),
+    h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setImportPanel(false) }, "閉じる")
+    ),
+    typeof window.GarasumadoImportPanel === "function"
+    ? h(window.GarasumadoImportPanel, {
+      onClose: () => setImportPanel(false),
+      /* 取込済み共有IDを判定して、同じ人格を再取り込み候補に出さない。 */
+      existingPersonas: state.roster?.personas || [],
+      /* 確定結果は画面に出るので、ここでは閉じない（閉じるのは確定結果の「閉じる」）。 */
+      onApply: (applied) => applyGarasumadoImport(applied)
+    })
+    : h("p", { className: "ledger-note" }, "取り込み画面が読み込まれていません。ページを再読み込みしてください。")
+    ),
+
+    /* テキスト流し込み。貼り付けた直後に「何ことになるか」を見せる。
+       読めなかった行は黙って落とさず、理由ごと一覧に出す。
+       決定できない金額は既定で入れず、外す判断は利用者に返す。 */
+    textPanel && h("div", { id: "ledger-text-import-panel", role: "region", "aria-label": "テキスト流し込み", className: "ledger-gara-wrap" },
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "テキスト流し込み"),
+        h("span", { className: "ledger-note" }, "【シナリオ名】と 報酬｜購入｜追加購入｜ の行を貼り付けると、リザルトと支出の提案になります。入れる前に内容を確認できます"),
+        h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setTextPanel(false) }, "閉じる")
+      ),
+      h("div", { className: "card-body stack-2" },
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "記録のテキスト"),
+          h("textarea", {
+            className: "ledger-textarea",
+            "aria-label": "記録のテキスト",
+            rows: 8,
+            placeholder: "【シナリオA】(作：作者名)\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)",
+            value: textDraft,
+            onChange: (e) => {
+              setTextDraft(e.target.value);
+              setTextExcluded(new Set());
+              setTextIdentityExcluded(new Set());
+              setTextIdentityResolved({});
+              setTextTicketResolved({});
+              setDismissedTextWarnings(new Set());
+            }
+          })
+        ),
+        parsedText && parsedText.records.map((rec, ri) => h("div", { key: `rec-${ri}`, className: "stack-2" },
+          h("span", { className: "t-label" },
+            `${rec.title || "無題"}${rec.author ? `（作：${rec.author}）` : ""} — ${rec.date ? `日時 ${rec.date}` : "日時未記載"} — 収入 LP ${rec.income.lp} / 欠片 ${rec.income.shards}`
+            + (rec.tickets.length ? ` / チケット獲得 ${textTicketSummary(rec.tickets, ri)}` : "")
+            + (rec.ticketUses?.length ? ` / チケット消費 ${textTicketSummary(rec.ticketUses, ri)}` : "")),
+          textUnknownTicketsForRecord(rec, ri).length > 0 && h("div", { className: "ledger-held-result", role: "group", "aria-label": "未確定チケットの分類" },
+            h("p", { className: "ledger-note" }, "チケット種別が原文だけでは確定できません。下で分類を選ぶまで、該当する収入・消費は残高へ反映しません。"),
+            h("div", { className: "stack-2" }, textUnknownTicketsForRecord(rec, ri).map(({ ticket, key }) => h("div", { key, className: "ledger-unknown-row" },
+              h("span", { className: "ledger-note" }, `${ticket.raw || ticket.sourceLine || "抽出チケット"} ×${ticket.count}`),
+              h("select", {
+                className: "select",
+                value: textTicketResolved[key]?.kind || "",
+                "aria-label": `チケット種別の手動指定：${ticket.raw || "抽出チケット"}`,
+                onChange: (event) => setTextTicketResolved((previous) => {
+                  const next = { ...previous };
+                  const kind = event.target.value;
+                  if (!kind) delete next[key];
+                  else next[key] = { kind, ...(kind === "pack" ? { pack: previous[key]?.pack || "" } : {}) };
+                  return next;
+                })
+              },
+                h("option", { value: "" }, "未確定のまま"),
+                h("option", { value: "persona" }, "人格抽出チケット"),
+                h("option", { value: "ego" }, "E.G.O抽出チケット"),
+                h("option", { value: "choice" }, "選択抽出チケット"),
+                h("option", { value: "pack" }, "テーマパック権")
+              ),
+              textTicketResolved[key]?.kind === "pack" && h("input", {
+                className: "input",
+                value: textTicketResolved[key]?.pack || "",
+                placeholder: "パック名を入力",
+                "aria-label": `テーマパック権の名前：${ticket.raw || "抽出チケット"}`,
+                onChange: (event) => setTextTicketResolved((previous) => ({
+                  ...previous, [key]: { kind: "pack", pack: event.target.value }
+                }))
+              })
+            )))
+          ),
+          rec.deltas.length > 0 && h("span", { className: "ledger-note" },
+            `増減の注記 ${rec.deltas.map((d) => `${d.currency === "lp" ? "LP" : "欠片"} ${d.value > 0 ? "+" : ""}${d.value}`).join(" / ")} は残高差なので収入には入れていません`),
+          rec.consumedItems?.length > 0 && h("span", { className: "ledger-note" },
+            "過去の消費履歴：" + rec.consumedItems.map((item) => `${item.itemName} ×${item.quantity}（${item.detail}）`).join(" / ")),
+          rec.itemGains?.length > 0 && h("span", { className: "ledger-note" },
+            "アイテム報酬（取り込み時に所持アイテムへ追加）：" + rec.itemGains.map((item) => `${item.itemName} ×${item.quantity}`).join(" / ")),
+          rec.raw?.length > 0 && h("details", { className: "ledger-import-notes" },
+            h("summary", null, `元ログの注記 ${rec.raw.length}行（同期CT・報酬名などを保存）`),
+            h("p", { className: "ledger-note" }, rec.raw.join("\n"))),
+          textPlan?.identities?.some((candidate) => candidate.recordIndex === ri) && h("div", { className: "ledger-held-result", role: "group", "aria-label": "履歴内の人格候補" },
+            h("p", { className: "ledger-note" }, "履歴内の人格候補（取り込むものにチェック。曖昧な略称は候補を選んでください）"),
+            h("div", { className: "stack-2" }, textPlan.identities.filter((candidate) => candidate.recordIndex === ri).map((candidate) => {
+              const checked = Boolean(candidate.name) && !candidate.owned && !candidate.duplicate && !textIdentityExcluded.has(candidate.key);
+              return h("div", { key: candidate.key, className: "ledger-unknown-row" },
+                candidate.name
+                  ? h("label", { className: "chip is-sm" },
+                      h("input", {
+                        type: "checkbox",
+                        checked,
+                        disabled: candidate.owned || candidate.duplicate,
+                        onChange: (e) => setTextIdentityExcluded((previous) => {
+                          const next = new Set(previous);
+                          if (e.target.checked) next.delete(candidate.key); else next.add(candidate.key);
+                          return next;
+                        })
+                      }),
+                      h("span", null, candidate.name),
+                      h("span", { className: "ledger-note" }, candidate.owned ? "（所持済み）" : candidate.duplicate ? "（同じ取込内で重複）" : `（DB照合：${candidate.confidence}）`),
+                      h("span", { className: "ledger-note" }, ` 原文：${candidate.source}`)
+                    )
+                  : h("div", { className: "stack-2" },
+                      h("span", { className: "ledger-note" }, `未確定：${candidate.source}`),
+                      candidate.options?.length
+                        ? h("div", { className: "chips-group" }, candidate.options.map((option) => h("button", {
+                            key: option.name,
+                            type: "button",
+                            className: "chip chip-candidate",
+                            onClick: () => {
+                              setTextIdentityResolved((previous) => ({ ...previous, [candidate.key]: option.name }));
+                              setTextIdentityExcluded((previous) => { const next = new Set(previous); next.delete(candidate.key); return next; });
+                            }
+                          }, h("span", { className: "chip-candidate-kind" }, "人格"), option.name)))
+                        : h("span", { className: "ledger-note" }, "DB一致なし。自動追加はしません。")
+                    )
+              );
+            })
+            )
+          ),
+          rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
+            h("input", {
+              type: "checkbox",
+              checked: !spend.needsDecision && !textExcluded.has(`${ri}:${si}`),
+              disabled: Boolean(spend.needsDecision),
+              onChange: (e) => setTextExcluded((prev) => {
+                const next = new Set(prev);
+                const exclusionKey = `${ri}:${si}`;
+                if (e.target.checked) next.delete(exclusionKey); else next.add(exclusionKey);
+                return next;
+              })
+            }),
+            h("span", null, `${spend.name} ${spend.cost.lp ? `${spend.cost.lp}LP ` : ""}${spend.cost.shards ? `${spend.cost.shards}欠片` : ""}`.trim()),
+            spend.needsDecision && h("span", { className: "ledger-note" }, `（${spend.reason}）`)
+          ))
+        )),
+        visibleTextWarnings.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
+          h("p", { className: "ledger-note" }, `未確認の警告が ${visibleTextWarnings.length} 件あります。原文を確認してください。内容を確認して問題がなければ、各警告の「確認済みとして閉じる」で表示を消せます。`),
+          h("ul", { className: "ledger-warn-list" }, visibleTextWarnings.map((s) => h("li", { key: textWarningKey(s) },
+            s.recordTitle && h("p", { className: "t-label" }, `対象リザルト：${s.recordTitle}`),
+            h("div", null, `${s.text || s.name || s.key || "（行を特定できません）"}：${s.reason || "不明"}`),
+            s.guidance && h("p", { className: "ledger-note" }, `確認方法：${s.guidance}`),
+            isReviewableTextWarning(s) && h(Button, {
+              size: "sm", variant: "quiet",
+              "aria-label": `確認済みとして警告を閉じる：${s.text || s.name || s.key || "対象の行"}`,
+              onClick: () => setDismissedTextWarnings((previous) => new Set([...previous, textWarningKey(s)]))
+            }, "確認済みとして閉じる")
+          )))
+        ),
+        h(Button, {
+          size: "sm", variant: "primary", icon: "check",
+          disabled: !textPlan || !textPlan.actions.length,
+          onClick: applyTextImport
+        }, "取り込む")
+      )
+    ),
+
+    importNote && h(Card, { className: "ledger-export-card" },
+    h("div", { className: "card-header owned-library-bar" },
+    h("span", { className: "t-label" }, "取り込み結果"),
+    h("span", { className: "ledger-note" }, importNote.summary)
+    ),
+    h("div", { className: "card-body stack-2" },
+    importNote.skippedCount > 0 && h("div", { className: "ledger-held-result", role: "status" },
+    h("p", { className: "ledger-note" }, `入れなかったものが ${importNote.skippedCount} 件あります：`),
+    /* 取り込み口が2つある（硝子窓は {key,name}、テキスト流しは {text}）。
+       形の違う行を同じ枠に出すので、取りこぼさない順に全部見る。
+       どれも無ければ「行を特定できない」と書く。空欄は読者を嘘に導く。 */
+    h("ul", { className: "ledger-warn-list" }, importNote.skipped.map((s, i) => h("li", { key: i },
+      `${s.text || s.name || s.key || "（行を特定できません）"}：${s.reason || s.kind || "不明"}`)))
+    ),
+    h(Button, { size: "sm", variant: "ghost", onClick: () => setImportNote(null) }, "閉じる")
     )
+    ),
+
+    h("details", { className: "ledger-manual-expense-disclosure" },
+      h("summary", null,
+        h("span", null, "支出・消耗を記録"),
+        h("span", { className: "ledger-note" }, "所持や強化から自動記録されない分だけ")
+      ),
+      h("div", { className: "ledger-manual-expense-body" },
+        h("div", { className: "ledger-add-row" },
+          h("input", {
+            className: "ledger-input ledger-input--wide",
+            placeholder: "例：自作のトークン、使った包帯",
+            value: newEntry.name,
+            "aria-label": "明細の名称",
+            onChange: (e) => setNewEntry((p) => ({ ...p, name: e.target.value }))
+          }),
+          h("select", {
+            className: "ledger-input ledger-input--kind",
+            value: newEntry.kind,
+            "aria-label": "明細の種別",
+            onChange: (e) => setNewEntry((p) => ({ ...p, kind: e.target.value }))
+          }, (window.LBT_LEDGER_ENTRY_KINDS || [
+            { id: "expense", label: "手動支出" },
+            { id: "consumption", label: "消耗" }
+          ]).map((k) => h("option", { key: k.id, value: k.id }, k.label))),
+          h("input", {
+            className: "ledger-input ledger-input--num",
+            placeholder: "LP", inputMode: "numeric",
+            value: newEntry.lp, "aria-label": "消費LP",
+            onChange: (e) => setNewEntry((p) => ({ ...p, lp: e.target.value }))
+          }),
+          h("input", {
+            className: "ledger-input ledger-input--num",
+            placeholder: "欠片", inputMode: "numeric",
+            value: newEntry.shards, "aria-label": "消費欠片",
+            onChange: (e) => setNewEntry((p) => ({ ...p, shards: e.target.value }))
+          }),
+          h(Button, {
+            size: "sm", variant: "primary", icon: "check",
+            onClick: addEntry, disabled: !String(newEntry.name || "").trim()
+          }, "記録")
+        )
+      )
+    ),
+
+    /* 所持人格リストの一括取込。貼り付けたテキストから DB 上の人格名を拾い、
+       何を足すかを確認してから所持へ加える。
+       入口は記録フォームの「取り込む」に畳んで隠した。 */
+    heldOpen && h(Card, { className: "ledger-gara-wrap" },
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "所持人格リストを取り込む"),
+        h(Button, {
+          size: "sm",
+          variant: "quiet",
+          icon: "x",
+          onClick: closeHeld
+        }, "閉じる")
+      ),
+      h("div", { className: "card-body stack-2" },
+        h("textarea", {
+          className: "ledger-input ledger-held-paste",
+          rows: 4,
+          placeholder: "例：黒雲会組員\n剣契殺手A",
+          "aria-label": "所持人格リスト",
+          value: heldPaste,
+          onChange: (e) => setHeldPaste(e.target.value)
+        }),
+        heldScan.found.length > 0 && h("p", { className: "ledger-note" },
+        `検出 ${heldScan.found.length} 件。内容を確認して「保存する」を押してください。`),
+        h("div", { className: "ledger-add-row" },
+          h(Button, {
+            size: "sm",
+            variant: "ghost",
+            icon: "search",
+            onClick: () => setHeldScan(scanHeldPersonas(heldPaste, heldResolved)),
+            disabled: !heldPaste.trim()
+          }, "検出する"),
+          heldScan.found.length > 0 && h(Button, {
+            size: "sm",
+            variant: "primary",
+            icon: "check",
+            onClick: importHeldPersonas,
+            disabled: !heldScan.found.some((p) => !p.owned)
+          }, `${heldScan.found.filter((p) => !p.owned).length}件を保存する`),
+          heldScan.found.length > 0 && h(Button, {
+            size: "sm",
+            variant: "ghost",
+            onClick: () => setHeldScan({ found: [], unknown: [], unknownCount: 0 })
+          }, "クリア")
+        ),
+        heldScan.found.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
+          h("p", { className: "ledger-note" },
+            `検出 ${heldScan.found.length} 件（所持済み ${heldScan.found.filter((p) => p.owned).length} 件・未所持 ${heldScan.found.filter((p) => !p.owned).length} 件）`),
+          h("div", { className: "chips-group" }, heldScan.found.map((p) => h("span", {
+            key: `${p.kind}:${p.kind === "ego" ? p.rank + ":" + p.no : p.kind === "persona" ? p.mode + ":" + p.no : p.name}`,
+            className: `chip chip-held${p.owned ? " is-owned" : ""}`,
+            title: `${HELD_KIND_LABEL[p.kind]}${p.kind === "ego" ? ` ${p.rank} No.${p.no}` : p.kind === "persona" ? ` ${p.mode.toUpperCase()} No.${p.no}` : ""}`
+          }, h("span", { className: "chip-candidate-kind" }, HELD_KIND_LABEL[p.kind]), p.name)))
+        ),
+heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: "group", "aria-label": "判定できなかった名前" },
+        h("p", { className: "ledger-note" },
+        `${heldScan.unknownCount} 件が見つかりませんでした。近い候補から選べば取り込めます。`),
+        h("div", { className: "ledger-held-unknown-list" }, heldScan.unknown.map((entry) => {
+        const label = typeof entry === "string" ? entry : entry.text;
+        /* 文字一致の候補を先に並べる。候補が0にならないことが最優先。 */
+        const options = [
+          ...(typeof entry === "object" && entry.candidates ? entry.candidates : []),
+          ...(window.LBT_fuzzyNameCandidatesAcross?.(window.DB, label, 6) || [])
+        ].filter((o, i, arr) => arr.findIndex((x) => x.name === o.name) === i);
+        const open = heldPicking === label;
+        return h("div", { key: label, className: `ledger-unknown-row${open ? " is-open" : ""}` },
+        h("button", {
+        type: "button",
+        className: "ledger-unknown-label",
+        "aria-expanded": open,
+        onClick: () => setHeldPicking(open ? null : label)
+        },
+        h("span", { className: "ledger-unknown-text" }, label),
+        h("span", { className: "ledger-unknown-count" }, `候補 ${options.length}`)),
+        open && options.length > 0 && h("div", { className: "ledger-unknown-candidates" },
+        h("div", { className: "chips-group" }, options.map((opt) => h("button", {
+        key: opt.name,
+        type: "button",
+        className: "chip chip-candidate",
+        title: `一致度 ${Math.round(opt.score)}`,
+        onClick: () => {
+        setHeldResolved((r) => ({ ...r, [label]: opt.name }));
+        setHeldPicking(null);
+        }
+        },
+        opt.kind ? h("span", { className: "chip-candidate-kind" }, FUZZY_KIND_LABEL[opt.kind]) : null,
+        opt.name
+        ))),
+        h("div", { className: "ledger-add-row" },
+        h(Button, {
+        size: "xs",
+        variant: "ghost",
+        onClick: () => {
+        setHeldResolved((r) => {
+        const next = { ...r };
+        delete next[label];
+        return next;
+        });
+        setHeldPicking(null);
+        }
+        }, "未確定に戻す"),
+        h(Button, {
+        size: "xs",
+        variant: "ghost",
+        onClick: () => {
+        setHeldPaste(heldPaste.split(/[\n\r]+/).filter((l) => l.trim() !== label).join("\n"));
+        setHeldPicking(null);
+        }
+        }, "この行を消す")
+        )
+        ),
+        open && options.length === 0 && h("p", { className: "ledger-note" },
+        "近い候補がありません。貼り付けた文字列を確認してください。")
+);
+        }))
+        ),
+      )
+    ),
+
+    /* リザルトカード。ドラッグ先とクリック移動先を同じカードへ統一。 */
+    movingEntry && h("div", { className: "ledger-move-mode", role: "status" },
+      h("span", null, `「${movingEntry.name}」の移動先を未分類パネルで選択しています。`),
+      h(Button, { size: "sm", variant: "ghost", onClick: cancelMoveEntry }, "移動をやめる")
+    ),
+    personaAudit && h("details", { className: "ledger-persona-audit-disclosure" },
+      h("summary", null,
+        h("span", null, "PERSONA AUDIT / 人格取得の照合"),
+        h("span", { className: "ledger-note" }, "不足 " + personaAudit.missing.length + " 件 · 未記録 " + personaAudit.unrecorded.length + " 件")
+      ),
+      h(Card, { className: "ledger-persona-audit-card" },
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "PERSONA AUDIT / 人格照合"),
+        h("span", { className: "ledger-note" }, "取得記録と現在所持を比較。所持・収支は自動変更しません。")
+      ),
+      h("div", { className: "card-body stack-2" },
+        h("div", { className: "ledger-balance-sub" },
+          "取得記録の人格 ", h("b", { className: "ledger-stat" }, String(personaAudit.expectedCount)),
+          " 件 / 現在所持 ", h("b", { className: "ledger-stat" }, String(personaAudit.actualCount)),
+          " 件 / 一致 ", h("b", { className: "ledger-stat" }, String(personaAudit.matchedCount)), " 件"
+        ),
+        !personaAudit.initialConfigured && h("div", { className: "ledger-held-result", role: "status" },
+          h("p", { className: "ledger-note" }, personaAudit.initialNeedsPersona
+            ? "初期作成の入手方法は記録されていますが、最初に得た人格が未選択です。初期作成リザルトの「編集」から選択してください。"
+            : "初期作成で「指定購入」か「ランダム抽出」か、最初に得た人格がまだ確定していません。初期作成リザルトの「編集」から記録できます。")
+        ),
+        personaAudit.initialConfigured && h("p", { className: "ledger-note" },
+          "初期人格：", personaAudit.initialPersona?.name || ("No." + personaAudit.initialPersona?.no),
+          "（", personaAudit.initialMethod === "selected" ? "指定購入（選択）" : "ランダム抽出", "）"
+        ),
+        personaAudit.missing.length > 0
+          ? h("div", { className: "ledger-held-result", role: "alert" },
+              h("p", { className: "ledger-note" }, "取得記録にはあるのに現在所持にない人格が " + personaAudit.missing.length + " 件あります。所持削除・登録漏れ・取得記録の誤りを確認してください。"),
+              h("ul", { className: "ledger-warn-list" }, personaAudit.missing.map((entry) => h("li", { key: entry.mode + ":" + entry.no }, entry.name + "（" + entry.mode.toUpperCase() + " No." + entry.no + "） — 記録：" + entry.sources.join(" / ")))
+            ))
+          : personaAudit.initialConfigured ? h("p", { className: "ledger-note" }, "記録済みの取得人格は、現在所持の範囲で欠落していません。") : null,
+        personaAudit.unrecorded.length > 0 && h("details", { className: "ledger-held-result" },
+          h("summary", null, "取得記録に紐づかない現在所持 " + personaAudit.unrecorded.length + " 件"),
+          h("p", { className: "ledger-note" }, "過去の取得履歴が未記録、旧データ由来、または別経路の入手である可能性があります。これだけで所持ミスとは断定しません。"),
+          h("ul", { className: "ledger-warn-list" }, personaAudit.unrecorded.map((entry) => h("li", { key: entry.mode + ":" + entry.no }, entry.name + "（" + entry.mode.toUpperCase() + " No." + entry.no + "）")))
+        ),
+        (personaAudit.unresolvedEvidence > 0 || personaAudit.unresolvedDraws > 0) && h("p", { className: "ledger-note", role: "status" },
+          "未照合の取得証跡 " + personaAudit.unresolvedEvidence + " 件 / 抽選の適用状態または取得品を確定できない記録 " + personaAudit.unresolvedDraws + " 件があります。自動で人格を推測していません。"
+        )
+      )
+      )
+    ),
+
+    /* 抽出リストはリザルトを読み終えた後段へ移し、参照を邪魔しないよう折りたたむ。 */
+    h(DrawLedgerPanel, { state })
   );
 };
 

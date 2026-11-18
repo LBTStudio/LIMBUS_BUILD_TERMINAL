@@ -229,7 +229,7 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
   assert.match(saveBlock, /const isInitial = !!initialResult && String\(initialResult\.id \|\| ""\) === String\(result\.id \|\| ""\)/);
   assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
   assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
-  assert.match(otherSections, /最初の人格は上の欄から記録できます/);
+  assert.match(otherSections, /登録なし（初期人格は上の欄）/);
 });
 
 test("初期人格の入手方法が未確定なら古いmode/noが残っていてもチケット消費を配線しない", () => {
