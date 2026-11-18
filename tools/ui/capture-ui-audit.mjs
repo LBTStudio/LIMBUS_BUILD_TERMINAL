@@ -2114,15 +2114,41 @@ async function captureProfile(browser, mode) {
       const openLedgerFromRecordHub = async () => {
         const recordBack = page.locator(".btype-back-link").filter({hasText:"記録・所持品へ戻る"}).first();
         let resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-        /* Prefer the currently visible route. Only navigate to 記録 when neither
-           the hub nor its detail back-link is present. */
-        if (await visible(recordBack)) await click(recordBack);
+        /* Prefer the actual visible Record hub. If the detail tab is open, use
+           its back link. Otherwise select the explicit global navigation target
+           rather than falling back to an arbitrary exact-text node. */
+        if (await visible(recordBack)) {
+          try { await click(recordBack); } catch (_) { /* fall through to navigation */ }
+        }
         if (!(await visible(resultsEntry))) {
-          await go("記録");
+          const width = page.viewportSize()?.width || 1440;
+          const mobileNav = page.locator(".btype-mobile-bottom-nav button").filter({hasText:"記録"}).first();
+          const railNav = page.locator(".rail-item").filter({hasText:"記録"}).first();
+          const titledNav = page.locator('button[title="記録"]').first();
+          const navTarget = width <= 640
+            ? ((await visible(mobileNav)) ? mobileNav : null)
+            : ((await visible(railNav)) ? railNav : ((await visible(titledNav)) ? titledNav : null));
+          if (!navTarget) {
+            const state = await page.evaluate(() => ({
+              url: location.href,
+              currentSection: window.LBT_accounts?.loadActive?.()?.ui?.currentSection || "",
+              libraryTab: window.LBT_accounts?.loadActive?.()?.ui?.libraryTab || "",
+              body: (document.body.innerText || "").slice(0, 500)
+            }));
+            throw new Error("記録ホームへのナビゲーションが見つかりません: " + JSON.stringify(state));
+          }
+          await click(navTarget);
           if (await visible(recordBack)) await click(recordBack);
           resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
         }
-        await resultsEntry.waitFor({state:"visible",timeout:5000});
+        if (!(await visible(resultsEntry))) {
+          const state = await page.evaluate(() => ({
+            currentSection: window.LBT_accounts?.loadActive?.()?.ui?.currentSection || "",
+            libraryTab: window.LBT_accounts?.loadActive?.()?.ui?.libraryTab || "",
+            body: (document.body.innerText || "").slice(0, 700)
+          }));
+          throw new Error("記録ホームのリザルト入口が表示されません: " + JSON.stringify(state));
+        }
         await click(resultsEntry);
         const toolbar = page.locator(".ledger-results-toolbar").first();
         await toolbar.waitFor({state:"visible",timeout:5000});
