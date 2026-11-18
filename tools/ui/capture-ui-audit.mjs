@@ -2150,11 +2150,15 @@ async function captureProfile(browser, mode) {
       try {
         await page.reload({waitUntil:"domcontentloaded"});
         await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
-        await go("記録");
-        const resultsEntryAfterReload=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-        await click(resultsEntryAfterReload);
-        const toolbar=page.locator(".ledger-results-toolbar").first();
-        await toolbar.waitFor({state:"visible",timeout:5000});
+        let toolbar=page.locator(".ledger-results-toolbar").first();
+        if(!(await visible(toolbar))){
+          await go("記録");
+          const resultsEntryAfterReload=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+          await resultsEntryAfterReload.waitFor({state:"visible",timeout:5000});
+          await click(resultsEntryAfterReload);
+          toolbar=page.locator(".ledger-results-toolbar").first();
+          await toolbar.waitFor({state:"visible",timeout:5000});
+        }
         const pageNumber=toolbar.locator(".ledger-results-page-number").first();
         const countText=await toolbar.locator(".ledger-results-count").innerText();
         const firstPage=await pageNumber.innerText();
