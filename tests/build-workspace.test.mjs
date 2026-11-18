@@ -1485,6 +1485,8 @@ test("通帳は長大なリザルト一覧から未分類移動・ページ操�
   assert.match(sections, /const moveDestinationMatches = allSortedResults\.filter/);
   assert.match(sections, /className: "ledger-results-toolbar-pages"/);
   assert.match(sections, /onClick: \(\) => setResultPage\(resultPageCount - 1\)/);
+  assert.ok(sections.indexOf('className: "ledger-results-toolbar", id: "ledger-results-section"') < sections.indexOf('className: "ledger-result-entry-card" +'), "新規記録の折りたたみ入口はリザルト一覧の直前に置く");
+  assert.ok(sections.indexOf('className: "ledger-result-entry-card" +') < sections.indexOf('className: "ledger-cards"'), "新規記録を展開しても一覧末尾までスクロールせず使える");
   assert.match(sections, /newResultEntryOpen \? " is-open" : ""/);
   assert.match(sections, /className: "ledger-manual-expense-disclosure"/);
   assert.doesNotMatch(sections, /className: "ledger-queue"/);
