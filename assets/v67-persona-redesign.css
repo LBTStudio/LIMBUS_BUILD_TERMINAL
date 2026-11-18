@@ -656,6 +656,97 @@
 .draw-ledger {
   border-color: var(--accent-dim);
 }
+/* 抽出履歴は参照頻度の高いリザルト一覧の後段へ。閉じた状態では履歴の占有高を1行に抑える。 */
+.draw-ledger.draw-ledger-disclosure {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-block-start: var(--s-3);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--r);
+  background: var(--surface-1);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.draw-ledger-disclosure-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  min-height: 44px;
+  padding: 8px 12px;
+  list-style: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.draw-ledger-disclosure-summary::-webkit-details-marker { display: none; }
+.draw-ledger-disclosure-summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.draw-ledger-disclosure-title {
+  min-width: 0;
+  color: var(--text-strong);
+  font-size: var(--fs-12);
+  font-weight: 700;
+}
+.draw-ledger-disclosure-status {
+  min-width: 0;
+  color: var(--tx-2);
+  font-size: var(--fs-10);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.draw-ledger-disclosure-action {
+  color: var(--gold);
+  font-size: var(--fs-10);
+  white-space: nowrap;
+}
+.draw-ledger-disclosure-action::after {
+  content: " ＋";
+  font-weight: 700;
+}
+.draw-ledger-disclosure[open] > .draw-ledger-disclosure-summary {
+  border-bottom: 1px solid var(--line-dim);
+  background: var(--surface-2);
+}
+.draw-ledger-disclosure[open] .draw-ledger-disclosure-action::after {
+  content: " −";
+}
+.draw-ledger-disclosure-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+}
+.draw-ledger-disclosure-tools {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.draw-ledger-disclosure-content .card-body {
+  padding: 0;
+}
+@media (max-width: 560px) {
+  .draw-ledger-disclosure-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 8px;
+    padding: 8px 10px;
+  }
+  .draw-ledger-disclosure-status {
+    grid-column: 1;
+    grid-row: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .draw-ledger-disclosure-action {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .draw-ledger-disclosure-content { padding: 8px; }
+  .draw-ledger-disclosure-tools { justify-content: flex-start; }
+}
 .draw-batch {
   border: 1px solid var(--line-dim);
   border-radius: var(--r-sm);
