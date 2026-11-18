@@ -268,3 +268,11 @@
     transition: none !important;
   }
 }
+
+
+/* Preserve the 40px phone touch target after the compact card header reset. */
+@media (max-width: 700px) {
+  .ledger-card-edit-btn {
+    min-height: 40px !important;
+  }
+}
