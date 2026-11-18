@@ -4614,7 +4614,7 @@ const DrawLedgerPanel = ({ state }) => {
   const lp = checked.reduce((n, c) => n + sumRecords(c.batch, "lp"), 0);
   const shards = checked.reduce((n, c) => n + sumRecords(c.batch, "shards"), 0);
 
-  return h("details", { className: "draw-ledger draw-ledger-disclosure" },
+  return h("details", { id: "ledger-draw-ledger", className: "draw-ledger draw-ledger-disclosure" },
     h("summary", { className: "draw-ledger-disclosure-summary" },
       h("span", { className: "draw-ledger-disclosure-title" }, "抽出リスト"),
       h("span", { className: "draw-ledger-disclosure-status" },
@@ -6002,7 +6002,139 @@ const importHeldPersonas = () => {
       )
     ),
 
-    personaAudit && h("details", { className: "ledger-persona-audit-disclosure" },
+    h("nav", { className: "ledger-command-bar", "aria-label": "通帳のクイック操作" },
+      h("button", {
+        type: "button", className: "ledger-command-action is-queue",
+        "aria-haspopup": "dialog", "aria-expanded": queueOpen,
+        onClick: () => setQueueOpen(true)
+      },
+        h("span", null, "未分類"), h("b", null, unclassified.length)
+      ),
+      h("button", { type: "button", className: "ledger-command-action", onClick: openNewResultForm },
+        h("span", null, "新規記録"), h("b", null, "＋")
+      ),
+      h("button", { type: "button", className: "ledger-command-action", onClick: () => jumpToLedgerSection("ledger-results-section") },
+        h("span", null, "リザルト"), h("b", null, results.length)
+      ),
+      h("button", { type: "button", className: "ledger-command-action", onClick: () => jumpToLedgerSection("ledger-draw-ledger") },
+        h("span", null, "抽出履歴"), h("b", null, "›")
+      )
+    ),
+    queueOpen && h("div", {
+      className: "ledger-queue-overlay",
+      onClick: () => setQueueOpen(false)
+    },
+      h("aside", {
+        className: "ledger-queue-drawer",
+        role: "dialog",
+        "aria-modal": true,
+        "aria-labelledby": "ledger-queue-drawer-title",
+        onClick: (event) => event.stopPropagation(),
+        onKeyDown: (event) => {
+          if (event.key === "Escape") { setQueueOpen(false); return; }
+          if (event.key !== "Tab") return;
+          const focusable = [...event.currentTarget.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])")];
+          if (!focusable.length) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        },
+        ...dropTargetProps("__queue")
+      },
+        h("div", { className: "ledger-queue-drawer-head" },
+          h("div", { className: "ledger-queue-drawer-title-wrap" },
+            h("strong", { id: "ledger-queue-drawer-title" }, "未分類オブジェクト"),
+            h("span", { className: "ledger-queue-drawer-count" }, unclassified.length + "件")
+          ),
+          h("button", {
+            type: "button", className: "ledger-queue-drawer-close", autoFocus: true,
+            "aria-label": "未分類パネルを閉じる",
+            onClick: () => setQueueOpen(false)
+          }, "閉じる")
+        ),
+        movingEntry && h("section", { className: "ledger-queue-transfer", "aria-label": "明細の移動先" },
+          h("div", { className: "ledger-queue-transfer-head" },
+            h("span", { className: "t-label" }, "移動対象"),
+            h("strong", null, movingEntry.name)
+          ),
+          movingEntry.resultId
+            ? h("button", {
+                type: "button", className: "ledger-queue-transfer-unclassify",
+                onClick: () => moveEntry(movingEntry.id, null)
+              }, "この明細を未分類へ戻す")
+            : h("div", { className: "ledger-queue-destination-picker" },
+                h("label", { className: "ledger-queue-search-label" },
+                  h("span", null, "移動先のリザルトを検索"),
+                  h("input", {
+                    type: "search", className: "ledger-queue-search",
+                    placeholder: "リザルト名・日付で検索",
+                    value: moveDestinationQuery,
+                    "aria-label": "移動先のリザルトを検索",
+                    onChange: (event) => setMoveDestinationQuery(event.target.value)
+                  })
+                ),
+                h("div", { className: "ledger-queue-destination-list" },
+                  moveDestinationMatches.map((result) => h("button", {
+                    key: result.id, type: "button", className: "ledger-queue-destination",
+                    onClick: () => moveEntry(movingEntry.id, result.id)
+                  },
+                    h("span", null, result.name || "名称未設定"),
+                    h("small", null, result.date || "日付なし")
+                  )),
+                  moveDestinationMatches.length === 0 && h("p", { className: "ledger-empty-note" }, "一致するリザルトがありません。検索語を変えてください。")
+                )
+              ),
+          h("button", {
+            type: "button", className: "ledger-queue-transfer-cancel",
+            onClick: cancelMoveEntry
+          }, "移動をやめる")
+        ),
+        h("label", { className: "ledger-queue-search-label ledger-queue-filter" },
+          h("span", null, "未分類の明細を絞り込む"),
+          h("input", {
+            type: "search", className: "ledger-queue-search",
+            placeholder: "オブジェクト名・種別で検索",
+            value: queueSearch,
+            "aria-label": "未分類オブジェクトを検索",
+            onChange: (event) => setQueueSearch(event.target.value)
+          })
+        ),
+        h("div", { className: "ledger-queue-drawer-list" },
+          unclassified.length === 0
+            ? h("p", { className: "ledger-empty-note" }, "未分類はありません。リザルトの明細から「解除」するとここへ戻ります。")
+            : queueFilteredEntries.length === 0
+              ? h("p", { className: "ledger-empty-note" }, "検索に一致する未分類明細がありません。")
+              : queueFilteredEntries.map((entry) => h("div", {
+                  key: entry.id, className: "ledger-queue-item", ...dragProps(entry)
+                },
+                  h("div", { className: "ledger-queue-item-main" },
+                    h("strong", null, entry.name),
+                    h("span", null,
+                      kindLabel(entry.kind) + " · " +
+                      (entry.cost && entry.cost.lp ? entry.cost.lp + " LP"
+                        : entry.cost && entry.cost.shards ? entry.cost.shards + " 欠片" : "費用なし"))
+                  ),
+                  h("div", { className: "ledger-queue-item-actions" },
+                    h("button", {
+                      type: "button", className: "ledger-queue-item-move",
+                      "aria-label": entry.name + " の移動先を選択",
+                      onClick: () => startMoveEntry(entry)
+                    }, movingEntryId === entry.id ? "移動先を選択中" : "移動先"),
+                    h("button", {
+                      type: "button", className: "ledger-queue-item-delete",
+                      "aria-label": entry.name + " を削除",
+                      onClick: () => {
+                        if (movingEntryId === entry.id) cancelMoveEntry();
+                        dispatch({ type: "PURGE_ENTRY", id: entry.id });
+                      }
+                    }, "削除")
+                  )
+                ))
+        )
+      )
+    ),
+        personaAudit && h("details", { className: "ledger-persona-audit-disclosure" },
       h("summary", null,
         h("span", null, "PERSONA AUDIT / 人格取得の照合"),
         h("span", { className: "ledger-note" }, "不足 " + personaAudit.missing.length + " 件 · 未記録 " + personaAudit.unrecorded.length + " 件")
@@ -6048,9 +6180,17 @@ const importHeldPersonas = () => {
     /* リザルトの追加。
        取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
        開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
-    h(Card, { className: "ledger-result-entry-card" },
+    h(Card, {
+      className: "ledger-result-entry-card" + (newResultEntryOpen ? " is-open" : ""),
+      id: "ledger-new-result-entry"
+    },
       h("div", { className: "card-header ledger-result-entry-card-head" },
         h("span", { className: "t-label" }, "リザルトを記録"),
+        h(Button, {
+          size: "sm", variant: "secondary", className: "ledger-new-entry-toggle",
+          "aria-expanded": newResultEntryOpen,
+          onClick: () => setNewResultEntryOpen((open) => !open)
+        }, newResultEntryOpen ? "入力を閉じる" : "新規入力"),
         /* 取り込みの入口。3つを畳んで隠す。
            heldOpen は既存の人格リスト自身の開閉なので使わない。 */
         h(Button, {
@@ -6489,13 +6629,12 @@ const importHeldPersonas = () => {
     )
     ),
 
-    /* 手動の支出・消耗。DBに価格が無いものと、戦闘で消えたものをここで記録する。 */
-    h(Card, null,
-      h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "支出・消耗を記録"),
-        h("span", { className: "ledger-note" }, "所持や強化から自動で入る分はここで打ちません")
+    h("details", { className: "ledger-manual-expense-disclosure" },
+      h("summary", null,
+        h("span", null, "支出・消耗を記録"),
+        h("span", { className: "ledger-note" }, "所持や強化から自動記録されない分だけ")
       ),
-      h("div", { className: "card-body stack-2" },
+      h("div", { className: "ledger-manual-expense-body" },
         h("div", { className: "ledger-add-row" },
           h("input", {
             className: "ledger-input ledger-input--wide",
@@ -6515,21 +6654,20 @@ const importHeldPersonas = () => {
           ]).map((k) => h("option", { key: k.id, value: k.id }, k.label))),
           h("input", {
             className: "ledger-input ledger-input--num",
-            placeholder: "LP",
-            inputMode: "numeric",
-            value: newEntry.lp,
-            "aria-label": "消費LP",
+            placeholder: "LP", inputMode: "numeric",
+            value: newEntry.lp, "aria-label": "消費LP",
             onChange: (e) => setNewEntry((p) => ({ ...p, lp: e.target.value }))
           }),
           h("input", {
             className: "ledger-input ledger-input--num",
-            placeholder: "欠片",
-            inputMode: "numeric",
-            value: newEntry.shards,
-            "aria-label": "消費欠片",
+            placeholder: "欠片", inputMode: "numeric",
+            value: newEntry.shards, "aria-label": "消費欠片",
             onChange: (e) => setNewEntry((p) => ({ ...p, shards: e.target.value }))
           }),
-          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addEntry, disabled: !String(newEntry.name || "").trim() }, "記録")
+          h(Button, {
+            size: "sm", variant: "primary", icon: "check",
+            onClick: addEntry, disabled: !String(newEntry.name || "").trim()
+          }, "記録")
         )
       )
     ),
@@ -6653,64 +6791,17 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
       )
     ),
 
-    /* 未分類。ここが帰属待ちのキュー。空でも受け皿として残す。 */
-    h("div", {
-      className: `ledger-card-wrap${overId === "__queue" ? " is-over" : ""}`,
-      ...dropTargetProps("__queue")
-    },
-    h(Card, { className: "ledger-queue" },
-      h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "未分類"),
-        h("span", { className: "ledger-note" }, "ドラッグ、または「移動」から選択して帰属できます"),
-        movingEntry && h("button", {
-          type: "button", className: "ledger-queue-move-target",
-          disabled: !movingEntry.resultId,
-          title: !movingEntry.resultId ? "この明細はすでに未分類です" : "選択中の明細を未分類へ戻す",
-          onClick: () => moveEntry(movingEntry.id, null)
-        }, !movingEntry.resultId ? "未分類（現在地）" : "未分類へ移動")
-      ),
-      h("div", { className: "card-body stack-2" },
-        unclassified.length === 0
-          ? h("p", { className: "ledger-empty-note" }, "未分類は空です。リザルトから明細をここへドラッグすると戻せます。")
-          : null,
-        unclassified.map((entry) => h("div", {
-          key: entry.id,
-          className: "ledger-row",
-          ...dragProps(entry)
-        },
-          h("span", { className: "ledger-row-name" }, entry.name),
-          h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
-          h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
-          h("button", {
-            type: "button", className: "ledger-row-move-action",
-            "aria-pressed": movingEntryId === entry.id,
-            "aria-label": `${entry.name} の移動先を選択`,
-            title: "ドラッグできない場合は、移動先カードを選べます",
-            onClick: () => startMoveEntry(entry)
-          }, movingEntryId === entry.id ? "選択中" : "移動"),
-          h("button", {
-            type: "button",
-            className: "ledger-row-trash",
-            title: "削除する（Ctrl+Z で取り消せます）",
-            "aria-label": `${entry.name} を削除する`,
-            onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
-          }, "削除")
-        ))
-      )
-    )
-    ),
-
     /* リザルトカード。ドラッグ先とクリック移動先を同じカードへ統一。 */
     movingEntry && h("div", { className: "ledger-move-mode", role: "status" },
       h("span", null, `「${movingEntry.name}」の移動先を選択中です。対象カードの「ここへ移動」を押してください。`),
       h(Button, { size: "sm", variant: "ghost", onClick: cancelMoveEntry }, "移動をやめる")
     ),
-    h("div", { className: "ledger-results-toolbar" },
+    h("div", { className: "ledger-results-toolbar", id: "ledger-results-section" },
       h("span", { className: "ledger-results-count" },
         "リザルト " + sortedResults.length + " / " + results.length + " 件"),
       h("input", {
         type: "search", className: "ledger-results-search",
-        placeholder: "名称・日付・LP・欠片を検索", "aria-label": "リザルトを検索",
+        placeholder: "セッション名・人格・E.G.O・アイテムを検索", "aria-label": "リザルトを検索",
         value: resultQuery, disabled: ticketPanel !== null,
         onChange: (event) => { setResultQuery(event.target.value); setResultPage(0); }
       }),
@@ -6722,6 +6813,25 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         h("option", { value: "newest" }, "新しい順"),
         h("option", { value: "oldest" }, "古い順"),
         h("option", { value: "name" }, "名称順")
+      ),
+      h("div", { className: "ledger-results-toolbar-pages", "aria-label": "リザルトページ移動" },
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
+          "aria-label": "最初のページ", onClick: () => setResultPage(0)
+        }, "最初"),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
+          "aria-label": "前のページ", onClick: () => setResultPage(Math.max(0, safeResultPage - 1))
+        }, "前へ"),
+        h("span", { className: "ledger-results-page-number" }, (safeResultPage + 1) + " / " + resultPageCount),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
+          "aria-label": "次のページ", onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
+        }, "次へ"),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
+          "aria-label": "最後のページ", onClick: () => setResultPage(resultPageCount - 1)
+        }, "最後")
       )
     ),
     h("div", { className: "ledger-cards" },
