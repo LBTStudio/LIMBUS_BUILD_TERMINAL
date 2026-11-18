@@ -6089,7 +6089,7 @@ const importHeldPersonas = () => {
                 && h("p", { className: "ledger-empty-note" }, "一致する移動先がありません。検索語を変えてください。")
             ),
             movingEntry.resultId && h("button", {
-              type: "button", className: "ledger-queue-move-target ledger-queue-transfer-unclassify",
+              type: "button", className: "ledger-queue-move-target",
               onClick: () => moveEntry(movingEntry.id, null)
             }, "未分類へ戻す")
           ),
