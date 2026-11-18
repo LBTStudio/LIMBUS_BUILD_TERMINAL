@@ -2090,7 +2090,8 @@ async function captureProfile(browser, mode) {
         const template=current.results[0]||{
           income:{lp:0,shards:0,tickets:{}},personaAcquisitions:[],egoAcquisitions:[],rewardItems:[],consumedItems:[]
         };
-        const extraCount=Math.max(0,200-current.results.length);
+        const baseResults=current.results.slice(0,199);
+        const extraCount=Math.max(0,199-baseResults.length);
         const extras=Array.from({length:extraCount},(_,i)=>({
           ...template,
           id:"ui-audit-long-result-"+String(i+1).padStart(3,"0"),
@@ -2103,12 +2104,24 @@ async function captureProfile(browser, mode) {
           rewardItems:[],
           consumedItems:[]
         }));
-        const next={...current,results:[...current.results.slice(0,200),...extras]};
+        const finalResult={
+          ...template,
+          id:"ui-audit-long-result-200",
+          name:"QA長期リザルト 200",
+          date:"2026-11-18",
+          income:{...(template.income||{}),lp:0,shards:0,tickets:{...(template.income?.tickets||{}),persona:0,ego:0,choice:0,pack:{}}},
+          initialPersona:null,
+          personaAcquisitions:[],
+          egoAcquisitions:[],
+          rewardItems:[],
+          consumedItems:[]
+        };
+        const next={...current,results:[...baseResults,...extras,finalResult]};
         if(next.results.length!==200) throw new Error("200件の試験リザルトを作成できません: "+next.results.length);
         if(window.LBT_accounts.saveActive(next)!==true) throw new Error("200件の試験リザルトを保存できません");
-        return original;
+        return {state:original,searchName:finalResult.name};
       });
-      if(!originalState) throw new Error("試験用アカウントの保存データを取得できません");
+      if(!originalState?.state || !originalState?.searchName) throw new Error("試験用アカウントの保存データを取得できません");
       try {
         await page.reload({waitUntil:"domcontentloaded"});
         await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
@@ -2133,7 +2146,7 @@ async function captureProfile(browser, mode) {
         }
         await snap("ledger-200-results-last-page","200件中の最終ページと末尾8件");
         const search=toolbar.locator('[aria-label="リザルトを検索"]');
-        await search.fill("QA長期リザルト 198");
+        await search.fill(originalState.searchName);
         await page.waitForTimeout(180);
         const searchCount=await toolbar.locator(".ledger-results-count").innerText();
         const searchPage=await pageNumber.innerText();
@@ -2145,7 +2158,7 @@ async function captureProfile(browser, mode) {
       } finally {
         await page.evaluate((saved)=>{
           if(window.LBT_accounts?.saveActive?.(saved)!==true) throw new Error("監査用リザルトデータを復元できません");
-        },originalState);
+        },originalState.state);
         await page.reload({waitUntil:"domcontentloaded"});
         await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
         await go("記録");
