@@ -6180,6 +6180,272 @@ const importHeldPersonas = () => {
         }, "最後")
       )
     ),
+    /* リザルトの追加。
+       取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
+       開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
+    h(Card, {
+      className: "ledger-result-entry-card" + (newResultEntryOpen ? " is-open" : ""),
+      id: "ledger-new-result-entry"
+    },
+      h("div", { className: "card-header ledger-result-entry-card-head" },
+        h("span", { className: "t-label" }, "リザルトを記録"),
+        h(Button, {
+          size: "sm", variant: "secondary", className: "ledger-new-entry-toggle",
+          "aria-expanded": newResultEntryOpen,
+          onClick: () => setNewResultEntryOpen((open) => !open)
+        }, newResultEntryOpen ? "入力を閉じる" : "新規入力"),
+        /* 取り込みの入口。3つを畳んで隠す。
+           heldOpen は既存の人格リスト自身の開閉なので使わない。 */
+        h(Button, {
+          size: "sm",
+          variant: "secondary",
+          icon: "download",
+          className: "ledger-import-toggle",
+          "aria-expanded": importMenuOpen,
+          onClick: () => setImportMenuOpen((v) => !v)
+        }, "取り込む")
+      ),
+      importMenuOpen && h("div", { className: "ledger-import-menu" },
+        /* 硝子窓の取り込みはリザルト個別ではなく全体操作。共有URLから
+           シナリオをまとめて読み取り、複数リザルトをまとめて作ります。 */
+        h(Button, { size: "sm", variant: "quiet", icon: "download", onClick: () => switchResultTool("glass") }, "硝子窓から一括取り込む"),
+        /* 手打ちの記録を読み込む。同じリザルトカードから入れられるように隣に置く。 */
+        h(Button, { size: "sm", variant: "quiet", icon: "copy", onClick: () => switchResultTool("text") }, "テキスト流し込み"),
+        /* 所持人格リストの一括取込。 */
+        h(Button, { size: "sm", variant: "quiet", icon: "grid", onClick: () => { setImportMenuOpen(false); openHeld(); } }, "所持人格リストを取り込む")
+      ),
+      h("div", { className: "card-body ledger-result-entry-body" },
+        h("nav", { className: "ledger-result-progress", "aria-label": "リザルト入力のステップ" },
+          h("div", { className: "ledger-result-progress-heading" },
+            h("strong", null, "入力の進み具合"),
+            h("small", null, "項目を選ぶと、その場所へ移動します")
+          ),
+          h("div", { className: "ledger-result-progress-steps" },
+            newResultSteps.map((step) => h("button", {
+              key: step.id,
+              type: "button",
+              className: "ledger-result-step" + (activeNewResultStage === step.id ? " is-active" : ""),
+              "data-stage": step.id,
+              "aria-current": activeNewResultStage === step.id ? "step" : void 0,
+              onClick: () => jumpToNewResultStage(step.id)
+            },
+              h("span", { className: "ledger-result-step-number" }, step.number),
+              h("span", { className: "ledger-result-step-copy" },
+                h("strong", null, step.title),
+                h("small", null, step.note)
+              )
+            ))
+          )
+        ),
+        h("section", {
+          id: "ledger-result-stage-session",
+          className: "ledger-result-entry-section",
+          "aria-label": "リザルトの基本情報",
+          onFocusCapture: () => setActiveNewResultStage("session")
+        },
+          h("div", { className: "ledger-result-section-heading" },
+            h("span", { className: "t-label" }, "セッション情報"),
+            h("span", { className: "ledger-note" }, "名称・開催日・獲得した資源を入力します。")
+          ),
+          h("div", { className: "ledger-add-row ledger-result-income-row" },
+            h("label", { className: "ledger-result-input-field ledger-result-input-field--name" },
+              h("span", null, "リザルト名"),
+              h("input", {
+                className: "ledger-input",
+                placeholder: "例：第12回 ゲーパ",
+                value: newResult.name,
+                "aria-label": "リザルトの名称",
+                onChange: (e) => setNewResult((p) => ({ ...p, name: e.target.value }))
+              })
+            ),
+            h("label", { className: "ledger-result-input-field" },
+              h("span", null, "プレイした日付"),
+              h("input", {
+                type: "date",
+                className: "ledger-input ledger-input--date",
+                value: newResult.date,
+                "aria-label": "プレイした日付",
+                onChange: (e) => setNewResult((p) => ({ ...p, date: e.target.value }))
+              })
+            ),
+            h("label", { className: "ledger-result-input-field" },
+              h("span", null, "獲得LP"),
+              h("input", {
+                className: "ledger-input ledger-input--num",
+                type: "text", inputMode: "numeric", autoComplete: "off",
+                placeholder: "0",
+                value: newResult.lp,
+                "aria-label": "獲得LP",
+                "aria-invalid": newResultError.startsWith("獲得LP"),
+                onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, lp: e.target.value })); }
+              })
+            ),
+            h("label", { className: "ledger-result-input-field" },
+              h("span", null, "獲得欠片"),
+              h("input", {
+                className: "ledger-input ledger-input--num",
+                type: "text", inputMode: "numeric", autoComplete: "off",
+                placeholder: "0",
+                value: newResult.shards,
+                "aria-label": "獲得欠片",
+                "aria-invalid": newResultError.startsWith("獲得欠片"),
+                onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, shards: e.target.value })); }
+              })
+            )
+          )
+        ),
+        h("section", {
+          id: "ledger-result-stage-tickets",
+          className: "ledger-result-entry-ticket-section",
+          "aria-label": "卓の報酬チケット",
+          onFocusCapture: () => setActiveNewResultStage("tickets")
+        },
+          h(TicketInputs, {
+            idPrefix: "new-result",
+            current: newResult.tickets,
+            packPick: newResultPack,
+            setPackPick: setNewResultPack,
+            onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
+          })
+        ),
+        h("details", {
+          id: "ledger-result-stage-rewards",
+          className: "ledger-result-reward-disclosure",
+          onToggle: (event) => { if (event.currentTarget.open) setActiveNewResultStage("rewards"); }
+        },
+          h("summary", null,
+            "報酬を追加（人格 " + (newResult.personaAcquisitions || []).length + " / E.G.O " + (newResult.egoAcquisitions || []).length + " / アイテム " + (newResult.rewardItems || []).length + "）"
+          ),
+          h("div", { className: "ledger-result-reward-content stack-2" },
+          h("section", { className: "ledger-reward-item-editor ledger-persona-reward-editor", "aria-label": "報酬人格" },
+            h("div", { className: "ledger-reward-item-head" },
+              h("span", { className: "t-label" }, "報酬人格"),
+              h("span", { className: "ledger-note" }, "名前またはNo.で検索して追加します。複数登録できます。")
+            ),
+            h("div", { className: "ledger-persona-search" },
+              h("input", {
+                className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+                "aria-label": "報酬人格をDBから検索",
+                placeholder: "人格名・No.で検索",
+                value: newResultPersonaQuery,
+                onChange: (event) => setNewResultPersonaQuery(event.target.value)
+              }),
+              newResultPersonaMatches.length > 0
+                ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬人格の検索候補", "aria-live": "polite" },
+                    newResultPersonaMatches.map((option) => h("button", {
+                      key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                      "aria-label": option.name + "（" + (option.mode === "t" ? "特異" : "通常") + "）を報酬人格に追加",
+                      onClick: () => addNewResultPersona(option)
+                    },
+                      h("span", null, option.name),
+                      h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
+                      h("b", null, "追加")
+                    ))
+                  )
+                : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                    newResultPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます。"
+                  )
+            ),
+            (newResult.personaAcquisitions || []).length > 0
+              ? h("div", { className: "ledger-reward-item-list" }, newResult.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
+                  h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
+                  h("small", null, entry.mode === "t" ? "特異" : "通常"),
+                  h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬人格から外す", onClick: () => setNewResult((current) => ({ ...current, personaAcquisitions: (current.personaAcquisitions || []).filter((item) => !(item.mode === entry.mode && String(item.no) === String(entry.no))) })) }, "×")
+                )))
+              : h("p", { className: "ledger-empty-note" }, "報酬人格はまだ登録されていません。")
+          ),
+          h("section", { className: "ledger-reward-item-editor ledger-ego-reward-editor", "aria-label": "報酬E.G.O" },
+            h("div", { className: "ledger-reward-item-head" },
+              h("span", { className: "t-label" }, "報酬E.G.O"),
+              h("span", { className: "ledger-note" }, "所持済みでも履歴に記録できます。未所持分は無償で所持へ加えます。")
+            ),
+            h("div", { className: "ledger-persona-search" },
+              h("input", {
+                className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+                "aria-label": "報酬E.G.OをDBから検索",
+                placeholder: "E.G.O名・ランク・No.で検索",
+                value: newResultEgoQuery,
+                onChange: (event) => setNewResultEgoQuery(event.target.value)
+              }),
+              newResultEgoMatches.length > 0
+                ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬E.G.Oの検索候補", "aria-live": "polite" },
+                    newResultEgoMatches.map((option) => h("button", {
+                      key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                      "aria-label": option.name + "（" + option.rank + " No." + option.no + "）を報酬E.G.Oに追加",
+                      onClick: () => addNewResultEgo(option)
+                    },
+                      h("span", null, option.name),
+                      h("small", null, option.rank + " · No." + option.no + ((state.roster?.egos || []).some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no) ? " · 所持済み" : "")),
+                      h("b", null, "追加")
+                    ))
+                  )
+                : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                    newResultEgoQuery.trim() ? "DB内に一致するE.G.Oがありません。表記を変えて検索してください。" : "E.G.O名・ランク・No.を入力すると候補が表示されます。"
+                  )
+            ),
+            (newResult.egoAcquisitions || []).length > 0
+              ? h("div", { className: "ledger-reward-item-list" }, newResult.egoAcquisitions.map((entry) => h("div", { key: entry.rank + ":" + entry.no, className: "ledger-reward-item-chip" },
+                  h("span", null, entry.name || (entry.rank + " No." + entry.no)),
+                  h("small", null, entry.rank),
+                  h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬E.G.Oから外す", onClick: () => setNewResult((current) => ({ ...current, egoAcquisitions: (current.egoAcquisitions || []).filter((item) => !(String(item.rank).toUpperCase() === String(entry.rank).toUpperCase() && String(item.no) === String(entry.no))) })) }, "×")
+                )))
+              : h("p", { className: "ledger-empty-note" }, "報酬E.G.Oはまだ登録されていません。")
+          ),
+          h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
+            h("div", { className: "ledger-reward-item-head" },
+              h("span", { className: "t-label" }, "報酬アイテム"),
+              h("span", { className: "ledger-note" }, "カタログ品または自由入力の報酬を数量つきで登録します。")
+            ),
+            h("div", { className: "ledger-reward-item-controls" },
+              h("select", {
+                className: "select", "aria-label": "報酬アイテムのカタログ選択",
+                value: newRewardItemId,
+                onChange: (event) => { setNewRewardItemId(event.target.value); setNewRewardItemName(""); }
+              },
+                h("option", { value: "" }, "カタログから選択…"),
+                rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
+              ),
+              h("input", {
+                className: "ledger-input", "aria-label": "カタログにない報酬アイテム名",
+                placeholder: "カタログにない品名",
+                value: newRewardItemName,
+                onChange: (event) => { setNewRewardItemName(event.target.value); setNewRewardItemId(""); }
+              }),
+              h("input", {
+                className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
+                "aria-label": "報酬アイテム数量", value: newRewardItemQty,
+                onChange: (event) => setNewRewardItemQty(event.target.value)
+              }),
+              h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
+                const rewardItems = appendRewardItemDraft(newResult.rewardItems || [], newRewardItemId, newRewardItemName, newRewardItemQty);
+                if (rewardItems !== newResult.rewardItems) {
+                  setNewResult((current) => ({ ...current, rewardItems }));
+                  setNewRewardItemId(""); setNewRewardItemName(""); setNewRewardItemQty("1");
+                }
+              } }, "追加")
+            ),
+            (newResult.rewardItems || []).length > 0
+              ? h("div", { className: "ledger-reward-item-list" }, newResult.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
+                  h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
+                  h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => setNewResult((current) => ({ ...current, rewardItems: removeRewardItemDraft(current.rewardItems || [], index) })) }, "×")
+                )))
+              : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
+          )
+          )
+        ),
+        h("div", {
+          id: "ledger-result-stage-confirm",
+          className: "ledger-result-entry-footer",
+          onFocusCapture: () => setActiveNewResultStage("confirm")
+        },
+          newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
+          h("div", { className: "ledger-result-submit" },
+            h(Button, { size: "md", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "入力した内容をまとめて記録")
+          )
+        )
+      )
+    ),
+
     h("div", { className: "ledger-cards" },
       results.length === 0 && h(Card, null,
         h("div", { className: "empty", style: { padding: "var(--s-4)" } },
@@ -6870,272 +7136,6 @@ h(Card, { className: "ledger-card" },
         }, "次へ")
       )
     ),
-    /* リザルトの追加。
-       取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
-       開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
-    h(Card, {
-      className: "ledger-result-entry-card" + (newResultEntryOpen ? " is-open" : ""),
-      id: "ledger-new-result-entry"
-    },
-      h("div", { className: "card-header ledger-result-entry-card-head" },
-        h("span", { className: "t-label" }, "リザルトを記録"),
-        h(Button, {
-          size: "sm", variant: "secondary", className: "ledger-new-entry-toggle",
-          "aria-expanded": newResultEntryOpen,
-          onClick: () => setNewResultEntryOpen((open) => !open)
-        }, newResultEntryOpen ? "入力を閉じる" : "新規入力"),
-        /* 取り込みの入口。3つを畳んで隠す。
-           heldOpen は既存の人格リスト自身の開閉なので使わない。 */
-        h(Button, {
-          size: "sm",
-          variant: "secondary",
-          icon: "download",
-          className: "ledger-import-toggle",
-          "aria-expanded": importMenuOpen,
-          onClick: () => setImportMenuOpen((v) => !v)
-        }, "取り込む")
-      ),
-      importMenuOpen && h("div", { className: "ledger-import-menu" },
-        /* 硝子窓の取り込みはリザルト個別ではなく全体操作。共有URLから
-           シナリオをまとめて読み取り、複数リザルトをまとめて作ります。 */
-        h(Button, { size: "sm", variant: "quiet", icon: "download", onClick: () => switchResultTool("glass") }, "硝子窓から一括取り込む"),
-        /* 手打ちの記録を読み込む。同じリザルトカードから入れられるように隣に置く。 */
-        h(Button, { size: "sm", variant: "quiet", icon: "copy", onClick: () => switchResultTool("text") }, "テキスト流し込み"),
-        /* 所持人格リストの一括取込。 */
-        h(Button, { size: "sm", variant: "quiet", icon: "grid", onClick: () => { setImportMenuOpen(false); openHeld(); } }, "所持人格リストを取り込む")
-      ),
-      h("div", { className: "card-body ledger-result-entry-body" },
-        h("nav", { className: "ledger-result-progress", "aria-label": "リザルト入力のステップ" },
-          h("div", { className: "ledger-result-progress-heading" },
-            h("strong", null, "入力の進み具合"),
-            h("small", null, "項目を選ぶと、その場所へ移動します")
-          ),
-          h("div", { className: "ledger-result-progress-steps" },
-            newResultSteps.map((step) => h("button", {
-              key: step.id,
-              type: "button",
-              className: "ledger-result-step" + (activeNewResultStage === step.id ? " is-active" : ""),
-              "data-stage": step.id,
-              "aria-current": activeNewResultStage === step.id ? "step" : void 0,
-              onClick: () => jumpToNewResultStage(step.id)
-            },
-              h("span", { className: "ledger-result-step-number" }, step.number),
-              h("span", { className: "ledger-result-step-copy" },
-                h("strong", null, step.title),
-                h("small", null, step.note)
-              )
-            ))
-          )
-        ),
-        h("section", {
-          id: "ledger-result-stage-session",
-          className: "ledger-result-entry-section",
-          "aria-label": "リザルトの基本情報",
-          onFocusCapture: () => setActiveNewResultStage("session")
-        },
-          h("div", { className: "ledger-result-section-heading" },
-            h("span", { className: "t-label" }, "セッション情報"),
-            h("span", { className: "ledger-note" }, "名称・開催日・獲得した資源を入力します。")
-          ),
-          h("div", { className: "ledger-add-row ledger-result-income-row" },
-            h("label", { className: "ledger-result-input-field ledger-result-input-field--name" },
-              h("span", null, "リザルト名"),
-              h("input", {
-                className: "ledger-input",
-                placeholder: "例：第12回 ゲーパ",
-                value: newResult.name,
-                "aria-label": "リザルトの名称",
-                onChange: (e) => setNewResult((p) => ({ ...p, name: e.target.value }))
-              })
-            ),
-            h("label", { className: "ledger-result-input-field" },
-              h("span", null, "プレイした日付"),
-              h("input", {
-                type: "date",
-                className: "ledger-input ledger-input--date",
-                value: newResult.date,
-                "aria-label": "プレイした日付",
-                onChange: (e) => setNewResult((p) => ({ ...p, date: e.target.value }))
-              })
-            ),
-            h("label", { className: "ledger-result-input-field" },
-              h("span", null, "獲得LP"),
-              h("input", {
-                className: "ledger-input ledger-input--num",
-                type: "text", inputMode: "numeric", autoComplete: "off",
-                placeholder: "0",
-                value: newResult.lp,
-                "aria-label": "獲得LP",
-                "aria-invalid": newResultError.startsWith("獲得LP"),
-                onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, lp: e.target.value })); }
-              })
-            ),
-            h("label", { className: "ledger-result-input-field" },
-              h("span", null, "獲得欠片"),
-              h("input", {
-                className: "ledger-input ledger-input--num",
-                type: "text", inputMode: "numeric", autoComplete: "off",
-                placeholder: "0",
-                value: newResult.shards,
-                "aria-label": "獲得欠片",
-                "aria-invalid": newResultError.startsWith("獲得欠片"),
-                onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, shards: e.target.value })); }
-              })
-            )
-          )
-        ),
-        h("section", {
-          id: "ledger-result-stage-tickets",
-          className: "ledger-result-entry-ticket-section",
-          "aria-label": "卓の報酬チケット",
-          onFocusCapture: () => setActiveNewResultStage("tickets")
-        },
-          h(TicketInputs, {
-            idPrefix: "new-result",
-            current: newResult.tickets,
-            packPick: newResultPack,
-            setPackPick: setNewResultPack,
-            onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
-          })
-        ),
-        h("details", {
-          id: "ledger-result-stage-rewards",
-          className: "ledger-result-reward-disclosure",
-          onToggle: (event) => { if (event.currentTarget.open) setActiveNewResultStage("rewards"); }
-        },
-          h("summary", null,
-            "報酬を追加（人格 " + (newResult.personaAcquisitions || []).length + " / E.G.O " + (newResult.egoAcquisitions || []).length + " / アイテム " + (newResult.rewardItems || []).length + "）"
-          ),
-          h("div", { className: "ledger-result-reward-content stack-2" },
-          h("section", { className: "ledger-reward-item-editor ledger-persona-reward-editor", "aria-label": "報酬人格" },
-            h("div", { className: "ledger-reward-item-head" },
-              h("span", { className: "t-label" }, "報酬人格"),
-              h("span", { className: "ledger-note" }, "名前またはNo.で検索して追加します。複数登録できます。")
-            ),
-            h("div", { className: "ledger-persona-search" },
-              h("input", {
-                className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
-                "aria-label": "報酬人格をDBから検索",
-                placeholder: "人格名・No.で検索",
-                value: newResultPersonaQuery,
-                onChange: (event) => setNewResultPersonaQuery(event.target.value)
-              }),
-              newResultPersonaMatches.length > 0
-                ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬人格の検索候補", "aria-live": "polite" },
-                    newResultPersonaMatches.map((option) => h("button", {
-                      key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
-                      "aria-label": option.name + "（" + (option.mode === "t" ? "特異" : "通常") + "）を報酬人格に追加",
-                      onClick: () => addNewResultPersona(option)
-                    },
-                      h("span", null, option.name),
-                      h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
-                      h("b", null, "追加")
-                    ))
-                  )
-                : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
-                    newResultPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます。"
-                  )
-            ),
-            (newResult.personaAcquisitions || []).length > 0
-              ? h("div", { className: "ledger-reward-item-list" }, newResult.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
-                  h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
-                  h("small", null, entry.mode === "t" ? "特異" : "通常"),
-                  h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬人格から外す", onClick: () => setNewResult((current) => ({ ...current, personaAcquisitions: (current.personaAcquisitions || []).filter((item) => !(item.mode === entry.mode && String(item.no) === String(entry.no))) })) }, "×")
-                )))
-              : h("p", { className: "ledger-empty-note" }, "報酬人格はまだ登録されていません。")
-          ),
-          h("section", { className: "ledger-reward-item-editor ledger-ego-reward-editor", "aria-label": "報酬E.G.O" },
-            h("div", { className: "ledger-reward-item-head" },
-              h("span", { className: "t-label" }, "報酬E.G.O"),
-              h("span", { className: "ledger-note" }, "所持済みでも履歴に記録できます。未所持分は無償で所持へ加えます。")
-            ),
-            h("div", { className: "ledger-persona-search" },
-              h("input", {
-                className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
-                "aria-label": "報酬E.G.OをDBから検索",
-                placeholder: "E.G.O名・ランク・No.で検索",
-                value: newResultEgoQuery,
-                onChange: (event) => setNewResultEgoQuery(event.target.value)
-              }),
-              newResultEgoMatches.length > 0
-                ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬E.G.Oの検索候補", "aria-live": "polite" },
-                    newResultEgoMatches.map((option) => h("button", {
-                      key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
-                      "aria-label": option.name + "（" + option.rank + " No." + option.no + "）を報酬E.G.Oに追加",
-                      onClick: () => addNewResultEgo(option)
-                    },
-                      h("span", null, option.name),
-                      h("small", null, option.rank + " · No." + option.no + ((state.roster?.egos || []).some((entry) => String(entry.rank).toUpperCase() === option.rank && String(entry.no) === option.no) ? " · 所持済み" : "")),
-                      h("b", null, "追加")
-                    ))
-                  )
-                : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
-                    newResultEgoQuery.trim() ? "DB内に一致するE.G.Oがありません。表記を変えて検索してください。" : "E.G.O名・ランク・No.を入力すると候補が表示されます。"
-                  )
-            ),
-            (newResult.egoAcquisitions || []).length > 0
-              ? h("div", { className: "ledger-reward-item-list" }, newResult.egoAcquisitions.map((entry) => h("div", { key: entry.rank + ":" + entry.no, className: "ledger-reward-item-chip" },
-                  h("span", null, entry.name || (entry.rank + " No." + entry.no)),
-                  h("small", null, entry.rank),
-                  h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬E.G.Oから外す", onClick: () => setNewResult((current) => ({ ...current, egoAcquisitions: (current.egoAcquisitions || []).filter((item) => !(String(item.rank).toUpperCase() === String(entry.rank).toUpperCase() && String(item.no) === String(entry.no))) })) }, "×")
-                )))
-              : h("p", { className: "ledger-empty-note" }, "報酬E.G.Oはまだ登録されていません。")
-          ),
-          h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
-            h("div", { className: "ledger-reward-item-head" },
-              h("span", { className: "t-label" }, "報酬アイテム"),
-              h("span", { className: "ledger-note" }, "カタログ品または自由入力の報酬を数量つきで登録します。")
-            ),
-            h("div", { className: "ledger-reward-item-controls" },
-              h("select", {
-                className: "select", "aria-label": "報酬アイテムのカタログ選択",
-                value: newRewardItemId,
-                onChange: (event) => { setNewRewardItemId(event.target.value); setNewRewardItemName(""); }
-              },
-                h("option", { value: "" }, "カタログから選択…"),
-                rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
-              ),
-              h("input", {
-                className: "ledger-input", "aria-label": "カタログにない報酬アイテム名",
-                placeholder: "カタログにない品名",
-                value: newRewardItemName,
-                onChange: (event) => { setNewRewardItemName(event.target.value); setNewRewardItemId(""); }
-              }),
-              h("input", {
-                className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
-                "aria-label": "報酬アイテム数量", value: newRewardItemQty,
-                onChange: (event) => setNewRewardItemQty(event.target.value)
-              }),
-              h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
-                const rewardItems = appendRewardItemDraft(newResult.rewardItems || [], newRewardItemId, newRewardItemName, newRewardItemQty);
-                if (rewardItems !== newResult.rewardItems) {
-                  setNewResult((current) => ({ ...current, rewardItems }));
-                  setNewRewardItemId(""); setNewRewardItemName(""); setNewRewardItemQty("1");
-                }
-              } }, "追加")
-            ),
-            (newResult.rewardItems || []).length > 0
-              ? h("div", { className: "ledger-reward-item-list" }, newResult.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
-                  h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
-                  h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => setNewResult((current) => ({ ...current, rewardItems: removeRewardItemDraft(current.rewardItems || [], index) })) }, "×")
-                )))
-              : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
-          )
-          )
-        ),
-        h("div", {
-          id: "ledger-result-stage-confirm",
-          className: "ledger-result-entry-footer",
-          onFocusCapture: () => setActiveNewResultStage("confirm")
-        },
-          newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
-          h("div", { className: "ledger-result-submit" },
-            h(Button, { size: "md", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "入力した内容をまとめて記録")
-          )
-        )
-      )
-    ),
-
     importPanel && h("div", { id: "ledger-glass-import-panel", role: "region", "aria-label": "硝子窓から一括取り込む", className: "ledger-gara-wrap" },
     h("div", { className: "card-header owned-library-bar" },
     h("span", { className: "t-label" }, "硝子窓から一括取り込む"),
