@@ -1497,4 +1497,6 @@ test("通帳は長大なリザルト一覧から未分類移動・ページ操�
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-queue-drawer\s*\{[^}]*height:\s*min\(78dvh/s);
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*display:\s*grid[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[\s\S]*?overflow:\s*visible/s);
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-action\s*\{[^}]*min-height:\s*40px/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(108px,\s*124px\)/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar-pages\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
 });
