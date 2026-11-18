@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-ledger-classification-v75-20261119";
+const CACHE_NAME = "lbt-b92abf0b";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -53,7 +53,7 @@ const PRECACHE_URLS = [
   "assets/v71-unified-visual.css?v=28bc57fd",
   "assets/v73-ledger-workbench.css?v=6cae8d48",
   "assets/v74-ledger-multicolumn.css?v=4cc4ad82",
-  "assets/v75-ledger-classification.css?v=75a20261119",
+  "assets/v75-ledger-classification.css?v=35c2c0e5",
   "assets/workspace.css?v=6661210a",
   "data/db.json?v=e0594573",
   "data/gacha-theme-packs.json?v=8d4dced2",
@@ -64,7 +64,7 @@ const PRECACHE_URLS = [
   "js/InlineEffectGlossary.js?v=b6e306c8",
   "js/ItemCodex.js?v=3c394422",
   "js/LivePreview.js?v=69b4d6d2",
-  "js/OtherSections.js?v=75ui20261119",
+  "js/OtherSections.js?v=cb445cbf",
   "js/PersonaCodex.js?v=ec2627ce",
   "js/SkillDeck.js?v=f176d667",
   "js/accounts-ui.js?v=e5adf26e",
@@ -92,7 +92,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=bb84f9f2",
   "js/share-link.js?v=61e00b15",
   "js/share-viewer.js?v=14ab5f9b",
-  "js/state.js?v=75state20261119",
+  "js/state.js?v=50e536d5",
   "js/ui.js?v=e66a7ae3",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
