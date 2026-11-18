@@ -1467,7 +1467,7 @@ test("リザルト一覧を優先し、抽出リストは後段の折りたた�
   const drawStart = resultSections.indexOf("const DrawLedgerPanel =");
   const drawEnd = resultSections.indexOf("/* バッチの支出合計", drawStart);
   const drawSource = resultSections.slice(drawStart, drawEnd);
-  assert.match(drawSource, /return h\("details", \{ className: "draw-ledger draw-ledger-disclosure" \}/);
+  assert.match(drawSource, /return h\("details", \{[^}]*className: "draw-ledger draw-ledger-disclosure"/);
   assert.match(drawSource, /h\("summary", \{ className: "draw-ledger-disclosure-summary" \}/);
   assert.match(drawSource, /draw-ledger-disclosure-status/);
   assert.doesNotMatch(drawSource, /open\s*:\s*true/);
@@ -1479,7 +1479,7 @@ test("通帳は長大なリザルト一覧から未分類移動・ページ操�
   const sections = read("../js/OtherSections.js");
   const workbenchCss = read("../assets/v73-ledger-workbench.css");
   assert.match(sections, /className: "ledger-command-bar"/);
-  assert.match(sections, /aria-haspopup: "dialog"/);
+  assert.match(sections, /"aria-haspopup": "dialog"/);
   assert.match(sections, /className: "ledger-queue-drawer"/);
   assert.match(sections, /role: "dialog"/);
   assert.match(sections, /const moveDestinationMatches = allSortedResults\.filter/);
