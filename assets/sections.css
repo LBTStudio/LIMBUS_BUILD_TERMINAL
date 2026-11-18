@@ -1647,6 +1647,12 @@
 .ledger-result-detail-content { min-width: 0; }
 .ledger-detail-group { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-1); min-width: 0; }
 .ledger-detail-group > .t-label { flex-basis: 100%; font-size: var(--fs-10); line-height: 1.4; }
+/* 報酬アイテムはラベルを inline に置き、チップを横並びで折り返す。
+   長い名前は ellipsis で1行に収め、1個が行を独占しないよう幅を制限する。 */
+.ledger-detail-group.ledger-card-reward-items > .t-label { flex-basis: auto; }
+.ledger-result-detail-content .ledger-card-reward-items .gacha-held-ticket {
+  max-width: min(100%, 220px);
+}
 .ledger-card .ledger-card-consumed { padding: var(--s-2); gap: var(--s-1); }
 .ledger-card .ledger-row {
   grid-template-columns: minmax(0, 1fr) auto; padding: var(--s-2); gap: var(--s-1);
