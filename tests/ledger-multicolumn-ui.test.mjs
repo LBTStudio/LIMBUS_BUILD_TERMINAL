@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const css = read("../assets/v74-ledger-multicolumn.css");
+const classificationCss = read("../assets/v75-ledger-classification.css");
 const source = read("../js/OtherSections.js");
 
 test("リザルト一覧はPC3列・タブレット2列・スマホ1列で表示する", () => {
@@ -40,4 +41,33 @@ test("100件以上でもページ単位の配列切り出しと件数表示を�
 
 test("スマートフォンのリザルト編集ボタンは40px以上のタッチ領域を維持する", () => {
   assert.match(css, /@media \(max-width: 700px\)[\s\S]*?\.ledger-card-edit-btn\s*\{[^}]*min-height: 40px !important/s);
+});
+
+test("分類ワークベンチは未分類と移動先を同時表示し、双方をページ分割する", () => {
+  assert.match(source, /ledger-classification-overlay/);
+  assert.match(source, /ledger-classification-targets-pane/);
+  assert.match(source, /const QUEUE_PAGE_SIZE = 20/);
+  assert.match(source, /const MOVE_DESTINATION_PAGE_SIZE = 12/);
+  assert.match(source, /pageQueueEntries\.map/);
+  assert.match(source, /pageMoveDestinations\.map/);
+  assert.match(classificationCss, /grid-template-columns:\s*minmax\(320px, 390px\) minmax\(0, 1fr\)/);
+  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?grid-template-columns: minmax\(0,1fr\)/);
+});
+
+test("未分類オブジェクトはドラッグハンドル・複数選択・一括帰属変更に対応する", () => {
+  assert.match(source, /ledger-queue-drag-handle/);
+  assert.match(source, /selectedQueueIds/);
+  assert.match(source, /JSON\.stringify\(ids\)/);
+  assert.match(source, /readDragIds/);
+  assert.match(source, /type: "SET_ENTRIES_RESULT"/);
+  assert.match(source, /このページを選択/);
+  assert.match(classificationCss, /\.ledger-queue-drag-handle/);
+});
+
+test("未分類検索では日本語と全角空白を正しく正規化し、全リザルトを検索できる", () => {
+  assert.ok(source.includes(String.raw`.replace(/[\s\u3000・･]/g`),
+    "空白除去は空白文字クラスを使い、s/u/数字の文字を誤って消さない");
+  assert.match(source, /allSortedResults\.filter\(\(result\) => \{/);
+  assert.match(source, /リザルトページを直接指定/);
+  assert.match(source, /setResultPage\(Math\.max\(0, Math\.min\(resultPageCount - 1/);
 });
