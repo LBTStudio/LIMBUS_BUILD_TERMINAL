@@ -36,3 +36,8 @@ test("100件以上でもページ単位の配列切り出しと件数表示を�
   assert.match(source, /sortedResults\.slice\([\s\S]{0,160}RESULTS_PAGE_SIZE/);
   assert.match(source, /sortedResults\.length/);
 });
+
+
+test("スマートフォンのリザルト編集ボタンは40px以上のタッチ領域を維持する", () => {
+  assert.match(css, /@media \(max-width: 700px\)[\s\S]*?\.ledger-card-edit-btn\s*\{[^}]*min-height: 40px !important/s);
+});
