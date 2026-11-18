@@ -1453,3 +1453,24 @@ test("右側プレビューはデスクトップで初期表示し、小画面�
   assert.match(state, /未設定時はデスクトップで表示、小画面では折り畳み/);
   assert.doesNotMatch(app, /previewOpen[^\n]*!isNarrow/);
 });
+
+test("リザルト一覧を優先し、抽出リストは後段の折りたたみ領域に置く", () => {
+  const resultSections = read("../js/OtherSections.js");
+  const resultCss = read("../assets/v67-persona-redesign.css");
+  const ledgerStart = resultSections.indexOf("const LedgerPanel =");
+  const toolbar = resultSections.indexOf('className: "ledger-results-toolbar"', ledgerStart);
+  const pagination = resultSections.indexOf('className: "ledger-results-pagination"', ledgerStart);
+  const drawCall = resultSections.indexOf('h(DrawLedgerPanel, { state })', ledgerStart);
+  assert.ok(ledgerStart >= 0 && toolbar > ledgerStart, "リザルト一覧のツールバーがある");
+  assert.ok(pagination > toolbar, "一覧のページ送りがある");
+  assert.ok(drawCall > pagination, "抽出リストがリザルト一覧・ページ送りより後にある");
+  const drawStart = resultSections.indexOf("const DrawLedgerPanel =");
+  const drawEnd = resultSections.indexOf("/* バッチの支出合計", drawStart);
+  const drawSource = resultSections.slice(drawStart, drawEnd);
+  assert.match(drawSource, /return h\("details", \{ className: "draw-ledger draw-ledger-disclosure" \}/);
+  assert.match(drawSource, /h\("summary", \{ className: "draw-ledger-disclosure-summary" \}/);
+  assert.match(drawSource, /draw-ledger-disclosure-status/);
+  assert.doesNotMatch(drawSource, /open\s*:\s*true/);
+  assert.match(resultCss, /\.draw-ledger-disclosure-summary\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(resultCss, /\.draw-ledger-disclosure-summary:focus-visible/);
+});
