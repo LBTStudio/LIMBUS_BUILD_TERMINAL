@@ -298,3 +298,25 @@
 
 /* The result filter follows the entry form, so it becomes sticky only when
    the user reaches the history list; it never floats over the form itself. */
+
+/* At very narrow phone widths, give the result-entry title its own row.
+   The two actions remain side by side instead of squeezing the title to one glyph per line. */
+@media (max-width: 360px) {
+  .ledger-result-entry-card-head {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 8px;
+  }
+  .ledger-result-entry-card-head > .t-label {
+    grid-column: 1 / -1;
+    min-width: 0;
+    white-space: normal;
+  }
+  .ledger-result-entry-card-head .ledger-new-entry-toggle,
+  .ledger-result-entry-card-head .ledger-import-toggle {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+}

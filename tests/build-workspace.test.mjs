@@ -1514,3 +1514,13 @@ test("スマートフォンの記録画面では新規入力欄の後ろに検�
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*position:\s*static/s);
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*top:\s*54px/s);
 });
+
+test("320px幅の新規リザルト見出しは一段で表示し、操作ボタンを二列に分ける", () => {
+  const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  assert.ok(workbenchCss.includes("@media (max-width: 360px)"));
+  assert.ok(workbenchCss.includes(".ledger-result-entry-card-head {"));
+  assert.ok(workbenchCss.includes("grid-template-columns: repeat(2, minmax(0, 1fr));"));
+  assert.ok(workbenchCss.includes(".ledger-result-entry-card-head > .t-label"));
+  assert.ok(workbenchCss.includes("grid-column: 1 / -1;"));
+  assert.ok(workbenchCss.includes(".ledger-result-entry-card-head .ledger-new-entry-toggle"));
+});
