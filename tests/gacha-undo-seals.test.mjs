@@ -369,7 +369,9 @@ test("抽選リストはハッシュ鎖の確認と署名／ビーコンの完�
   const start = drawUiSource.indexOf("const checked = React.useMemo(() => batches.map((batch)");
   assert.ok(start >= 0);
   const component = drawUiSource.slice(start, start + 6000);
-  assert.match(component, /件・\$\{checked\.length - broken\}件のハッシュ鎖が正常/);
+  assert.match(component, /draw-ledger-disclosure-status/);
+  assert.match(component, /ハッシュ鎖 全件正常/);
+  assert.match(component, /要確認/);
   assert.match(component, /ハッシュ鎖OK/);
   assert.match(component, /署名・外部ビーコンは未検証/);
   assert.doesNotMatch(component, /この一覧は支出の証明です/);
