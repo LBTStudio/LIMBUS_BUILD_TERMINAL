@@ -1474,3 +1474,23 @@ test("リザルト一覧を優先し、抽出リストは後段の折りたた�
   assert.match(resultCss, /\.draw-ledger-disclosure-summary\s*\{[^}]*min-height:\s*44px/s);
   assert.match(resultCss, /\.draw-ledger-disclosure-summary:focus-visible/);
 });
+
+test("通帳は長大なリザルト一覧から未分類移動・ページ操作へ戻らずアクセスできる", () => {
+  const sections = read("../js/OtherSections.js");
+  const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  assert.match(sections, /className: "ledger-command-bar"/);
+  assert.match(sections, /aria-haspopup: "dialog"/);
+  assert.match(sections, /className: "ledger-queue-drawer"/);
+  assert.match(sections, /role: "dialog"/);
+  assert.match(sections, /const moveDestinationMatches = allSortedResults\.filter/);
+  assert.match(sections, /className: "ledger-results-toolbar-pages"/);
+  assert.match(sections, /onClick: \(\) => setResultPage\(resultPageCount - 1\)/);
+  assert.match(sections, /newResultEntryOpen \? " is-open" : ""/);
+  assert.match(sections, /className: "ledger-manual-expense-disclosure"/);
+  assert.doesNotMatch(sections, /className: "ledger-queue"/);
+  assert.match(workbenchCss, /\.ledger-cards\s*\{[^}]*grid-template-columns:\s*minmax\(0,1fr\)/s);
+  assert.match(workbenchCss, /\.ledger-command-bar\s*\{[^}]*position:\s*sticky/s);
+  assert.match(workbenchCss, /\.ledger-results-toolbar\s*\{[^}]*position:\s*sticky/s);
+  assert.match(workbenchCss, /\.ledger-queue-overlay\s*\{[^}]*position:\s*fixed/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-queue-drawer\s*\{[^}]*height:\s*min\(78dvh/s);
+});
