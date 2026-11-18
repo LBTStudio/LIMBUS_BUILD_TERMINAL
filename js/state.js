@@ -6712,6 +6712,35 @@ case "ADD_ENTRY":
       }
       return roster === state.roster ? { ...state, entries } : { ...state, entries, roster };
     }
+  /* 複数明細の帰属を一括変更する。単一 action にまとめることで Undo も一度で戻せる。
+     サポート・精神など所持側にも帰属を持つ明細は同時に同期する。 */
+  case "SET_ENTRIES_RESULT": {
+    const ids = new Set((Array.isArray(action.ids) ? action.ids : [])
+      .map((id) => String(id ?? "").trim()).filter(Boolean));
+    if (!ids.size) return state;
+    const resultId = knownResultId(state, action.resultId);
+    const targets = (state.entries || []).filter((entry) => ids.has(String(entry.id)));
+    const changed = targets.filter((entry) => (entry.resultId || null) !== resultId);
+    if (!changed.length) return state;
+
+    const changedIds = new Set(changed.map((entry) => String(entry.id)));
+    const entries = (state.entries || []).map((entry) => changedIds.has(String(entry.id))
+      ? { ...entry, resultId } : entry);
+    const supportUids = new Set(changed.filter((entry) => entry.ref?.kind === "rosterSupport")
+      .map((entry) => String(entry.ref.uid || "")).filter(Boolean));
+    const spiritUids = new Set(changed.filter((entry) => entry.ref?.kind === "rosterSpirit")
+      .map((entry) => String(entry.ref.uid || "")).filter(Boolean));
+    let roster = state.roster;
+    if (supportUids.size && Array.isArray(roster?.supports)) {
+      roster = { ...roster, supports: roster.supports.map((item) =>
+        supportUids.has(String(item.uid)) ? { ...item, resultId } : item) };
+    }
+    if (spiritUids.size && Array.isArray(roster?.spirits)) {
+      roster = { ...roster, spirits: roster.spirits.map((item) =>
+        spiritUids.has(String(item.uid)) ? { ...item, resultId } : item) };
+    }
+    return roster === state.roster ? { ...state, entries } : { ...state, entries, roster };
+  }
   case "PURGE_ENTRY":
   case "REMOVE_ENTRY": {
     const removed = (state.entries || []).find((entry) => entry.id === action.id);
