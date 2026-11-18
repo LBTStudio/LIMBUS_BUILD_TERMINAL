@@ -162,7 +162,7 @@
 .ledger-classification-source .ledger-queue-item-move,
 .ledger-classification-source .ledger-queue-item-delete,
 .ledger-classification-source .ledger-queue-drawer-close {
-  min-height: 38px;
+  min-height: 40px;
 }
 .ledger-queue-page-nav,
 .ledger-classification-page-nav {
@@ -354,7 +354,11 @@
   .ledger-queue-clear-selection,
   .ledger-queue-page-nav button,
   .ledger-classification-page-nav button,
-  .ledger-queue-transfer-unclassify {
+  .ledger-queue-transfer-unclassify,
+  .ledger-queue-transfer-cancel,
+  .ledger-classification-source .ledger-queue-item-move,
+  .ledger-classification-source .ledger-queue-item-delete,
+  .ledger-classification-source .ledger-queue-drawer-close {
     min-height: 40px;
   }
   .ledger-classification-targets-pane {
