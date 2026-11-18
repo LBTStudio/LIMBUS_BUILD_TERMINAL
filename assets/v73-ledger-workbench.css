@@ -184,3 +184,55 @@
 @media (prefers-reduced-motion: reduce) {
   .ledger-command-action,.ledger-queue-drawer-close,.ledger-queue-item-move,.ledger-queue-item-delete { transition: none; }
 }
+
+/* The ledger has its own secondary-work surface; keep its mobile controls touchable. */
+.ledger-queue-move-target {
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--gold-tint);
+  color: var(--gold-hi);
+  font: 600 var(--fs-11) var(--f-body);
+  cursor: pointer;
+}
+.ledger-queue-move-target:hover,
+.ledger-queue-move-target:focus-visible {
+  border-color: var(--gold);
+  background: var(--surface-3);
+}
+@media (max-width: 800px) {
+  .ledger-results-toolbar-pages .btn,
+  .ledger-result-entry-card .ledger-new-entry-toggle {
+    min-height: 40px;
+  }
+  .ledger-queue-item-move,
+  .ledger-queue-item-delete,
+  .ledger-queue-drawer-close,
+  .ledger-queue-transfer-unclassify,
+  .ledger-queue-move-target {
+    min-height: 40px;
+  }
+  .ledger-balance {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px;
+  }
+  .ledger-balance > .ledger-chip {
+    min-width: 0;
+    flex: initial;
+    padding: 10px 11px;
+  }
+  .ledger-balance > .ledger-balance-sub {
+    grid-column: 1 / -1;
+    padding-top: 8px;
+    font-size: var(--fs-10);
+    line-height: 1.45;
+  }
+}
+@media (max-width: 560px) {
+  .ledger-results-toolbar-pages .btn {
+    min-height: 40px;
+  }
+}
