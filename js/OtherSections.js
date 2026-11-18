@@ -6053,21 +6053,21 @@ const importHeldPersonas = () => {
     ),
     queueOpen && h("div", {
       className: "ledger-queue-overlay ledger-classification-overlay",
-      onClick: () => setQueueOpen(false)
+      role: "dialog", "aria-modal": true, "aria-labelledby": "ledger-queue-drawer-title",
+      onClick: () => setQueueOpen(false),
+      onKeyDown: (event) => {
+        if (event.key === "Escape") { setQueueOpen(false); return; }
+        if (event.key !== "Tab") return;
+        const focusable = [...event.currentTarget.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled])")];
+        if (!focusable.length) return;
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
     },
       h("aside", {
         className: "ledger-queue-drawer ledger-classification-source",
-        role: "dialog", "aria-modal": true, "aria-labelledby": "ledger-queue-drawer-title",
         onClick: (event) => event.stopPropagation(),
-        onKeyDown: (event) => {
-          if (event.key === "Escape") { setQueueOpen(false); return; }
-          if (event.key !== "Tab") return;
-          const focusable = [...event.currentTarget.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled])")];
-          if (!focusable.length) return;
-          const first = focusable[0], last = focusable[focusable.length - 1];
-          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-        },
         ...dropTargetProps("__queue")
       },
         h("div", { className: "ledger-queue-drawer-head" },
@@ -6123,15 +6123,22 @@ const importHeldPersonas = () => {
               ? h("p", { className: "ledger-empty-note" }, "検索に一致する未分類明細がありません。")
               : pageQueueEntries.map((entry) => h("div", {
                   key: entry.id,
-                  className: "ledger-queue-item" + (selectedIdSet.has(entry.id) ? " is-selected" : ""),
-                  ...dragProps(entry)
+                  className: "ledger-queue-item" + (selectedIdSet.has(entry.id) ? " is-selected" : "")
                 },
-                  h("input", {
-                    type: "checkbox", className: "ledger-queue-item-check",
-                    checked: selectedIdSet.has(entry.id), "aria-label": entry.name + " を選択",
-                    onChange: (event) => setSelectedQueueIds((current) => event.target.checked
-                      ? [...new Set([...current, entry.id])] : current.filter((id) => id !== entry.id))
-                  }),
+                  h("div", { className: "ledger-queue-item-lead" },
+                    h("span", {
+                      className: "ledger-queue-drag-handle",
+                      title: "つまみをドラッグして移動",
+                      "aria-hidden": true,
+                      ...dragProps(entry)
+                    }, "⠿"),
+                    h("input", {
+                      type: "checkbox", className: "ledger-queue-item-check",
+                      checked: selectedIdSet.has(entry.id), "aria-label": entry.name + " を選択",
+                      onChange: (event) => setSelectedQueueIds((current) => event.target.checked
+                        ? [...new Set([...current, entry.id])] : current.filter((id) => id !== entry.id))
+                    })
+                  ),
                   h("div", { className: "ledger-queue-item-main" },
                     h("strong", null, entry.name),
                     h("span", null, kindLabel(entry.kind) + " · " +
@@ -6518,10 +6525,12 @@ const importHeldPersonas = () => {
           h("select", {
             "aria-label": "リザルトページを直接指定",
             value: String(safeResultPage),
+            disabled: ticketPanel !== null,
             onChange: (event) => setResultPage(Math.max(0, Math.min(resultPageCount - 1, Number(event.target.value) || 0)))
           }, Array.from({ length: resultPageCount }, (_, index) =>
             h("option", { key: index, value: String(index) }, String(index + 1)))
-          )
+          ),
+          h("span", null, " / " + resultPageCount)
         ),
 
         h(Button, {
