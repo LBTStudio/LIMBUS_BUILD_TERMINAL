@@ -5342,7 +5342,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const moveDestinationMatches = allSortedResults.filter((result) => {
     if (!destinationNeedle) return true;
     return normalizeQueueText([result.name, result.date].join(" ")).includes(destinationNeedle);
-  }).slice(0, 8);
+  });
   /* 帰属の移動。ドラッグ中のIDは state と dataTransfer の両方に持たせる。
      state だけだと、ドラッグ中に再レンダーが入ったときに古い値を参照して
      drop が無音で失敗する。dataTransfer はドラッグ操作そのものが持つ値なので、
@@ -6002,7 +6002,7 @@ const importHeldPersonas = () => {
       )
     ),
 
-    h("nav", { className: "ledger-command-bar", "aria-label": "通帳のクイック操作" },
+    h("nav", { className: "ledger-command-bar", "aria-label": "記録のクイック操作" },
       h("button", {
         type: "button", className: "ledger-command-action is-queue",
         "aria-haspopup": "dialog", "aria-expanded": queueOpen,
@@ -6089,7 +6089,7 @@ const importHeldPersonas = () => {
                 && h("p", { className: "ledger-empty-note" }, "一致する移動先がありません。検索語を変えてください。")
             ),
             movingEntry.resultId && h("button", {
-              type: "button", className: "ledger-queue-transfer-unclassify",
+              type: "button", className: "ledger-queue-move-target ledger-queue-transfer-unclassify",
               onClick: () => moveEntry(movingEntry.id, null)
             }, "未分類へ戻す")
           ),
