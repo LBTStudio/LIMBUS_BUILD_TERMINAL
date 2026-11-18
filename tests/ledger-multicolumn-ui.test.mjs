@@ -62,6 +62,7 @@ test("未分類オブジェクトはドラッグハンドル・複数選択・�
   assert.match(source, /type: "SET_ENTRIES_RESULT"/);
   assert.match(source, /このページを選択/);
   assert.match(classificationCss, /\.ledger-queue-drag-handle/);
+  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?\.ledger-classification-source \.ledger-queue-item-move,[\s\S]*?min-height: 40px/);
 });
 
 test("未分類検索では日本語と全角空白を正しく正規化し、全リザルトを検索できる", () => {
