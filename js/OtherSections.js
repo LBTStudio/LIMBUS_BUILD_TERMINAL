@@ -6142,44 +6142,6 @@ const importHeldPersonas = () => {
         )
       )
     ),
-        h("div", { className: "ledger-results-toolbar", id: "ledger-results-section" },
-      h("span", { className: "ledger-results-count" },
-        "リザルト " + sortedResults.length + " / " + results.length + " 件"),
-      h("input", {
-        type: "search", className: "ledger-results-search",
-        placeholder: "セッション名・人格・E.G.O・アイテムを検索", "aria-label": "リザルトを検索",
-        value: resultQuery, disabled: ticketPanel !== null,
-        onChange: (event) => { setResultQuery(event.target.value); setResultPage(0); }
-      }),
-      h("select", {
-        className: "ledger-results-sort", "aria-label": "リザルトの並び順",
-        value: resultSort, disabled: ticketPanel !== null,
-        onChange: (event) => { setResultSort(event.target.value); setResultPage(0); }
-      },
-        h("option", { value: "newest" }, "新しい順"),
-        h("option", { value: "oldest" }, "古い順"),
-        h("option", { value: "name" }, "名称順")
-      ),
-      h("div", { className: "ledger-results-toolbar-pages", "aria-label": "リザルトページ移動" },
-        h(Button, {
-          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
-          "aria-label": "最初のページ", onClick: () => setResultPage(0)
-        }, "最初"),
-        h(Button, {
-          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
-          "aria-label": "前のページ", onClick: () => setResultPage(Math.max(0, safeResultPage - 1))
-        }, "前へ"),
-        h("span", { className: "ledger-results-page-number" }, (safeResultPage + 1) + " / " + resultPageCount),
-        h(Button, {
-          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
-          "aria-label": "次のページ", onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
-        }, "次へ"),
-        h(Button, {
-          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
-          "aria-label": "最後のページ", onClick: () => setResultPage(resultPageCount - 1)
-        }, "最後")
-      )
-    ),
     /* リザルトの追加。
        取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
        開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
@@ -6446,6 +6408,44 @@ const importHeldPersonas = () => {
       )
     ),
 
+        h("div", { className: "ledger-results-toolbar", id: "ledger-results-section" },
+      h("span", { className: "ledger-results-count" },
+        "リザルト " + sortedResults.length + " / " + results.length + " 件"),
+      h("input", {
+        type: "search", className: "ledger-results-search",
+        placeholder: "セッション名・人格・E.G.O・アイテムを検索", "aria-label": "リザルトを検索",
+        value: resultQuery, disabled: ticketPanel !== null,
+        onChange: (event) => { setResultQuery(event.target.value); setResultPage(0); }
+      }),
+      h("select", {
+        className: "ledger-results-sort", "aria-label": "リザルトの並び順",
+        value: resultSort, disabled: ticketPanel !== null,
+        onChange: (event) => { setResultSort(event.target.value); setResultPage(0); }
+      },
+        h("option", { value: "newest" }, "新しい順"),
+        h("option", { value: "oldest" }, "古い順"),
+        h("option", { value: "name" }, "名称順")
+      ),
+      h("div", { className: "ledger-results-toolbar-pages", "aria-label": "リザルトページ移動" },
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
+          "aria-label": "最初のページ", onClick: () => setResultPage(0)
+        }, "最初"),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
+          "aria-label": "前のページ", onClick: () => setResultPage(Math.max(0, safeResultPage - 1))
+        }, "前へ"),
+        h("span", { className: "ledger-results-page-number" }, (safeResultPage + 1) + " / " + resultPageCount),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
+          "aria-label": "次のページ", onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
+        }, "次へ"),
+        h(Button, {
+          size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
+          "aria-label": "最後のページ", onClick: () => setResultPage(resultPageCount - 1)
+        }, "最後")
+      )
+    ),
     h("div", { className: "ledger-cards" },
       results.length === 0 && h(Card, null,
         h("div", { className: "empty", style: { padding: "var(--s-4)" } },

@@ -295,3 +295,6 @@
     scroll-margin-top: 64px;
   }
 }
+
+/* The result filter follows the entry form, so it becomes sticky only when
+   the user reaches the history list; it never floats over the form itself. */

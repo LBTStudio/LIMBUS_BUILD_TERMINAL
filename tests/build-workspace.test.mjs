@@ -1485,7 +1485,10 @@ test("通帳は長大なリザルト一覧から未分類移動・ページ操�
   assert.match(sections, /const moveDestinationMatches = allSortedResults\.filter/);
   assert.match(sections, /className: "ledger-results-toolbar-pages"/);
   assert.match(sections, /onClick: \(\) => setResultPage\(resultPageCount - 1\)/);
-  assert.ok(sections.indexOf('className: "ledger-results-toolbar", id: "ledger-results-section"') < sections.indexOf('className: "ledger-result-entry-card" +'), "新規記録の折りたたみ入口はリザルト一覧の直前に置く");
+  const entry = sections.indexOf('className: "ledger-result-entry-card" +');
+  const cards = sections.indexOf('className: "ledger-cards"');
+  const toolbar = sections.indexOf('className: "ledger-results-toolbar", id: "ledger-results-section"');
+  assert.ok(entry < toolbar && toolbar < cards, "新規記録フォームの後ろ、リザルトカードの直前に検索・ページ送りを置く");
   assert.ok(sections.indexOf('className: "ledger-result-entry-card" +') < sections.indexOf('className: "ledger-cards"'), "新規記録を展開しても一覧末尾までスクロールせず使える");
   assert.match(sections, /newResultEntryOpen \? " is-open" : ""/);
   assert.match(sections, /className: "ledger-manual-expense-disclosure"/);
@@ -1501,9 +1504,13 @@ test("通帳は長大なリザルト一覧から未分類移動・ページ操�
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar-pages\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
 });
 
-test("スマートフォンの通帳ではコマンドバーを通常フローに戻し、検索・ページ送りだけを固定する", () => {
+test("スマートフォンの記録画面では新規入力欄の後ろに検索・ページ送りを配置する", () => {
+  const sections = read("../js/OtherSections.js");
   const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  const entry = sections.indexOf('className: "ledger-result-entry-card" +');
+  const toolbar = sections.indexOf('className: "ledger-results-toolbar", id: "ledger-results-section"');
+  const cards = sections.indexOf('className: "ledger-cards"');
+  assert.ok(entry < toolbar && toolbar < cards, "入力フォームに検索バーが重ならない順序");
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*position:\s*static/s);
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*top:\s*54px/s);
-  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-results-toolbar\s*\{[^}]*scroll-margin-top:\s*64px/s);
 });
