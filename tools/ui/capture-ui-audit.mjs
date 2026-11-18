@@ -2079,10 +2079,17 @@ async function captureProfile(browser, mode) {
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
     });
     await attempt("record-200-result-pagination",async()=>{
-      await go("記録");
-      const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-      await resultsEntry.waitFor({state:"visible",timeout:5000});
-      await click(resultsEntry);
+      /* The preceding reward regression can leave the ledger view open. Reuse
+         that view instead of looking for the task-card entry a second time. */
+      let ledgerToolbar=page.locator(".ledger-results-toolbar").first();
+      if(!(await visible(ledgerToolbar))){
+        await go("記録");
+        const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        await resultsEntry.waitFor({state:"visible",timeout:5000});
+        await click(resultsEntry);
+        ledgerToolbar=page.locator(".ledger-results-toolbar").first();
+        await ledgerToolbar.waitFor({state:"visible",timeout:5000});
+      }
       const originalState=await page.evaluate(()=>{
         const current=window.LBT_accounts?.loadActive?.();
         if(!current||!Array.isArray(current.results)) return null;
