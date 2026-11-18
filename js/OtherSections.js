@@ -6082,6 +6082,12 @@ const importHeldPersonas = () => {
         ),
         movingEntry && h("section", { className: "ledger-queue-transfer", "aria-label": "移動中の明細" },
           h("span", { className: "t-label" }, "移動対象"),
+          h("span", {
+            className: "ledger-queue-drag-handle ledger-queue-transfer-drag-handle",
+            title: "選択中の明細をドラッグしてリザルトへ移動",
+            "aria-hidden": true,
+            ...dragProps(movingEntry)
+          }, "⠿"),
           h("strong", null, movingEntry.name),
           h("span", { className: "ledger-note" },
             "現在の帰属：" + (movingEntry.resultId ? (results.find((result) => result.id === movingEntry.resultId)?.name || "名称未設定") : "未分類")),
