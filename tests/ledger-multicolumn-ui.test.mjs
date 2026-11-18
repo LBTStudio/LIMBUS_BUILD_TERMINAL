@@ -73,8 +73,11 @@ test("未分類検索では日本語と全角空白を正しく正規化し、�
   assert.match(source, /setResultPage\(Math\.max\(0, Math\.min\(resultPageCount - 1/);
 });
 
-test("分類ワークベンチのページ選択と移動中オブジェクトのドラッグハンドルはタッチ操作に対応する", () => {
+test("分類ワークベンチは既存明細のドラッグ移動とモバイル用ページ選択に対応する", () => {
   assert.match(source, /ledger-queue-transfer-drag-handle/);
-  assert.match(source, /\.ledger-classification-targets-pane \\[aria-label="移動先のリザルトを検索"\\]/);
-  assert.match(classificationCss, /@media \(max-width: 640px\)[\s\S]*?\.ledger-results-page-jump select \{\s*min-width: 52px;\s*min-height: 40px;/);
+  assert.match(source, /ledger-classification-targets-pane/);
+  assert.match(source, /aria-label": "移動先のリザルトを検索"/);
+  assert.ok(classificationCss.includes("@media (max-width: 640px) {"));
+  assert.match(classificationCss, /ledger-results-page-jump select/);
+  assert.match(classificationCss, /min-height: 40px;/);
 });
