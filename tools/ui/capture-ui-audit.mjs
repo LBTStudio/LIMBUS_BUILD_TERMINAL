@@ -1709,6 +1709,8 @@ async function captureProfile(browser, mode) {
       const originalDestination=destinationDrawer.locator(".ledger-queue-destination").filter({hasText:"UI監査用セッション"}).first();
       await originalDestination.waitFor({state:"visible",timeout:5000});
       await click(originalDestination);
+      /* useAppState persists mutations after a 400ms debounce */
+      await page.waitForTimeout(550);
       const restoredAssignment=await page.evaluate(()=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
         return (saved.entries||[]).some(entry=>entry.name==="包帯"&&entry.resultId&&
