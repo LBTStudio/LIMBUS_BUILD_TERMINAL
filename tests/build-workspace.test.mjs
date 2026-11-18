@@ -501,6 +501,9 @@ test("取得・報酬の編集は1行サマリとフラットな内容で情報�
   /* 検索窓のプレースホルダで案内済みなので、空欄時に大きな注意枠は出さない。
      「最大N件」の固定文言も表示しない。 */
   assert.doesNotMatch(sections, /"名前 \/ No\. で検索（最大8件）"/);
+  /* 検索候補に件数上限を設けない（照合結果をすべて表示する）。 */
+  assert.doesNotMatch(sections, /return searchable\.includes\(needle\);\s*\n\s*\}\)\.slice\(0,\s*\d+\)/);
+  assert.doesNotMatch(sections, /\}\)\.slice\(0,\s*8\);/);
   assert.match(sections, /ticketPersonaQuery\.trim\(\)\s*\n\s*\? h\("p", \{ className: "ledger-empty-note"/);
   assert.match(sections, /ticketEgoQuery\.trim\(\)\s*\n\s*\? h\("p", \{ className: "ledger-empty-note"/);
   const parity = readFileSync(new URL("../assets/b-type-ui-parity.css", import.meta.url), "utf8");
@@ -508,6 +511,10 @@ test("取得・報酬の編集は1行サマリとフラットな内容で情報�
   assert.match(parity, /\.ledger-history-editor-disclosure\[open\] > \.ledger-history-editor\s*\{[\s\S]{0,160}?border: 0[\s\S]{0,80}?background: transparent/);
   assert.match(parity, /\.ledger-history-editor \.ledger-reward-item-head \.t-label\s*\{ font-size: 13px; \}/);
   assert.match(parity, /\.ledger-history-editor \.ledger-reward-item-chip\s*\{[\s\S]{0,120}?font-size: 12px/);
+  /* 報酬アイテムの入力行は編集UI側・通常表示側のどちらも親幅に収める。
+     固定最小幅の4列定義だとカード内で押し広げてはみ出すため、2列＋上限を指定。 */
+  assert.match(parity, /\.ledger-history-editor \.ledger-reward-item-controls,\s*\n\s*\.ledger-result-reward-content \.ledger-reward-item-controls\s*\{[\s\S]{0,160}?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)[\s\S]{0,80}?max-width: 480px/);
+  assert.doesNotMatch(parity, /grid-template-columns: minmax\(160px, 1\.25fr\) minmax\(140px, 1fr\)/);
 });
 
 test("所持ライブラリはサポパ/精神も自分の中身を出す（EGOのまま開かない）", () => {

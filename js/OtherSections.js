@@ -4773,7 +4773,7 @@ const LedgerPanel = ({ state, dispatch }) => {
     .sort((a, b) => a.name.localeCompare(b.name, "ja") || a.mode.localeCompare(b.mode) || a.no.localeCompare(b.no, "ja"));
   const normalizePersonaSearchText = (value) => String(value || "").normalize("NFKC")
     .replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
-  /* 全件プルダウンは作らず、入力文字列でDBを照合して候補を最大8件だけ表示する。 */
+  /* 全件プルダウンは作らず、入力文字列でDBを照合して候補を表示する。 */
   const getPersonaSearchMatches = (query, selectedEntries, excludedEntries = []) => {
     const needle = normalizePersonaSearchText(query);
     if (!needle) return [];
@@ -4787,7 +4787,7 @@ const LedgerPanel = ({ state, dispatch }) => {
       const kind = option.mode === "t" ? "特異 特異人格" : "通常 通常人格";
       const searchable = normalizePersonaSearchText([option.name, option.no, "No." + option.no, kind].join(" "));
       return searchable.includes(needle);
-    }).slice(0, 8);
+    });
   };
   /* 新規報酬は現在未所持の人格だけが候補。過去リザルトの監査・追記用検索は
      所持済みも表示できるよう、呼び出し側で除外リストを渡さない。 */
@@ -4820,7 +4820,7 @@ const LedgerPanel = ({ state, dispatch }) => {
     return egoOptions.filter((option) => {
       if (selectedKeys.has(option.value)) return false;
       return normalizePersonaSearchText([option.name, option.no, "No." + option.no, option.rank].join(" ")).includes(needle);
-    }).slice(0, 8);
+    });
   };
   const newResultEgoMatches = getEgoSearchMatches(
     newResultEgoQuery,

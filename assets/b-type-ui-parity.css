@@ -399,10 +399,14 @@
 .ledger-reward-item-head .t-label { font-size: 15px; line-height: 1.5; }
 .ledger-reward-item-controls {
   display: grid;
-  grid-template-columns: minmax(160px, 1.25fr) minmax(140px, 1fr) 82px auto;
+  /* 固定の最小幅を置かない。カード内の狭い親でも入力欄がはみ出さないよう、
+     全列を 0 から伸ばす（SCRIPT幅は auto ボタンのみ）。 */
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 82px) auto;
   gap: 7px;
   align-items: stretch;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 .ledger-acquisition-controls {
   display: grid;
@@ -515,6 +519,23 @@
   border: 0; border-radius: 0; background: transparent;
 }
 .ledger-history-editor.stack-2 { gap: 8px; }
+/* カード内の狭い親に合わせ、入力行は親幅いっぱい・折り返しに固定する。
+   基本の4列定義は編集UIと通常表示の両方で上書きする（どちらもカード内）。 */
+.ledger-history-editor .ledger-reward-item-controls,
+.ledger-result-reward-content .ledger-reward-item-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  max-width: 480px;
+}
+.ledger-history-editor .ledger-reward-item-controls > :first-child,
+.ledger-history-editor .ledger-reward-item-controls > :nth-child(2),
+.ledger-result-reward-content .ledger-reward-item-controls > :first-child,
+.ledger-result-reward-content .ledger-reward-item-controls > :nth-child(2) { grid-column: 1 / -1; }
+.ledger-history-editor .ledger-reward-item-controls > :nth-child(3),
+.ledger-result-reward-content .ledger-reward-item-controls > :nth-child(3) { grid-column: 1; }
+.ledger-history-editor .ledger-reward-item-controls > :last-child,
+.ledger-result-reward-content .ledger-reward-item-controls > :last-child { grid-column: 2; justify-self: end; }
 .ledger-history-editor .ledger-reward-item-head { gap: 3px 8px; }
 .ledger-history-editor .ledger-reward-item-head .t-label { font-size: 13px; }
 .ledger-history-editor .ledger-note { font-size: 11px; line-height: 1.4; }
@@ -534,7 +555,7 @@
     grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) repeat(2, minmax(78px, .55fr));
   }
   .ledger-reward-item-controls {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 76px auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 76px) auto;
   }
 }
 @media (max-width: 640px) {
@@ -549,7 +570,7 @@
   .ledger-add-row .ledger-input--date,
   .ledger-add-row .ledger-input--num { width: 100%; min-height: 44px; }
   .ledger-reward-item-controls {
-    grid-template-columns: minmax(0, 1fr) 76px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 76px);
   }
   .ledger-reward-item-controls > :first-child,
   .ledger-reward-item-controls > :nth-child(2) { grid-column: 1 / -1; }
