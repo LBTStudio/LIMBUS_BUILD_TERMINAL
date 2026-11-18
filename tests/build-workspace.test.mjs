@@ -498,6 +498,11 @@ test("取得・報酬の編集は1行サマリとフラットな内容で情報�
   assert.match(sections, /"保存で不足人格を所持へ追加"/);
   assert.match(sections, /h\("span", \{ className: "t-label" \}, "E\.G\.O"\)/);
   assert.match(sections, /"報酬分を所持へ加算"/);
+  /* 検索窓のプレースホルダで案内済みなので、空欄時に大きな注意枠は出さない。
+     「最大N件」の固定文言も表示しない。 */
+  assert.doesNotMatch(sections, /"名前 \/ No\. で検索（最大8件）"/);
+  assert.match(sections, /ticketPersonaQuery\.trim\(\)\s*\n\s*\? h\("p", \{ className: "ledger-empty-note"/);
+  assert.match(sections, /ticketEgoQuery\.trim\(\)\s*\n\s*\? h\("p", \{ className: "ledger-empty-note"/);
   const parity = readFileSync(new URL("../assets/b-type-ui-parity.css", import.meta.url), "utf8");
   assert.match(parity, /\.ledger-history-editor-disclosure > summary\s*\{[\s\S]{0,160}?white-space: nowrap/);
   assert.match(parity, /\.ledger-history-editor-disclosure\[open\] > \.ledger-history-editor\s*\{[\s\S]{0,160}?border: 0[\s\S]{0,80}?background: transparent/);

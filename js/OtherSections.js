@@ -6899,9 +6899,9 @@ h(Card, { className: "ledger-card" },
                           h("b", null, "追加")
                         ))
                       )
-                    : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
-                        ticketPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "名前 / No. で検索（最大8件）"
-                      )
+                    : ticketPersonaQuery.trim()
+                        ? h("p", { className: "ledger-empty-note", "aria-live": "polite" }, "DB内に一致する人格がありません。表記を変えて検索してください。")
+                        : null
                 ),
                 (ticketDraft.personaAcquisitions || []).length > 0
                   ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
@@ -6935,9 +6935,9 @@ h(Card, { className: "ledger-card" },
                             h("b", null, "追加")
                           ))
                         )
-                      : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
-                          ticketEgoQuery.trim() ? "DB内に一致するE.G.Oがありません。表記を変えて検索してください。" : "名前 / No. で検索（最大8件）"
-                        )
+                      : ticketEgoQuery.trim()
+                          ? h("p", { className: "ledger-empty-note", "aria-live": "polite" }, "DB内に一致するE.G.Oがありません。表記を変えて検索してください。")
+                          : null
                   ),
                   (ticketDraft.egoAcquisitions || []).length > 0
                     ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.egoAcquisitions.map((entry) => h("div", { key: entry.rank + ":" + entry.no, className: "ledger-reward-item-chip" },
