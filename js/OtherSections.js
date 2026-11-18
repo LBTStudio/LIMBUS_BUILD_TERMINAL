@@ -6058,33 +6058,41 @@ const importHeldPersonas = () => {
             h("span", { className: "t-label" }, "移動対象"),
             h("strong", null, movingEntry.name)
           ),
-          movingEntry.resultId
-            ? h("button", {
-                type: "button", className: "ledger-queue-transfer-unclassify",
-                onClick: () => moveEntry(movingEntry.id, null)
-              }, "この明細を未分類へ戻す")
-            : h("div", { className: "ledger-queue-destination-picker" },
-                h("label", { className: "ledger-queue-search-label" },
-                  h("span", null, "移動先のリザルトを検索"),
-                  h("input", {
-                    type: "search", className: "ledger-queue-search",
-                    placeholder: "リザルト名・日付で検索",
-                    value: moveDestinationQuery,
-                    "aria-label": "移動先のリザルトを検索",
-                    onChange: (event) => setMoveDestinationQuery(event.target.value)
-                  })
-                ),
-                h("div", { className: "ledger-queue-destination-list" },
-                  moveDestinationMatches.map((result) => h("button", {
-                    key: result.id, type: "button", className: "ledger-queue-destination",
-                    onClick: () => moveEntry(movingEntry.id, result.id)
-                  },
-                    h("span", null, result.name || "名称未設定"),
-                    h("small", null, result.date || "日付なし")
-                  )),
-                  moveDestinationMatches.length === 0 && h("p", { className: "ledger-empty-note" }, "一致するリザルトがありません。検索語を変えてください。")
-                )
-              ),
+          h("div", { className: "ledger-queue-destination-picker" },
+            h("p", { className: "ledger-queue-current-owner" },
+              "現在の帰属：",
+              movingEntry.resultId
+                ? (results.find((result) => result.id === movingEntry.resultId)?.name || "名称未設定")
+                : "未分類"
+            ),
+            h("label", { className: "ledger-queue-search-label" },
+              h("span", null, "移動先のリザルトを検索"),
+              h("input", {
+                type: "search", className: "ledger-queue-search",
+                placeholder: "リザルト名・日付で検索",
+                value: moveDestinationQuery,
+                "aria-label": "移動先のリザルトを検索",
+                onChange: (event) => setMoveDestinationQuery(event.target.value)
+              })
+            ),
+            h("div", { className: "ledger-queue-destination-list" },
+              moveDestinationMatches
+                .filter((result) => result.id !== movingEntry.resultId)
+                .map((result) => h("button", {
+                  key: result.id, type: "button", className: "ledger-queue-destination",
+                  onClick: () => moveEntry(movingEntry.id, result.id)
+                },
+                  h("span", null, result.name || "名称未設定"),
+                  h("small", null, result.date || "日付なし")
+                )),
+              moveDestinationMatches.filter((result) => result.id !== movingEntry.resultId).length === 0
+                && h("p", { className: "ledger-empty-note" }, "一致する移動先がありません。検索語を変えてください。")
+            ),
+            movingEntry.resultId && h("button", {
+              type: "button", className: "ledger-queue-transfer-unclassify",
+              onClick: () => moveEntry(movingEntry.id, null)
+            }, "未分類へ戻す")
+          ),
           h("button", {
             type: "button", className: "ledger-queue-transfer-cancel",
             onClick: cancelMoveEntry
