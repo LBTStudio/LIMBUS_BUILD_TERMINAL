@@ -475,6 +475,16 @@ test("リザルト編集の削除は保存・取消と同じヘッダ行に置�
   assert.match(a11yCss, /\.ledger-card-edit-delete:focus-visible/);
 });
 
+test("報酬アイテム表示はオブジェクト文字を出さず、長い名前も1行に収める", () => {
+  assert.match(sections, /const safeDisplayText = \(value\) => \{/);
+  assert.match(sections, /if \(typeof value === "object"\) \{[\s\S]{0,240}?\["name", "itemName", "label", "title", "text", "value"\]/);
+  assert.match(sections, /safeDisplayText\(item\.itemName \|\| item\.itemId\)/);
+  assert.match(sections, /safeDisplayText\(item\.quantity \|\| 1\)/);
+  const redesign = readFileSync(new URL("../assets/v67-persona-redesign.css", import.meta.url), "utf8");
+  assert.match(redesign, /\.ledger-result-detail-content \.gacha-held-ticket\s*\{[\s\S]{0,200}?white-space: nowrap[\s\S]{0,80}?text-overflow: ellipsis/);
+  assert.doesNotMatch(redesign, /\.ledger-result-detail-content \.gacha-held-ticket\s*\{[\s\S]{0,200}?overflow-wrap: anywhere/);
+});
+
 test("リザルト編集の数値欄は空文字を0にせず、別リザルトへ自由に切り替えられる", () => {
   assert.match(sections, /const \[resultFieldErrors, setResultFieldErrors\] = React\.useState\(\{\}\)/);
   assert.match(sections, /const blanks = numericFields\.filter\(\(\[, value\]\) => String\(value \?\? ""\)\.trim\(\) === ""\)/);

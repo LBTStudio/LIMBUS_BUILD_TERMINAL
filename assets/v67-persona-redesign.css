@@ -1333,8 +1333,10 @@ label:has(> input[type="checkbox"]) {
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  /* 長いアイテム名で縦に折り返さず、1行に収めて省略する。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ledger-result-detail-content .ledger-row {
   min-width: 0;

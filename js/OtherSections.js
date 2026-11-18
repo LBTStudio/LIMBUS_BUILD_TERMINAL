@@ -5349,6 +5349,21 @@ const readDragId = (event) => {
   };
 
   const rewardNameKey = (value) => String(value || "").normalize("NFKC").replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja");
+  /* 保存済み／取り込みデータにオブジェクトが混ざっても [object Object] を出さない。 */
+  const safeDisplayText = (value) => {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    if (Array.isArray(value)) return value.map(safeDisplayText).filter(Boolean).join(" / ");
+    if (typeof value === "object") {
+      for (const key of ["name", "itemName", "label", "title", "text", "value"]) {
+        const v = value[key];
+        if (v != null && typeof v !== "object") return String(v);
+      }
+      return "";
+    }
+    return String(value);
+  };
   const materializeRewardItems = (items, sourceLabel) => {
     const output = [];
     (Array.isArray(items) ? items : []).forEach((entry, index) => {
@@ -7010,7 +7025,7 @@ h(Card, { className: "ledger-card" },
                   ),
                   Array.isArray(result.rewardItems) && result.rewardItems.length > 0 && h("div", { className: "ledger-detail-group ledger-card-reward-items" },
                     h("span", { className: "t-label" }, "報酬アイテム"),
-                    result.rewardItems.map((item) => h("span", { key: item.itemId, className: "gacha-held-ticket" }, String(item.itemName || item.itemId) + " ×" + String(item.quantity || 1)))
+                    result.rewardItems.map((item, i) => h("span", { key: item.itemId || i, className: "gacha-held-ticket" }, safeDisplayText(item.itemName || item.itemId) + " ×" + safeDisplayText(item.quantity || 1)))
                   ),
                   Array.isArray(result.personaAcquisitions) && result.personaAcquisitions.length > 0 && h("div", { className: "ledger-detail-group ledger-card-acquisitions" },
                     h("span", { className: "t-label" }, "取得人格"),
