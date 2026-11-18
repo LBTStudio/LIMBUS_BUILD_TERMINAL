@@ -257,3 +257,23 @@
   }
   .ledger-results-toolbar { top: 154px; }
 }
+
+/* Keep the mobile sticky toolbar short enough that it cannot cover the
+   collapsed new-result entry while the page is scrolled. */
+@media (max-width: 560px) {
+  .ledger-results-toolbar {
+    top: 154px;
+    grid-template-columns: minmax(0, 1fr) minmax(108px, 124px);
+    gap: 6px;
+    padding: 8px;
+  }
+  .ledger-results-count { grid-column: 1 / -1; }
+  .ledger-results-search { grid-column: 1; min-width: 0; }
+  .ledger-results-sort { grid-column: 2; min-width: 0; }
+  .ledger-results-toolbar-pages {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+  }
+}
