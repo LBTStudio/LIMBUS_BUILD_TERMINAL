@@ -277,3 +277,21 @@
     gap: 3px;
   }
 }
+
+/* Phone screens: keep the command shortcuts in document flow.
+   Only the result search/pagination bar stays sticky; this prevents it from
+   stacking over the new-result form or covering controls during touch scroll. */
+@media (max-width: 560px) {
+  .ledger-command-bar {
+    position: static;
+    top: auto;
+    z-index: auto;
+    margin-block-end: 10px;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .ledger-results-toolbar {
+    top: 54px;
+    scroll-margin-top: 64px;
+  }
+}
