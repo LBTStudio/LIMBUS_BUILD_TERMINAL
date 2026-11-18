@@ -2107,17 +2107,22 @@ async function captureProfile(browser, mode) {
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
     });
     await attempt("record-200-result-pagination",async()=>{
-      /* The preceding reward regression can leave the ledger view open. Reuse
-         that view instead of looking for the task-card entry a second time. */
-      let ledgerToolbar=page.locator(".ledger-results-toolbar").first();
-      if(!(await visible(ledgerToolbar))){
+      /* Previous ledger regression steps may leave the detail tab selected.
+         Explicitly return to the Record hub before opening the ledger again.
+         This makes the 200-row test independent of whichever tab the preceding
+         regression happened to leave selected. */
+      const openLedgerFromRecordHub = async () => {
         await go("記録");
-        const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        const recordBack = page.locator(".btype-back-link").filter({hasText:"記録・所持品へ戻る"}).first();
+        if (await visible(recordBack)) await click(recordBack);
+        const resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
         await resultsEntry.waitFor({state:"visible",timeout:5000});
         await click(resultsEntry);
-        ledgerToolbar=page.locator(".ledger-results-toolbar").first();
-        await ledgerToolbar.waitFor({state:"visible",timeout:5000});
-      }
+        const toolbar = page.locator(".ledger-results-toolbar").first();
+        await toolbar.waitFor({state:"visible",timeout:5000});
+        return toolbar;
+      };
+      let ledgerToolbar = await openLedgerFromRecordHub();
       const originalState=await page.evaluate(()=>{
         const current=window.LBT_accounts?.loadActive?.();
         if(!current||!Array.isArray(current.results)) return null;
@@ -2160,15 +2165,7 @@ async function captureProfile(browser, mode) {
       try {
         await page.reload({waitUntil:"domcontentloaded"});
         await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
-        let toolbar=page.locator(".ledger-results-toolbar").first();
-        if(!(await visible(toolbar))){
-          await go("記録");
-          const resultsEntryAfterReload=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-          await resultsEntryAfterReload.waitFor({state:"visible",timeout:5000});
-          await click(resultsEntryAfterReload);
-          toolbar=page.locator(".ledger-results-toolbar").first();
-          await toolbar.waitFor({state:"visible",timeout:5000});
-        }
+        const toolbar=await openLedgerFromRecordHub();
         const pageNumber=toolbar.locator(".ledger-results-page-number").first();
         const countText=await toolbar.locator(".ledger-results-count").innerText();
         const firstPage=await pageNumber.innerText();
