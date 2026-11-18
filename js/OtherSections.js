@@ -4744,6 +4744,17 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
   const [movingEntryId, setMovingEntryId] = React.useState(null);
+  const [queueOpen, setQueueOpen] = React.useState(false);
+  const [queueSearch, setQueueSearch] = React.useState("");
+  const [moveDestinationQuery, setMoveDestinationQuery] = React.useState("");
+  React.useEffect(() => {
+    if (!queueOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setQueueOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [queueOpen]);
   const rewardItemCatalog = React.useMemo(() => {
     const source = [
       ...(window.DB?.items || []),
@@ -4755,6 +4766,7 @@ const LedgerPanel = ({ state, dispatch }) => {
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [], egoAcquisitions: [] });
+  const [newResultEntryOpen, setNewResultEntryOpen] = React.useState(false);
   const [newResultError, setNewResultError] = React.useState("");
   const [activeNewResultStage, setActiveNewResultStage] = React.useState("session");
   const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
@@ -5268,7 +5280,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     ].map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
     return searchable.includes(searchNeedle);
   });
-  const sortedResults = [...matchingResults].sort((a, b) => {
+  const compareResults = (a, b) => {
     if (resultSort === "name") return String(a.name || "").localeCompare(String(b.name || ""), "ja");
     const stamp = (result) => {
       const parsed = Date.parse(String(result.date || "") + "T00:00:00Z");
@@ -5278,7 +5290,9 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     if (difference) return resultSort === "oldest" ? difference : -difference;
     const createdDifference = (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0);
     return resultSort === "oldest" ? createdDifference : -createdDifference;
-  });
+  };
+  const sortedResults = [...matchingResults].sort(compareResults);
+  const allSortedResults = [...results].sort(compareResults);
   const resultPageCount = Math.max(1, Math.ceil(sortedResults.length / RESULTS_PAGE_SIZE));
   const safeResultPage = Math.min(resultPage, resultPageCount - 1);
   const pageResults = sortedResults.slice(
@@ -5296,8 +5310,15 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const unclassified = entries.filter((e) => !e.resultId);
   const movingEntry = movingEntryId ? entries.find((entry) => entry.id === movingEntryId) || null : null;
 
-  /* リザルトごとの明細と支出合計。導出なので保存しない。 */
-  const byResult = (id) => entries.filter((e) => e.resultId === id);
+  /* 明細はリザルト別に一度だけ束ね、カードごとの全件filterを避ける。 */
+  const entriesByResult = new Map();
+  for (const entry of entries) {
+    if (!entry.resultId) continue;
+    const group = entriesByResult.get(entry.resultId) || [];
+    group.push(entry);
+    entriesByResult.set(entry.resultId, group);
+  }
+  const byResult = (id) => entriesByResult.get(id) || [];
   const sumOf = (list) => list.reduce(
     (acc, e) => ({ lp: acc.lp + (Number(e?.cost?.lp) || 0), shards: acc.shards + (Number(e?.cost?.shards) || 0) }),
     { lp: 0, shards: 0 }
@@ -5308,6 +5329,20 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     const hit = (window.LBT_LEDGER_ENTRY_KINDS || []).find((k) => k.id === id);
     return hit ? hit.label : id || "その他";
   };
+  const normalizeQueueText = (value) => String(value || "").normalize("NFKC")
+    .replace(/[\\s\\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
+  const queueNeedle = normalizeQueueText(queueSearch);
+  const queueFilteredEntries = unclassified.filter((entry) => {
+    if (!queueNeedle) return true;
+    return normalizeQueueText([
+      entry.name, kindLabel(entry.kind), entry.cost?.lp, entry.cost?.shards
+    ].join(" ")).includes(queueNeedle);
+  });
+  const destinationNeedle = normalizeQueueText(moveDestinationQuery);
+  const moveDestinationMatches = allSortedResults.filter((result) => {
+    if (!destinationNeedle) return true;
+    return normalizeQueueText([result.name, result.date].join(" ")).includes(destinationNeedle);
+  }).slice(0, 8);
   /* 帰属の移動。ドラッグ中のIDは state と dataTransfer の両方に持たせる。
      state だけだと、ドラッグ中に再レンダーが入ったときに古い値を参照して
      drop が無音で失敗する。dataTransfer はドラッグ操作そのものが持つ値なので、
@@ -5324,14 +5359,20 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     setDragId(null);
     setOverId(null);
     setMovingEntryId(null);
+    setMoveDestinationQuery("");
   };
-  /* ドラッグが難しいタッチ環境／キーボード向け。明細を選んでから移動先カードを押す。 */
+  /* タッチ・キーボードでは、移動先カードを探さずドロワーから選ぶ。 */
   const startMoveEntry = (entry) => {
     setDragId(null);
     setOverId(null);
     setMovingEntryId((current) => current === entry.id ? null : entry.id);
+    setMoveDestinationQuery("");
+    setQueueOpen(true);
   };
-  const cancelMoveEntry = () => setMovingEntryId(null);
+  const cancelMoveEntry = () => {
+    setMovingEntryId(null);
+    setMoveDestinationQuery("");
+  };
   /* 行のドラッグ属性。未分類とリザルトで同じものを使う。 */
 const dragProps = (entry) => ({
   draggable: true,
@@ -5496,6 +5537,7 @@ const readDragId = (event) => {
     setNewRewardItemName("");
     setNewRewardItemQty("1");
     setResultPage(0);
+    setNewResultEntryOpen(false);
   };
 
 /* 硝子窓の読み込み結果をアカウント全体へ入れる。
@@ -5920,14 +5962,23 @@ const importHeldPersonas = () => {
     { id: "confirm", number: "04", title: "確認・記録", note: newResult.name.trim() ? "記録内容を確認" : "名称入力後に記録" }
   ];
   const jumpToNewResultStage = (stage) => {
+    setNewResultEntryOpen(true);
     setActiveNewResultStage(stage);
     if (stage === "rewards") {
       const disclosure = document.querySelector(".ledger-result-reward-disclosure");
       if (disclosure) disclosure.open = true;
     }
-    const target = document.getElementById("ledger-result-stage-" + stage);
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    target?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+    requestAnimationFrame(() => document.getElementById("ledger-result-stage-" + stage)
+      ?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" }));
+  };
+  const jumpToLedgerSection = (id) => {
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  };
+  const openNewResultForm = () => {
+    setNewResultEntryOpen(true);
+    requestAnimationFrame(() => jumpToLedgerSection("ledger-new-result-entry"));
   };
 
   /* --- 描画 ------------------------------------------------------------- */
