@@ -320,3 +320,16 @@
     justify-content: center;
   }
 }
+
+/* On tablet widths, the ledger command rail otherwise floats over the
+   multi-step entry card while it is being filled. Keep it in document flow. */
+@media (min-width: 561px) and (max-width: 1100px) {
+  .ledger-command-bar {
+    position: static;
+    top: auto;
+    z-index: auto;
+    margin-block-end: 10px;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+}

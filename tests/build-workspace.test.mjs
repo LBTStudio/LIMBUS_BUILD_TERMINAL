@@ -1524,3 +1524,11 @@ test("320px幅の新規リザルト見出しは一段で表示し、操作ボタ
   assert.ok(workbenchCss.includes("grid-column: 1 / -1;"));
   assert.ok(workbenchCss.includes(".ledger-result-entry-card-head .ledger-new-entry-toggle"));
 });
+
+test("タブレット幅では記録操作バーが入力進捗ナビに重ならない", () => {
+  const workbenchCss = read("../assets/v73-ledger-workbench.css");
+  assert.ok(workbenchCss.includes("@media (min-width: 561px) and (max-width: 1100px)"));
+  const tabletRule = workbenchCss.slice(workbenchCss.indexOf("@media (min-width: 561px) and (max-width: 1100px)"));
+  assert.match(tabletRule, /\.ledger-command-bar\s*\{[^}]*position:\s*static/s);
+  assert.match(tabletRule, /\.ledger-command-bar\s*\{[^}]*top:\s*auto/s);
+});
