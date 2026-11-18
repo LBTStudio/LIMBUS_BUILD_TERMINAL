@@ -1495,6 +1495,6 @@ test("通帳は長大なリザルト一覧から未分類移動・ページ操�
   assert.match(workbenchCss, /\.ledger-results-toolbar\s*\{[^}]*position:\s*sticky/s);
   assert.match(workbenchCss, /\.ledger-queue-overlay\s*\{[^}]*position:\s*fixed/s);
   assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-queue-drawer\s*\{[^}]*height:\s*min\(78dvh/s);
-  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*display:\s*grid[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,1fr\)\)[\s\S]*?overflow:\s*visible/s);
-  assert.match(workbenchCss, /\.ledger-command-action\s*\{[^}]*min-height:\s*40px/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-bar\s*\{[^}]*display:\s*grid[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[\s\S]*?overflow:\s*visible/s);
+  assert.match(workbenchCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-command-action\s*\{[^}]*min-height:\s*40px/s);
 });
