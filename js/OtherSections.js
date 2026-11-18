@@ -4747,6 +4747,9 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [queueOpen, setQueueOpen] = React.useState(false);
   const [queueSearch, setQueueSearch] = React.useState("");
   const [moveDestinationQuery, setMoveDestinationQuery] = React.useState("");
+  const [selectedQueueIds, setSelectedQueueIds] = React.useState([]);
+  const [queuePage, setQueuePage] = React.useState(0);
+  const [moveDestinationPage, setMoveDestinationPage] = React.useState(0);
   React.useEffect(() => {
     if (!queueOpen) return undefined;
     const onKeyDown = (event) => {
@@ -5330,7 +5333,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     return hit ? hit.label : id || "その他";
   };
   const normalizeQueueText = (value) => String(value || "").normalize("NFKC")
-    .replace(/[\\s\\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
+    .replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
   const queueNeedle = normalizeQueueText(queueSearch);
   const queueFilteredEntries = unclassified.filter((entry) => {
     if (!queueNeedle) return true;
@@ -5343,53 +5346,78 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     if (!destinationNeedle) return true;
     return normalizeQueueText([result.name, result.date].join(" ")).includes(destinationNeedle);
   });
+  const QUEUE_PAGE_SIZE = 20;
+  const queuePageCount = Math.max(1, Math.ceil(queueFilteredEntries.length / QUEUE_PAGE_SIZE));
+  const safeQueuePage = Math.min(queuePage, queuePageCount - 1);
+  const pageQueueEntries = queueFilteredEntries.slice(safeQueuePage * QUEUE_PAGE_SIZE, (safeQueuePage + 1) * QUEUE_PAGE_SIZE);
+  const MOVE_DESTINATION_PAGE_SIZE = 12;
+  const moveDestinationPageCount = Math.max(1, Math.ceil(moveDestinationMatches.length / MOVE_DESTINATION_PAGE_SIZE));
+  const safeMoveDestinationPage = Math.min(moveDestinationPage, moveDestinationPageCount - 1);
+  const pageMoveDestinations = moveDestinationMatches.slice(
+    safeMoveDestinationPage * MOVE_DESTINATION_PAGE_SIZE, (safeMoveDestinationPage + 1) * MOVE_DESTINATION_PAGE_SIZE
+  );
+  const selectedEntryIds = selectedQueueIds.filter((id) => entries.some((entry) => entry.id === id));
+  const selectedIdSet = new Set(selectedEntryIds);
+  const selectedVisibleQueueCount = pageQueueEntries.filter((entry) => selectedIdSet.has(entry.id)).length;
+  const allVisibleQueueSelected = pageQueueEntries.length > 0 && selectedVisibleQueueCount === pageQueueEntries.length;
   /* 帰属の移動。ドラッグ中のIDは state と dataTransfer の両方に持たせる。
      state だけだと、ドラッグ中に再レンダーが入ったときに古い値を参照して
      drop が無音で失敗する。dataTransfer はドラッグ操作そのものが持つ値なので、
      その操作の中では常に正しい。 */
   const LEDGER_DRAG_MIME = "application/x-lbt-ledger-entry";
-  const moveEntry = (id, resultId) => {
-    if (!id) return;
-    const existing = (Array.isArray(state.entries) ? state.entries : []).find((entry) => entry.id === id);
+  const moveEntries = (ids, resultId) => {
+    const wanted = [...new Set((Array.isArray(ids) ? ids : [ids]).map((id) => String(id || "")).filter(Boolean))];
+    if (!wanted.length) return false;
+    const wantedSet = new Set(wanted);
     const nextResultId = resultId || null;
-    if (!existing || (existing.resultId || null) !== nextResultId) {
-      dispatch({ type: "SET_ENTRY_RESULT", id, resultId: nextResultId });
-      toast(nextResultId ? "明細をリザルトへ移動しました" : "明細を未分類へ戻しました");
+    const changed = entries.filter((entry) => wantedSet.has(String(entry.id)) && (entry.resultId || null) !== nextResultId);
+    if (!changed.length) {
+      setSelectedQueueIds([]); setDragId(null); setOverId(null); setMovingEntryId(null); setMoveDestinationQuery("");
+      return false;
     }
-    setDragId(null);
-    setOverId(null);
-    setMovingEntryId(null);
-    setMoveDestinationQuery("");
+    dispatch({ type: "SET_ENTRIES_RESULT", ids: changed.map((entry) => entry.id), resultId: nextResultId });
+    setSelectedQueueIds([]); setDragId(null); setOverId(null); setMovingEntryId(null);
+    setMoveDestinationQuery(""); setMoveDestinationPage(0);
+    const subject = changed.length === 1 ? "「" + changed[0].name + "」" : changed.length + "件の明細";
+    toast(nextResultId ? subject + "をリザルトへ移動しました" : subject + "を未分類へ戻しました");
+    return true;
   };
-  /* タッチ・キーボードでは、移動先カードを探さずドロワーから選ぶ。 */
+  const moveEntry = (id, resultId) => moveEntries([id], resultId);
+  const moveSelectionToResult = (result) => {
+    if (!result?.id) return;
+    const ids = selectedEntryIds.length ? selectedEntryIds : (movingEntry ? [movingEntry.id] : []);
+    if (!ids.length) { toast("左側で移動するオブジェクトを選択するか、ドラッグしてください"); return; }
+    moveEntries(ids, result.id);
+  };
   const startMoveEntry = (entry) => {
-    setDragId(null);
-    setOverId(null);
-    setMovingEntryId((current) => current === entry.id ? null : entry.id);
-    setMoveDestinationQuery("");
-    setQueueOpen(true);
+    setDragId(null); setOverId(null); setMovingEntryId(entry.id);
+    setSelectedQueueIds([entry.id]); setMoveDestinationQuery(""); setMoveDestinationPage(0); setQueueOpen(true);
   };
   const cancelMoveEntry = () => {
-    setMovingEntryId(null);
-    setMoveDestinationQuery("");
+    setMovingEntryId(null); setSelectedQueueIds([]); setMoveDestinationQuery("");
   };
-  /* 行のドラッグ属性。未分類とリザルトで同じものを使う。 */
-const dragProps = (entry) => ({
-  draggable: true,
-  onDragStart: (e) => {
-    setMovingEntryId(null);
-    setDragId(entry.id);
-    try { e.dataTransfer?.setData(LEDGER_DRAG_MIME, entry.id); } catch (_) { /* 旧Browserは無視 */ }
-    try { e.dataTransfer && (e.dataTransfer.effectAllowed = "move"); } catch (_) {}
-  },
-  onDragEnd: () => { setDragId(null); setOverId(null); setMovingEntryId(null); }
-});
-const readDragId = (event) => {
+  /* 選択中の行からドラッグした場合は、選択分をひとまとまりで運ぶ。 */
+  const dragProps = (entry) => ({
+    draggable: true,
+    onDragStart: (e) => {
+      setMovingEntryId(null); setDragId(entry.id);
+      const ids = selectedIdSet.has(entry.id) ? selectedEntryIds : [entry.id];
+      try { e.dataTransfer?.setData(LEDGER_DRAG_MIME, JSON.stringify(ids)); } catch (_) {}
+      try { e.dataTransfer?.setData("text/plain", ids.length === 1 ? ids[0] : ids.length + "件の明細"); } catch (_) {}
+      try { if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+    },
+    onDragEnd: () => { setDragId(null); setOverId(null); setMovingEntryId(null); }
+  });
+  const readDragIds = (event) => {
+    let raw = "";
+    try { raw = event?.dataTransfer?.getData(LEDGER_DRAG_MIME) || ""; } catch (_) {}
+    raw = raw || dragId;
+    if (!raw) return [];
     try {
-      return event?.dataTransfer?.getData(LEDGER_DRAG_MIME) || dragId;
-    } catch (_) {
-      return dragId;
-    }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return [...new Set(parsed.map((id) => String(id || "")).filter(Boolean))];
+    } catch (_) {}
+    return [String(raw)];
   };
 
   const rewardNameKey = (value) => String(value || "").normalize("NFKC").replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja");
@@ -5930,14 +5958,17 @@ const importHeldPersonas = () => {
   const dropTargetProps = (id) => ({
     onDragOver: (e) => {
       e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
       setOverId(id);
     },
-    onDragLeave: () => { if (overId === id) setOverId(null); },
+    onDragLeave: (e) => {
+      if (overId === id && !e.currentTarget.contains(e.relatedTarget)) setOverId(null);
+    },
     onDrop: (e) => {
       e.preventDefault();
-      const entryId = readDragId(e);
-      if (id === "__queue") { moveEntry(entryId, null); return; }
-      moveEntry(entryId, id);
+      const draggedIds = readDragIds(e);
+      if (id === "__queue") { moveEntries(draggedIds, null); return; }
+      moveEntries(draggedIds, id);
     }
   });
 
@@ -6021,22 +6052,19 @@ const importHeldPersonas = () => {
       )
     ),
     queueOpen && h("div", {
-      className: "ledger-queue-overlay",
+      className: "ledger-queue-overlay ledger-classification-overlay",
       onClick: () => setQueueOpen(false)
     },
       h("aside", {
-        className: "ledger-queue-drawer",
-        role: "dialog",
-        "aria-modal": true,
-        "aria-labelledby": "ledger-queue-drawer-title",
+        className: "ledger-queue-drawer ledger-classification-source",
+        role: "dialog", "aria-modal": true, "aria-labelledby": "ledger-queue-drawer-title",
         onClick: (event) => event.stopPropagation(),
         onKeyDown: (event) => {
           if (event.key === "Escape") { setQueueOpen(false); return; }
           if (event.key !== "Tab") return;
-          const focusable = [...event.currentTarget.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])")];
+          const focusable = [...event.currentTarget.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled])")];
           if (!focusable.length) return;
-          const first = focusable[0];
-          const last = focusable[focusable.length - 1];
+          const first = focusable[0], last = focusable[focusable.length - 1];
           if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
           else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         },
@@ -6049,63 +6077,43 @@ const importHeldPersonas = () => {
           ),
           h("button", {
             type: "button", className: "ledger-queue-drawer-close", autoFocus: true,
-            "aria-label": "未分類パネルを閉じる",
-            onClick: () => setQueueOpen(false)
+            "aria-label": "分類ワークベンチを閉じる", onClick: () => setQueueOpen(false)
           }, "閉じる")
         ),
-        movingEntry && h("section", { className: "ledger-queue-transfer", "aria-label": "明細の移動先" },
-          h("div", { className: "ledger-queue-transfer-head" },
-            h("span", { className: "t-label" }, "移動対象"),
-            h("strong", null, movingEntry.name)
+        movingEntry && h("section", { className: "ledger-queue-transfer", "aria-label": "移動中の明細" },
+          h("span", { className: "t-label" }, "移動対象"),
+          h("strong", null, movingEntry.name),
+          h("span", { className: "ledger-note" },
+            "現在の帰属：" + (movingEntry.resultId ? (results.find((result) => result.id === movingEntry.resultId)?.name || "名称未設定") : "未分類")),
+          movingEntry.resultId && h("button", {
+            type: "button", className: "ledger-queue-transfer-unclassify", onClick: () => moveEntry(movingEntry.id, null)
+          }, "未分類へ戻す"),
+          h("button", { type: "button", className: "ledger-queue-transfer-cancel", onClick: cancelMoveEntry }, "選択を解除")
+        ),
+        h("div", { className: "ledger-queue-selection-bar" },
+          h("div", null,
+            h("strong", null, "選択 " + selectedEntryIds.length + "件"),
+            h("span", { className: "ledger-note" }, "複数選択して同じリザルトへ一括移動")
           ),
-          h("div", { className: "ledger-queue-destination-picker" },
-            h("p", { className: "ledger-queue-current-owner" },
-              "現在の帰属：",
-              movingEntry.resultId
-                ? (results.find((result) => result.id === movingEntry.resultId)?.name || "名称未設定")
-                : "未分類"
-            ),
-            h("label", { className: "ledger-queue-search-label" },
-              h("span", null, "移動先のリザルトを検索"),
-              h("input", {
-                type: "search", className: "ledger-queue-search",
-                placeholder: "リザルト名・日付で検索",
-                value: moveDestinationQuery,
-                "aria-label": "移動先のリザルトを検索",
-                onChange: (event) => setMoveDestinationQuery(event.target.value)
-              })
-            ),
-            h("div", { className: "ledger-queue-destination-list" },
-              moveDestinationMatches
-                .filter((result) => result.id !== movingEntry.resultId)
-                .map((result) => h("button", {
-                  key: result.id, type: "button", className: "ledger-queue-destination",
-                  onClick: () => moveEntry(movingEntry.id, result.id)
-                },
-                  h("span", null, result.name || "名称未設定"),
-                  h("small", null, result.date || "日付なし")
-                )),
-              moveDestinationMatches.filter((result) => result.id !== movingEntry.resultId).length === 0
-                && h("p", { className: "ledger-empty-note" }, "一致する移動先がありません。検索語を変えてください。")
-            ),
-            movingEntry.resultId && h("button", {
-              type: "button", className: "ledger-queue-move-target",
-              onClick: () => moveEntry(movingEntry.id, null)
-            }, "未分類へ戻す")
-          ),
-          h("button", {
-            type: "button", className: "ledger-queue-transfer-cancel",
-            onClick: cancelMoveEntry
-          }, "移動をやめる")
+          h("div", { className: "ledger-queue-selection-actions" },
+            h("button", {
+              type: "button", className: "ledger-queue-select-page",
+              disabled: pageQueueEntries.length === 0 || allVisibleQueueSelected,
+              onClick: () => setSelectedQueueIds((current) => [...new Set([...current, ...pageQueueEntries.map((entry) => entry.id)])])
+            }, "このページを選択"),
+            h("button", {
+              type: "button", className: "ledger-queue-clear-selection",
+              disabled: selectedEntryIds.length === 0,
+              onClick: () => { setSelectedQueueIds([]); setMovingEntryId(null); }
+            }, "選択解除")
+          )
         ),
         h("label", { className: "ledger-queue-search-label ledger-queue-filter" },
           h("span", null, "未分類の明細を絞り込む"),
           h("input", {
-            type: "search", className: "ledger-queue-search",
-            placeholder: "オブジェクト名・種別で検索",
-            value: queueSearch,
-            "aria-label": "未分類オブジェクトを検索",
-            onChange: (event) => setQueueSearch(event.target.value)
+            type: "search", className: "ledger-queue-search", placeholder: "オブジェクト名・種別・費用で検索",
+            value: queueSearch, "aria-label": "未分類オブジェクトを検索",
+            onChange: (event) => { setQueueSearch(event.target.value); setQueuePage(0); }
           })
         ),
         h("div", { className: "ledger-queue-drawer-list" },
@@ -6113,32 +6121,102 @@ const importHeldPersonas = () => {
             ? h("p", { className: "ledger-empty-note" }, "未分類はありません。リザルトの明細から「解除」するとここへ戻ります。")
             : queueFilteredEntries.length === 0
               ? h("p", { className: "ledger-empty-note" }, "検索に一致する未分類明細がありません。")
-              : queueFilteredEntries.map((entry) => h("div", {
-                  key: entry.id, className: "ledger-queue-item", ...dragProps(entry)
+              : pageQueueEntries.map((entry) => h("div", {
+                  key: entry.id,
+                  className: "ledger-queue-item" + (selectedIdSet.has(entry.id) ? " is-selected" : ""),
+                  ...dragProps(entry)
                 },
+                  h("input", {
+                    type: "checkbox", className: "ledger-queue-item-check",
+                    checked: selectedIdSet.has(entry.id), "aria-label": entry.name + " を選択",
+                    onChange: (event) => setSelectedQueueIds((current) => event.target.checked
+                      ? [...new Set([...current, entry.id])] : current.filter((id) => id !== entry.id))
+                  }),
                   h("div", { className: "ledger-queue-item-main" },
                     h("strong", null, entry.name),
-                    h("span", null,
-                      kindLabel(entry.kind) + " · " +
-                      (entry.cost && entry.cost.lp ? entry.cost.lp + " LP"
-                        : entry.cost && entry.cost.shards ? entry.cost.shards + " 欠片" : "費用なし"))
+                    h("span", null, kindLabel(entry.kind) + " · " +
+                      (entry.cost?.lp ? entry.cost.lp + " LP" : entry.cost?.shards ? entry.cost.shards + " 欠片" : "費用なし")),
+                    entry.note && h("small", null, String(entry.note).slice(0, 90))
                   ),
                   h("div", { className: "ledger-queue-item-actions" },
-                    h("button", {
-                      type: "button", className: "ledger-queue-item-move",
-                      "aria-label": entry.name + " の移動先を選択",
-                      onClick: () => startMoveEntry(entry)
-                    }, movingEntryId === entry.id ? "移動先を選択中" : "移動先"),
-                    h("button", {
-                      type: "button", className: "ledger-queue-item-delete",
+                    h("button", { type: "button", className: "ledger-queue-item-move",
+                      "aria-label": entry.name + " の移動先を選択", onClick: () => startMoveEntry(entry) }, "移動先"),
+                    h("button", { type: "button", className: "ledger-queue-item-delete",
                       "aria-label": entry.name + " を削除",
                       onClick: () => {
                         if (movingEntryId === entry.id) cancelMoveEntry();
+                        setSelectedQueueIds((current) => current.filter((id) => id !== entry.id));
                         dispatch({ type: "PURGE_ENTRY", id: entry.id });
-                      }
-                    }, "削除")
+                      } }, "削除")
                   )
                 ))
+        ),
+        queueFilteredEntries.length > 0 && h("nav", { className: "ledger-queue-page-nav", "aria-label": "未分類ページ移動" },
+          h("span", null, (safeQueuePage * QUEUE_PAGE_SIZE + 1) + "–" +
+            Math.min((safeQueuePage + 1) * QUEUE_PAGE_SIZE, queueFilteredEntries.length) + " / " + queueFilteredEntries.length),
+          h("button", { type: "button", disabled: safeQueuePage === 0, onClick: () => setQueuePage(0) }, "最初"),
+          h("button", { type: "button", disabled: safeQueuePage === 0, onClick: () => setQueuePage(Math.max(0, safeQueuePage - 1)) }, "前へ"),
+          h("strong", null, (safeQueuePage + 1) + " / " + queuePageCount),
+          h("button", { type: "button", disabled: safeQueuePage >= queuePageCount - 1, onClick: () => setQueuePage(Math.min(queuePageCount - 1, safeQueuePage + 1)) }, "次へ"),
+          h("button", { type: "button", disabled: safeQueuePage >= queuePageCount - 1, onClick: () => setQueuePage(queuePageCount - 1) }, "最後")
+        )
+      ),
+      h("section", {
+        className: "ledger-classification-targets-pane", role: "region",
+        "aria-label": "移動先リザルト一覧", onClick: (event) => event.stopPropagation()
+      },
+        h("header", { className: "ledger-classification-targets-head" },
+          h("div", null,
+            h("strong", null, "移動先リザルト"),
+            h("span", { className: "ledger-note" },
+              selectedEntryIds.length
+                ? selectedEntryIds.length + "件を選択中。カードへドロップ、またはクリックで一括移動"
+                : "未分類の明細を左側からドラッグするか、チェックして移動先を選択")
+          ),
+          h("span", { className: "ledger-classification-target-count" }, results.length + "件")
+        ),
+        h("label", { className: "ledger-queue-search-label ledger-classification-destination-search" },
+          h("span", null, "すべてのリザルトから検索"),
+          h("input", {
+            type: "search", className: "ledger-queue-search", placeholder: "セッション名・日付で検索",
+            value: moveDestinationQuery, "aria-label": "移動先のリザルトを検索",
+            onChange: (event) => { setMoveDestinationQuery(event.target.value); setMoveDestinationPage(0); }
+          })
+        ),
+        moveDestinationMatches.length === 0
+          ? h("p", { className: "ledger-empty-note" }, "一致するリザルトがありません。検索語を変えてください。")
+          : h("div", { className: "ledger-classification-results-grid" },
+              pageMoveDestinations.map((result) => {
+                const rows = byResult(result.id), spent = sumOf(rows);
+                const income = normalizeResultIncome(result.income);
+                return h("button", {
+                  key: result.id, type: "button",
+                  className: "ledger-classification-target" + (overId === result.id ? " is-over" : ""),
+                  "aria-label": (result.name || "名称未設定") + " へ選択明細を移動",
+                  title: "ここへドロップ、またはクリックして選択中の明細を移動",
+                  ...dropTargetProps(result.id), onClick: () => moveSelectionToResult(result)
+                },
+                  h("span", { className: "ledger-classification-target-title" }, result.name || "名称未設定"),
+                  h("span", { className: "ledger-classification-target-date" }, result.date || "日付なし"),
+                  h("span", { className: "ledger-classification-target-finance" },
+                    h("span", null, "収入 " + (Number(income.lp) || 0).toLocaleString("ja-JP") + " LP / " + (Number(income.shards) || 0).toLocaleString("ja-JP") + " 欠片"),
+                    h("span", null, "支出 " + spent.lp.toLocaleString("ja-JP") + " LP / " + spent.shards.toLocaleString("ja-JP") + " 欠片")
+                  ),
+                  h("span", { className: "ledger-classification-target-footer" },
+                    h("small", null, "分類済み " + rows.length + "件"),
+                    h("b", null, selectedEntryIds.length ? selectedEntryIds.length + "件をここへ移動" : movingEntry ? "ここへ移動" : "ドロップ先")
+                  )
+                );
+              })
+            ),
+        moveDestinationMatches.length > 0 && h("nav", { className: "ledger-classification-page-nav", "aria-label": "移動先リザルトページ移動" },
+          h("span", null, (safeMoveDestinationPage * MOVE_DESTINATION_PAGE_SIZE + 1) + "–" +
+            Math.min((safeMoveDestinationPage + 1) * MOVE_DESTINATION_PAGE_SIZE, moveDestinationMatches.length) + " / " + moveDestinationMatches.length),
+          h("button", { type: "button", disabled: safeMoveDestinationPage === 0, onClick: () => setMoveDestinationPage(0) }, "最初"),
+          h("button", { type: "button", disabled: safeMoveDestinationPage === 0, onClick: () => setMoveDestinationPage(Math.max(0, safeMoveDestinationPage - 1)) }, "前へ"),
+          h("strong", null, (safeMoveDestinationPage + 1) + " / " + moveDestinationPageCount),
+          h("button", { type: "button", disabled: safeMoveDestinationPage >= moveDestinationPageCount - 1, onClick: () => setMoveDestinationPage(Math.min(moveDestinationPageCount - 1, safeMoveDestinationPage + 1)) }, "次へ"),
+          h("button", { type: "button", disabled: safeMoveDestinationPage >= moveDestinationPageCount - 1, onClick: () => setMoveDestinationPage(moveDestinationPageCount - 1) }, "最後")
         )
       )
     ),
@@ -6435,7 +6513,17 @@ const importHeldPersonas = () => {
           size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
           "aria-label": "前のページ", onClick: () => setResultPage(Math.max(0, safeResultPage - 1))
         }, "前へ"),
-        h("span", { className: "ledger-results-page-number" }, (safeResultPage + 1) + " / " + resultPageCount),
+        h("label", { className: "ledger-results-page-jump" },
+          h("span", null, "ページ"),
+          h("select", {
+            "aria-label": "リザルトページを直接指定",
+            value: String(safeResultPage),
+            onChange: (event) => setResultPage(Math.max(0, Math.min(resultPageCount - 1, Number(event.target.value) || 0)))
+          }, Array.from({ length: resultPageCount }, (_, index) =>
+            h("option", { key: index, value: String(index) }, String(index + 1)))
+          )
+        ),
+
         h(Button, {
           size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
           "aria-label": "次のページ", onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
