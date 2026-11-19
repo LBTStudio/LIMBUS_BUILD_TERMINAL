@@ -2112,48 +2112,29 @@ async function captureProfile(browser, mode) {
          This makes the 200-row test independent of whichever tab the preceding
          regression happened to leave selected. */
       const openLedgerFromRecordHub = async () => {
-        const recordBack = page.locator(".btype-back-link").filter({hasText:"記録・所持品へ戻る"}).first();
-        let resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-        /* Prefer the actual visible Record hub. If the detail tab is open, use
-           its back link. Otherwise select the explicit global navigation target
-           rather than falling back to an arbitrary exact-text node. */
-        if (await visible(recordBack)) {
-          try { await click(recordBack); } catch (_) { /* fall through to navigation */ }
-        }
-        if (!(await visible(resultsEntry))) {
-          const width = page.viewportSize()?.width || 1440;
-          const mobileNav = page.locator(".btype-mobile-bottom-nav button").filter({hasText:"記録"}).first();
-          const railNav = page.locator(".rail-item").filter({hasText:"記録"}).first();
-          const titledNav = page.locator('button[title="記録"]').first();
-          const navTarget = width <= 640
-            ? ((await visible(mobileNav)) ? mobileNav : null)
-            : ((await visible(railNav)) ? railNav : ((await visible(titledNav)) ? titledNav : null));
-          if (!navTarget) {
-            const state = await page.evaluate(() => ({
-              url: location.href,
-              currentSection: window.LBT_accounts?.loadActive?.()?.ui?.currentSection || "",
-              libraryTab: window.LBT_accounts?.loadActive?.()?.ui?.libraryTab || "",
-              body: (document.body.innerText || "").slice(0, 500)
-            }));
-            throw new Error("記録ホームへのナビゲーションが見つかりません: " + JSON.stringify(state));
-          }
-          await click(navTarget);
-          if (await visible(recordBack)) await click(recordBack);
-          resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-        }
-        if (!(await visible(resultsEntry))) {
+        /* A navigation reset is more deterministic than trying to infer which nested
+           Record library tab a previous regression left open. Return to Home first,
+           then enter the Record hub through the actual navigation control. */
+        await go("ホーム");
+        await page.locator(".btype-home-v2").waitFor({state:"visible",timeout:8000});
+        await go("記録");
+        const resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        try {
+          await resultsEntry.waitFor({state:"visible",timeout:8000});
+        } catch (error) {
           const state = await page.evaluate(() => ({
+            url: location.href,
             currentSection: window.LBT_accounts?.loadActive?.()?.ui?.currentSection || "",
             libraryTab: window.LBT_accounts?.loadActive?.()?.ui?.libraryTab || "",
-            body: (document.body.innerText || "").slice(0, 700)
+            body: (document.body.innerText || "").slice(0, 900)
           }));
-          throw new Error("記録ホームのリザルト入口が表示されません: " + JSON.stringify(state));
+          throw new Error("ホーム経由で記録ハブへ戻れません: " + JSON.stringify(state) + " / " + String(error));
         }
         await click(resultsEntry);
         const toolbar = page.locator(".ledger-results-toolbar").first();
-        await toolbar.waitFor({state:"visible",timeout:5000});
+        await toolbar.waitFor({state:"visible",timeout:8000});
         return toolbar;
-      };
+      };;
       let ledgerToolbar = await openLedgerFromRecordHub();
       const originalState=await page.evaluate(()=>{
         const current=window.LBT_accounts?.loadActive?.();
