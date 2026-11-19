@@ -234,15 +234,15 @@ function kindMods(text,skillType,dice=[]){
    if(occupied.some(([a,b])=>start<b&&end>a))continue;
    const prefix=p.targetGroup?m[p.targetGroup]:(m[1]||"");
    if(prefix&&!applies(prefix)&&p.scope!=="matching")continue;
-   const before=src.slice(Math.max(0,start-100),start),after=src.slice(end,Math.min(src.length,end+100));
-   if((/対象の\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||/マッチ(?:の)?\s*$/.test(before))continue;
+   const before=src.slice(Math.max(0,start-80),start),after=src.slice(end,Math.min(src.length,end+35));
+   if((/対象の(?:スキル|ダイス)?\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||/マッチ(?:の)?\s*$/.test(before))continue;
    const context=(before+m[0]+after).trim();
    const perUnit=/ごとに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ごとに|\d+につき/.test(context);
    const cap=p.kind==="signed"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):0;
    let value=null,unresolved=false;
    if(p.kind==="signed"){
     const raw=Number(String(m[2]||"0").replace(/\s/g,""));
-    value=cap>0?Math.max(raw,cap):raw;
+    value=cap>0&&raw>0?Math.max(raw,cap):raw;
     if(perUnit&&!cap){value=null;unresolved=true;}
    }else if(p.kind==="change"){
     value=Number(m[2]||0)*(m[3]==="減少"?-1:1);
@@ -271,7 +271,7 @@ function passiveBonus(persona,skill){
  if(persona.passive_effect)chunks.push({label:"パッシブ",text:[persona.passive_cond,persona.passive_effect].filter(Boolean).join("\n")});
  if(persona.passive_always)chunks.push({label:"常時パッシブ",text:persona.passive_always});
  if(persona.passives)chunks.push({label:"別冊パッシブ",text:persona.passives});
- for(const u of (persona.unique_buffs||[]))chunks.push({label:`固有バフ:${u.name||"名称不明"}`,text:[u.name,u.desc,u.effect].filter(Boolean).join(" "),forceConditional:true});
+ for(const u of (persona.unique_buffs||persona.unique||[]))chunks.push({label:`固有バフ:${u.name||"名称不明"}`,text:[u.name,u.desc,u.effect].filter(Boolean).join(" "),forceConditional:true});
  const count=(skill.dice||[]).length,perDie=Array(count).fill(0),reasons=[],candidates=[],text=chunks.map(c=>`${c.label}\n${c.text}`).join("\n");
  for(const c of chunks){
   const m=kindMods(c.text,skill.type||"",skill.dice||[]);
