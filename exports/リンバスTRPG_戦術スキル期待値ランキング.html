@@ -396,9 +396,9 @@ function selectedValue(r){
 function activeSort(){
  const s=$("sort").value;
  if(s==="base")return r=>r.base;
- if(s==="passive")return r=>r.base+r.passive+conditionalBonus(r,"selected","passive");
- if(s==="effect")return r=>r.base+r.effect+conditionalBonus(r,"selected","effect");
- if(s==="both")return r=>r.all+conditionalBonus(r,"selected","both");
+ if(s==="passive")return r=>r.base+r.passive+conditionalBonus(r,"all","passive");
+ if(s==="effect")return r=>r.base+r.effect+conditionalBonus(r,"all","effect");
+ if(s==="both")return r=>r.all+conditionalBonus(r,"all","both");
  return selectedValue;
 }
 const sortCollator=new Intl.Collator("ja",{numeric:true,sensitivity:"base"});
