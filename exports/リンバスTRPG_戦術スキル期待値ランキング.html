@@ -306,14 +306,38 @@ function addAppendix(){
   addPersona(persona);
  }
 }
+function conditionModifierEnabled(x){
+ return !!$("includeConditional")?.checked&&!x.unresolved&&Number.isFinite(x.value)&&
+  (x.conditionCategories||["other"]).every(k=>$(CONDITION_FILTER_IDS[k]||"condOther")?.checked);
+}
+function conditionalPerDie(r,index,mode="selected",source="both"){
+ let total=0;
+ const sources=[];
+ if(source==="both"||source==="passive")sources.push(["passCandidates","includePassive"]);
+ if(source==="both"||source==="effect")sources.push(["effectCandidates","includeEffect"]);
+ for(const [field,toggle] of sources){
+  if(mode==="selected"&&!$(toggle).checked)continue;
+  for(const x of (r[field]||[])){
+   if(!x.conditional||x.unresolved||!Number.isFinite(x.value))continue;
+   if(mode==="selected"&&!conditionModifierEnabled(x))continue;
+   if((x.targets||[]).includes(index))total+=x.value;
+  }
+ }
+ return total;
+}
+function conditionalBonus(r,mode="selected",source="both"){
+ return r.dieRows.reduce((sum,_,i)=>sum+conditionalPerDie(r,i,mode,source),0);
+}
 function selectedValue(r){
- const p=$("includePassive").checked, e=$("includeEffect").checked;
- return r.base+(p?r.passive:0)+(e?r.effect:0);
+ const p=$("includePassive").checked,e=$("includeEffect").checked;
+ return r.base+(p?r.passive:0)+(e?r.effect:0)+conditionalBonus(r,"selected","both");
 }
 function activeSort(){
  const s=$("sort").value;
- if(s==="base")return r=>r.base;if(s==="passive")return r=>r.base+r.passive;
- if(s==="effect")return r=>r.base+r.effect;if(s==="both")return r=>r.all;
+ if(s==="base")return r=>r.base;
+ if(s==="passive")return r=>r.base+r.passive+conditionalBonus(r,"selected","passive");
+ if(s==="effect")return r=>r.base+r.effect+conditionalBonus(r,"selected","effect");
+ if(s==="both")return r=>r.all+conditionalBonus(r,"selected","both");
  return selectedValue;
 }
 const sortCollator=new Intl.Collator("ja",{numeric:true,sensitivity:"base"});
@@ -326,11 +350,12 @@ function sortValue(row,key,individual){
   case "skill":return `${s.name||s.rank||""} ${s.sin||""}`;
   case "dice":return `${String(individual?1:row.dieRows.length).padStart(3,"0")} ${individual?(d?.roll||""):row.diceText}`;
   case "base":return individual?d.base:row.base;
-  case "passive":return individual?d.base+d.passive:row.base+row.passive;
-  case "effect":return individual?d.base+d.effect:row.base+row.effect;
-  case "all":return individual?d.base+d.passive+d.effect:row.all;
-  case "die":return individual?d.base+( $("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0):Math.max(0,...row.dieRows.map(x=>x.base+($("includePassive").checked?x.passive:0)+($("includeEffect").checked?x.effect:0)));
-  case "selected":return individual?d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0):selectedValue(row);
+  case "passive":return individual?d.base+d.passive+conditionalPerDie(row,row.rankDieIndex,"selected","passive"):row.base+row.passive+conditionalBonus(row,"selected","passive");
+  case "effect":return individual?d.base+d.effect+conditionalPerDie(row,row.rankDieIndex,"selected","effect"):row.base+row.effect+conditionalBonus(row,"selected","effect");
+  case "conditional":return individual?conditionalPerDie(row,row.rankDieIndex):conditionalBonus(row);
+  case "all":return individual?d.base+d.passive+d.effect+conditionalPerDie(row,row.rankDieIndex):row.all+conditionalBonus(row);
+  case "die":return individual?d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(row,row.rankDieIndex):Math.max(0,...row.dieRows.map((x,i)=>x.base+($("includePassive").checked?x.passive:0)+($("includeEffect").checked?x.effect:0)+conditionalPerDie(row,i)));
+  case "selected":return individual?d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(row,row.rankDieIndex):selectedValue(row);
   default:return 0;
  }
 }
@@ -346,7 +371,7 @@ function updateSortHeaders(){
  });
 }
 function filterKey(){
- return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
+ return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
@@ -363,7 +388,10 @@ function filteredRecords(){
  resultCache=rows;resultCacheKey=key;return rows;
 }
 
-function dieMetric(d){return {base:d.base,passive:d.passive,effect:d.effect,all:d.base+d.passive+d.effect,selected:d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)}}
+function dieMetric(r,index){
+ const d=r.dieRows[index],conditional=conditionalPerDie(r,index,"selected"),candidate=conditionalPerDie(r,index,"potential");
+ return {base:d.base,passive:d.passive,effect:d.effect,conditional,candidate,all:d.base+d.passive+d.effect+conditional,selected:d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditional};
+}
 function render(){
  let rows=filteredRecords();
  const individualMode=$("sort").value==="single";
