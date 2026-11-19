@@ -30,7 +30,10 @@ test("未分類ワークベンチの必須撮影説明は、実際の4状態の�
 });
 
 test("リザルトページャーのアクセシブル名は表示ラベルと一致する", () => {
-  assert.match(sections, /"aria-label": "前へ"[\\s\\S]{0,220}\\}, "前へ"\\)/);
-  assert.match(sections, /"aria-label": "次へ"[\\s\\S]{0,220}\\}, "次へ"\\)/);
+  for (const label of ["前へ", "次へ"]) {
+    const ariaIndex = sections.indexOf(`"aria-label": "${label}"`);
+    assert.notEqual(ariaIndex, -1, `pager button has the ${label} accessible name`);
+    assert.ok(sections.slice(ariaIndex, ariaIndex + 220).includes(`}, "${label}"),`), `pager button visible label matches: ${label}`);
+  }
   assert.doesNotMatch(sections, /"aria-label": "前のページ"|"aria-label": "次のページ"/);
 });
