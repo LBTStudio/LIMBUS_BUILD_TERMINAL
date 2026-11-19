@@ -96,3 +96,16 @@ test("操作監査はPC/タブレットのドラッグとスマートフォン�
   assert.match(auditSource, /Phone: use the explicit select -> search -> tap route/);
   assert.match(auditSource, /\.ledger-queue-drag-handle/);
 });
+
+test("未分類100件のページング・検索・ページ内20件一括移動を画面監査する", () => {
+  assert.match(auditSource, /length:100/);
+  assert.match(auditSource, /QA未分類オブジェクト/);
+  assert.match(auditSource, /ledger-100-unclassified-first-page/);
+  assert.match(auditSource, /ledger-100-unclassified-last-page/);
+  assert.match(auditSource, /ledger-100-unclassified-search/);
+  assert.match(auditSource, /ledger-100-unclassified-bulk-selected/);
+  assert.match(auditSource, /ledger-100-unclassified-bulk-assigned/);
+  assert.match(auditSource, /rows\) !== 20|rows\)\)!==20/);
+  assert.match(auditSource, /moved!==20/);
+  assert.match(auditSource, /stillUnclassified!==80/);
+});
