@@ -84,7 +84,8 @@ test("分類ワークベンチは既存明細のドラッグ移動とモバイ�
 });
 
 test("モバイル分類画面は縦スクロールでき、移動先カードに十分な表示領域を確保する", () => {
-  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?grid-template-rows: auto auto;/);
+  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?grid-template-rows: max-content max-content;/);
+  assert.match(classificationCss, /\.ledger-queue-drawer\s*\{[^}]*min-height: max-content;[^}]*overflow: visible;/);
   assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?overflow-y: auto;/);
   assert.match(classificationCss, /\.ledger-classification-targets-pane\s*\{[^}]*min-height: 380px;/);
   assert.match(classificationCss, /\.ledger-classification-results-grid\s*\{[^}]*min-height: 190px;[^}]*max-height: 230px;/);
