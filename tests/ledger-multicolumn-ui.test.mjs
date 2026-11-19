@@ -131,8 +131,8 @@ test("分類ワークベンチは検索変更と閉じる操作で選択を解�
 
 test("監査ナビゲーションは前のシナリオのダイアログを閉じ、レール表示後に遷移する", () => {
   assert.match(auditSource, /async function go\(label\) \{[\s\S]{0,260}await closeOverlay\(\)/);
-  assert.match(auditSource, /await rail\.waitFor\(\{state:"visible",timeout:8000\}\)/);
-  assert.match(auditSource, /await mobileNav\.waitFor\(\{state:"visible",timeout:8000\}\)/);
+  assert.match(auditSource, /const rail = page\.locator\("\.rail:visible"\)\.first\(\);[\s\S]{0,120}await rail\.waitFor/);
+  assert.match(auditSource, /const nav = page\.locator\("\.btype-mobile-bottom-nav:visible"\)\.first\(\);[\s\S]{0,120}await nav\.waitFor/);
   assert.match(auditSource, /activeDialogs:/);
 });
 
