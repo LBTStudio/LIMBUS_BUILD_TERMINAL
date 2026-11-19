@@ -86,6 +86,8 @@ tbody td{padding:7px}
 }
 
 .pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:9px 4px;font-size:12px;color:var(--muted)}.pager button:disabled{opacity:.35;cursor:default}
+
+.check-group-label{font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap;margin-left:4px}
 </style>
 </head>
 <body>
@@ -110,6 +112,10 @@ tbody td{padding:7px}
    <label class="check"><input type="checkbox" id="includePassive"> 固有・パッシブの威力補正を加算</label>
    <label class="check"><input type="checkbox" id="includeEffect"> スキル効果の威力補正を加算</label>
    <label class="check"><input type="checkbox" id="includeExtra" checked> 追加戦術枠も表示</label>
+   <span class="check-group-label">ランキングから除外：</span>
+   <label class="check"><input type="checkbox" id="excludeCounter"> マッチ可能反撃</label>
+   <label class="check"><input type="checkbox" id="excludeDefense"> 防御</label>
+   <label class="check"><input type="checkbox" id="excludeNormal"> 通常戦術</label>
    <div class="actions"><button id="export">表示中データをCSV出力</button></div>
   </div>
   <div class="metrics">
@@ -238,12 +244,12 @@ function activeSort(){
  return selectedValue;
 }
 function filterKey(){
- return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|");
+ return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|");
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
  const q=$("q").value.trim().toLowerCase(),src=$("source").value,kind=$("kind").value,slot=$("slot").value,typ=$("type").value,sin=$("sin").value;
- let rows=records.filter(r=>{const p=r.persona,s=r.skill;if(q&&!r.searchText.includes(q))return false;if(src&&p.source!==src)return false;if(kind&&p.kind!==kind)return false;if(slot==="unknown"&&s.slot!==null)return false;if(slot!==""&&slot!=="unknown"&&String(s.slot)!==slot)return false;if(!$("includeExtra").checked&&s.slot!==null&&s.slot>4)return false;if(typ){const t=String(s.type||""),category=/反撃/.test(t)?"counter":t==="防御"?"defense":"normal";if(typ!==category)return false;}if(sin&&s.sin!==sin)return false;return true;});
+ let rows=records.filter(r=>{const p=r.persona,s=r.skill;if(q&&!r.searchText.includes(q))return false;if(src&&p.source!==src)return false;if(kind&&p.kind!==kind)return false;if(slot==="unknown"&&s.slot!==null)return false;if(slot!==""&&slot!=="unknown"&&String(s.slot)!==slot)return false;if(!$("includeExtra").checked&&s.slot!==null&&s.slot>4)return false;const t=String(s.type||""),category=/反撃/.test(t)?"counter":t==="防御"?"defense":"normal";if(typ&&typ!==category)return false;if(category==="counter"&&$("excludeCounter").checked)return false;if(category==="defense"&&$("excludeDefense").checked)return false;if(category==="normal"&&$("excludeNormal").checked)return false;if(sin&&s.sin!==sin)return false;return true;});
  const sortFn=activeSort(),individual=$("sort").value==="single";
  if(individual){rows=rows.flatMap(r=>r.dieRows.map((d,j)=>({...r,rankDie:d,rankDieIndex:j})));const val=r=>r.rankDie.base+($("includePassive").checked?r.rankDie.passive:0)+($("includeEffect").checked?r.rankDie.effect:0);rows.sort((a,b)=>val(b)-val(a)||a.persona.name.localeCompare(b.persona.name,"ja")||a.rankDieIndex-b.rankDieIndex);}
  else rows.sort((a,b)=>sortFn(b)-sortFn(a)||a.persona.name.localeCompare(b.persona.name,"ja"));
