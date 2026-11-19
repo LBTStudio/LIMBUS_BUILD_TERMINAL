@@ -264,10 +264,12 @@ function sortValue(row,key,individual){
 }
 function compareSortValues(a,b){return typeof a==="number"&&typeof b==="number"?a-b:sortCollator.compare(String(a??""),String(b??""));}
 function updateSortHeaders(){
+ const defaultKey=({base:"base",passive:"passive",effect:"effect",both:"all",selected:"selected",single:"selected"})[$("sort").value]||"selected";
  document.querySelectorAll("thead th[data-sort]").forEach(th=>{
-  const key=th.dataset.sort, active=customSortColumn?key===customSortColumn:key==="selected";
-  th.setAttribute("aria-sort",active?(customSortColumn?(customSortDirection==="asc"?"ascending":"descending"):"descending"):"none");
-  const indicator=th.querySelector(".sort-indicator");if(indicator)indicator.textContent=active?(customSortColumn?(customSortDirection==="asc"?"▲":"▼"):"▼"):"";
+  const key=th.dataset.sort, active=customSortColumn?key===customSortColumn:key===defaultKey;
+  const direction=customSortColumn?customSortDirection:"desc";
+  th.setAttribute("aria-sort",active?(direction==="asc"?"ascending":"descending"):"none");
+  const indicator=th.querySelector(".sort-indicator");if(indicator)indicator.textContent=active?(direction==="asc"?"▲":"▼"):"";
   const btn=th.querySelector("button");if(btn)btn.setAttribute("aria-label",`${btn.textContent.replace(/[▲▼]/g,"").trim()}で並べ替え${active?"。再クリックで順序反転":""}`);
  });
 }
@@ -299,8 +301,8 @@ function render(){
  const valueForRow=r=>individualMode?(r.rankDie.base+($("includePassive").checked?r.rankDie.passive:0)+($("includeEffect").checked?r.rankDie.effect:0)):selectedValue(r);
  $("mMean").textContent=n?(rows.reduce((a,r)=>a+valueForRow(r),0)/n).toFixed(2):"—";
  $("mMax").textContent=n?valueForRow(rows[0]).toFixed(2):"—";
- if(!n){$("rows").innerHTML='<tr><td colspan="11" class="empty">条件に一致するスキルがありません。</td></tr>';$("pageInfo").textContent="0件";$("prevPage").disabled=true;$("nextPage").disabled=true;return;}
  updateSortHeaders();
+ if(!n){$("rows").innerHTML='<tr><td colspan="11" class="empty">条件に一致するスキルがありません。</td></tr>';$("pageInfo").textContent="0件";$("prevPage").disabled=true;$("nextPage").disabled=true;return;}
  $("rows").innerHTML=pageRows.map((r,i)=>{
   const p=r.persona,s=r.skill,source=p.source==="別冊"?`別冊 p.${(s.dice||[]).map(d=>d.page).filter(Boolean)[0]||p.pages?.[0]||"?"}`:`${p.source==="基本"?"基本":"パック"} No.${p.raw?.no??"—"}`;
   const notes=[...r.passReasons.map(x=>"固有/パッシブ: "+x),...r.effectReasons.map(x=>"スキル効果: "+x)];
