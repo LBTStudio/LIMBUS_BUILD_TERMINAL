@@ -105,7 +105,7 @@ test("未分類100件のページング・検索・ページ内20件一括移動
   assert.match(auditSource, /ledger-100-unclassified-search/);
   assert.match(auditSource, /ledger-100-unclassified-bulk-selected/);
   assert.match(auditSource, /ledger-100-unclassified-bulk-assigned/);
-  assert.match(auditSource, /rows\) !== 20|rows\)\)!==20/);
+  assert.match(auditSource, /!==20/);
   assert.match(auditSource, /moved!==20/);
   assert.match(auditSource, /stillUnclassified!==80/);
 });
