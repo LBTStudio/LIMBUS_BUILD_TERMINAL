@@ -199,9 +199,9 @@ const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"c
 function conditionClasses(context){
  const s=String(context||""),tags=[];
  if(/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|挑発/.test(s))tags.push("status");
- if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|保有|血闘|高揚|時間貸与|酔い|点穴/.test(s))tags.push("resource");
+ if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|保有|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
- if(/共鳴|保有|所属|味方|敵|隣|人数|何名|同じ所属|キャラクター/.test(s))tags.push("team");
+ if(/所属|味方|隣|人数|何名|同じ所属|キャラクター/.test(s))tags.push("team");
  if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時/.test(s))tags.push("trigger");
  return tags.length?tags:["other"];
 }
@@ -243,7 +243,8 @@ function kindMods(text,skillType,dice=[]){
    if(prefix&&!applies(prefix)&&p.scope!=="matching")continue;
    const before=src.slice(Math.max(0,start-80),start),after=src.slice(end,Math.min(src.length,end+35));
    if((/対象の(?:スキル|ダイス)?\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||/マッチ(?:の)?\s*$/.test(before))continue;
-   const context=(before+m[0]+after).trim();
+   const clauseStart=src.lastIndexOf("。",start)+1,clauseEnd=src.indexOf("。",end);
+   const context=src.slice(Math.max(clauseStart,start-80),clauseEnd<0?Math.min(src.length,end+35):Math.min(clauseEnd,end+35)).trim();
    const perUnit=/ごとに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ごとに|\d+につき/.test(context);
    const cap=p.kind==="signed"||p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[3]||0):0;
    let value=null,unresolved=false;
@@ -262,7 +263,7 @@ function kindMods(text,skillType,dice=[]){
    }else{
     unresolved=true;
    }
-   const event=/マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
+   const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
    const conditional=unresolved||perUnit||/なら|ならば|であれば|の場合|ごとに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
    const targetType=p.targetGroup?m[p.targetGroup]:null;
    const targets=targetsForModifier(p.scope,dice.length,dice,targetType,skillType);
