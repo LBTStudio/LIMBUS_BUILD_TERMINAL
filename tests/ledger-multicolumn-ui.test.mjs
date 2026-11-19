@@ -110,3 +110,20 @@ test("未分類100件のページング・検索・ページ内20件一括移動
   assert.match(auditSource, /moved!==20/);
   assert.match(auditSource, /stillUnclassified!==80/);
 });
+
+
+test("監査ナビゲーションはDOM順の非表示項目を避け、表示中のレール／下部ナビを選ぶ", () => {
+  assert.match(auditSource, /\.btype-mobile-bottom-nav:visible/);
+  assert.match(auditSource, /\.rail-item:visible/);
+  assert.match(auditSource, /表示中のナビゲーション項目が見つかりません/);
+});
+
+test("分類ワークベンチは検索変更と閉じる操作で選択を解除し、モバイルのタップ面を40px確保する", () => {
+  assert.match(source, /const closeClassificationWorkbench = \(\) => \{/);
+  assert.match(source, /closeClassificationWorkbench\(\);/);
+  assert.match(source, /setQueueSearch\(event\.target\.value\);[\s\S]{0,180}setSelectedQueueIds\(\[\]\)/);
+  assert.match(source, /ledger-queue-item-check-wrap/);
+  assert.match(source, /ledger-classification-instruction-mobile/);
+  assert.match(classificationCss, /\.ledger-queue-item-check-wrap\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;/s);
+  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?\.ledger-queue-drag-handle\s*\{[^}]*display: none !important;/s);
+});

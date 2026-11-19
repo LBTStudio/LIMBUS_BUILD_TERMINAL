@@ -4750,10 +4750,19 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [selectedQueueIds, setSelectedQueueIds] = React.useState([]);
   const [queuePage, setQueuePage] = React.useState(0);
   const [moveDestinationPage, setMoveDestinationPage] = React.useState(0);
+  const closeClassificationWorkbench = () => {
+    setQueueOpen(false);
+    setSelectedQueueIds([]);
+    setMovingEntryId(null);
+    setDragId(null);
+    setOverId(null);
+    setMoveDestinationQuery("");
+    setMoveDestinationPage(0);
+  };
   React.useEffect(() => {
     if (!queueOpen) return undefined;
     const onKeyDown = (event) => {
-      if (event.key === "Escape") setQueueOpen(false);
+      if (event.key === "Escape") closeClassificationWorkbench();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -6054,9 +6063,9 @@ const importHeldPersonas = () => {
     queueOpen && h("div", {
       className: "ledger-queue-overlay ledger-classification-overlay",
       role: "dialog", "aria-modal": true, "aria-labelledby": "ledger-queue-drawer-title",
-      onClick: () => setQueueOpen(false),
+      onClick: closeClassificationWorkbench,
       onKeyDown: (event) => {
-        if (event.key === "Escape") { setQueueOpen(false); return; }
+        if (event.key === "Escape") { closeClassificationWorkbench(); return; }
         if (event.key !== "Tab") return;
         const focusable = [...event.currentTarget.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled])")];
         if (!focusable.length) return;
@@ -6077,7 +6086,7 @@ const importHeldPersonas = () => {
           ),
           h("button", {
             type: "button", className: "ledger-queue-drawer-close", autoFocus: true,
-            "aria-label": "分類ワークベンチを閉じる", onClick: () => setQueueOpen(false)
+            "aria-label": "分類ワークベンチを閉じる", onClick: closeClassificationWorkbench
           }, "閉じる")
         ),
         movingEntry && h("section", { className: "ledger-queue-transfer", "aria-label": "移動中の明細" },
@@ -6119,7 +6128,14 @@ const importHeldPersonas = () => {
           h("input", {
             type: "search", className: "ledger-queue-search", placeholder: "オブジェクト名・種別・費用で検索",
             value: queueSearch, "aria-label": "未分類オブジェクトを検索",
-            onChange: (event) => { setQueueSearch(event.target.value); setQueuePage(0); }
+            onChange: (event) => {
+              setQueueSearch(event.target.value);
+              setQueuePage(0);
+              setSelectedQueueIds([]);
+              setMovingEntryId(null);
+              setDragId(null);
+              setOverId(null);
+            }
           })
         ),
         h("div", { className: "ledger-queue-drawer-list" },
@@ -6134,16 +6150,18 @@ const importHeldPersonas = () => {
                   h("div", { className: "ledger-queue-item-lead" },
                     h("span", {
                       className: "ledger-queue-drag-handle",
-                      title: "つまみをドラッグして移動",
+                      title: "選択中の明細をまとめてドラッグして移動",
                       "aria-hidden": true,
                       ...dragProps(entry)
                     }, "⠿"),
-                    h("input", {
-                      type: "checkbox", className: "ledger-queue-item-check",
-                      checked: selectedIdSet.has(entry.id), "aria-label": entry.name + " を選択",
-                      onChange: (event) => setSelectedQueueIds((current) => event.target.checked
-                        ? [...new Set([...current, entry.id])] : current.filter((id) => id !== entry.id))
-                    })
+                    h("label", { className: "ledger-queue-item-check-wrap" },
+                      h("input", {
+                        type: "checkbox", className: "ledger-queue-item-check",
+                        checked: selectedIdSet.has(entry.id), "aria-label": entry.name + " を選択",
+                        onChange: (event) => setSelectedQueueIds((current) => event.target.checked
+                          ? [...new Set([...current, entry.id])] : current.filter((id) => id !== entry.id))
+                      })
+                    )
                   ),
                   h("div", { className: "ledger-queue-item-main" },
                     h("strong", null, entry.name),
@@ -6183,8 +6201,13 @@ const importHeldPersonas = () => {
             h("strong", null, "移動先リザルト"),
             h("span", { className: "ledger-note" },
               selectedEntryIds.length
-                ? selectedEntryIds.length + "件を選択中。カードへドロップ、またはクリックで一括移動"
-                : "未分類の明細を左側からドラッグするか、チェックして移動先を選択")
+                ? h(React.Fragment, null,
+                    selectedEntryIds.length + "件を選択中。",
+                    h("span", { className: "ledger-classification-instruction-desktop" }, " 選択中の明細をカードへドロップ、またはクリックして一括移動"),
+                    h("span", { className: "ledger-classification-instruction-mobile" }, " 移動先をタップして一括移動"))
+                : h(React.Fragment, null,
+                    h("span", { className: "ledger-classification-instruction-desktop" }, " ドラッグハンドルで直接移動、または左側で選択して移動先をクリック"),
+                    h("span", { className: "ledger-classification-instruction-mobile" }, " 左側でチェック、または「移動先」を選び、移動先をタップ")))
           ),
           h("span", { className: "ledger-classification-target-count" }, results.length + "件")
         ),

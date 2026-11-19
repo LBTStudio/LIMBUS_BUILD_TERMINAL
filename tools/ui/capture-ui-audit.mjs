@@ -98,7 +98,9 @@ function mainNavigation() {
 }
 async function go(label) {
   if ((page.viewportSize()?.width || 1440) <= 640) {
-    const nav = page.locator(".btype-mobile-bottom-nav");
+    /* Hidden desktop/mobile navigation copies can precede the live controls in DOM order.
+       Scope every lookup to the visible navigation before selecting its first match. */
+    const nav = page.locator(".btype-mobile-bottom-nav:visible");
     const directLabels = {
       "ホーム": "ホーム", "ビルド": "ビルド", "記録": "記録", "記録・所持品": "記録",
       "データ取り込み": "取込", "取込": "取込"
@@ -115,16 +117,20 @@ async function go(label) {
     if (utilityLabel) {
       const other = nav.getByRole("button", { name: "その他", exact: true });
       if (await visible(other)) await click(other);
-      const target = page.locator(".utility-section-grid").getByRole("button", { name: utilityLabel, exact: true });
+      const target = page.locator(".utility-section-grid:visible").getByRole("button", { name: utilityLabel, exact: true });
       return click(target);
     }
   }
-  let loc = page.locator(".rail-item").filter({ hasText: label }).first();
+  const liveRailItems = page.locator(".rail-item:visible");
+  let loc = liveRailItems.filter({ hasText: label }).first();
   if (await visible(loc)) return click(loc);
-  loc = page.locator("button[title='" + label + "']").first();
+  loc = page.locator("button[title='" + label + "']:visible").first();
   if (await visible(loc)) return click(loc);
-  loc = page.getByText(label, { exact: true }).first();
-  return click(loc);
+  const available = await liveRailItems.evaluateAll((items) => items.map((item) => ({
+    title: item.getAttribute("title") || "",
+    label: (item.innerText || "").trim().replace(/\s+/g, " ")
+  })));
+  throw new Error("表示中のナビゲーション項目が見つかりません: " + label + " / available=" + JSON.stringify(available));
 }
 async function closeOverlay() {
   // Many dialogs use an explicit close button and do not register Escape.

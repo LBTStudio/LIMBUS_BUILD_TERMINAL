@@ -441,3 +441,39 @@
     transition: none;
   }
 }
+
+
+/* Classification workbench: give phone users a real 40px checkbox hit area.
+   Touch layouts use tap-to-select; drag handles are intentionally desktop-only. */
+.ledger-queue-item-check-wrap {
+  display: inline-flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  min-height: 24px;
+  cursor: pointer;
+}
+.ledger-classification-instruction-mobile {
+  display: none;
+}
+@media (max-width: 800px) {
+  .ledger-queue-drag-handle {
+    display: none !important;
+  }
+  .ledger-queue-item-lead {
+    min-height: 40px;
+  }
+  .ledger-queue-item-check-wrap {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .ledger-classification-instruction-desktop {
+    display: none;
+  }
+  .ledger-classification-instruction-mobile {
+    display: inline;
+  }
+}
