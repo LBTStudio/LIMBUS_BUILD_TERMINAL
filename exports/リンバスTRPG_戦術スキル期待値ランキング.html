@@ -223,8 +223,8 @@ function kindMods(text,skillType,dice=[]){
   {re:/((?:斬撃|貫通|打撃|銃撃)?)(?:全ての|すべての|全)ダイス(?:の)?(?:ダイス)?威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"全ダイス威力",kind:"signed"},
   {re:/((?:斬撃|貫通|打撃|銃撃)?)(?:最後の|最終)ダイス(?:の)?(?:ダイス)?威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"last",label:"最後のダイス威力",kind:"signed"},
   {re:/((?:斬撃|貫通|打撃|銃撃))ダイス(?:の)?(?:ダイス)?威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"matching",label:"属性ダイス威力",kind:"signed",targetGroup:1},
-  {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?(?:の)?威力(?:とマッチ威力)?(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"スキル威力",kind:"signed"},
-  {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:の)?(?:ダイスの)?ダイス威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"ダイス威力",kind:"signed"},
+  {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?(?:の)?威力(?:とマッチ威力)?(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"スキル威力",kind:"signed",range:true},
+  {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:の)?(?:ダイスの)?ダイス威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"ダイス威力",kind:"signed",range:true},
   {re:/((?:斬撃|貫通|打撃|銃撃)?)(?:最後の|最終)ダイス(?:の)?(?:ダイス)?威力(?:が|を)?\s*(\d+)\s*(増加|上昇|減少)/g,scope:"last",label:"最後のダイス威力変動",kind:"change"},
   {re:/((?:斬撃|貫通|打撃|銃撃)?)(?:最初の|1番目の)ダイス(?:の)?(?:ダイス)?威力(?:が|を)?\s*(\d+)\s*(増加|上昇|減少)/g,scope:"first",label:"最初のダイス威力変動",kind:"change"},
   {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?威力(?:が|を)?\s*(\d+)\s*(増加|上昇|減少)/g,scope:"all",label:"威力変動",kind:"change"},
@@ -247,11 +247,13 @@ function kindMods(text,skillType,dice=[]){
    const clauseStart=src.lastIndexOf("。",start)+1,clauseEnd=src.indexOf("。",end);
    const context=src.slice(Math.max(clauseStart,start-80),clauseEnd<0?Math.min(src.length,end+35):Math.min(clauseEnd,end+35)).trim();
    const perUnit=/ごとに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ごとに|\d+につき/.test(context);
-   const cap=p.kind==="signed"?(Number(m[4]||0)||Number(m[3]||0)):p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[3]||0):0;
+   const rangeValue=p.range?Number(m[3]||0):0;
+   const explicitMax=p.range?Number(m[4]||0):Number(m[3]||0);
+   const cap=p.kind==="signed"?(explicitMax||rangeValue):p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[3]||0):0;
    let value=null,unresolved=false;
    if(p.kind==="signed"){
     const raw=Number(String(m[2]||"0").replace(/\s/g,""));
-    value=cap>0&&raw>0?Math.max(raw,cap):raw;
+    value=explicitMax>0?(raw>=0?Math.max(raw,explicitMax):raw):rangeValue>0?Math.max(raw,rangeValue):raw;
     if(perUnit&&!cap){value=null;unresolved=true;}
    }else if(p.kind==="change"){
     value=Number(m[2]||0)*(m[3]==="減少"?-1:1);
@@ -265,7 +267,7 @@ function kindMods(text,skillType,dice=[]){
     unresolved=true;
    }
    const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
-   const conditional=unresolved||perUnit||/なら|ならば|であれば|の場合|ごとに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
+   const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||/なら|ならば|であれば|の場合|ごとに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
    const targetType=p.targetGroup?m[p.targetGroup]:null;
    const targets=targetsForModifier(p.scope,dice.length,dice,targetType,skillType);
    reasons.push({label:p.label,value,scope:p.scope,targets,conditional,conditionCategories:conditionClasses(context),unresolved,source:m[0],context});
