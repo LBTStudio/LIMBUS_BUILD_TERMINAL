@@ -166,3 +166,9 @@ test("200件ページング監査はツールバー外の一覧ページ番号�
   assert.match(auditSource, /const pageNumber=page\.locator\("\.ledger-results-pagination \.ledger-results-page-number"\)\.first\(\)/);
   assert.doesNotMatch(auditSource, /const pageNumber=toolbar\.locator\("\.ledger-results-page-number"\)/);
 });
+
+
+test("100件分類監査は検索で先頭ページへ戻るため、無効な最初ボタンを押さない", () => {
+  assert.match(auditSource, /if \(\(await queuePageLabel\.innerText\(\)\)\.trim\(\) !== "1 \/ 5"\)\s*\{\s*await click\(queueNav\.getByRole\("button",\{name:"最初",exact:true\}\)\);/);
+  assert.match(auditSource, /未分類100件の検索解除後に先頭ページへ戻っていません/);
+});

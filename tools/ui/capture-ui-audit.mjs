@@ -2331,7 +2331,14 @@ async function captureProfile(browser, mode) {
         await snap("ledger-100-unclassified-search","100件全体から99番目の未分類オブジェクトを検索");
         await queueSearch.fill(queueSeed.prefix);
         await page.waitForTimeout(120);
-        await click(queueNav.getByRole("button",{name:"最初",exact:true}));
+        /* Search changes reset queuePage to zero. Do not click the disabled
+           "最初" button when it is already on the first page. */
+        if ((await queuePageLabel.innerText()).trim() !== "1 / 5") {
+          await click(queueNav.getByRole("button",{name:"最初",exact:true}));
+        }
+        if ((await queuePageLabel.innerText()).trim() !== "1 / 5") {
+          throw new Error("未分類100件の検索解除後に先頭ページへ戻っていません: " + await queuePageLabel.innerText());
+        }
         await click(classification.getByRole("button",{name:"このページを選択",exact:true}));
         const selectedLabel=classification.locator(".ledger-queue-selection-bar strong");
         if((await selectedLabel.innerText()).trim()!=="選択 20件") {
