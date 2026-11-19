@@ -127,3 +127,11 @@ test("分類ワークベンチは検索変更と閉じる操作で選択を解�
   assert.match(classificationCss, /\.ledger-queue-item-check-wrap\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;/s);
   assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?\.ledger-queue-drag-handle\s*\{[^}]*display: none !important;/s);
 });
+
+
+test("監査ナビゲーションは前のシナリオのダイアログを閉じ、レール表示後に遷移する", () => {
+  assert.match(auditSource, /async function go\(label\) \{[\s\S]{0,260}await closeOverlay\(\)/);
+  assert.match(auditSource, /await rail\.waitFor\(\{state:"visible",timeout:8000\}\)/);
+  assert.match(auditSource, /await mobileNav\.waitFor\(\{state:"visible",timeout:8000\}\)/);
+  assert.match(auditSource, /activeDialogs:/);
+});

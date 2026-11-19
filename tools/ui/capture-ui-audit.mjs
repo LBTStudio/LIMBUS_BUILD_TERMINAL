@@ -97,7 +97,14 @@ function mainNavigation() {
     : ".rail-item");
 }
 async function go(label) {
-  if ((page.viewportSize()?.width || 1440) <= 640) {
+  /* Previous audit scenarios can leave a full-screen drawer or sheet open.
+     Close it before resolving navigation controls; otherwise the underlying rail
+     is obscured/inert and all of its items appear unavailable to Playwright. */
+  await closeOverlay();
+  const viewportWidth = page.viewportSize()?.width || 1440;
+  if (viewportWidth <= 640) {
+    const mobileNav = page.locator(".btype-mobile-bottom-nav");
+    await mobileNav.waitFor({state:"visible",timeout:8000});
     /* Hidden desktop/mobile navigation copies can precede the live controls in DOM order.
        Scope every lookup to the visible navigation before selecting its first match. */
     const nav = page.locator(".btype-mobile-bottom-nav:visible");
@@ -121,7 +128,9 @@ async function go(label) {
       return click(target);
     }
   }
-  const liveRailItems = page.locator(".rail-item:visible");
+  const rail = page.locator(".rail");
+  await rail.waitFor({state:"visible",timeout:8000});
+  const liveRailItems = rail.locator(".rail-item:visible");
   let loc = liveRailItems.filter({ hasText: label }).first();
   if (await visible(loc)) return click(loc);
   loc = page.locator("button[title='" + label + "']:visible").first();
@@ -130,7 +139,13 @@ async function go(label) {
     title: item.getAttribute("title") || "",
     label: (item.innerText || "").trim().replace(/\s+/g, " ")
   })));
-  throw new Error("表示中のナビゲーション項目が見つかりません: " + label + " / available=" + JSON.stringify(available));
+  const state = await page.evaluate(() => ({
+    readyState: document.readyState,
+    url: location.href,
+    activeDialogs: document.querySelectorAll('[role="dialog"]:not([aria-hidden="true"]), [aria-modal="true"]:not([aria-hidden="true"])').length,
+    mainText: (document.querySelector("#main-content")?.innerText || "").slice(0, 350)
+  }));
+  throw new Error("表示中のナビゲーション項目が見つかりません: " + label + " / available=" + JSON.stringify(available) + " / state=" + JSON.stringify(state));
 }
 async function closeOverlay() {
   // Many dialogs use an explicit close button and do not register Escape.
@@ -2118,6 +2133,8 @@ async function captureProfile(browser, mode) {
          This makes the 200-row test independent of whichever tab the preceding
          regression happened to leave selected. */
       const openLedgerFromRecordHub = async () => {
+        /* Do not mistake a visible-but-obscured toolbar for an active ledger screen. */
+        await closeOverlay();
         /* The preceding ledger regressions often leave the result screen open.
            Reuse it directly; forcing a Home round-trip can fail on layouts where
            the selected Record subsection is already mounted or the launcher is hidden. */
