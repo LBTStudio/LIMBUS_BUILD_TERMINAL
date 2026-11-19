@@ -148,26 +148,36 @@ async function go(label) {
   throw new Error("表示中のナビゲーション項目が見つかりません: " + label + " / available=" + JSON.stringify(available) + " / state=" + JSON.stringify(state));
 }
 async function closeOverlay() {
-  // Many dialogs use an explicit close button and do not register Escape.
-  // Try Escape first, then close the topmost visible dialog by its accessible label
-  // or the visible × glyph; repeat because nested account/import dialogs can stack.
+  // Always choose an actually visible dismissal control. Calling visible() on a
+  // locator ending in .last() is unsafe because visible() internally inspects
+  // locator.first(), which may be a hidden duplicate elsewhere in the DOM.
   await page.keyboard.press("Escape").catch(() => {});
-  await page.waitForTimeout(180);
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const byLabel = page.locator('button[aria-label*="閉じる"], button[title*="閉じる"], button[aria-label*="close" i], button[title*="close" i]').last();
-    const byGlyph = page.locator("button").filter({ hasText: /^\s*[×✕✖]\s*$/ }).last();
-    let target = await visible(byLabel) ? byLabel : (await visible(byGlyph) ? byGlyph : null);
+  await page.waitForTimeout(120);
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const visibleLabel = page.locator(
+      'button[aria-label*="閉じる"]:visible, button[title*="閉じる"]:visible, button[aria-label*="close" i]:visible, button[title*="close" i]:visible'
+    ).last();
+    const visibleGlyph = page.locator("button:visible").filter({ hasText: /^\\s*[×✕✖]\\s*$/ }).last();
+    let target = (await visibleLabel.count()) ? visibleLabel : ((await visibleGlyph.count()) ? visibleGlyph : null);
+
     if (!target) {
-      // Fallback for icon-only close controls inside the currently visible modal shell.
-      const shell = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible, .share-modal-backdrop:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .cp-overlay:visible').last();
-      if (await visible(shell)) {
+      const shell = page.locator(
+        '[role="dialog"]:visible, [aria-modal="true"]:visible, .share-modal-backdrop:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .cp-overlay:visible'
+      ).last();
+      if (await shell.count()) {
         const buttons = shell.locator("button:visible");
         const n = await buttons.count();
         for (let j = n - 1; j >= 0; j--) {
           const button = buttons.nth(j);
-          const meta = await button.evaluate((el) => ({ text: (el.innerText || "").trim(), aria: el.getAttribute("aria-label") || "", title: el.getAttribute("title") || "", rect: (() => { const r=el.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height}; })() }));
+          const meta = await button.evaluate((el) => ({
+            text: (el.innerText || "").trim(),
+            aria: el.getAttribute("aria-label") || "",
+            title: el.getAttribute("title") || "",
+            rect: (() => { const r=el.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height}; })()
+          }));
           const viewportWidth = page.viewportSize()?.width || 1440;
-          if (/閉じる|close|^[×✕✖]$/i.test(meta.aria + " " + meta.title + " " + meta.text) || (meta.rect.x > viewportWidth * 0.65 && meta.rect.y < 180 && meta.rect.w < 80 && meta.rect.h < 80)) {
+          if (/閉じる|close|^[×✕✖]$/i.test(meta.aria + " " + meta.title + " " + meta.text)
+              || (meta.rect.x > viewportWidth * 0.65 && meta.rect.y < 180 && meta.rect.w < 80 && meta.rect.h < 80)) {
             target = button;
             break;
           }
@@ -175,10 +185,14 @@ async function closeOverlay() {
       }
     }
     if (!target) break;
-    if (view.startsWith("mobile")) await target.tap({ timeout: 1800, force: true }).catch(() => {});
-    else await target.click({ timeout: 1800, force: true }).catch(() => {});
+    if (view.startsWith("mobile")) await target.tap({ timeout: 2500 }).catch(() => {});
+    else await target.click({ timeout: 2500 }).catch(() => {});
     await page.waitForTimeout(220);
   }
+  const remaining = await page.locator(
+    '.ledger-classification-overlay:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .share-modal-backdrop:visible'
+  ).count();
+  if (remaining) throw new Error("閉じる操作後も操作を遮るオーバーレイが残っています: " + remaining);
 }
 async function readMetrics() {
   return page.evaluate(() => {

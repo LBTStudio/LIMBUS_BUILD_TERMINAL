@@ -135,3 +135,11 @@ test("監査ナビゲーションは前のシナリオのダイアログを閉�
   assert.match(auditSource, /await mobileNav\.waitFor\(\{state:"visible",timeout:8000\}\)/);
   assert.match(auditSource, /activeDialogs:/);
 });
+
+
+test("監査の閉じる操作は非表示の重複ボタンを飛ばし、表示中ボタンを選択する", () => {
+  assert.match(auditSource, /button\[aria-label\*="閉じる"\]:visible/);
+  assert.match(auditSource, /button\[title\*="閉じる"\]:visible/);
+  assert.match(auditSource, /visibleLabel\.count\(\)/);
+  assert.match(auditSource, /閉じる操作後も操作を遮るオーバーレイが残っています/);
+});
