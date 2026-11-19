@@ -315,6 +315,25 @@ function skillBonus(skill){
  });
  return {bonus:perDie.reduce((a,b)=>a+b,0),perDie,reasons,candidates};
 }
+function deferredSkillBonus(persona,skill){
+ const dice=skill.dice||[],candidates=[],reasons=[];
+ const sources=persona.skills||[];
+ for(const sourceSkill of sources){
+  if(sourceSkill===skill)continue;
+  const fields=[["スキル効果",sourceSkill.effect||""],...(sourceSkill.dice||[]).map((d,i)=>[`ダイス${i+1}`,d.effect||""])];
+  for(const [field,text] of fields){
+   if(!text||!/(?:次のR|次R)/.test(text)||/(?:味方|対象).{0,12}(?:威力増加|威力\+)/.test(text))continue;
+   const parsed=kindMods(text,skill.type||"",dice);
+   for(const x of parsed.reasons){
+    if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(x.context||""))continue;
+    const candidate={...x,conditional:true,conditionCategories:[...new Set([...(x.conditionCategories||[]),"trigger"])],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
+    candidates.push(candidate);
+    reasons.push(formatModifierReason(candidate,candidate.origin));
+   }
+  }
+ }
+ return {candidates,reasons};
+}
 function normalizeDbPersona(p,kind,source){
  return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||"",pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
 }
@@ -322,7 +341,8 @@ function addPersona(p){
  const skillset=(p.skills||[]).filter(s=>(s.dice||[]).length);
  for(const skill of skillset){
   const dice=skill.dice||[], base=dice.reduce((a,d)=>a+(evRoll(d.roll)??0),0);
-  const pass=passiveBonus(p,skill), effect=skillBonus(skill);
+  const pass=passiveBonus(p,skill), effect=skillBonus(skill), deferred=deferredSkillBonus(p,skill);
+  effect.candidates.push(...deferred.candidates);effect.reasons.push(...deferred.reasons);
   const dieRows=dice.map((d,i)=>({roll:d.roll,base:evRoll(d.roll)??0,passive:pass.perDie[i]||0,effect:effect.perDie[i]||0}));
   const row={persona:p,skill,base,passive:pass.bonus,effect:effect.bonus,all:base+pass.bonus+effect.bonus,dieRows,searchText:[p.name,p.affiliation,skill.name,skill.type,skill.effect,skill.sin].join(" ").toLowerCase(),
     diceText:dice.map(d=>d.roll).join(" / "),passReasons:pass.reasons,effectReasons:effect.reasons,passCandidates:pass.candidates,effectCandidates:effect.candidates,passText:pass.text};
