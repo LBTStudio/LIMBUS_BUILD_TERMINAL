@@ -378,7 +378,7 @@ function conditionalPerDie(r,index,mode="selected",source="both"){
  if(source==="both"||source==="passive")sources.push(["passCandidates","includePassive"]);
  if(source==="both"||source==="effect")sources.push(["effectCandidates","includeEffect"]);
  for(const [field,toggle] of sources){
-  if(!$(toggle).checked)continue;
+  if(mode==="selected"&&!$(toggle).checked)continue;
   for(const x of (r[field]||[])){
    if(!x.conditional||!conditionModifierEnabled(x,mode==="selected"))continue;
    if((x.targets||[]).includes(index))total+=x.value;
@@ -462,7 +462,7 @@ function render(){
  $("conditionalPanel").classList.toggle("active",$("includeConditional").checked);
  const valueForRow=r=>individualMode?(r.rankDie.base+($("includePassive").checked?r.rankDie.passive:0)+($("includeEffect").checked?r.rankDie.effect:0)+conditionalPerDie(r,r.rankDieIndex)):selectedValue(r);
  $("mMean").textContent=n?(rows.reduce((a,r)=>a+valueForRow(r),0)/n).toFixed(2):"—";
- $("mMax").textContent=n?valueForRow(rows[0]).toFixed(2):"—";
+ $("mMax").textContent=n?Math.max(...rows.map(valueForRow)).toFixed(2):"—";
  updateSortHeaders();
  if(!n){$("rows").innerHTML='<tr><td colspan="12" class="empty">条件に一致するスキルがありません。</td></tr>';$("pageInfo").textContent="0件";$("prevPage").disabled=true;$("nextPage").disabled=true;return;}
  $("rows").innerHTML=pageRows.map((r,i)=>{
@@ -479,10 +479,10 @@ function exportCsv(){
  const individualMode=$("sort").value==="single";
  const visible=filteredRecords();
  let expanded=individualMode?visible.map(r=>({r,d:r.rankDie,j:r.rankDieIndex})):visible.map(r=>({r,d:null,j:null}));
- const rows=[["順位","人格","区分","出典","戦術枠","スキル","対象ダイス","ダイス式","基礎EV","固有パッシブ加算","スキル効果加算","条件補正EV","全補正EV","選択EV"]];
+ const rows=[["順位","人格","区分","出典","戦術枠","スキル","対象ダイス","ダイス式","基礎EV","固有パッシブ加算","スキル効果加算","条件補正候補EV","条件補正加算EV","全補正EV","選択EV"]];
  expanded.forEach((x,i)=>{
-  const r=x.r,m=individualMode?dieMetric(r,x.j):{base:r.base,passive:r.passive,effect:r.effect,conditional:conditionalBonus(r,"selected"),all:r.all+conditionalBonus(r,"selected"),selected:selectedValue(r)};
-  rows.push([i+1,r.persona.name,r.persona.kind,r.persona.source,r.skill.slot,r.skill.name,individualMode?`D${x.j+1}`:"全ダイス",individualMode?x.d.roll:r.diceText,m.base.toFixed(2),m.passive.toFixed(2),m.effect.toFixed(2),m.conditional.toFixed(2),m.all.toFixed(2),m.selected.toFixed(2)]);
+  const r=x.r,m=individualMode?dieMetric(r,x.j):{base:r.base,passive:r.passive,effect:r.effect,conditional:conditionalBonus(r,"selected"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"selected"),selected:selectedValue(r)};
+  rows.push([i+1,r.persona.name,r.persona.kind,r.persona.source,r.skill.slot,r.skill.name,individualMode?`D${x.j+1}`:"全ダイス",individualMode?x.d.roll:r.diceText,m.base.toFixed(2),m.passive.toFixed(2),m.effect.toFixed(2),m.candidate.toFixed(2),m.conditional.toFixed(2),m.all.toFixed(2),m.selected.toFixed(2)]);
  });
  const csv="\ufeff"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="limbus-tactical-skill-ev.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
