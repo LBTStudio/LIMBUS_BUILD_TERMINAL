@@ -2134,7 +2134,7 @@ async function captureProfile(browser, mode) {
         const toolbar = page.locator(".ledger-results-toolbar").first();
         await toolbar.waitFor({state:"visible",timeout:8000});
         return toolbar;
-      };;
+      };
       let ledgerToolbar = await openLedgerFromRecordHub();
       const originalState=await page.evaluate(()=>{
         const current=window.LBT_accounts?.loadActive?.();
