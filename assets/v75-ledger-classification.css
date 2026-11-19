@@ -323,7 +323,8 @@
 @media (max-width: 800px) {
   .ledger-classification-overlay {
     grid-template-columns: minmax(0,1fr);
-    grid-template-rows: auto auto;
+    grid-template-rows: max-content max-content;
+    grid-auto-rows: max-content;
     align-content: start;
     gap: 8px;
     padding: 8px 8px max(12px, env(safe-area-inset-bottom));
@@ -337,6 +338,11 @@
     height: auto;
     max-height: none;
     padding: 10px;
+  }
+  .ledger-queue-drawer {
+    min-height: max-content;
+    align-self: start;
+    overflow: visible;
   }
   .ledger-queue-drawer .ledger-queue-drawer-list {
     flex: 0 1 auto;
