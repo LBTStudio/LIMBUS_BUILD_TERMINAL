@@ -143,3 +143,11 @@ test("監査の閉じる操作は非表示の重複ボタンを飛ばし、表�
   assert.match(auditSource, /visibleLabel\.count\(\)/);
   assert.match(auditSource, /閉じる操作後も操作を遮るオーバーレイが残っています/);
 });
+
+
+test("監査ナビゲーションは非表示の重複レールを待たず、可視要素を直接待機する", () => {
+  assert.match(auditSource, /\.btype-mobile-bottom-nav:visible"\)\.first\(\)/);
+  assert.match(auditSource, /\.rail:visible"\)\.first\(\)/);
+  assert.doesNotMatch(auditSource, /page\.locator\("\.rail"\);\s*await rail\.waitFor/);
+  assert.doesNotMatch(auditSource, /page\.locator\("\.btype-mobile-bottom-nav"\);\s*await mobileNav\.waitFor/);
+});

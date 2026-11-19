@@ -103,11 +103,10 @@ async function go(label) {
   await closeOverlay();
   const viewportWidth = page.viewportSize()?.width || 1440;
   if (viewportWidth <= 640) {
-    const mobileNav = page.locator(".btype-mobile-bottom-nav");
-    await mobileNav.waitFor({state:"visible",timeout:8000});
-    /* Hidden desktop/mobile navigation copies can precede the live controls in DOM order.
-       Scope every lookup to the visible navigation before selecting its first match. */
-    const nav = page.locator(".btype-mobile-bottom-nav:visible");
+    /* Select only visible nodes before waiting; a hidden duplicate can appear first
+       in the DOM and make waitFor() on the unfiltered selector time out forever. */
+    const nav = page.locator(".btype-mobile-bottom-nav:visible").first();
+    await nav.waitFor({state:"visible",timeout:8000});
     const directLabels = {
       "ホーム": "ホーム", "ビルド": "ビルド", "記録": "記録", "記録・所持品": "記録",
       "データ取り込み": "取込", "取込": "取込"
@@ -128,7 +127,9 @@ async function go(label) {
       return click(target);
     }
   }
-  const rail = page.locator(".rail");
+  /* Like the mobile case, wait on the visible locator itself, not the first DOM
+     match. Hidden duplicate rails are legitimate in responsive/transition layouts. */
+  const rail = page.locator(".rail:visible").first();
   await rail.waitFor({state:"visible",timeout:8000});
   const liveRailItems = rail.locator(".rail-item:visible");
   let loc = liveRailItems.filter({ hasText: label }).first();
