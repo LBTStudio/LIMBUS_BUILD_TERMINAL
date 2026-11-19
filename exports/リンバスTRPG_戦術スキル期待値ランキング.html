@@ -21,7 +21,7 @@ input:focus,select:focus{outline:1px solid var(--gold)}
 .metrics{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.metric{background:#14120e;border:1px solid #403826;padding:8px 12px;border-radius:8px;min-width:110px}.metric b{display:block;color:var(--gold2);font-size:19px;font-variant-numeric:tabular-nums}.metric span{font-size:11px;color:var(--muted)}
 .tablewrap{overflow:auto;max-height:68vh;border:1px solid var(--line);border-radius:9px}
 table{border-collapse:separate;border-spacing:0;width:100%;min-width:1050px;font-variant-numeric:tabular-nums}
-thead th{position:sticky;top:0;z-index:2;background:#2a261e;color:var(--gold2);font-size:11px;text-align:left;padding:10px 9px;border-bottom:1px solid #62543a;white-space:nowrap}
+thead th{position:sticky;top:0;z-index:2;background:#2a261e;color:var(--gold2);font-size:11px;text-align:left;padding:5px 7px;border-bottom:1px solid #62543a;white-space:nowrap}thead th .sort-head{display:flex;align-items:center;gap:5px;width:100%;padding:4px 2px;border:0;border-radius:4px;background:transparent;color:inherit;font:inherit;text-align:inherit;white-space:nowrap}thead th .sort-head:hover,thead th .sort-head:focus-visible{background:#d6b56d18;color:#fff;outline:1px solid #9d824f}thead th .sort-indicator{display:inline-block;min-width:9px;color:#fff;font-size:10px}thead th[aria-sort="ascending"] .sort-indicator,thead th[aria-sort="descending"] .sort-indicator{color:var(--gold2)}
 tbody td{padding:9px;border-bottom:1px solid #302b22;vertical-align:top}
 tbody tr:nth-child(even){background:#ffffff06}tbody tr:hover{background:#d6b56d12}
 .num{text-align:right;white-space:nowrap;font-weight:700}.base{color:#ddd3bd}.pass{color:#b8c994}.effect{color:#e5bd78}.selected{color:#fff;font-size:15px}
@@ -128,7 +128,7 @@ tbody td{padding:7px}
  <section class="panel">
   <div class="tablewrap">
    <table>
-    <thead><tr><th>順位</th><th>人格 / 出典</th><th>戦術</th><th>スキル</th><th>ダイス構成</th><th class="num">基礎EV</th><th class="num">固有・パッシブ</th><th class="num">スキル効果</th><th class="num">全補正EV</th><th>各ダイスEV</th><th class="num">選択中EV</th></tr></thead>
+    <thead><tr><th data-sort="rank"><button class="sort-head" type="button">順位<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort="persona"><button class="sort-head" type="button">人格 / 出典<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort="tactic"><button class="sort-head" type="button">戦術<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort="skill"><button class="sort-head" type="button">スキル<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort="dice"><button class="sort-head" type="button">ダイス構成<span class="sort-indicator" aria-hidden="true"></span></button></th><th class="num" data-sort="base"><button class="sort-head" type="button">基礎EV<span class="sort-indicator" aria-hidden="true"></span></button></th><th class="num" data-sort="passive"><button class="sort-head" type="button">固有・パッシブ<span class="sort-indicator" aria-hidden="true"></span></button></th><th class="num" data-sort="effect"><button class="sort-head" type="button">スキル効果<span class="sort-indicator" aria-hidden="true"></span></button></th><th class="num" data-sort="all"><button class="sort-head" type="button">全補正EV<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort="die"><button class="sort-head" type="button">各ダイスEV<span class="sort-indicator" aria-hidden="true"></span></button></th><th class="num" data-sort="selected"><button class="sort-head" type="button">選択中EV<span class="sort-indicator" aria-hidden="true"></span></button></th></tr></thead>
     <tbody id="rows"><tr><td colspan="11" class="empty">データを準備しています…</td></tr></tbody>
    </table>
   </div>
@@ -150,6 +150,7 @@ const APPENDIX=JSON.parse(document.getElementById("appendix-data").textContent);
 const EMBEDDED_DB=JSON.parse(document.getElementById("persona-data").textContent);
 let records=[];
 let resultCache=null, resultCacheKey="", currentPage=1;
+let customSortColumn="", customSortDirection="desc";
 const PAGE_SIZE=100;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -243,16 +244,48 @@ function activeSort(){
  if(s==="effect")return r=>r.base+r.effect;if(s==="both")return r=>r.all;
  return selectedValue;
 }
+const sortCollator=new Intl.Collator("ja",{numeric:true,sensitivity:"base"});
+function sortValue(row,key,individual){
+ const p=row.persona,s=row.skill,d=row.rankDie;
+ switch(key){
+  case "rank":return row._defaultRank;
+  case "persona":return `${p.name||""} ${p.source||""} ${p.kind||""}`;
+  case "tactic":return `${s.slot===null?99:String(s.slot).padStart(2,"0")} ${s.type||""}`;
+  case "skill":return `${s.name||s.rank||""} ${s.sin||""}`;
+  case "dice":return `${String(individual?1:row.dieRows.length).padStart(3,"0")} ${individual?(d?.roll||""):row.diceText}`;
+  case "base":return individual?d.base:row.base;
+  case "passive":return individual?d.base+d.passive:row.base+row.passive;
+  case "effect":return individual?d.base+d.effect:row.base+row.effect;
+  case "all":return individual?d.base+d.passive+d.effect:row.all;
+  case "die":return individual?d.base+( $("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0):Math.max(0,...row.dieRows.map(x=>x.base+($("includePassive").checked?x.passive:0)+($("includeEffect").checked?x.effect:0)));
+  case "selected":return individual?d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0):selectedValue(row);
+  default:return 0;
+ }
+}
+function compareSortValues(a,b){return typeof a==="number"&&typeof b==="number"?a-b:sortCollator.compare(String(a??""),String(b??""));}
+function updateSortHeaders(){
+ document.querySelectorAll("thead th[data-sort]").forEach(th=>{
+  const key=th.dataset.sort, active=customSortColumn?key===customSortColumn:key==="selected";
+  th.setAttribute("aria-sort",active?(customSortColumn?(customSortDirection==="asc"?"ascending":"descending"):"descending"):"none");
+  const indicator=th.querySelector(".sort-indicator");if(indicator)indicator.textContent=active?(customSortColumn?(customSortDirection==="asc"?"▲":"▼"):"▼"):"";
+  const btn=th.querySelector("button");if(btn)btn.setAttribute("aria-label",`${btn.textContent.replace(/[▲▼]/g,"").trim()}で並べ替え${active?"。再クリックで順序反転":""}`);
+ });
+}
 function filterKey(){
- return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|");
+ return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
  const q=$("q").value.trim().toLowerCase(),src=$("source").value,kind=$("kind").value,slot=$("slot").value,typ=$("type").value,sin=$("sin").value;
  let rows=records.filter(r=>{const p=r.persona,s=r.skill;if(q&&!r.searchText.includes(q))return false;if(src&&p.source!==src)return false;if(kind&&p.kind!==kind)return false;if(slot==="unknown"&&s.slot!==null)return false;if(slot!==""&&slot!=="unknown"&&String(s.slot)!==slot)return false;if(!$("includeExtra").checked&&s.slot!==null&&s.slot>4)return false;const t=String(s.type||""),category=/反撃/.test(t)?"counter":t==="防御"?"defense":"normal";if(typ&&typ!==category)return false;if(category==="counter"&&$("excludeCounter").checked)return false;if(category==="defense"&&$("excludeDefense").checked)return false;if(category==="normal"&&$("excludeNormal").checked)return false;if(sin&&s.sin!==sin)return false;return true;});
  const sortFn=activeSort(),individual=$("sort").value==="single";
- if(individual){rows=rows.flatMap(r=>r.dieRows.map((d,j)=>({...r,rankDie:d,rankDieIndex:j})));const val=r=>r.rankDie.base+($("includePassive").checked?r.rankDie.passive:0)+($("includeEffect").checked?r.rankDie.effect:0);rows.sort((a,b)=>val(b)-val(a)||a.persona.name.localeCompare(b.persona.name,"ja")||a.rankDieIndex-b.rankDieIndex);}
- else rows.sort((a,b)=>sortFn(b)-sortFn(a)||a.persona.name.localeCompare(b.persona.name,"ja"));
+ rows=rows.map((r,i)=>({...r,_sourceOrder:i}));
+ if(individual)rows=rows.flatMap(r=>r.dieRows.map((d,j)=>({...r,rankDie:d,rankDieIndex:j})));
+ const defaultValue=r=>individual?r.rankDie.base+($("includePassive").checked?r.rankDie.passive:0)+($("includeEffect").checked?r.rankDie.effect:0):sortFn(r);
+ const defaultRows=rows.slice().sort((a,b)=>defaultValue(b)-defaultValue(a)||a._sourceOrder-b._sourceOrder||((a.rankDieIndex??-1)-(b.rankDieIndex??-1)));
+ const defaultRank=new Map(defaultRows.map((r,i)=>[r,i]));defaultRows.forEach(r=>r._defaultRank=defaultRank.get(r));
+ if(customSortColumn){const sign=customSortDirection==="asc"?1:-1;rows.sort((a,b)=>sign*compareSortValues(sortValue(a,customSortColumn,individual),sortValue(b,customSortColumn,individual))||a._defaultRank-b._defaultRank||((a.rankDieIndex??-1)-(b.rankDieIndex??-1)));}
+ else rows=defaultRows;
  resultCache=rows;resultCacheKey=key;return rows;
 }
 
@@ -267,6 +300,7 @@ function render(){
  $("mMean").textContent=n?(rows.reduce((a,r)=>a+valueForRow(r),0)/n).toFixed(2):"—";
  $("mMax").textContent=n?valueForRow(rows[0]).toFixed(2):"—";
  if(!n){$("rows").innerHTML='<tr><td colspan="11" class="empty">条件に一致するスキルがありません。</td></tr>';$("pageInfo").textContent="0件";$("prevPage").disabled=true;$("nextPage").disabled=true;return;}
+ updateSortHeaders();
  $("rows").innerHTML=pageRows.map((r,i)=>{
   const p=r.persona,s=r.skill,source=p.source==="別冊"?`別冊 p.${(s.dice||[]).map(d=>d.page).filter(Boolean)[0]||p.pages?.[0]||"?"}`:`${p.source==="基本"?"基本":"パック"} No.${p.raw?.no??"—"}`;
   const notes=[...r.passReasons.map(x=>"固有/パッシブ: "+x),...r.effectReasons.map(x=>"スキル効果: "+x)];
@@ -280,10 +314,7 @@ function render(){
 function exportCsv(){
  const individualMode=$("sort").value==="single";
  const visible=filteredRecords();
- let expanded=individualMode?visible.flatMap(r=>r.dieRows.map((d,j)=>({r,d,j}))):visible.map(r=>({r,d:null,j:null}));
- const dieVal=x=>dieMetric(x.d).selected;
- if(individualMode)expanded.sort((a,b)=>dieVal(b)-dieVal(a)||a.r.persona.name.localeCompare(b.r.persona.name,"ja")||a.j-b.j);
- else expanded.sort((a,b)=>activeSort()(b.r)-activeSort()(a.r)||a.r.persona.name.localeCompare(b.r.persona.name,"ja"));
+ let expanded=individualMode?visible.map(r=>({r,d:r.rankDie,j:r.rankDieIndex})):visible.map(r=>({r,d:null,j:null}));
  const rows=[["順位","人格","区分","出典","戦術枠","スキル","対象ダイス","ダイス式","基礎EV","固有パッシブ加算","スキル効果加算","全補正EV","選択EV"]];
  expanded.forEach((x,i)=>{
   const r=x.r,m=individualMode?dieMetric(x.d):{base:r.base,passive:r.passive,effect:r.effect,all:r.all,selected:selectedValue(r)};
@@ -292,7 +323,8 @@ function exportCsv(){
  const csv="\ufeff"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="limbus-tactical-skill-ev.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra"].forEach(id=>$(id).addEventListener("input",()=>{currentPage=1;resultCache=null;render();}));
+["q","source","kind","slot","type","sin","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal"].forEach(id=>$(id).addEventListener("input",()=>{currentPage=1;resultCache=null;if(id==="sort")customSortColumn="";render();}));
+document.querySelectorAll("thead th[data-sort] .sort-head").forEach(button=>button.addEventListener("click",()=>{const key=button.closest("th").dataset.sort;if(customSortColumn===key)customSortDirection=customSortDirection==="desc"?"asc":"desc";else{customSortColumn=key;customSortDirection=key==="rank"?"asc":(["persona","tactic","skill","dice"].includes(key)?"asc":"desc");}currentPage=1;resultCache=null;render();}));
 $("prevPage").addEventListener("click",()=>{currentPage=Math.max(1,currentPage-1);render();});$("nextPage").addEventListener("click",()=>{currentPage++;render();});
 $("export").addEventListener("click",exportCsv);
 addAppendix();
