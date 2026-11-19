@@ -16,3 +16,14 @@ test("1280px support detail audit accepts header clearance while requiring the a
   assert.match(audit, /breakpointLayout.detailTop - breakpointLayout.mainTop > 80/);
   assert.doesNotMatch(audit, /Math\.abs\(breakpointLayout\.detailTop - breakpointLayout.mainTop\) > 4/);
 });
+
+test("未分類ワークベンチの必須撮影説明は、実際の4状態のキャプションと一致する", () => {
+  for (const note of [
+    "リザルト一覧の途中から開いた未分類オブジェクトパネル",
+    "割り当て済み明細から開いた全リザルト対象の移動先検索",
+    "リザルトから解除した明細が未分類ドロワーへ戻った状態",
+    "未分類ドロワーの検索から元のリザルトへ再割り当てした状態"
+  ]) {
+    assert.ok(audit.includes(note), "required capture caption is present: " + note);
+  }
+});
