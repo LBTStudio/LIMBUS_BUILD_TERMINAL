@@ -9,7 +9,7 @@ assert.ok(mainMatch, "ranking tool main script exists");
 const mainScript = mainMatch[1];
 
 function embeddedJson(id) {
-  const re = new RegExp('<script id="' + id + '" type="application/json">([\\s\\S]*?)<\\\\/script>');
+  const re = new RegExp('<script id="' + id + '" type="application/json">([\\s\\S]*?)</script>');
   const match = html.match(re);
   assert.ok(match, "embedded JSON exists: " + id);
   return JSON.parse(match[1]);
