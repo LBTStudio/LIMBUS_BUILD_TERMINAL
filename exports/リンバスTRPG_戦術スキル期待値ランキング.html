@@ -278,12 +278,17 @@ function formatModifierReason(x,origin=""){
  const scope=x.scope==="all"?"全ダイス":x.scope==="first"?"最初のダイス":x.scope==="last"?"最終ダイス":x.scope==="matching"?"該当属性ダイス":"対象ダイス";
  return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${x.conditional?(x.unresolved?"（条件式・数値未確定）":"（条件付き候補）"):""}`;
 }
+function uniqueEffectText(u){
+ const text=[u.name,u.desc,u.effect].filter(Boolean).join(" ");
+ const boundary=text.search(/[「『][^」』]{1,120}の人格[」』]/);
+ return boundary>=0?text.slice(0,boundary):text;
+}
 function passiveBonus(persona,skill){
  const chunks=[];
  if(persona.passive_effect)chunks.push({label:"パッシブ",text:[persona.passive_cond,persona.passive_effect].filter(Boolean).join("\n")});
  if(persona.passive_always)chunks.push({label:"常時パッシブ",text:persona.passive_always});
  if(persona.passives)chunks.push({label:"別冊パッシブ",text:persona.passives});
- for(const u of (persona.unique_buffs||persona.unique||[]))chunks.push({label:`固有バフ:${u.name||"名称不明"}`,text:[u.name,u.desc,u.effect].filter(Boolean).join(" "),forceConditional:true});
+ for(const u of (persona.unique_buffs||persona.unique||[]))chunks.push({label:`固有バフ:${u.name||"名称不明"}`,text:uniqueEffectText(u),forceConditional:true});
  const count=(skill.dice||[]).length,perDie=Array(count).fill(0),reasons=[],candidates=[],text=chunks.map(c=>`${c.label}\n${c.text}`).join("\n");
  for(const c of chunks){
   const m=kindMods(c.text,skill.type||"",skill.dice||[]);
