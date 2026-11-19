@@ -118,8 +118,8 @@ tbody td{padding:7px}
    <div class="field"><label for="sort">並び順</label><select id="sort"><option value="selected">選択中の期待値</option><option value="base">基礎期待値</option><option value="passive">固有・パッシブ込み</option><option value="effect">スキル効果込み</option><option value="both">全補正込み（合計）</option><option value="single">ダイス単体ランキング（1ダイス=1行・高い順）</option></select></div>
   </div>
   <div class="checks">
-   <label class="check"><input type="checkbox" id="includePassive"> 固有・パッシブの威力補正を加算</label>
-   <label class="check"><input type="checkbox" id="includeEffect"> スキル効果の威力補正を加算</label>
+   <label class="check"><input type="checkbox" id="includePassive"> 固有・パッシブ補正を選択中EVに加算</label>
+   <label class="check"><input type="checkbox" id="includeEffect"> スキル効果補正を選択中EVに加算</label>
    <label class="check"><input type="checkbox" id="includeExtra" checked> 追加戦術枠も表示</label>
    <span class="check-group-label">ランキングから除外：</span>
    <label class="check"><input type="checkbox" id="excludeCounter"> マッチ可能反撃</label>
@@ -158,7 +158,7 @@ tbody td{padding:7px}
   </div>
   <div class="pager"><button id="prevPage" disabled>前の100件</button><span id="pageInfo">—</span><button id="nextPage" disabled>次の100件</button></div>
   <p class="note">EVは各ダイス行の出目期待値を合計。<strong>XdY = X × (Y+1) ÷ 2</strong> とし、固定値・加減算をそのまま反映する。複数ダイス行は合算する。個別ダイスEVは各ダイス単体の期待値を表示し、「単一ダイス期待値」では各ダイスを独立したランキング行として順位付けする。同一スキルの複数ダイスも個別に順位へ入る。マッチ勝敗率、クリティカル率、共鳴成立率、状態異常付与率などの確率平均は含めない。<br>
-  無条件で明記された威力補正は通常どおり加算する。条件付き補正は「条件付き威力補正を成立想定で加算」を有効にし、条件フィルターで対象を選んだ場合だけ加算する。最大値が明記された段階式は最大値を使うため、通常時の期待値ではなく条件成立時の上限シナリオとして扱う。段階式で上限・成立値を読み取れない補正は数値未確定として表示し、EVには加算しない。対象側のマッチ威力・ダイス威力低下は本人の加点に含めない。</p>
+  無条件で明記された威力補正は通常どおり加算する。条件付き補正は「条件付き威力補正を成立想定で加算」を有効にし、条件フィルターで対象を選んだ場合だけ加算する。最大値が明記された段階式は最大値を使うため、通常時の期待値ではなく条件成立時の上限シナリオとして扱う。段階式で上限・成立値を読み取れない補正は数値未確定として詳細欄に残し、EVには加算しない。内訳の「固有・パッシブ」「スキル効果」と「全補正EV」は各補正元を表示し、選択チェックには依存しない。「選択中EV」は固有・パッシブとスキル効果の選択チェックを反映する。対象側のマッチ威力・ダイス威力低下は本人の加点に含めない。</p>
  </section>
  <section class="panel note">
   <strong>出典とデータ上の注意</strong><br>
