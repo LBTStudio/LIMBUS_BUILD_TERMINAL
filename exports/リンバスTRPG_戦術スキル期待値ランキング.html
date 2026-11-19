@@ -280,8 +280,9 @@ function formatModifierReason(x,origin=""){
 }
 function uniqueEffectText(u){
  const text=[u.name,u.desc,u.effect].filter(Boolean).join(" ");
- const boundary=text.search(/[「『][^」』]{1,120}の人格[」』]/);
- return boundary>=0?text.slice(0,boundary):text;
+ const boundary=text.search(/[「『][^」』]{1,120}の[\\s\\u3000]*人格[」』]/);
+ const ownText=boundary>=0?text.slice(0,boundary):text;
+ return ownText.replace(/ディエーチ協会フィクサーの特定スキル威力上昇/g,"");
 }
 function passiveBonus(persona,skill){
  const chunks=[];
