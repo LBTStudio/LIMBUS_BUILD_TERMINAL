@@ -380,7 +380,7 @@ function conditionalPerDie(r,index,mode="selected",source="both"){
  for(const [field,toggle] of sources){
   if(mode==="selected"&&!$(toggle).checked)continue;
   for(const x of (r[field]||[])){
-   if(!x.conditional||!conditionModifierEnabled(x,mode==="selected"))continue;
+   if(!x.conditional||!conditionModifierEnabled(x,mode!=="potential"))continue;
    if((x.targets||[]).includes(index))total+=x.value;
   }
  }
@@ -411,10 +411,10 @@ function sortValue(row,key,individual){
   case "skill":return `${s.name||s.rank||""} ${s.sin||""}`;
   case "dice":return `${String(individual?1:row.dieRows.length).padStart(3,"0")} ${individual?(d?.roll||""):row.diceText}`;
   case "base":return individual?d.base:row.base;
-  case "passive":return individual?d.base+d.passive+conditionalPerDie(row,row.rankDieIndex,"selected","passive"):row.base+row.passive+conditionalBonus(row,"selected","passive");
-  case "effect":return individual?d.base+d.effect+conditionalPerDie(row,row.rankDieIndex,"selected","effect"):row.base+row.effect+conditionalBonus(row,"selected","effect");
-  case "conditional":return individual?conditionalPerDie(row,row.rankDieIndex):conditionalBonus(row);
-  case "all":return individual?d.base+d.passive+d.effect+conditionalPerDie(row,row.rankDieIndex):row.all+conditionalBonus(row);
+  case "passive":return individual?d.base+d.passive+conditionalPerDie(row,row.rankDieIndex,"all","passive"):row.base+row.passive+conditionalBonus(row,"all","passive");
+  case "effect":return individual?d.base+d.effect+conditionalPerDie(row,row.rankDieIndex,"all","effect"):row.base+row.effect+conditionalBonus(row,"all","effect");
+  case "conditional":return individual?conditionalPerDie(row,row.rankDieIndex,"all"):conditionalBonus(row,"all");
+  case "all":return individual?d.base+d.passive+d.effect+conditionalPerDie(row,row.rankDieIndex,"all"):row.all+conditionalBonus(row,"all");
   case "die":return individual?d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(row,row.rankDieIndex):Math.max(0,...row.dieRows.map((x,i)=>x.base+($("includePassive").checked?x.passive:0)+($("includeEffect").checked?x.effect:0)+conditionalPerDie(row,i)));
   case "selected":return individual?d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(row,row.rankDieIndex):selectedValue(row);
   default:return 0;
@@ -450,8 +450,9 @@ function filteredRecords(){
 }
 
 function dieMetric(r,index){
- const d=r.dieRows[index],conditional=conditionalPerDie(r,index,"selected"),candidate=conditionalPerDie(r,index,"potential");
- return {base:d.base,passive:d.passive,effect:d.effect,conditional,candidate,all:d.base+d.passive+d.effect+conditional,selected:d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditional};
+ const d=r.dieRows[index],passiveConditional=conditionalPerDie(r,index,"all","passive"),effectConditional=conditionalPerDie(r,index,"all","effect");
+ const conditional=passiveConditional+effectConditional,candidate=conditionalPerDie(r,index,"potential");
+ return {base:d.base,passive:d.passive+passiveConditional,effect:d.effect+effectConditional,conditional,candidate,all:d.base+d.passive+d.effect+conditional,selected:d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(r,index,"selected")};
 }
 function render(){
  let rows=filteredRecords();
@@ -462,7 +463,7 @@ function render(){
  $("conditionalPanel").classList.toggle("active",$("includeConditional").checked);
  const valueForRow=r=>individualMode?(r.rankDie.base+($("includePassive").checked?r.rankDie.passive:0)+($("includeEffect").checked?r.rankDie.effect:0)+conditionalPerDie(r,r.rankDieIndex)):selectedValue(r);
  $("mMean").textContent=n?(rows.reduce((a,r)=>a+valueForRow(r),0)/n).toFixed(2):"—";
- $("mMax").textContent=n?Math.max(...rows.map(valueForRow)).toFixed(2):"—";
+ $("mMax").textContent=n?rows.reduce((max,r)=>Math.max(max,valueForRow(r)),Number.NEGATIVE_INFINITY).toFixed(2):"—";
  updateSortHeaders();
  if(!n){$("rows").innerHTML='<tr><td colspan="12" class="empty">条件に一致するスキルがありません。</td></tr>';$("pageInfo").textContent="0件";$("prevPage").disabled=true;$("nextPage").disabled=true;return;}
  $("rows").innerHTML=pageRows.map((r,i)=>{
@@ -470,7 +471,7 @@ function render(){
   const notes=[...r.passReasons.map(x=>"固有/パッシブ: "+x),...r.effectReasons.map(x=>"スキル効果: "+x)];
   const detail=[p.passive_name?`${p.passive_name} [${p.passive_cond||"条件不明"}]\n${r.passText}`:r.passText,s.effect,...(s.dice||[]).map((d,j)=>`${d.roll}: ${d.effect||""}`)].filter(Boolean).join("\n\n");
   const slot=s.slot===null?"枠?":`戦術${s.slot}`;
-  const metric=individualMode?dieMetric(r,r.rankDieIndex):{base:r.base,passive:r.passive,effect:r.effect,conditional:conditionalBonus(r,"selected"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"selected"),selected:selectedValue(r)};
+  const metric=individualMode?dieMetric(r,r.rankDieIndex):{base:r.base,passive:r.passive+conditionalBonus(r,"all","passive"),effect:r.effect+conditionalBonus(r,"all","effect"),conditional:conditionalBonus(r,"all"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"all"),selected:selectedValue(r)};
   return `<tr><td class="num">${(currentPage-1)*PAGE_SIZE+i+1}</td><td><span class="persona">${esc(p.name)}</span><span class="sub">${esc(p.kind)} · ${esc(p.affiliation||"")}<br>${esc(source)}</span></td><td><span class="pill">${esc(slot)}</span><span class="sub">${esc(s.type||"")}</span></td><td>${esc(s.name||s.rank||"名称不明")}${individualMode?` <span class="pill">D${r.rankDieIndex+1} 個別</span>`:""}<span class="sub">${esc(s.sin||"")}</span>${detail?`<details><summary>効果・補正根拠</summary><p>${esc(detail)}${notes.length?"\n\n抽出された補正:\n"+esc(notes.join("\n")):"\n\n数値化できる明示的な威力補正なし"}</p></details>`:""}</td><td>${individualMode?`<strong>D${r.rankDieIndex+1}: ${esc(r.rankDie.roll)}</strong>`:esc(r.diceText)}</td><td class="num base">${metric.base.toFixed(2)}</td><td class="num pass">${(metric.base+metric.passive).toFixed(2)}<span class="sub">+${metric.passive.toFixed(2)}</span></td><td class="num effect">${(metric.base+metric.effect).toFixed(2)}<span class="sub">+${metric.effect.toFixed(2)}</span></td><td class="num condition">${metric.conditional>=0?"+":""}${metric.conditional.toFixed(2)}<span class="sub">候補 ${metric.candidate>=0?"+":""}${metric.candidate.toFixed(2)}</span></td><td class="num">${metric.all.toFixed(2)}</td><td class="diceev">${individualMode?`<span class="sub">D${r.rankDieIndex+1} ${esc(r.rankDie.roll)}</span> <b>${metric.selected.toFixed(2)}</b>`:r.dieRows.map((d,j)=>`<span class="sub">D${j+1} ${esc(d.roll)}</span> <b>${(d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(r,j)).toFixed(2)}</b>`).join("<br>")}</td><td class="num selected">${valueForRow(r).toFixed(2)}</td></tr>`;
  }).join("");
  $("pageInfo").textContent=`${currentPage} / ${pageCount} ページ · 全${n}件（1ページ${PAGE_SIZE}件）`;$("prevPage").disabled=currentPage<=1;$("nextPage").disabled=currentPage>=pageCount;
@@ -481,7 +482,7 @@ function exportCsv(){
  let expanded=individualMode?visible.map(r=>({r,d:r.rankDie,j:r.rankDieIndex})):visible.map(r=>({r,d:null,j:null}));
  const rows=[["順位","人格","区分","出典","戦術枠","スキル","対象ダイス","ダイス式","基礎EV","固有パッシブ加算","スキル効果加算","条件補正候補EV","条件補正加算EV","全補正EV","選択EV"]];
  expanded.forEach((x,i)=>{
-  const r=x.r,m=individualMode?dieMetric(r,x.j):{base:r.base,passive:r.passive,effect:r.effect,conditional:conditionalBonus(r,"selected"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"selected"),selected:selectedValue(r)};
+  const r=x.r,m=individualMode?dieMetric(r,x.j):{base:r.base,passive:r.passive+conditionalBonus(r,"all","passive"),effect:r.effect+conditionalBonus(r,"all","effect"),conditional:conditionalBonus(r,"all"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"all"),selected:selectedValue(r)};
   rows.push([i+1,r.persona.name,r.persona.kind,r.persona.source,r.skill.slot,r.skill.name,individualMode?`D${x.j+1}`:"全ダイス",individualMode?x.d.roll:r.diceText,m.base.toFixed(2),m.passive.toFixed(2),m.effect.toFixed(2),m.candidate.toFixed(2),m.conditional.toFixed(2),m.all.toFixed(2),m.selected.toFixed(2)]);
  });
  const csv="\ufeff"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
