@@ -96,9 +96,40 @@ function mainNavigation() {
     ? ".btype-mobile-bottom-nav button"
     : ".rail-item");
 }
+async function restoreAuditAccountAfterReload() {
+  /* Every full page load returns to SINNER SELECT, even when an active account
+     was previously selected. Re-select the disposable fixture before expecting
+     the workbench rail or mobile bottom navigation to exist. */
+  await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
+  const gate = page.locator(".acct-gate:visible").first();
+  if (await visible(gate)) {
+    const accountCard = gate.locator(".acct-card--gate")
+      .filter({ hasText: "UI監査用キャラクター" }).first();
+    const hit = accountCard.locator(".acct-card-hit").first();
+    await hit.waitFor({ state: "visible", timeout: 15000 });
+    await click(hit);
+    await gate.waitFor({ state: "hidden", timeout: 12000 });
+  }
+  const viewportWidth = page.viewportSize()?.width || 1440;
+  const navSelector = viewportWidth <= 640
+    ? ".btype-mobile-bottom-nav:visible button:visible"
+    : ".rail:visible .rail-item:visible";
+  await page.locator(navSelector).first().waitFor({ state: "visible", timeout: 15000 });
+  const activeId = await page.evaluate(() => window.LBT_accounts?.getActiveId?.() || null);
+  if (!activeId) throw new Error("再読込後に監査用アカウントが選択されていません");
+}
+
 async function go(label) {
-  if ((page.viewportSize()?.width || 1440) <= 640) {
-    const nav = page.locator(".btype-mobile-bottom-nav");
+  /* Previous audit scenarios can leave a full-screen drawer or sheet open.
+     Close it before resolving navigation controls; otherwise the underlying rail
+     is obscured/inert and all of its items appear unavailable to Playwright. */
+  await closeOverlay();
+  const viewportWidth = page.viewportSize()?.width || 1440;
+  if (viewportWidth <= 640) {
+    /* Select only visible nodes before waiting; a hidden duplicate can appear first
+       in the DOM and make waitFor() on the unfiltered selector time out forever. */
+    const nav = page.locator(".btype-mobile-bottom-nav:visible").first();
+    await nav.waitFor({state:"visible",timeout:8000});
     const directLabels = {
       "ホーム": "ホーム", "ビルド": "ビルド", "記録": "記録", "記録・所持品": "記録",
       "データ取り込み": "取込", "取込": "取込"
@@ -115,38 +146,62 @@ async function go(label) {
     if (utilityLabel) {
       const other = nav.getByRole("button", { name: "その他", exact: true });
       if (await visible(other)) await click(other);
-      const target = page.locator(".utility-section-grid").getByRole("button", { name: utilityLabel, exact: true });
+      const target = page.locator(".utility-section-grid:visible").getByRole("button", { name: utilityLabel, exact: true });
       return click(target);
     }
   }
-  let loc = page.locator(".rail-item").filter({ hasText: label }).first();
+  /* Like the mobile case, wait on the visible locator itself, not the first DOM
+     match. Hidden duplicate rails are legitimate in responsive/transition layouts. */
+  const rail = page.locator(".rail:visible").first();
+  await rail.waitFor({state:"visible",timeout:8000});
+  const liveRailItems = rail.locator(".rail-item:visible");
+  let loc = liveRailItems.filter({ hasText: label }).first();
   if (await visible(loc)) return click(loc);
-  loc = page.locator("button[title='" + label + "']").first();
+  loc = page.locator("button[title='" + label + "']:visible").first();
   if (await visible(loc)) return click(loc);
-  loc = page.getByText(label, { exact: true }).first();
-  return click(loc);
+  const available = await liveRailItems.evaluateAll((items) => items.map((item) => ({
+    title: item.getAttribute("title") || "",
+    label: (item.innerText || "").trim().replace(/\s+/g, " ")
+  })));
+  const state = await page.evaluate(() => ({
+    readyState: document.readyState,
+    url: location.href,
+    activeDialogs: document.querySelectorAll('[role="dialog"]:not([aria-hidden="true"]), [aria-modal="true"]:not([aria-hidden="true"])').length,
+    mainText: (document.querySelector("#main-content")?.innerText || "").slice(0, 350)
+  }));
+  throw new Error("表示中のナビゲーション項目が見つかりません: " + label + " / available=" + JSON.stringify(available) + " / state=" + JSON.stringify(state));
 }
 async function closeOverlay() {
-  // Many dialogs use an explicit close button and do not register Escape.
-  // Try Escape first, then close the topmost visible dialog by its accessible label
-  // or the visible × glyph; repeat because nested account/import dialogs can stack.
+  // Always choose an actually visible dismissal control. Calling visible() on a
+  // locator ending in .last() is unsafe because visible() internally inspects
+  // locator.first(), which may be a hidden duplicate elsewhere in the DOM.
   await page.keyboard.press("Escape").catch(() => {});
-  await page.waitForTimeout(180);
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const byLabel = page.locator('button[aria-label*="閉じる"], button[title*="閉じる"], button[aria-label*="close" i], button[title*="close" i]').last();
-    const byGlyph = page.locator("button").filter({ hasText: /^\s*[×✕✖]\s*$/ }).last();
-    let target = await visible(byLabel) ? byLabel : (await visible(byGlyph) ? byGlyph : null);
+  await page.waitForTimeout(120);
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const visibleLabel = page.locator(
+      'button[aria-label*="閉じる"]:visible, button[title*="閉じる"]:visible, button[aria-label*="close" i]:visible, button[title*="close" i]:visible'
+    ).last();
+    const visibleGlyph = page.locator("button:visible").filter({ hasText: /^\\s*[×✕✖]\\s*$/ }).last();
+    let target = (await visibleLabel.count()) ? visibleLabel : ((await visibleGlyph.count()) ? visibleGlyph : null);
+
     if (!target) {
-      // Fallback for icon-only close controls inside the currently visible modal shell.
-      const shell = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible, .share-modal-backdrop:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .cp-overlay:visible').last();
-      if (await visible(shell)) {
+      const shell = page.locator(
+        '[role="dialog"]:visible, [aria-modal="true"]:visible, .share-modal-backdrop:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .cp-overlay:visible'
+      ).last();
+      if (await shell.count()) {
         const buttons = shell.locator("button:visible");
         const n = await buttons.count();
         for (let j = n - 1; j >= 0; j--) {
           const button = buttons.nth(j);
-          const meta = await button.evaluate((el) => ({ text: (el.innerText || "").trim(), aria: el.getAttribute("aria-label") || "", title: el.getAttribute("title") || "", rect: (() => { const r=el.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height}; })() }));
+          const meta = await button.evaluate((el) => ({
+            text: (el.innerText || "").trim(),
+            aria: el.getAttribute("aria-label") || "",
+            title: el.getAttribute("title") || "",
+            rect: (() => { const r=el.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height}; })()
+          }));
           const viewportWidth = page.viewportSize()?.width || 1440;
-          if (/閉じる|close|^[×✕✖]$/i.test(meta.aria + " " + meta.title + " " + meta.text) || (meta.rect.x > viewportWidth * 0.65 && meta.rect.y < 180 && meta.rect.w < 80 && meta.rect.h < 80)) {
+          if (/閉じる|close|^[×✕✖]$/i.test(meta.aria + " " + meta.title + " " + meta.text)
+              || (meta.rect.x > viewportWidth * 0.65 && meta.rect.y < 180 && meta.rect.w < 80 && meta.rect.h < 80)) {
             target = button;
             break;
           }
@@ -154,10 +209,14 @@ async function closeOverlay() {
       }
     }
     if (!target) break;
-    if (view.startsWith("mobile")) await target.tap({ timeout: 1800, force: true }).catch(() => {});
-    else await target.click({ timeout: 1800, force: true }).catch(() => {});
+    if (view.startsWith("mobile")) await target.tap({ timeout: 2500 }).catch(() => {});
+    else await target.click({ timeout: 2500 }).catch(() => {});
     await page.waitForTimeout(220);
   }
+  const remaining = await page.locator(
+    '.ledger-classification-overlay:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .share-modal-backdrop:visible'
+  ).count();
+  if (remaining) throw new Error("閉じる操作後も操作を遮るオーバーレイが残っています: " + remaining);
 }
 async function readMetrics() {
   return page.evaluate(() => {
@@ -1694,21 +1753,29 @@ async function captureProfile(browser, mode) {
       const assignedMove=assignedActions.locator(".ledger-row-move-action").first();
       await assignedMove.waitFor({state:"visible",timeout:5000});
       await click(assignedMove);
-      const destinationDrawer=page.locator(".ledger-queue-drawer");
+      const destinationDrawer=page.locator(".ledger-classification-overlay");
       await destinationDrawer.waitFor({state:"visible",timeout:5000});
-      await destinationDrawer.locator('[aria-label="移動先のリザルトを検索"]').waitFor({state:"visible",timeout:5000});
+      const destinationSearch=destinationDrawer.locator('.ledger-classification-targets-pane [aria-label="移動先のリザルトを検索"]');
+      await destinationSearch.waitFor({state:"visible",timeout:5000});
       await snap("ledger-entry-destination-search","割り当て済み明細から開いた全リザルト対象の移動先検索");
       await click(destinationDrawer.locator(".ledger-queue-move-target"));
       const unclassifiedEntry=destinationDrawer.locator(".ledger-queue-item").filter({hasText:"包帯"}).first();
       await unclassifiedEntry.waitFor({state:"visible",timeout:5000});
       await snap("ledger-unclassified-drawer-populated","リザルトから解除した明細が未分類ドロワーへ戻った状態");
-      await click(unclassifiedEntry.getByRole("button",{name:"包帯 の移動先を選択",exact:true}));
-      const reassignmentSearch=destinationDrawer.locator('[aria-label="移動先のリザルトを検索"]');
-      await reassignmentSearch.waitFor({state:"visible",timeout:5000});
-      await reassignmentSearch.fill("UI監査用セッション");
-      const originalDestination=destinationDrawer.locator(".ledger-queue-destination").filter({hasText:"UI監査用セッション"}).first();
+      const originalDestination=destinationDrawer.locator(".ledger-classification-target").filter({hasText:"UI監査用セッション"}).first();
       await originalDestination.waitFor({state:"visible",timeout:5000});
-      await click(originalDestination);
+      if ((page.viewportSize()?.width || 1440) > 640) {
+        /* PC/tablet: the queue handle itself must carry the selected object to the result target. */
+        const dragHandle=unclassifiedEntry.locator(".ledger-queue-drag-handle").first();
+        await dragHandle.dragTo(originalDestination);
+      } else {
+        /* Phone: use the explicit select -> search -> tap route instead of native HTML D&D. */
+        await click(unclassifiedEntry.getByRole("button",{name:"包帯 の移動先を選択",exact:true}));
+        const reassignmentSearch=destinationDrawer.locator('.ledger-classification-targets-pane [aria-label="移動先のリザルトを検索"]');
+        await reassignmentSearch.waitFor({state:"visible",timeout:5000});
+        await reassignmentSearch.fill("UI監査用セッション");
+        await click(originalDestination);
+      }
       /* useAppState persists mutations after a 400ms debounce */
       await page.waitForTimeout(550);
       const restoredAssignment=await page.evaluate(()=>{
@@ -2099,17 +2166,38 @@ async function captureProfile(browser, mode) {
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
     });
     await attempt("record-200-result-pagination",async()=>{
-      /* The preceding reward regression can leave the ledger view open. Reuse
-         that view instead of looking for the task-card entry a second time. */
-      let ledgerToolbar=page.locator(".ledger-results-toolbar").first();
-      if(!(await visible(ledgerToolbar))){
-        await go("記録");
-        const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-        await resultsEntry.waitFor({state:"visible",timeout:5000});
+      /* Previous ledger regression steps may leave the detail tab selected.
+         Explicitly return to the Record hub before opening the ledger again.
+         This makes the 200-row test independent of whichever tab the preceding
+         regression happened to leave selected. */
+      const openLedgerFromRecordHub = async () => {
+        /* Do not mistake a visible-but-obscured toolbar for an active ledger screen. */
+        await closeOverlay();
+        /* The preceding ledger regressions often leave the result screen open.
+           Reuse it directly; forcing a Home round-trip can fail on layouts where
+           the selected Record subsection is already mounted or the launcher is hidden. */
+        let toolbar = page.locator(".ledger-results-toolbar").first();
+        if (await visible(toolbar)) return toolbar;
+
+        const resultsEntry = page.locator(".btype-record-task-card")
+          .filter({hasText:"リザルト／収支"}).first();
+        if (!(await visible(resultsEntry))) await go("記録");
+        try {
+          await resultsEntry.waitFor({state:"visible",timeout:8000});
+        } catch (error) {
+          const state = await page.evaluate(() => ({
+            currentSection: window.LBT_accounts?.loadActive?.()?.ui?.currentSection || "",
+            libraryTab: window.LBT_accounts?.loadActive?.()?.ui?.libraryTab || "",
+            body: (document.body.innerText || "").slice(0, 900)
+          }));
+          throw new Error("記録ハブのリザルト入口が見つかりません: " + JSON.stringify(state) + " / " + String(error));
+        }
         await click(resultsEntry);
-        ledgerToolbar=page.locator(".ledger-results-toolbar").first();
-        await ledgerToolbar.waitFor({state:"visible",timeout:5000});
-      }
+        toolbar = page.locator(".ledger-results-toolbar").first();
+        await toolbar.waitFor({state:"visible",timeout:8000});
+        return toolbar;
+      };
+      let ledgerToolbar = await openLedgerFromRecordHub();
       const originalState=await page.evaluate(()=>{
         const current=window.LBT_accounts?.loadActive?.();
         if(!current||!Array.isArray(current.results)) return null;
@@ -2151,17 +2239,9 @@ async function captureProfile(browser, mode) {
       if(!originalState?.state || !originalState?.searchName) throw new Error("試験用アカウントの保存データを取得できません");
       try {
         await page.reload({waitUntil:"domcontentloaded"});
-        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
-        let toolbar=page.locator(".ledger-results-toolbar").first();
-        if(!(await visible(toolbar))){
-          await go("記録");
-          const resultsEntryAfterReload=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
-          await resultsEntryAfterReload.waitFor({state:"visible",timeout:5000});
-          await click(resultsEntryAfterReload);
-          toolbar=page.locator(".ledger-results-toolbar").first();
-          await toolbar.waitFor({state:"visible",timeout:5000});
-        }
-        const pageNumber=toolbar.locator(".ledger-results-page-number").first();
+        await restoreAuditAccountAfterReload();
+        const toolbar=await openLedgerFromRecordHub();
+        const pageNumber=page.locator(".ledger-results-pagination .ledger-results-page-number").first();
         const countText=await toolbar.locator(".ledger-results-count").innerText();
         const firstPage=await pageNumber.innerText();
         const firstPageCards=await page.locator(".ledger-card-wrap").count();
@@ -2185,13 +2265,117 @@ async function captureProfile(browser, mode) {
         if(!/1\s*\/\s*200\s*件/.test(searchCount)||searchPage.trim()!=="1 / 1"||searchCards!==1) {
           throw new Error("200件全体からのリザルト検索が一致しません: "+JSON.stringify({searchCount,searchPage,searchCards}));
         }
+
         await snap("ledger-200-results-search","200件全体を対象にしたリザルト検索");
+
+        /* 100件の未分類オブジェクトを作り、20件ページ・検索・ページ一括選択・
+           1回の帰属変更まで実画面で確認する。state は最後に originalState へ復元する。 */
+        await search.fill("");
+        await page.waitForTimeout(180);
+        const queueSeed = await page.evaluate(() => {
+          const current = window.LBT_accounts?.loadActive?.();
+          if (!current || !Array.isArray(current.entries)) return null;
+          const prefix = "QA未分類オブジェクト";
+          const created = Array.from({length:100},(_,index)=>({
+            id:"ui-audit-queue-"+String(index+1).padStart(3,"0"),
+            kind:"expense",
+            name:prefix+" "+String(index+1).padStart(3,"0"),
+            cost:{lp:index+1,shards:0},
+            tickets:{},
+            resultId:null,
+            ref:null,
+            at:Date.now()+index,
+            note:"100件ページング／一括分類の監査用"
+          }));
+          const next = {...current,entries:[...current.entries,...created]};
+          if(window.LBT_accounts.saveActive(next)!==true) throw new Error("100件の未分類オブジェクトを保存できません");
+          return {prefix,ids:created.map(entry=>entry.id)};
+        });
+        if(!queueSeed?.prefix || queueSeed.ids?.length!==100) throw new Error("未分類100件の試験データを作成できません");
+        await page.reload({waitUntil:"domcontentloaded"});
+        await restoreAuditAccountAfterReload();
+        ledgerToolbar = await openLedgerFromRecordHub();
+        await ledgerToolbar.locator('[aria-label="リザルトを検索"]').fill("");
+        await page.waitForTimeout(180);
+        const queueTrigger = page.locator(".ledger-command-bar button[aria-haspopup='dialog']").first();
+        await queueTrigger.waitFor({state:"visible",timeout:5000});
+        await click(queueTrigger);
+        const classification = page.locator(".ledger-classification-overlay");
+        await classification.waitFor({state:"visible",timeout:5000});
+        const queueSearch = classification.locator('[aria-label="未分類オブジェクトを検索"]');
+        await queueSearch.fill(queueSeed.prefix);
+        await page.waitForTimeout(120);
+        const queueNav = classification.locator('.ledger-queue-page-nav[aria-label="未分類ページ移動"]');
+        const queuePageLabel = queueNav.locator("strong");
+        const queueRows = classification.locator(".ledger-queue-item");
+        if((await queueRows.count())!==20 || (await queuePageLabel.innerText()).trim()!=="1 / 5") {
+          throw new Error("未分類100件が20件×5ページに分割されません: "+JSON.stringify({
+            rows:await queueRows.count(),page:await queuePageLabel.innerText(),nav:await queueNav.innerText()
+          }));
+        }
+        await snap("ledger-100-unclassified-first-page","未分類100件の先頭20件と全5ページ表示");
+        await click(queueNav.getByRole("button",{name:"最後",exact:true}));
+        if((await queueRows.count())!==20 || (await queuePageLabel.innerText()).trim()!=="5 / 5") {
+          throw new Error("未分類100件の最終ページへ移動できません: "+JSON.stringify({
+            rows:await queueRows.count(),page:await queuePageLabel.innerText()
+          }));
+        }
+        await snap("ledger-100-unclassified-last-page","未分類100件の最終20件");
+        await queueSearch.fill(queueSeed.prefix+" 099");
+        await page.waitForTimeout(120);
+        if((await queueRows.count())!==1 || (await queuePageLabel.innerText()).trim()!=="1 / 1") {
+          throw new Error("未分類100件全体を対象にした名前検索が一致しません: "+JSON.stringify({
+            rows:await queueRows.count(),page:await queuePageLabel.innerText()
+          }));
+        }
+        await snap("ledger-100-unclassified-search","100件全体から99番目の未分類オブジェクトを検索");
+        await queueSearch.fill(queueSeed.prefix);
+        await page.waitForTimeout(120);
+        /* Search changes reset queuePage to zero. Do not click the disabled
+           "最初" button when it is already on the first page. */
+        if ((await queuePageLabel.innerText()).trim() !== "1 / 5") {
+          await click(queueNav.getByRole("button",{name:"最初",exact:true}));
+        }
+        if ((await queuePageLabel.innerText()).trim() !== "1 / 5") {
+          throw new Error("未分類100件の検索解除後に先頭ページへ戻っていません: " + await queuePageLabel.innerText());
+        }
+        await click(classification.getByRole("button",{name:"このページを選択",exact:true}));
+        const selectedLabel=classification.locator(".ledger-queue-selection-bar strong");
+        if((await selectedLabel.innerText()).trim()!=="選択 20件") {
+          throw new Error("未分類のページ一括選択が20件を選べません: "+await selectedLabel.innerText());
+        }
+        await snap("ledger-100-unclassified-bulk-selected","未分類100件から先頭ページ20件を一括選択");
+        const destinationSearch=classification.locator('.ledger-classification-targets-pane [aria-label="移動先のリザルトを検索"]');
+        await destinationSearch.fill("UI監査用セッション");
+        await page.waitForTimeout(120);
+        const destination=classification.locator(".ledger-classification-target")
+          .filter({hasText:"UI監査用セッション"}).first();
+        await destination.waitFor({state:"visible",timeout:5000});
+        await click(destination);
+        await page.waitForTimeout(550);
+        const bulkCheck=await page.evaluate(({prefix,ids,targetName})=>{
+          const saved=window.LBT_accounts?.loadActive?.()||{};
+          const target=(saved.results||[]).find(result=>result.name===targetName);
+          const testRows=(saved.entries||[]).filter(entry=>ids.includes(entry.id));
+          return {
+            total:testRows.length,
+            moved:testRows.filter(entry=>entry.resultId===target?.id).length,
+            stillUnclassified:testRows.filter(entry=>!entry.resultId).length,
+            targetId:target?.id||null
+          };
+        },{prefix:queueSeed.prefix,ids:queueSeed.ids,targetName:"UI監査用セッション"});
+        if(bulkCheck.total!==100 || bulkCheck.moved!==20 || bulkCheck.stillUnclassified!==80) {
+          throw new Error("ページ内20件の一括分類が保存状態へ反映されません: "+JSON.stringify(bulkCheck));
+        }
+        await snap("ledger-100-unclassified-bulk-assigned","未分類100件のうち選択20件を1操作でリザルトへ移動");
+        await click(classification.locator(".ledger-queue-drawer-close"));
+
       } finally {
         await page.evaluate((saved)=>{
           if(window.LBT_accounts?.saveActive?.(saved)!==true) throw new Error("監査用リザルトデータを復元できません");
         },originalState.state);
         await page.reload({waitUntil:"domcontentloaded"});
-        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+        await restoreAuditAccountAfterReload();
         await go("記録");
       }
     });

@@ -179,6 +179,53 @@ test("帰属の差し替えだけで、連載ごとの収支が変わる（明�
   assert.equal(balance(s.results, s.entries).lp, 1985, "残高は変わらない（支出は起きたまま）");
 });
 
+test("複数明細の帰属変更は一括処理され、費用と他の明細を維持する", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 1200, shards: 300 } });
+  const aId = s.results[0].id;
+  s = reducer(s, { type: "ADD_RESULT", name: "B", income: { lp: 800, shards: 200 } });
+  const bId = s.results[1].id;
+  s = {
+    ...s,
+    roster: {
+      ...s.roster,
+      supports: [{ uid: "support-a", resultId: null }],
+      spirits: [{ uid: "spirit-a", resultId: null }]
+    }
+  };
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "包帯", cost: { lp: 15 }, resultId: null });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "support", name: "サポートA", cost: { shards: 8 }, resultId: null,
+    ref: { kind: "rosterSupport", uid: "support-a" } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "spirit", name: "精神A", cost: { shards: 2 }, resultId: null,
+    ref: { kind: "rosterSpirit", uid: "spirit-a" } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "別の未分類", cost: { lp: 3 }, resultId: null });
+  const [first, second, third, untouched] = s.entries;
+  const before = balance(s.results, s.entries);
+
+  s = reducer(s, { type: "SET_ENTRIES_RESULT", ids: [first.id, second.id, third.id, "missing-id"], resultId: bId });
+  assert.equal(s.entries.length, 4, "一括移動で明細数は変わらない");
+  assert.equal(s.entries.find((entry) => entry.id === first.id).resultId, bId);
+  assert.equal(s.entries.find((entry) => entry.id === second.id).resultId, bId);
+  assert.equal(s.entries.find((entry) => entry.id === untouched.id).resultId, null, "選択外は未分類のまま");
+  assert.equal(s.entries.find((entry) => entry.id === first.id).cost.lp, 15);
+  assert.equal(s.entries.find((entry) => entry.id === second.id).cost.shards, 8);
+  assert.equal(s.entries.find((entry) => entry.id === third.id).resultId, bId, "3件目も一括移動");
+  assert.equal(s.entries.find((entry) => entry.id === untouched.id).resultId, null, "選択外は未分類のまま");
+  assert.equal(s.roster.supports[0].resultId, bId, "サポート所持側の帰属も同期");
+  assert.equal(s.roster.spirits[0].resultId, bId, "精神所持側の帰属も同期");
+  const after = balance(s.results, s.entries);
+  for (const key of ["lp", "shards", "spentLp", "spentShards"]) {
+    assert.equal(after[key], before[key], key + " の全体残高は変わらない");
+  }
+  assert.equal(after.unclassified, before.unclassified - 3, "未分類件数だけが移動分減る");
+
+  s = reducer(s, { type: "SET_ENTRIES_RESULT", ids: [first.id, second.id, third.id], resultId: null });
+  assert.equal(s.entries.find((entry) => entry.id === first.id).resultId, null, "一括で未分類へ戻せる");
+  assert.equal(s.entries.find((entry) => entry.id === second.id).resultId, null);
+  assert.equal(s.entries.find((entry) => entry.id === third.id).resultId, null);
+  assert.equal(s.roster.supports[0].resultId, null, "戻す時もサポート所持側へ同期");
+  assert.equal(s.roster.spirits[0].resultId, null, "戻す時も精神所持側へ同期");
+});
+
 test("未分類の明細は件数が分かる（帰属し忘れに気付ける）", () => {
   let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 100 } });
   const aId = s.results[0].id;

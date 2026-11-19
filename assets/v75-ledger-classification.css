@@ -1,0 +1,479 @@
+/* V75: a classification workbench keeps unclassified objects and result destinations
+   visible at the same time. The source and destination lists paginate independently. */
+.ledger-classification-overlay {
+  display: grid !important;
+  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  gap: 14px;
+  padding: 16px;
+  overflow: hidden;
+}
+.ledger-queue-drawer,
+.ledger-classification-targets-pane {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: 0 12px 36px rgba(0,0,0,.42);
+}
+.ledger-queue-drawer {
+  width: auto !important;
+  padding: 13px;
+}
+.ledger-queue-drawer .ledger-queue-drawer-head,
+.ledger-classification-targets-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.ledger-queue-drawer .ledger-queue-drawer-head strong,
+.ledger-classification-targets-head strong {
+  color: var(--text-strong);
+  font-size: var(--fs-15);
+}
+.ledger-queue-selection-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  background: var(--gold-tint);
+}
+.ledger-queue-selection-bar > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ledger-queue-selection-bar strong {
+  color: var(--gold-hi);
+  font: 700 var(--fs-13) var(--f-body);
+}
+.ledger-queue-selection-bar .ledger-note {
+  font-size: var(--fs-10);
+}
+.ledger-queue-selection-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.ledger-queue-select-page,
+.ledger-queue-clear-selection,
+.ledger-queue-page-nav button,
+.ledger-classification-page-nav button,
+.ledger-queue-transfer-unclassify {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx-2);
+  font: 600 var(--fs-10) var(--f-body);
+  cursor: pointer;
+}
+.ledger-queue-select-page {
+  border-color: var(--gold-line);
+  background: var(--surface-2);
+  color: var(--gold-hi);
+}
+.ledger-queue-select-page:disabled,
+.ledger-queue-clear-selection:disabled,
+.ledger-queue-page-nav button:disabled,
+.ledger-classification-page-nav button:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+.ledger-queue-filter {
+  flex: 0 0 auto;
+}
+.ledger-queue-drawer .ledger-queue-drawer-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.ledger-queue-drawer .ledger-queue-item {
+  grid-template-columns: 40px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+  border-color: var(--line);
+  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
+}
+.ledger-queue-drawer .ledger-queue-item.is-selected {
+  border-color: var(--gold-line);
+  background: color-mix(in srgb, var(--gold-tint) 76%, var(--surface-2));
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+.ledger-queue-item-lead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+.ledger-queue-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 18px;
+  min-width: 18px;
+  color: var(--tx-mute);
+  font-size: 18px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.ledger-queue-drag-handle:active { cursor: grabbing; }
+.ledger-queue-item-check {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+.ledger-queue-drawer .ledger-queue-item-main small {
+  color: var(--tx-mute);
+  font-size: var(--fs-10);
+  overflow-wrap: anywhere;
+}
+.ledger-queue-drawer .ledger-queue-item-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+.ledger-queue-drawer .ledger-queue-item-move,
+.ledger-queue-drawer .ledger-queue-item-delete,
+.ledger-queue-drawer .ledger-queue-drawer-close {
+  min-height: 40px;
+}
+.ledger-queue-page-nav,
+.ledger-classification-page-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-dim);
+}
+.ledger-queue-page-nav > span,
+.ledger-classification-page-nav > span {
+  flex: 1 1 100%;
+  color: var(--tx-mute);
+  font: 500 var(--fs-10) var(--f-mono);
+}
+.ledger-queue-page-nav > strong,
+.ledger-classification-page-nav > strong {
+  min-width: 42px;
+  color: var(--gold-hi);
+  text-align: center;
+  font: 600 var(--fs-11) var(--f-mono);
+}
+.ledger-classification-targets-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow: hidden;
+}
+.ledger-classification-targets-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.ledger-classification-targets-head .ledger-note {
+  max-width: 70ch;
+  font-size: var(--fs-10);
+}
+.ledger-classification-target-count {
+  flex: 0 0 auto;
+  color: var(--gold-hi);
+  font: 600 var(--fs-12) var(--f-mono);
+}
+.ledger-classification-destination-search {
+  flex: 0 0 auto;
+}
+.ledger-classification-results-grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  align-content: start;
+  gap: 9px;
+  min-height: 0;
+  padding: 2px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.ledger-classification-target {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--tx);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
+}
+.ledger-classification-target:hover,
+.ledger-classification-target:focus-visible {
+  border-color: var(--gold-line);
+  background: var(--surface-3);
+  outline-color: var(--gold);
+}
+.ledger-classification-target.is-over {
+  border-color: var(--gold-hi);
+  background: var(--gold-tint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+.ledger-classification-target-title {
+  overflow-wrap: anywhere;
+  color: var(--text-strong);
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+.ledger-classification-target-date {
+  color: var(--tx-mute);
+  font: 500 var(--fs-10) var(--f-mono);
+}
+.ledger-classification-target-finance {
+  display: grid;
+  gap: 3px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line-dim);
+  color: var(--tx-2);
+  font-size: var(--fs-10);
+}
+.ledger-classification-target-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 5px;
+}
+.ledger-classification-target-footer small {
+  color: var(--tx-mute);
+  font-size: var(--fs-10);
+}
+.ledger-classification-target-footer b {
+  color: var(--gold-hi);
+  font-size: var(--fs-10);
+}
+.ledger-results-page-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tx-mute);
+  font-size: var(--fs-10);
+}
+.ledger-results-page-jump select {
+  box-sizing: border-box;
+  min-width: 46px;
+  min-height: 30px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-inset);
+  color: var(--tx);
+  font: 600 var(--fs-11) var(--f-mono);
+}
+.ledger-results-page-jump > span:last-child {
+  white-space: nowrap;
+  color: var(--tx-mute);
+  font: 500 var(--fs-10) var(--f-mono);
+}
+@media (max-width: 1100px) {
+  .ledger-classification-overlay {
+    grid-template-columns: minmax(280px, 34vw) minmax(0,1fr);
+    gap: 9px;
+    padding: 10px;
+  }
+  .ledger-classification-targets-pane,
+  .ledger-queue-drawer {
+    padding: 10px;
+  }
+  .ledger-classification-results-grid {
+    grid-template-columns: minmax(0,1fr);
+  }
+}
+@media (max-width: 800px) {
+  /* 固定高さの2行グリッドは、移動対象パネルが展開したときに
+     次の移動先パネルと重なる。モバイルでは通常の縦フローにする。 */
+  .ledger-classification-overlay {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 8px 8px max(12px, env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .ledger-queue-drawer,
+  .ledger-classification-targets-pane {
+    flex: 0 0 auto;
+    width: 100% !important;
+    height: auto;
+    max-height: none;
+    padding: 10px;
+  }
+  .ledger-queue-drawer {
+    min-height: max-content;
+    align-self: stretch;
+    overflow: visible;
+  }
+  .ledger-queue-drawer .ledger-queue-drawer-list {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .ledger-queue-drawer .ledger-queue-item {
+    grid-template-columns: 40px minmax(0,1fr) auto;
+  }
+  .ledger-queue-drawer .ledger-queue-item-actions {
+    flex-direction: row;
+  }
+  .ledger-queue-selection-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .ledger-queue-selection-actions {
+    justify-content: flex-start;
+  }
+  .ledger-queue-select-page,
+  .ledger-queue-clear-selection,
+  .ledger-queue-page-nav button,
+  .ledger-classification-page-nav button,
+  .ledger-queue-transfer-unclassify,
+  .ledger-queue-transfer-cancel,
+  .ledger-queue-drawer .ledger-queue-item-move,
+  .ledger-queue-drawer .ledger-queue-item-delete,
+  .ledger-queue-drawer .ledger-queue-drawer-close {
+    min-height: 40px;
+  }
+  .ledger-classification-targets-pane {
+    min-height: 380px;
+    overflow: visible;
+  }
+  .ledger-classification-results-grid {
+    flex: 0 1 auto;
+    grid-template-columns: minmax(0,1fr);
+    min-height: 190px;
+    max-height: 230px;
+    overflow-y: auto;
+  }
+  .ledger-classification-target {
+    height: auto;
+    min-height: 128px;
+  }
+  .ledger-queue-page-nav,
+  .ledger-classification-page-nav {
+    justify-content: space-between;
+  }
+}
+@media (max-width: 560px) {
+  .ledger-classification-overlay {
+    padding-inline: 6px;
+  }
+  .ledger-queue-drawer,
+  .ledger-classification-targets-pane {
+    padding: 8px;
+  }
+  .ledger-queue-drawer .ledger-queue-drawer-list {
+    max-height: 140px;
+  }
+  .ledger-queue-drawer .ledger-queue-item {
+    grid-template-columns: 40px minmax(0,1fr);
+  }
+  .ledger-queue-drawer .ledger-queue-item-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .ledger-classification-targets-pane {
+    min-height: 380px;
+  }
+  .ledger-classification-results-grid {
+    min-height: 190px;
+    max-height: 210px;
+  }
+  .ledger-queue-page-nav > span,
+  .ledger-classification-page-nav > span {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .ledger-results-page-jump select {
+    min-width: 52px;
+    min-height: 40px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ledger-classification-target,
+  .ledger-queue-drawer .ledger-queue-item {
+    transition: none;
+  }
+}
+
+
+/* Classification workbench: give phone users a real 40px checkbox hit area.
+   Touch layouts use tap-to-select; drag handles are intentionally desktop-only. */
+.ledger-queue-item-check-wrap {
+  display: inline-flex;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  min-height: 24px;
+  cursor: pointer;
+}
+.ledger-classification-instruction-mobile {
+  display: none;
+}
+@media (max-width: 800px) {
+  .ledger-queue-drag-handle {
+    display: none !important;
+  }
+  .ledger-queue-item-lead {
+    min-height: 40px;
+  }
+  .ledger-queue-item-check-wrap {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .ledger-classification-instruction-desktop {
+    display: none;
+  }
+  .ledger-classification-instruction-mobile {
+    display: inline;
+  }
+}
