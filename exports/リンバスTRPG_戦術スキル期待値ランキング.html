@@ -198,8 +198,8 @@ function slotOf(rank){
 const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",trigger:"condTrigger",other:"condOther"};
 function conditionClasses(context){
  const s=String(context||""),tags=[];
- if(/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|呪い|脆弱|デバフ|状態|武装解除/.test(s))tags.push("status");
- if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片/.test(s))tags.push("resource");
+ if(/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|挑発/.test(s))tags.push("status");
+ if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|保有|血闘|高揚|時間貸与|酔い|点穴/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
  if(/共鳴|保有|所属|味方|敵|隣|人数|何名|同じ所属|キャラクター/.test(s))tags.push("team");
  if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時/.test(s))tags.push("trigger");
@@ -361,8 +361,8 @@ function addAppendix(){
   addPersona(persona);
  }
 }
-function conditionModifierEnabled(x){
- return !!$("includeConditional")?.checked&&!x.unresolved&&Number.isFinite(x.value)&&
+function conditionModifierEnabled(x,requireMaster=true){
+ return (!requireMaster||!!$("includeConditional")?.checked)&&!x.unresolved&&Number.isFinite(x.value)&&
   (x.conditionCategories||["other"]).every(k=>$(CONDITION_FILTER_IDS[k]||"condOther")?.checked);
 }
 function conditionalPerDie(r,index,mode="selected",source="both"){
@@ -371,10 +371,9 @@ function conditionalPerDie(r,index,mode="selected",source="both"){
  if(source==="both"||source==="passive")sources.push(["passCandidates","includePassive"]);
  if(source==="both"||source==="effect")sources.push(["effectCandidates","includeEffect"]);
  for(const [field,toggle] of sources){
-  if(mode==="selected"&&!$(toggle).checked)continue;
+  if(!$(toggle).checked)continue;
   for(const x of (r[field]||[])){
-   if(!x.conditional||x.unresolved||!Number.isFinite(x.value))continue;
-   if(mode==="selected"&&!conditionModifierEnabled(x))continue;
+   if(!x.conditional||!conditionModifierEnabled(x,mode==="selected"))continue;
    if((x.targets||[]).includes(index))total+=x.value;
   }
  }
