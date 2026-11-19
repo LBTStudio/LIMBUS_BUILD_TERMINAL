@@ -151,3 +151,12 @@ test("監査ナビゲーションは非表示の重複レールを待たず、�
   assert.doesNotMatch(auditSource, /page\.locator\("\.rail"\);\s*await rail\.waitFor/);
   assert.doesNotMatch(auditSource, /page\.locator\("\.btype-mobile-bottom-nav"\);\s*await mobileNav\.waitFor/);
 });
+
+
+test("200件・100件のUI監査は再読込ごとにSINNER SELECTで監査アカウントを選び直す", () => {
+  assert.match(auditSource, /async function restoreAuditAccountAfterReload\(\)/);
+  assert.match(auditSource, /\.acct-gate:visible/);
+  assert.match(auditSource, /UI監査用キャラクター/);
+  assert.match(auditSource, /const navSelector = viewportWidth <= 640/);
+  assert.equal((auditSource.match(/await restoreAuditAccountAfterReload\(\);/g) || []).length, 3);
+});

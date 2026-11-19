@@ -96,6 +96,29 @@ function mainNavigation() {
     ? ".btype-mobile-bottom-nav button"
     : ".rail-item");
 }
+async function restoreAuditAccountAfterReload() {
+  /* Every full page load returns to SINNER SELECT, even when an active account
+     was previously selected. Re-select the disposable fixture before expecting
+     the workbench rail or mobile bottom navigation to exist. */
+  await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
+  const gate = page.locator(".acct-gate:visible").first();
+  if (await visible(gate)) {
+    const accountCard = gate.locator(".acct-card--gate")
+      .filter({ hasText: "UI監査用キャラクター" }).first();
+    const hit = accountCard.locator(".acct-card-hit").first();
+    await hit.waitFor({ state: "visible", timeout: 15000 });
+    await click(hit);
+    await gate.waitFor({ state: "hidden", timeout: 12000 });
+  }
+  const viewportWidth = page.viewportSize()?.width || 1440;
+  const navSelector = viewportWidth <= 640
+    ? ".btype-mobile-bottom-nav:visible button:visible"
+    : ".rail:visible .rail-item:visible";
+  await page.locator(navSelector).first().waitFor({ state: "visible", timeout: 15000 });
+  const activeId = await page.evaluate(() => window.LBT_accounts?.getActiveId?.() || null);
+  if (!activeId) throw new Error("再読込後に監査用アカウントが選択されていません");
+}
+
 async function go(label) {
   /* Previous audit scenarios can leave a full-screen drawer or sheet open.
      Close it before resolving navigation controls; otherwise the underlying rail
@@ -2216,7 +2239,7 @@ async function captureProfile(browser, mode) {
       if(!originalState?.state || !originalState?.searchName) throw new Error("試験用アカウントの保存データを取得できません");
       try {
         await page.reload({waitUntil:"domcontentloaded"});
-        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+        await restoreAuditAccountAfterReload();
         const toolbar=await openLedgerFromRecordHub();
         const pageNumber=toolbar.locator(".ledger-results-page-number").first();
         const countText=await toolbar.locator(".ledger-results-count").innerText();
@@ -2270,7 +2293,7 @@ async function captureProfile(browser, mode) {
         });
         if(!queueSeed?.prefix || queueSeed.ids?.length!==100) throw new Error("未分類100件の試験データを作成できません");
         await page.reload({waitUntil:"domcontentloaded"});
-        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+        await restoreAuditAccountAfterReload();
         ledgerToolbar = await openLedgerFromRecordHub();
         await ledgerToolbar.locator('[aria-label="リザルトを検索"]').fill("");
         await page.waitForTimeout(180);
@@ -2345,7 +2368,7 @@ async function captureProfile(browser, mode) {
           if(window.LBT_accounts?.saveActive?.(saved)!==true) throw new Error("監査用リザルトデータを復元できません");
         },originalState.state);
         await page.reload({waitUntil:"domcontentloaded"});
-        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+        await restoreAuditAccountAfterReload();
         await go("記録");
       }
     });
