@@ -1108,7 +1108,12 @@ async function captureProfile(browser, mode) {
                 const columnCount = breakpointLayout.gridColumns.trim().split(/\s+/).filter(Boolean).length;
                 if (columnCount !== 2 || breakpointLayout.position !== "sticky"
                   || breakpointLayout.mainRight === null || breakpointLayout.detailLeft < breakpointLayout.mainRight - 2
-                  || breakpointLayout.mainTop === null || Math.abs(breakpointLayout.detailTop - breakpointLayout.mainTop) > 4) {
+                                  /* 詳細は sticky なので固定ヘッダー／本文上端の余白ぶんだけ下がる。
+                   同じ top 座標を要求せず、一覧と横に並び、ヘッダーから過度に
+                   離れないことを検証する。 */
+|| breakpointLayout.mainTop === null
+                  || breakpointLayout.detailTop < breakpointLayout.mainTop - 4
+                  || breakpointLayout.detailTop - breakpointLayout.mainTop > 80) {
                   throw new Error("1280px幅で一覧と詳細の二列配置が維持されていません: " + JSON.stringify(breakpointLayout));
                 }
                 await snap("support-passive-detail-1280-two-column", "1280px幅で一覧の右側に詳細ペインを並べた状態");
