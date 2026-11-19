@@ -83,12 +83,13 @@ test("分類ワークベンチは既存明細のドラッグ移動とモバイ�
   assert.match(classificationCss, /min-height: 40px;/);
 });
 
-test("モバイル分類画面は縦スクロールでき、移動先カードに十分な表示領域を確保する", () => {
-  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?grid-template-rows: max-content max-content;/);
+test("モバイル分類画面は通常の縦フローで重なりを防ぎ、移動先カードに十分な表示領域を確保する", () => {
+  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?display: flex !important;[\s\S]*?flex-direction: column;[\s\S]*?overflow-y: auto;/);
+  assert.match(classificationCss, /\.ledger-queue-drawer,\s*\.ledger-classification-targets-pane\s*\{[^}]*flex: 0 0 auto;[^}]*height: auto;/);
   assert.match(classificationCss, /\.ledger-queue-drawer\s*\{[^}]*min-height: max-content;[^}]*overflow: visible;/);
-  assert.match(classificationCss, /@media \(max-width: 800px\)[\s\S]*?overflow-y: auto;/);
   assert.match(classificationCss, /\.ledger-classification-targets-pane\s*\{[^}]*min-height: 380px;/);
   assert.match(classificationCss, /\.ledger-classification-results-grid\s*\{[^}]*min-height: 190px;[^}]*max-height: 230px;/);
+  assert.match(classificationCss, /\.ledger-classification-target\s*\{[^}]*min-height: 128px;/);
 });
 
 test("操作監査はPC/タブレットのドラッグとスマートフォンのタップ代替を実行する", () => {
