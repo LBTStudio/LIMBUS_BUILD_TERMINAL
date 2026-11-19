@@ -2241,7 +2241,7 @@ async function captureProfile(browser, mode) {
         await page.reload({waitUntil:"domcontentloaded"});
         await restoreAuditAccountAfterReload();
         const toolbar=await openLedgerFromRecordHub();
-        const pageNumber=toolbar.locator(".ledger-results-page-number").first();
+        const pageNumber=page.locator(".ledger-results-pagination .ledger-results-page-number").first();
         const countText=await toolbar.locator(".ledger-results-count").innerText();
         const firstPage=await pageNumber.innerText();
         const firstPageCards=await page.locator(".ledger-card-wrap").count();

@@ -160,3 +160,9 @@ test("200件・100件のUI監査は再読込ごとにSINNER SELECTで監査ア�
   assert.match(auditSource, /const navSelector = viewportWidth <= 640/);
   assert.equal((auditSource.match(/await restoreAuditAccountAfterReload\(\);/g) || []).length, 3);
 });
+
+
+test("200件ページング監査はツールバー外の一覧ページ番号を読む", () => {
+  assert.match(auditSource, /const pageNumber=page\.locator\("\.ledger-results-pagination \.ledger-results-page-number"\)\.first\(\)/);
+  assert.doesNotMatch(auditSource, /const pageNumber=toolbar\.locator\("\.ledger-results-page-number"\)/);
+});
