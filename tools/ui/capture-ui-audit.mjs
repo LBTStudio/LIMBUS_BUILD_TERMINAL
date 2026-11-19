@@ -2203,7 +2203,104 @@ async function captureProfile(browser, mode) {
         if(!/1\s*\/\s*200\s*件/.test(searchCount)||searchPage.trim()!=="1 / 1"||searchCards!==1) {
           throw new Error("200件全体からのリザルト検索が一致しません: "+JSON.stringify({searchCount,searchPage,searchCards}));
         }
+
         await snap("ledger-200-results-search","200件全体を対象にしたリザルト検索");
+
+        /* 100件の未分類オブジェクトを作り、20件ページ・検索・ページ一括選択・
+           1回の帰属変更まで実画面で確認する。state は最後に originalState へ復元する。 */
+        await search.fill("");
+        await page.waitForTimeout(180);
+        const queueSeed = await page.evaluate(() => {
+          const current = window.LBT_accounts?.loadActive?.();
+          if (!current || !Array.isArray(current.entries)) return null;
+          const prefix = "QA未分類オブジェクト";
+          const created = Array.from({length:100},(_,index)=>({
+            id:"ui-audit-queue-"+String(index+1).padStart(3,"0"),
+            kind:"expense",
+            name:prefix+" "+String(index+1).padStart(3,"0"),
+            cost:{lp:index+1,shards:0},
+            tickets:{},
+            resultId:null,
+            ref:null,
+            at:Date.now()+index,
+            note:"100件ページング／一括分類の監査用"
+          }));
+          const next = {...current,entries:[...current.entries,...created]};
+          if(window.LBT_accounts.saveActive(next)!==true) throw new Error("100件の未分類オブジェクトを保存できません");
+          return {prefix,ids:created.map(entry=>entry.id)};
+        });
+        if(!queueSeed?.prefix || queueSeed.ids?.length!==100) throw new Error("未分類100件の試験データを作成できません");
+        await page.reload({waitUntil:"domcontentloaded"});
+        await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+        ledgerToolbar = await openLedgerFromRecordHub();
+        await ledgerToolbar.locator('[aria-label="リザルトを検索"]').fill("");
+        await page.waitForTimeout(180);
+        const queueTrigger = page.locator(".ledger-command-bar button[aria-haspopup='dialog']").first();
+        await queueTrigger.waitFor({state:"visible",timeout:5000});
+        await click(queueTrigger);
+        const classification = page.locator(".ledger-classification-overlay");
+        await classification.waitFor({state:"visible",timeout:5000});
+        const queueSearch = classification.locator('[aria-label="未分類オブジェクトを検索"]');
+        await queueSearch.fill(queueSeed.prefix);
+        await page.waitForTimeout(120);
+        const queueNav = classification.locator('.ledger-queue-page-nav[aria-label="未分類ページ移動"]');
+        const queuePageLabel = queueNav.locator("strong");
+        const queueRows = classification.locator(".ledger-queue-item");
+        if((await queueRows.count())!==20 || (await queuePageLabel.innerText()).trim()!=="1 / 5") {
+          throw new Error("未分類100件が20件×5ページに分割されません: "+JSON.stringify({
+            rows:await queueRows.count(),page:await queuePageLabel.innerText(),nav:await queueNav.innerText()
+          }));
+        }
+        await snap("ledger-100-unclassified-first-page","未分類100件の先頭20件と全5ページ表示");
+        await click(queueNav.getByRole("button",{name:"最後",exact:true}));
+        if((await queueRows.count())!==20 || (await queuePageLabel.innerText()).trim()!=="5 / 5") {
+          throw new Error("未分類100件の最終ページへ移動できません: "+JSON.stringify({
+            rows:await queueRows.count(),page:await queuePageLabel.innerText()
+          }));
+        }
+        await snap("ledger-100-unclassified-last-page","未分類100件の最終20件");
+        await queueSearch.fill(queueSeed.prefix+" 099");
+        await page.waitForTimeout(120);
+        if((await queueRows.count())!==1 || (await queuePageLabel.innerText()).trim()!=="1 / 1") {
+          throw new Error("未分類100件全体を対象にした名前検索が一致しません: "+JSON.stringify({
+            rows:await queueRows.count(),page:await queuePageLabel.innerText()
+          }));
+        }
+        await snap("ledger-100-unclassified-search","100件全体から99番目の未分類オブジェクトを検索");
+        await queueSearch.fill(queueSeed.prefix);
+        await page.waitForTimeout(120);
+        await click(queueNav.getByRole("button",{name:"最初",exact:true}));
+        await click(classification.getByRole("button",{name:"このページを選択",exact:true}));
+        const selectedLabel=classification.locator(".ledger-queue-selection-bar strong");
+        if((await selectedLabel.innerText()).trim()!=="選択 20件") {
+          throw new Error("未分類のページ一括選択が20件を選べません: "+await selectedLabel.innerText());
+        }
+        await snap("ledger-100-unclassified-bulk-selected","未分類100件から先頭ページ20件を一括選択");
+        const destinationSearch=classification.locator('.ledger-classification-targets-pane [aria-label="移動先のリザルトを検索"]');
+        await destinationSearch.fill("UI監査用セッション");
+        await page.waitForTimeout(120);
+        const destination=classification.locator(".ledger-classification-target")
+          .filter({hasText:"UI監査用セッション"}).first();
+        await destination.waitFor({state:"visible",timeout:5000});
+        await click(destination);
+        await page.waitForTimeout(550);
+        const bulkCheck=await page.evaluate(({prefix,ids,targetName})=>{
+          const saved=window.LBT_accounts?.loadActive?.()||{};
+          const target=(saved.results||[]).find(result=>result.name===targetName);
+          const testRows=(saved.entries||[]).filter(entry=>ids.includes(entry.id));
+          return {
+            total:testRows.length,
+            moved:testRows.filter(entry=>entry.resultId===target?.id).length,
+            stillUnclassified:testRows.filter(entry=>!entry.resultId).length,
+            targetId:target?.id||null
+          };
+        },{prefix:queueSeed.prefix,ids:queueSeed.ids,targetName:"UI監査用セッション"});
+        if(bulkCheck.total!==100 || bulkCheck.moved!==20 || bulkCheck.stillUnclassified!==80) {
+          throw new Error("ページ内20件の一括分類が保存状態へ反映されません: "+JSON.stringify(bulkCheck));
+        }
+        await snap("ledger-100-unclassified-bulk-assigned","未分類100件のうち選択20件を1操作でリザルトへ移動");
+        await click(classification.locator(".ledger-queue-drawer-close"));
+
       } finally {
         await page.evaluate((saved)=>{
           if(window.LBT_accounts?.saveActive?.(saved)!==true) throw new Error("監査用リザルトデータを復元できません");
