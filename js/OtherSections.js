@@ -6547,7 +6547,7 @@ const importHeldPersonas = () => {
         }, "最初"),
         h(Button, {
           size: "sm", variant: "quiet", disabled: safeResultPage === 0 || ticketPanel !== null,
-          "aria-label": "前のページ", onClick: () => setResultPage(Math.max(0, safeResultPage - 1))
+          "aria-label": "前へ", onClick: () => setResultPage(Math.max(0, safeResultPage - 1))
         }, "前へ"),
         h("label", { className: "ledger-results-page-jump" },
           h("span", null, "ページ"),
@@ -6564,7 +6564,7 @@ const importHeldPersonas = () => {
 
         h(Button, {
           size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,
-          "aria-label": "次のページ", onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
+          "aria-label": "次へ", onClick: () => setResultPage(Math.min(resultPageCount - 1, safeResultPage + 1))
         }, "次へ"),
         h(Button, {
           size: "sm", variant: "quiet", disabled: safeResultPage >= resultPageCount - 1 || ticketPanel !== null,

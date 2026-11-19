@@ -5,6 +5,7 @@ import test from "node:test";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const css = read("../assets/v76-interaction-audit.css");
 const audit = read("../tools/ui/capture-ui-audit.mjs");
+const sections = read("../js/OtherSections.js");
 
 test("sticky build tabs stay above scrollable catalog content", () => {
   assert.match(css, /\.build-tabs\.is-b-workbench\s*\{[^}]*z-index:\s*24\s*;/s);
@@ -26,4 +27,10 @@ test("未分類ワークベンチの必須撮影説明は、実際の4状態の�
   ]) {
     assert.ok(audit.includes(note), "required capture caption is present: " + note);
   }
+});
+
+test("リザルトページャーのアクセシブル名は表示ラベルと一致する", () => {
+  assert.match(sections, /"aria-label": "前へ"[\\s\\S]{0,220}\\}, "前へ"\\)/);
+  assert.match(sections, /"aria-label": "次へ"[\\s\\S]{0,220}\\}, "次へ"\\)/);
+  assert.doesNotMatch(sections, /"aria-label": "前のページ"|"aria-label": "次のページ"/);
 });
