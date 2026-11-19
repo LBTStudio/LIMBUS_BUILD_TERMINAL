@@ -2112,26 +2112,27 @@ async function captureProfile(browser, mode) {
          This makes the 200-row test independent of whichever tab the preceding
          regression happened to leave selected. */
       const openLedgerFromRecordHub = async () => {
-        /* A navigation reset is more deterministic than trying to infer which nested
-           Record library tab a previous regression left open. Return to Home first,
-           then enter the Record hub through the actual navigation control. */
-        await go("ホーム");
-        await page.locator(".btype-home-v2").waitFor({state:"visible",timeout:8000});
-        await go("記録");
-        const resultsEntry = page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+        /* The preceding ledger regressions often leave the result screen open.
+           Reuse it directly; forcing a Home round-trip can fail on layouts where
+           the selected Record subsection is already mounted or the launcher is hidden. */
+        let toolbar = page.locator(".ledger-results-toolbar").first();
+        if (await visible(toolbar)) return toolbar;
+
+        const resultsEntry = page.locator(".btype-record-task-card")
+          .filter({hasText:"リザルト／収支"}).first();
+        if (!(await visible(resultsEntry))) await go("記録");
         try {
           await resultsEntry.waitFor({state:"visible",timeout:8000});
         } catch (error) {
           const state = await page.evaluate(() => ({
-            url: location.href,
             currentSection: window.LBT_accounts?.loadActive?.()?.ui?.currentSection || "",
             libraryTab: window.LBT_accounts?.loadActive?.()?.ui?.libraryTab || "",
             body: (document.body.innerText || "").slice(0, 900)
           }));
-          throw new Error("ホーム経由で記録ハブへ戻れません: " + JSON.stringify(state) + " / " + String(error));
+          throw new Error("記録ハブのリザルト入口が見つかりません: " + JSON.stringify(state) + " / " + String(error));
         }
         await click(resultsEntry);
-        const toolbar = page.locator(".ledger-results-toolbar").first();
+        toolbar = page.locator(".ledger-results-toolbar").first();
         await toolbar.waitFor({state:"visible",timeout:8000});
         return toolbar;
       };
