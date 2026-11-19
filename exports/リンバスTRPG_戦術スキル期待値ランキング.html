@@ -245,7 +245,7 @@ function kindMods(text,skillType,dice=[]){
    if((/対象の(?:スキル|ダイス)?\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||/マッチ(?:の)?\s*$/.test(before))continue;
    const context=(before+m[0]+after).trim();
    const perUnit=/ごとに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ごとに|\d+につき/.test(context);
-   const cap=p.kind==="signed"||p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[4]||0):0;
+   const cap=p.kind==="signed"||p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[3]||0):0;
    let value=null,unresolved=false;
    if(p.kind==="signed"){
     const raw=Number(String(m[2]||"0").replace(/\s/g,""));
