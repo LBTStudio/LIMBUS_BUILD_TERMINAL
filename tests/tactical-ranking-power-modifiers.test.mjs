@@ -234,7 +234,7 @@ test("conditional filters change selected EV, and breakdown columns do not doubl
 
   const firstDie = tool.dieMetric(row, 0);
   assert.equal(firstDie.effect, row.dieRows[0].effect);
-  assert.equal(firstDie.conditional, 1);
+  assert.equal(firstDie.conditional, 0, "未確定の呼吸閾値はダイスEVへ加算しない");
   assert.equal(firstDie.all, firstDie.base + firstDie.passive + firstDie.effect + firstDie.conditional);
 
   element("condResource").checked = false;
