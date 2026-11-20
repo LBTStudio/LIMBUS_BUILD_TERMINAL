@@ -224,8 +224,12 @@ test("conditional filters change selected EV, and breakdown columns do not doubl
   assert.equal(tool.selectedValue(row), 18);
 
   element("includeConditional").checked = true;
-  assert.equal(tool.selectedValue(row), 20);
-  assert.equal(tool.conditionalBonus(row), 2);
+  assert.equal(tool.selectedValue(row), 18, "本人が呼吸7に届かないため条件付き威力+1は加算しない");
+  assert.equal(tool.conditionalBonus(row), 0);
+  const breathThreshold=row.effectCandidates.find(item=>item.resourceName==="呼吸");
+  assert.ok(breathThreshold,"呼吸の閾値補正は候補として残る");
+  assert.equal(breathThreshold.value,0);
+  assert.equal(breathThreshold.resourceSupply.total,2,"本人が当該スキル使用時に得る呼吸2だけを数える");
 
   const firstDie = tool.dieMetric(row, 0);
   assert.equal(firstDie.effect, row.dieRows[0].effect);
