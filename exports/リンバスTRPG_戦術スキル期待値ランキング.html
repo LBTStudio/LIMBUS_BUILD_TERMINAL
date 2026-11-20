@@ -271,6 +271,7 @@ function targetConditionDetails(context){
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に付与されている([^、。]{1,18}?)\s*\/\s*\d+/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の\s*(?:保有する|持つ)?\s*デバフの種類\s*\d+\s*(?:ごとに|につき|に付き)/g))add("targetStatus","デバフの種類");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)を全て消費/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー]{1,18}?状態)の(?:敵|対象)(?:が)?(?:いる|存在する)(?:ならば|なら|の場合|の時)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)にある([^、。\n]{1,18}?)(?:を|が)[^、。\n]{0,12}(?:消費|除去)/g))add("targetStatus",m[1]);
 
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,24}?)の合計だけ/g))add("targetStatus",m[1].trim()+"の合計");
