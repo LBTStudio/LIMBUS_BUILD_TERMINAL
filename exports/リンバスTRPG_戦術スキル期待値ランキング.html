@@ -243,7 +243,7 @@ function resourceSupplyFor(persona,skill,resource){
  for(const [label,text] of ownSources)addGrants(text,label,"passive");
  addGrants(skill?.effect,"当該スキル使用時","skill");
  if(resource==="狂信"&&affiliation.includes("N社")){
-  const selfText=String(persona?.passive_always||persona?.passives||"");
+  const selfText=[persona?.passive_effect,persona?.passive_always,persona?.passives].filter(Boolean).join("\\n");
   if(/自分を含めて/.test(selfText)&&/N社狂信者に[^。\n]{0,30}狂信1を付与/.test(selfText))
    grants.push({amount:1,source:"N社狂信者への常時付与（自分を含む）",conditional:true});
  }
