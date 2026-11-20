@@ -1577,3 +1577,51 @@ test("他スキルが勝利後に得る次Rの威力増加は次Rの別スキル
   }, "all", "effect"), 2,
   "次Rの2ダイスに威力+1を適用する");
 });
+
+test("回数依存で数値が確定しないスキル威力減少も候補として検出する", () => {
+  const { kindMods } = parseHelpers();
+  const source = "この戦闘中にd値強化を得た回数だけスキル威力減少（最大5）";
+  const result = kindMods(source, "斬撃", [{ roll: "2d8", effect: "" }]).reasons;
+  const penalty = result.find(item => item.label === "数値未確定の威力減少");
+  assert.ok(penalty, "負の補正の語尾だけで検出対象から漏らさない");
+  assert.equal(penalty.value, null, "この戦闘中に得た回数は事前に決め打ちしない");
+  assert.equal(penalty.unresolved, true);
+  assert.equal(penalty.conditional, true);
+  assert.equal(kindMods("対象のスキル威力減少", "斬撃", [{ roll: "2d8" }]).reasons.length, 0,
+    "対象側への威力減少を攻撃者自身のEVへ混ぜない");
+});
+
+test("メリアニア工房代表スピノのマッチ敗北時-15は今回EVに加算しない", () => {
+  const { tool, element } = createToolHarness();
+  element("includeConditional").checked = true;
+  const rows = Array.from(tool.records).filter(row =>
+    row.persona.name === "メリアニア工房代表 スピノ" &&
+    ["支援", "万歳突撃"].includes(row.skill.name)
+  );
+  assert.equal(rows.length, 2);
+  for (const row of rows) {
+    const penalty = row.effectCandidates.find(item =>
+      item.source === "スキル威力-15" || /スキル威力-15/.test(item.source || "")
+    );
+    assert.ok(penalty, row.skill.name + " の負の補正を検出する");
+    assert.equal(penalty.value, -15);
+    assert.equal(penalty.afterResolution, true);
+    assert.equal(penalty.conditional, true);
+    assert.equal(tool.conditionalBonus(row, "all", "effect"), 0,
+      "敗北後の威力減少を現在の攻撃EVへ含めない");
+  }
+});
+
+test("エドガー家継承者クロムの回数依存ペナルティは未確定の候補として残す", () => {
+  const { tool } = createToolHarness();
+  const row = Array.from(tool.records).find(item =>
+    item.persona.name === "エドガー家継承者 クロム" &&
+    item.skill.name === "今こそ運命の刻だ"
+  );
+  assert.ok(row);
+  const penalty = row.effectCandidates.find(item => item.label === "数値未確定の威力減少");
+  assert.ok(penalty, "動的な負の威力補正を補正内訳に表示する");
+  assert.equal(penalty.value, null);
+  assert.equal(penalty.unresolved, true);
+  assert.equal(penalty.conditional, true);
+});
