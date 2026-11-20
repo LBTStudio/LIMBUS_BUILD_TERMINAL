@@ -157,6 +157,8 @@ test("own match-power bonuses are detected while target-side and ally-side chang
   assert.equal(kindMods("対象のダイス威力が1減少", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("マッチ開始時：対象のマッチ威力-2", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("対象のマッチ威力+1", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("味方のマッチ威力+2", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("マッチ威力+2を味方に付与", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("味方全体にマッチ威力増加1を付与", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("後方の味方2名に次のRにマッチ威力増加1を付与", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("対象が味方ならマッチ威力が10増加しダメージ量が0に固定", "斬撃", dice).reasons.length, 0);
