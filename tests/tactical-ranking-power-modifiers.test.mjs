@@ -248,38 +248,67 @@ test("last-die-only conditional bonus is not spread to the other dice", () => {
   assert.ok(values.slice(0, -1).every(value => value === 0));
 });
 
-test("R社第4群トナカイチーム ケレス recovers OCR-embedded passive and reaches 29.5 max EV", () => {
+test("R社第4群の別人格を分離し、正しいサイチーム長へ条件補正を帰属する", () => {
   const { tool, element } = createToolHarness();
-  const row = Array.from(tool.records).find(item =>
-    item.persona.name === "R社第4群トナカイチーム ケレス" && item.skill.name === "大地強打"
+  const rows = Array.from(tool.records);
+  const ceres = rows.filter(item => item.persona.name === "R社第4群トナカイチーム ケレス");
+  const sais = rows.find(item =>
+    item.persona.name === "R社第4群サイチーム隊長 サンジェルマン" && item.skill.name === "大地強打"
   );
-  assert.ok(row, "Ceres final skill fixture exists");
-  assert.equal(row.base, 23.5, "40-3d10 baseline EV");
-  assert.ok(row.effectCandidates.some(item => item.label === "スキル威力" && item.value === 5 && item.conditional));
-  assert.ok(row.passCandidates.some(item => item.label === "マッチ威力" && item.value === 1 && item.conditional));
+  assert.equal(ceres.length, 5, "Ceres keeps only its five source-page skills");
+  assert.ok(!ceres.some(item => item.skill.name === "大地強打"), "the Sais-team leader's skill is not attributed to Ceres");
+  assert.ok(sais, "the sixth skill belongs to the Sais-team leader");
+  assert.equal(sais.base, 23.5, "40-3d10 baseline EV");
+  assert.ok(sais.effectCandidates.some(item => item.label === "スキル威力" && item.value === 5 && item.conditional));
+  assert.ok(sais.passCandidates.some(item => item.label === "マッチ威力" && item.value === 1 && item.conditional));
 
   element("includePassive").checked = true;
   element("includeEffect").checked = true;
   element("includeConditional").checked = true;
   element("condResource").checked = true;
   element("condTrigger").checked = true;
-  assert.equal(tool.selectedValue(row), 29.5);
+  assert.equal(tool.selectedValue(sais), 29.5);
 
-  const personas = new Set(Array.from(tool.records, item => item.persona));
-  const recovered = Array.from(personas).flatMap(persona =>
-    (persona.unique || []).filter(item => item.source === "appendix-ocr-recovery")
-  );
-  assert.equal(recovered.length, 27);
-  assert.ok(recovered.every(item => !/威力\+|威力増加|発動条件/.test(item.name)));
+  assert.match(sais.persona.passives, /我らは前しか見えぬ/);
+  assert.match(sais.persona.passives, /進め、進め、踏み砕け/);
+  assert.doesNotMatch(ceres[0].persona.passives, /我らは前しか見えぬ|進め、進め、踏み砕け/);
 
-  const unique = row.persona.unique || [];
-  assert.ok(unique.some(item => item.name === "我らは前しか見えぬ"));
-  assert.ok(unique.some(item => item.name === "進め、進め、踏み砕け"));
-  assert.ok(!(row.persona.skills.find(skill => skill.name === "過集中").dice[2].effect || "").includes("名称"));
-  const flor = Array.from(personas).find(persona => persona.name === "笑う顔たち フロル");
-  const shieldPassive = flor.unique.find(item => item.name === "俺が上で、お前が下ノム！！！");
-  assert.ok(shieldPassive);
-  assert.doesNotMatch(shieldPassive.desc, /ヴァカめ|あなたの盾の数/, "the following skill header/effect must not leak into the passive");
+  const flor = rows.find(item => item.persona.name === "笑う顔たち フロル").persona;
+  const norman = rows.find(item => item.persona.name === "南部ツヴァイ協会4課部長 ノーマン").persona;
+  assert.equal(flor.skills.length, 5);
+  assert.equal(flor.unique.length, 0, "Norman's passives are not OCR-recovered onto Flore");
+  assert.ok(!flor.skills.find(skill => skill.name === "感覚喪失").dice.some(die => /盾はお前|ノム|速度 4d2/.test(die.effect || "")));
+  assert.deepEqual(norman.skills.map(skill => skill.name), ["ヴァカめ", "自分を守るために", "牽制", "囲えノム", "逆襲ノム！！"]);
+  assert.match(norman.passives, /俺が上で、お前が下ノム/);
+  assert.ok(norman.unique.some(item => item.name === "あなたの盾"));
+});
+
+test("別冊の全プロフィールを原本ページ単位に分け、欠落カードを補完する", () => {
+  const appendix = embeddedJson("appendix-data");
+  assert.equal(appendix.length, 278);
+  assert.equal(appendix.filter(persona => persona.source_profile_verified).length, 101);
+
+  const byName = new Map(appendix.map(persona => [persona.name, persona]));
+  const cherik = byName.get("バラのスパナ工房代表 チェリク");
+  const spino = byName.get("バラのスパナ工房フィクサー スピノ");
+  const benisakura = byName.get("バラのスパナ工房フィクサー ベニサクラ");
+  assert.deepEqual(cherik.pages, [150, 151]);
+  assert.deepEqual(spino.pages, [152, 153]);
+  assert.deepEqual(benisakura.pages, [154, 155]);
+  assert.deepEqual(spino.skills.map(skill => skill.name), [
+    "残業代計算", "仕事を終えたら朝になってる", "今時間ねぇんだよ", "急ごしらえの魔改造スパナ", "超振動スパナ[遅延回路]"
+  ]);
+  assert.equal(byName.get("南部ツヴァイ協会4課部長 ノーマン").skills.length, 5);
+
+  for (const persona of appendix.filter(item => item.source_profile_verified)) {
+    assert.ok(persona.passives?.trim(), persona.name + " has source-verified passives");
+    for (const skill of persona.skills) {
+      assert.ok(skill.dice.length > 0, persona.name + "/" + skill.name + " has dice");
+      for (const die of skill.dice) {
+        assert.ok(persona.pages.includes(die.page), persona.name + "/" + skill.name + " contains a die outside its source pages");
+      }
+    }
+  }
 });
 
 test("appendix OCR passive blocks are detached from their source dice across the dataset", () => {
