@@ -344,4 +344,11 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
 
   const selfBuff = "自分にスキル威力+2";
   assert.equal(api.skillBonus({ type: "斬撃", effect: selfBuff, dice }, wCorp).bonus, 4);
+
+  const targetStatus = api.kindMods("対象の振動6ごとにスキル威力+1（最大3）", "斬撃", dice, nCorp).reasons[0];
+  assert.equal(targetStatus.excludedRecipient, false, "a target-state condition is not a buff recipient");
+  assert.equal(targetStatus.resourceScaling, true);
+  assert.equal(targetStatus.value, null);
+  const targetGrant = api.kindMods("対象にスキル威力+2を付与", "斬撃", dice, nCorp).reasons[0];
+  assert.equal(targetGrant.excludedRecipient, true, "a modifier granted to the target is not the evaluated identity's own modifier");
 });
