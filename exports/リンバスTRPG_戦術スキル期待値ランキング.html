@@ -230,7 +230,8 @@ function normalizeSkillRecord(s){
  const derivedIndex=suffixIndex??(Number.isInteger(explicitIndex)&&explicitIndex>0?explicitIndex:null);
  const derivedFrom=String(s?.derived_from||(derivedIndex!==null&&slot!==null?"スキル"+slot:""));
  const derivedCondition=String(s?.derived_condition||"");
- return {...s,slot,rank,derivedFrom,derivedIndex,derivedCondition,isDerived:derivedIndex!==null||!!derivedFrom||!!derivedCondition};
+ const isDerived=derivedIndex!==null||!!derivedFrom||!!derivedCondition;
+ return {...s,slot,rank,derivedFrom,derivedIndex,derivedCondition,isDerived,isVariant:isDerived};
 }
 function normalizeSkillSet(skills){
  const normalized=(skills||[]).map(normalizeSkillRecord);
