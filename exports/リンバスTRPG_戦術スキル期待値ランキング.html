@@ -96,6 +96,8 @@ tbody td{padding:7px}
 .conditional-filters{display:none;align-items:center;gap:7px 13px;flex-wrap:wrap;padding-top:6px;border-top:1px solid #302b22}
 .conditional-panel.active .conditional-filters{display:flex}
 .conditional-filters .check{font-size:10px;font-weight:500;white-space:normal;color:#d0c6b1}
+.conditional-filters .target-filter{display:flex;align-items:center;gap:6px}
+.target-filter input{width:230px;height:28px;padding:4px 7px;background:#11100e;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit}
 @media(max-width:900px){.conditional-filters{gap:7px 10px}.conditional-head{align-items:flex-start}}
 </style>
 </head>
@@ -130,7 +132,7 @@ tbody td{padding:7px}
   <div class="conditional-panel" id="conditionalPanel">
    <div class="conditional-head">
     <label class="check"><input type="checkbox" id="includeConditional"> 条件付き威力補正を成立想定で加算</label>
-    <span class="condition-help">成立を仮定し、明記された上限値を採用。数値未確定の式は加算しません。</span>
+    <span class="condition-help">攻撃対象の所属は専用条件として分類。所属指定の味方バフは評価対象の所属が一致するときだけ通常補正に加算し、他者への付与は加算しません。資源比例のスキル威力補正は本人の開始時・使用時の獲得量と初期弾丸数から算出。マッチ威力は資源条件・資源比例・共鳴補正を計算対象外とします。対象側の資源や不明な蓄積量は推測しません。サポートパッシブは名前を入力して明示選択してください。</span>
    </div>
    <div class="conditional-filters">
     <span class="check-group-label">条件フィルター（分類が複数なら全分類がONの補正のみ採用）：</span>
@@ -138,6 +140,11 @@ tbody td{padding:7px}
     <label class="check"><input type="checkbox" id="condResource" checked> 呼吸・充電・弾丸など</label>
     <label class="check"><input type="checkbox" id="condStats" checked> HP・SAN・速度</label>
     <label class="check"><input type="checkbox" id="condTeam" checked> 共鳴・所属・味方編成</label>
+    <label class="check"><input type="checkbox" id="condTargetStatus" checked> 対象状態・条件</label>
+    <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別</label>
+    <label class="check"><input type="checkbox" id="condTargetAffiliation" checked> 攻撃対象の所属</label>
+    <label class="check target-filter">対象条件を絞り込む <input type="search" id="targetConditionFilter" placeholder="例：機械融和生命体 / 牙狩の血鬼 / N社の釘"></label>
+    <label class="check target-filter">資源供給に使うサポートパッシブ名 <input type="search" id="resourceSupportPassiveNames" placeholder="例：釘と金槌、処断の歓喜"></label>
     <label class="check"><input type="checkbox" id="condTrigger" checked> マッチ・会心・討伐など</label>
     <label class="check"><input type="checkbox" id="condOther" checked> その他・分類不能</label>
    </div>
@@ -195,13 +202,149 @@ function slotOf(rank){
  const m=String(rank??"").match(/(?:スキル)?\s*(\d+)/);
  return m?Number(m[1]):null;
 }
-const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",trigger:"condTrigger",other:"condOther"};
+const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
+function targetConditionDetails(context){
+ const s=String(context||""),items=[];
+ for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g)){
+  const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
+ }
+ for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
+  const value=m[1].trim();if(!value)continue;
+  const affiliation=/所属|協会|組織|会社/.test(value);
+  const entity=/機械融和生命体|血鬼|血袋|種族|種別/.test(value);
+  items.push({kind:affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value});
+ }
+ return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
+}
+function resourceScalingDetails(context){
+ const s=String(context||"");
+ const re=/(?:(?:自分|自身|本人)の)?([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ]+?)\s*(\d+)\s*ごとに/g;
+ const common=/^(?:呼吸|充電|電圧|狂信|弾丸|釘|煙|棺|振動|火傷|出血|沈潜|破裂|麻痺|毒|血餐|血に染まった手)$/;
+ for(const match of s.matchAll(re)){
+  const before=s.slice(Math.max(0,match.index-18),match.index);
+  const resource=match[1];
+  const explicitSelf=/(?:自分|自身|本人)の$/.test(before);
+  if(/(?:対象|敵|相手|味方|前方|後方)の/.test(before)||/(?:対象|敵|相手|味方)/.test(resource))continue;
+  if(!explicitSelf&&!common.test(resource))continue;
+  return {resource,per:Number(match[2]),self:true};
+ }
+ return null;
+}
+function selectedResourceSupportPassives(){
+ return String($("resourceSupportPassiveNames")?.value||"").split(/[、,，]/).map(x=>x.trim()).filter(Boolean);
+}
+function resourceSupplyFor(persona,skill,resource){
+ const grants=[],selected=new Set(selectedResourceSupportPassives()),unknownSources=[],unknownSupport=[];
+ const affiliation=String(persona?.affiliation||affiliationFromName(persona?.name||""));
+ const escaped=resource.replaceAll("[","\\[").replaceAll("]","\\]");
+ const grantPattern=new RegExp("(?:("+escaped+")\\s*(\\d+)\\s*を得る|("+escaped+")を\\s*(\\d+)\\s*(?:得る|回復)|("+escaped+")\\s*(\\d+)\\s*回復)","g");
+ const addGrants=(text,label,mode,target=grants)=>{
+  const source=String(text||"");
+  for(const m of source.matchAll(grantPattern)){
+   const before=source.slice(Math.max(0,m.index-100),m.index);
+   const selfRecipient=/(?:自分|自身|本人)に/.test(before);
+   const otherRecipient=/(?:味方|対象|敵|相手|前方|後方|両隣)に/.test(before);
+   if(otherRecipient&&!selfRecipient)continue;
+   const later=/マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃時|攻撃後|守備成功時|回避成功時|被攻撃時|R終了時/.test(before);
+   const nextRound=/次のR|次R/.test(before);
+   if(mode==="priorSkill"){
+    const priorTiming=/(?:使用前|使用時|マッチ開始時|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃後|守備成功時|回避成功時|次のR|次R)/.test(before);
+    if(!priorTiming){unknownSources.push(label);continue;}
+    target.push({amount:Number(m[2]||m[4]||m[6]),source:label,mode,conditional:true});
+    continue;
+   }
+   if(nextRound||later)continue;
+   const timely=mode==="skill"?/(?:使用前|使用時|マッチ開始時)/.test(before):/(?:舞台|戦闘|R)開始時|なら|ならば|であれば|の場合/.test(before);
+   if(!timely){unknownSources.push(label);continue;}
+   const battleStart=/(?:舞台|戦闘)開始時/.test(before);
+   target.push({amount:Number(m[2]||m[4]||m[6]),source:label+(battleStart?"（初回R）":""),mode,conditional:battleStart||/なら|ならば|であれば|の場合|以上|以下|保有|共鳴/.test(before)});
+  }
+ };
+ const ownSources=[["パッシブ",persona?.passive_effect],["常時パッシブ",persona?.passive_always],["別冊パッシブ",persona?.passives],
+  ...((persona?.unique_buffs||persona?.unique||[]).map(u=>["固有パッシブ:"+String(u.name||"名称不明"),uniqueEffectText(u)]))];
+ for(const [label,text] of ownSources)addGrants(text,label,"passive");
+ addGrants(skill?.effect,"当該スキル使用時","skill");
+ const priorSkillOptions=[];
+ for(const other of persona?.skills||[]){
+  if(other===skill)continue;
+  const candidate=[];
+  addGrants(other.effect,"他スキル:"+String(other.name||other.rank||"名称不明")+" / 使用時","priorSkill",candidate);
+  (other.dice||[]).forEach((die,index)=>addGrants(die.effect,"他スキル:"+String(other.name||other.rank||"名称不明")+" / ダイス"+(index+1),"priorSkill",candidate));
+  if(candidate.length){
+   const hasRoundLimit=[other.effect,...(other.dice||[]).map(x=>x.effect||"")].join("\\n").includes("1Rに1回");
+   const amount=hasRoundLimit?Math.max(...candidate.map(x=>x.amount)):candidate.reduce((sum,x)=>sum+x.amount,0);
+   priorSkillOptions.push({amount,notes:candidate.map(x=>x.source+" +"+x.amount),conditional:true});
+  }
+ }
+ if(priorSkillOptions.length){
+  const best=priorSkillOptions.sort((a,b)=>b.amount-a.amount)[0];
+  grants.push({amount:best.amount,source:"他スキル準備（最大1スキル）",mode:"priorSkill",conditional:true});
+ }
+ if(resource==="弾丸"){
+  const bullets=Number(persona?.bullets);
+  if(Number.isFinite(bullets)&&bullets>0)grants.push({amount:bullets,source:"初期弾丸所持数",mode:"initial",conditional:false});
+ }
+ if(resource==="狂信"&&affiliation.includes("N社")){
+  const selfText=[persona?.passive_effect,persona?.passive_always,persona?.passives].filter(Boolean).join("\\n");
+  if(/自分を含めて/.test(selfText)&&/N社狂信者に[^。\\n]{0,30}狂信1を付与/.test(selfText))
+   grants.push({amount:1,source:"N社狂信者への常時付与（自分を含む）",mode:"passive",conditional:true});
+ }
+ let total=grants.reduce((sum,x)=>sum+x.amount,0),notes=grants.map(x=>x.source+" +"+x.amount);
+ let conditional=grants.some(x=>x.conditional),supportGrantCount=0;
+ const support=(typeof EMBEDDED_DB!=="undefined"&&Array.isArray(EMBEDDED_DB.support_passives))?EMBEDDED_DB.support_passives:[];
+ for(const item of support){
+  if(!selected.has(String(item.name||"")))continue;
+  const effect=String(item.effect||"");
+  if(/N社狂信者/.test(effect)&&!affiliation.includes("N社"))continue;
+  const re=new RegExp("("+escaped+")\\s*(\\d+)\\s*を得る","g");
+  let parsedGrant=false;
+  for(const m of effect.matchAll(re)){
+   const before=effect.slice(Math.max(0,m.index-100),m.index);
+   if(/次のR|次R|マッチ勝利時|マッチ敗北時|的中時|敵討伐時|攻撃後|R終了時/.test(before))continue;
+   if(!/(?:舞台|戦闘|R)開始時/.test(before)){unknownSupport.push(item.name);continue;}
+   total+=Number(m[2]);supportGrantCount++;parsedGrant=true;notes.push(item.name+" +"+m[2]+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
+  }
+  const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量(?:と[^、。\\n]{0,20})?[^、。\\n]{0,8}?(?:\\+\\s*(\\d+)|(?:が)?\\s*(\\d+)\\s*(?:増加|上昇))"));
+  if(gain){
+   const eligible=grants.filter(x=>!/スキルで獲得する/.test(effect)||x.mode==="skill"||x.mode==="priorSkill");
+   if(eligible.length){
+    const amount=Number(gain[1]||gain[2]),extra=amount*eligible.length;
+    total+=extra;notes.push(item.name+" 獲得量+"+amount+" × "+eligible.length+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
+   }
+  }else if(!parsedGrant&&new RegExp(escaped+".{0,30}(?:獲得量|倍)").test(effect)){
+   unknownSupport.push(item.name);
+  }
+ }
+ const unknown=[...new Set([...unknownSources,...unknownSupport])];
+ return {known:grants.length>0||supportGrantCount>0,total,notes,conditional,grantCount:grants.length+supportGrantCount,unknown,unresolved:unknown.length>0};
+}
+function modifierRecipient(before,after,persona){
+ const source=String(before||""),tail=String(after||"");
+ if(/(?:自分|自身|本人)(?:と|及び|、)?/.test(source))return {scope:"self",applies:true};
+ const affiliationPattern=/([A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,12}?(?:協会|工房|社|組|支部|チーム))(?:所属)?の(?:味方|キャラクター|フィクサー)(?:全体|全員|\\d+名|2名|２名)?(?:に|へ|の)/;
+ const affiliationBefore=source.slice(-60).match(new RegExp(affiliationPattern.source+"$"));
+ const affiliationAfter=tail.match(new RegExp("^(?:を|が|は)?"+affiliationPattern.source));
+ const affiliationMatch=affiliationBefore||affiliationAfter;
+ if(affiliationMatch){
+  const required=affiliationMatch[1];
+  const own=String(persona?.affiliation||"").replace(/所属/g,"");
+  return {scope:"affiliation",affiliation:required,applies:!!own&&(own.includes(required)||required.includes(own))};
+ }
+ const recipientBefore=/(?:味方(?:全体|全員|一人|2名|２名|複数名|\\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
+ const recipientAfter=/^(?:を|が|は)?(?:味方(?:全体|全員|一人|2名|２名|複数名|\\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|\\d+名|2名|２名)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
+ if(recipientBefore||recipientAfter)return {scope:"other",applies:false};
+ return {scope:"selfOrUnspecified",applies:true};
+}
 function conditionClasses(context){
  const s=String(context||""),tags=[];
- if(/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|挑発|守る剣|貫く剣|ヒステリー|血鬼|血袋|仕返し対象|指令対象|特殊振動|眩惑|毒/.test(s))tags.push("status");
- if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|保有|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴/.test(s))tags.push("resource");
+ if(/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|挑発|守る剣|貫く剣|ヒステリー|仕返し対象|指令対象|特殊振動|眩惑|毒/.test(s))tags.push("status");
+ if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴|狂信/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
- if(/共鳴|所属|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(s))tags.push("team");
+ const targetConditions=targetConditionDetails(s);
+ if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(s)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
+ if(targetConditions.some(x=>x.kind==="targetStatus"))tags.push("targetStatus");
+ if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
+ if(targetConditions.some(x=>x.kind==="targetAffiliation"))tags.push("targetAffiliation");
  if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時|使用時|戦闘開始時|R開始時|攻撃前|攻撃後|次のR|次R|的中時|相殺時|守備成功時|回避成功時/.test(s))tags.push("trigger");
  return tags.length?tags:["other"];
 }
@@ -214,7 +357,7 @@ function targetsForModifier(scope,count,dice,targetType,skillType){
  }
  return Array.from({length:count},(_,i)=>i);
 }
-function kindMods(text,skillType,dice=[]){
+function kindMods(text,skillType,dice=[],persona=null,skill=null){
  const src=String(text||"").replace(/[＋]/g,"+").replace(/[－−]/g,"-").replace(/\r\n?/g,"\n").split("\n").map(line=>line.replace(/[ \t\u3000]+/g,"")).join("\n");
  const reasons=[],occupied=[];
  const applies=prefix=>!prefix||(prefix==="攻撃"?!/防御|回避/.test(skillType):String(skillType||"").includes(prefix));
@@ -269,6 +412,9 @@ function kindMods(text,skillType,dice=[]){
    const context=(before+after).trim();
    const priorContext=before;
    const perUnit=/(?:ご\s*とに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ご\s*とに|\d+につき)/.test(priorContext);
+   const resourceScaling=resourceScalingDetails(context);
+   // Match power does not use resource conditions/scaling or resonance; those remain separate from skill-power modifiers.
+   if(p.matchPower&&(/共鳴|呼吸|充電|電圧|弾丸|残弾|煙|血餐|血染|棺|探求した知識|懺悔|刺青|自我の欠片|血闘|高揚|時間貸与|酔い|点穴|狂信/.test(context)))continue;
    const rangeValue=p.range?Number(m[3]||0):0;
    const explicitMax=p.range?Number(m[4]||0):Number(m[3]||0);
    const cap=p.kind==="signed"?(explicitMax||rangeValue):p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[3]||0):0;
@@ -276,7 +422,7 @@ function kindMods(text,skillType,dice=[]){
    if(p.kind==="signed"){
     const raw=Number(String(m[2]||"0").replace(/\s/g,""));
     value=explicitMax>0?(raw>=0?Math.max(raw,explicitMax):raw):rangeValue>0?Math.max(raw,rangeValue):raw;
-    if(perUnit&&!cap){value=null;unresolved=true;}
+    if(perUnit){value=null;unresolved=true;}
    }else if(p.kind==="change"){
     value=Number(m[2]||0)*(m[3]==="減少"?-1:1);
    }else if(p.kind==="postfix"){
@@ -288,11 +434,24 @@ function kindMods(text,skillType,dice=[]){
    }else{
     unresolved=true;
    }
+   let resourceSupply=null;
+   if(perUnit&&resourceScaling?.self&&persona){
+    resourceSupply=resourceSupplyFor(persona,skill,resourceScaling.resource);
+    if(resourceSupply.known&&!resourceSupply.unresolved){
+     const attainable=Math.floor(resourceSupply.total/resourceScaling.per);
+     const raw=Number(String(m[2]||"0").replace(/\s/g,""));
+     value=(raw<0?-1:1)*Math.min(cap>0?cap:Infinity,attainable*Math.abs(raw));
+     unresolved=false;
+    }else{value=null;unresolved=true;}
+   }else if(perUnit){value=null;unresolved=true;}
    const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
-   const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||/なら|ならば|であれば|の場合|ご\s*とに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
+   const targetConditions=targetConditionDetails(context);
+   const recipient=modifierRecipient(before,after,persona);
+   const excludedRecipient=!recipient.applies;
+   const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||targetConditions.length>0||/なら|ならば|であれば|あれば|の場合|ご\s*とに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
    const targetType=p.targetGroup?m[p.targetGroup]:null;
    const targets=targetsForModifier(p.scope,dice.length,dice,targetType,skillType);
-   reasons.push({label:p.label,value,scope:p.scope,targets,conditional,conditionCategories:conditionClasses(context),unresolved,source:m[0],context});
+   reasons.push({label:p.label,value,scope:p.scope,targets,conditional:conditional||!!resourceSupply?.conditional,conditionCategories:conditionClasses(context),targetConditions,recipientScope:recipient.scope,recipientAffiliation:recipient.affiliation||null,excludedRecipient,resourceScaling:perUnit,resourceName:resourceScaling?.resource||null,resourceSupply,unresolved,source:m[0],context});
    occupied.push([start,end]);
   }
  }
@@ -301,7 +460,10 @@ function kindMods(text,skillType,dice=[]){
 function formatModifierReason(x,origin=""){
  const amount=x.unresolved?"数値未確定":`${x.value>=0?"+":""}${x.value}`;
  const scope=x.scope==="all"?"全ダイス":x.scope==="first"?"最初のダイス":x.scope==="last"?"最終ダイス":x.scope==="matching"?"該当属性ダイス":"対象ダイス";
- return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${x.conditional?(x.unresolved?"（条件式・数値未確定）":"（条件付き候補）"):""}`;
+ const target=x.targetConditions?.length?` / 対象:${x.targetConditions.map(item=>item.value).join("・")}`:"";
+ const recipient=x.excludedRecipient?"（評価対象外：他者への付与）":x.recipientScope==="affiliation"?`（${x.recipientAffiliation}所属の受け手限定）`:"";
+ const supply=x.resourceSupply?`（${x.resourceName}供給:${x.resourceSupply.total}${x.resourceSupply.notes.length?" / "+x.resourceSupply.notes.join("・"):""}${x.resourceSupply.unknown?.length?" / 未確定:"+x.resourceSupply.unknown.join("・"):""}）`:"";
+ return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${target}${recipient}${supply}${x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):""}`;
 }
 function uniqueEffectText(u){
  const text=[u.name,u.desc,u.effect].filter(Boolean).join(" ");
@@ -317,31 +479,31 @@ function passiveBonus(persona,skill){
  for(const u of (persona.unique_buffs||persona.unique||[]))chunks.push({label:`固有バフ:${u.name||"名称不明"}`,text:uniqueEffectText(u),forceConditional:true});
  const count=(skill.dice||[]).length,perDie=Array(count).fill(0),reasons=[],candidates=[],text=chunks.map(c=>`${c.label}\n${c.text}`).join("\n");
  for(const c of chunks){
-  const m=kindMods(c.text,skill.type||"",skill.dice||[]);
+  const m=kindMods(c.text,skill.type||"",skill.dice||[],persona,skill);
   for(const x0 of m.reasons){
-   const x={...x0,conditional:x0.conditional||!!c.forceConditional,origin:c.label};
+   const x={...x0,conditional:x0.conditional||!!c.forceConditional&&x0.recipientScope!=="affiliation",origin:c.label};
    candidates.push(x);
-   if(!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<count)perDie[i]+=x.value;
+   if(!x.excludedRecipient&&!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<count)perDie[i]+=x.value;
    reasons.push(formatModifierReason(x,c.label));
   }
  }
  return {bonus:perDie.reduce((a,b)=>a+b,0),perDie,reasons,candidates,text};
 }
-function skillBonus(skill){
+function skillBonus(skill,persona=null){
  const dice=skill.dice||[],perDie=Array(dice.length).fill(0),reasons=[],candidates=[];
- const whole=kindMods(skill.effect||"",skill.type||"",dice);
+ const whole=kindMods(skill.effect||"",skill.type||"",dice,persona,skill);
  for(const x of whole.reasons){
   candidates.push(x);
-  if(!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<perDie.length)perDie[i]+=x.value;
+  if(!x.excludedRecipient&&!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<perDie.length)perDie[i]+=x.value;
   reasons.push(formatModifierReason(x));
  }
  dice.forEach((d,i)=>{
-  const m=kindMods(d.effect||"",skill.type||"",dice);
+  const m=kindMods(d.effect||"",skill.type||"",dice,persona,skill);
   for(const x of m.reasons){
    const targets=x.scope==="all"?[i]:x.targets;
    const candidate={...x,targets};
    candidates.push(candidate);
-   if(!candidate.conditional&&!candidate.unresolved&&Number.isFinite(candidate.value))for(const target of targets)if(target>=0&&target<perDie.length)perDie[target]+=candidate.value;
+   if(!candidate.excludedRecipient&&!candidate.conditional&&!candidate.unresolved&&Number.isFinite(candidate.value))for(const target of targets)if(target>=0&&target<perDie.length)perDie[target]+=candidate.value;
    reasons.push(`ダイス${i+1}: ${formatModifierReason(candidate)}`);
   }
  });
@@ -355,7 +517,7 @@ function deferredSkillBonus(persona,skill){
   const fields=[["スキル効果",sourceSkill.effect||""],...(sourceSkill.dice||[]).map((d,i)=>[`ダイス${i+1}`,d.effect||""])];
   for(const [field,text] of fields){
    if(!text||!/(?:次のR|次R)/.test(text)||/(?:味方|対象).{0,12}(?:威力増加|威力\+)/.test(text))continue;
-   const parsed=kindMods(text,skill.type||"",dice);
+   const parsed=kindMods(text,skill.type||"",dice,persona);
    for(const x of parsed.reasons){
     if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(x.context||""))continue;
     const candidate={...x,conditional:true,conditionCategories:["trigger"],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
@@ -367,13 +529,13 @@ function deferredSkillBonus(persona,skill){
  return {candidates,reasons};
 }
 function normalizeDbPersona(p,kind,source){
- return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||"",pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
+ return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||"",bullets:p.bullets??null,pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
 }
 function addPersona(p){
  const skillset=(p.skills||[]).filter(s=>(s.dice||[]).length);
  for(const skill of skillset){
   const dice=skill.dice||[], base=dice.reduce((a,d)=>a+(evRoll(d.roll)??0),0);
-  const pass=passiveBonus(p,skill), effect=skillBonus(skill), deferred=deferredSkillBonus(p,skill);
+  const pass=passiveBonus(p,skill), effect=skillBonus(skill,p), deferred=deferredSkillBonus(p,skill);
   effect.candidates.push(...deferred.candidates);effect.reasons.push(...deferred.reasons);
   const dieRows=dice.map((d,i)=>({roll:d.roll,base:evRoll(d.roll)??0,passive:pass.perDie[i]||0,effect:effect.perDie[i]||0}));
   const row={persona:p,skill,base,passive:pass.bonus,effect:effect.bonus,all:base+pass.bonus+effect.bonus,dieRows,searchText:[p.name,p.affiliation,skill.name,skill.type,skill.effect,skill.sin].join(" ").toLowerCase(),
@@ -424,17 +586,29 @@ function recoverAppendixEmbeddedPassives(persona){
  }
  return recovered.length;
 }
+function affiliationFromName(name){
+ const match=String(name||"").match(/[A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,14}?(?:協会|工房|組|支部|チーム|派)/);
+ return match?.[0]||"";
+}
 function addAppendix(){
  for(const p of APPENDIX){
-  const persona={...p,affiliation:"",passive_effect:"",source:"別冊",
+  const persona={...p,affiliation:p.affiliation||affiliationFromName(p.name),passive_effect:"",source:"別冊",
    unique:Array.isArray(p.unique)?p.unique.slice():[],
    skills:(p.skills||[]).map(s=>({...s,dice:(s.dice||[]).map(d=>({...d}))}))};
   recoverAppendixEmbeddedPassives(persona);
   addPersona(persona);
  }
 }
+function targetConditionMatches(item,query){
+ const value=String(item.value||"").toLocaleLowerCase("ja");
+ if(value.includes(query))return true;
+ const aliases=/血鬼|血袋/.test(value)?["牙狩の血鬼","血鬼","血袋"]:[];
+ return aliases.some(alias=>alias.toLocaleLowerCase("ja").includes(query)||query.includes(alias.toLocaleLowerCase("ja")));
+}
 function conditionModifierEnabled(x,requireMaster=true){
- return (!requireMaster||!!$("includeConditional")?.checked)&&!x.unresolved&&Number.isFinite(x.value)&&
+ const targetFilter=String($("targetConditionFilter")?.value||"").trim().toLocaleLowerCase("ja");
+ const targetMatches=!targetFilter||(x.targetConditions||[]).some(item=>targetConditionMatches(item,targetFilter));
+ return (!requireMaster||!!$("includeConditional")?.checked)&&!x.excludedRecipient&&!x.unresolved&&Number.isFinite(x.value)&&targetMatches&&
   (x.conditionCategories||["other"]).every(k=>$(CONDITION_FILTER_IDS[k]||"condOther")?.checked);
 }
 function conditionalPerDie(r,index,mode="selected",source="both"){
@@ -497,7 +671,7 @@ function updateSortHeaders(){
  });
 }
 function filterKey(){
- return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
+ return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","condTargetAffiliation","targetConditionFilter","resourceSupportPassiveNames","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
@@ -533,10 +707,10 @@ function render(){
  $("rows").innerHTML=pageRows.map((r,i)=>{
   const p=r.persona,s=r.skill,source=p.source==="別冊"?`別冊 p.${(s.dice||[]).map(d=>d.page).filter(Boolean)[0]||p.pages?.[0]||"?"}`:`${p.source==="基本"?"基本":"パック"} No.${p.raw?.no??"—"}`;
   const notes=[...r.passReasons.map(x=>"固有/パッシブ: "+x),...r.effectReasons.map(x=>"スキル効果: "+x)];
-  const detail=[p.passive_name?`${p.passive_name} [${p.passive_cond||"条件不明"}]\n${r.passText}`:r.passText,s.effect,...(s.dice||[]).map((d,j)=>`${d.roll}: ${d.effect||""}`)].filter(Boolean).join("\n\n");
+  const detail=notes.length?notes.join("\n"):"数値化できる明示的な威力補正なし";
   const slot=s.slot===null?"枠?":`戦術${s.slot}`;
   const metric=individualMode?dieMetric(r,r.rankDieIndex):{base:r.base,passive:r.passive,effect:r.effect,conditional:conditionalBonus(r,"all"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"all"),selected:selectedValue(r)};
-  return `<tr><td class="num">${(currentPage-1)*PAGE_SIZE+i+1}</td><td><span class="persona">${esc(p.name)}</span><span class="sub">${esc(p.kind)} · ${esc(p.affiliation||"")}<br>${esc(source)}</span></td><td><span class="pill">${esc(slot)}</span><span class="sub">${esc(s.type||"")}</span></td><td>${esc(s.name||s.rank||"名称不明")}${individualMode?` <span class="pill">D${r.rankDieIndex+1} 個別</span>`:""}<span class="sub">${esc(s.sin||"")}</span>${detail?`<details><summary>効果・補正根拠</summary><p>${esc(detail)}${notes.length?"\n\n抽出された補正:\n"+esc(notes.join("\n")):"\n\n数値化できる明示的な威力補正なし"}</p></details>`:""}</td><td>${individualMode?`<strong>D${r.rankDieIndex+1}: ${esc(r.rankDie.roll)}</strong>`:esc(r.diceText)}</td><td class="num base">${metric.base.toFixed(2)}</td><td class="num pass">${(metric.base+metric.passive).toFixed(2)}<span class="sub">+${metric.passive.toFixed(2)}</span></td><td class="num effect">${(metric.base+metric.effect).toFixed(2)}<span class="sub">+${metric.effect.toFixed(2)}</span></td><td class="num condition">${metric.conditional>=0?"+":""}${metric.conditional.toFixed(2)}<span class="sub">候補 ${metric.candidate>=0?"+":""}${metric.candidate.toFixed(2)}</span></td><td class="num">${metric.all.toFixed(2)}</td><td class="diceev">${individualMode?`<span class="sub">D${r.rankDieIndex+1} ${esc(r.rankDie.roll)}</span> <b>${metric.selected.toFixed(2)}</b>`:r.dieRows.map((d,j)=>`<span class="sub">D${j+1} ${esc(d.roll)}</span> <b>${(d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(r,j)).toFixed(2)}</b>`).join("<br>")}</td><td class="num selected">${valueForRow(r).toFixed(2)}</td></tr>`;
+  return `<tr><td class="num">${(currentPage-1)*PAGE_SIZE+i+1}</td><td><span class="persona">${esc(p.name)}</span><span class="sub">${esc(p.kind)} · ${esc(p.affiliation||"")}<br>${esc(source)}</span></td><td><span class="pill">${esc(slot)}</span><span class="sub">${esc(s.type||"")}</span></td><td>${esc(s.name||s.rank||"名称不明")}${individualMode?` <span class="pill">D${r.rankDieIndex+1} 個別</span>`:""}<span class="sub">${esc(s.sin||"")}</span>${detail?`<details><summary>補正内訳</summary><p>${esc(detail)}</p></details>`:""}</td><td>${individualMode?`<strong>D${r.rankDieIndex+1}: ${esc(r.rankDie.roll)}</strong>`:esc(r.diceText)}</td><td class="num base">${metric.base.toFixed(2)}</td><td class="num pass">${(metric.base+metric.passive).toFixed(2)}<span class="sub">+${metric.passive.toFixed(2)}</span></td><td class="num effect">${(metric.base+metric.effect).toFixed(2)}<span class="sub">+${metric.effect.toFixed(2)}</span></td><td class="num condition">${metric.conditional>=0?"+":""}${metric.conditional.toFixed(2)}<span class="sub">候補 ${metric.candidate>=0?"+":""}${metric.candidate.toFixed(2)}</span></td><td class="num">${metric.all.toFixed(2)}</td><td class="diceev">${individualMode?`<span class="sub">D${r.rankDieIndex+1} ${esc(r.rankDie.roll)}</span> <b>${metric.selected.toFixed(2)}</b>`:r.dieRows.map((d,j)=>`<span class="sub">D${j+1} ${esc(d.roll)}</span> <b>${(d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(r,j)).toFixed(2)}</b>`).join("<br>")}</td><td class="num selected">${valueForRow(r).toFixed(2)}</td></tr>`;
  }).join("");
  $("pageInfo").textContent=`${currentPage} / ${pageCount} ページ · 全${n}件（1ページ${PAGE_SIZE}件）`;$("prevPage").disabled=currentPage<=1;$("nextPage").disabled=currentPage>=pageCount;
 }
@@ -552,7 +726,7 @@ function exportCsv(){
  const csv="\ufeff"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="limbus-tactical-skill-ev.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTrigger","condOther"].forEach(id=>$(id).addEventListener("input",()=>{currentPage=1;resultCache=null;if(id==="sort")customSortColumn="";render();}));
+["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","condTargetAffiliation","targetConditionFilter","resourceSupportPassiveNames","condTrigger","condOther"].forEach(id=>$(id).addEventListener("input",()=>{currentPage=1;resultCache=null;if(id==="sort")customSortColumn="";render();}));
 document.querySelectorAll("thead th[data-sort] .sort-head").forEach(button=>button.addEventListener("click",()=>{const key=button.closest("th").dataset.sort;if(customSortColumn===key)customSortDirection=customSortDirection==="desc"?"asc":"desc";else{customSortColumn=key;customSortDirection=key==="rank"?"asc":(["persona","tactic","skill","dice"].includes(key)?"asc":"desc");}currentPage=1;resultCache=null;render();}));
 $("prevPage").addEventListener("click",()=>{currentPage=Math.max(1,currentPage-1);render();});$("nextPage").addEventListener("click",()=>{currentPage++;render();});
 $("export").addEventListener("click",exportCsv);

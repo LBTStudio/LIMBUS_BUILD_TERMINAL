@@ -48,6 +48,9 @@ function createToolHarness() {
     condResource: { type: "checkbox", checked: true },
     condStats: { type: "checkbox", checked: true },
     condTeam: { type: "checkbox", checked: true },
+    condTargetStatus: { type: "checkbox", checked: true },
+    condTargetType: { type: "checkbox", checked: true },
+    targetConditionFilter: { type: "search", value: "" },
     condTrigger: { type: "checkbox", checked: true },
     condOther: { type: "checkbox", checked: true }
   };
@@ -165,7 +168,8 @@ test("own match-power bonuses are detected while target-side and ally-side chang
   assert.equal(kindMods("マッチ威力+2", "斬撃", dice).reasons.length, 0, "ownerless match power is ambiguous and must not be added");
   assert.equal(kindMods("マッチ進行時にマッチ威力+1", "斬撃", dice).reasons.length, 1);
   const duel = kindMods("決闘宣布を付与したキャラクターが付与されたキャラクターとマッチ進行時にマッチ威力+1、マッチ回数2ごとにマッチ威力+1（最大3）", "斬撃", dice).reasons;
-  assert.deepEqual(Array.from(duel, item => item.value), [1, 3]);
+  assert.deepEqual(Array.from(duel, item => item.value), [1, null], "the per-match cap is not an actual match-count measurement");
+  assert.equal(duel[1].unresolved, true);
 
   const own = kindMods("自分のマッチ威力+1", "斬撃", dice).reasons[0];
   assert.equal(own.value, 1);
@@ -177,11 +181,10 @@ test("own match-power bonuses are detected while target-side and ally-side chang
   assert.equal(conditional.conditional, true);
 
   const dynamic = kindMods("対象の振動6ごとにマッチ威力増加（最大3）", "斬撃", dice).reasons[0];
-  assert.equal(dynamic.value, 3);
+  assert.equal(dynamic.value, null, "the target vibration count is not known from the skill text");
   assert.equal(dynamic.conditional, true);
-  assert.equal(dynamic.unresolved, false);
-  const numericIncrease = kindMods("自分の充電が10以上ならマッチ威力が10増加する", "斬撃", dice).reasons[0];
-  assert.equal(numericIncrease.value, 10);
+  assert.equal(dynamic.unresolved, true);
+  assert.equal(kindMods("自分の充電が10以上ならマッチ威力が10増加する", "斬撃", dice).reasons.length, 0, "resource conditions are not evaluated for match power");
   const suffix = kindMods("数値が5ならマッチ威力増加1", "斬撃", dice).reasons[0];
   assert.equal(suffix.value, 1);
   assert.equal(suffix.conditional, true);
@@ -244,8 +247,12 @@ test("last-die-only conditional bonus is not spread to the other dice", () => {
   element("condStats").checked = true;
 
   const values = row.dieRows.map((_, index) => tool.dieMetric(row, index).conditional);
-  assert.equal(values[values.length - 1], 6);
-  assert.ok(values.slice(0, -1).every(value => value === 0));
+  assert.equal(values[values.length - 1], 0, "the max HP-loss cap is not a measured HP-loss amount");
+  assert.ok(values.every(value => value === 0));
+  const candidate = row.effectCandidates.find(item => item.resourceScaling && item.targets.includes(row.dieRows.length - 1));
+  assert.ok(candidate, "the last-die HP-loss scaling remains visible as a candidate");
+  assert.equal(candidate.value, null);
+  assert.equal(candidate.unresolved, true);
 });
 
 test("R社第4群の別人格を分離し、正しいサイチーム長へ条件補正を帰属する", () => {
@@ -260,14 +267,14 @@ test("R社第4群の別人格を分離し、正しいサイチーム長へ条件
   assert.ok(sais, "the sixth skill belongs to the Sais-team leader");
   assert.equal(sais.base, 23.5, "40-3d10 baseline EV");
   assert.ok(sais.effectCandidates.some(item => item.label === "スキル威力" && item.value === 5 && item.conditional));
-  assert.ok(sais.passCandidates.some(item => item.label === "マッチ威力" && item.value === 1 && item.conditional));
+  assert.ok(!sais.passCandidates.some(item => item.label === "マッチ威力"), "charge-conditioned match-power passive is outside match-power scope");
 
   element("includePassive").checked = true;
   element("includeEffect").checked = true;
   element("includeConditional").checked = true;
   element("condResource").checked = true;
   element("condTrigger").checked = true;
-  assert.equal(tool.selectedValue(sais), 29.5);
+  assert.equal(tool.selectedValue(sais), 28.5, "resource-conditioned match-power +1 is not added");
 
   assert.match(sais.persona.passives, /我らは前しか見えぬ/);
   assert.match(sais.persona.passives, /進め、進め、踏み砕け/);
@@ -278,7 +285,7 @@ test("R社第4群の別人格を分離し、正しいサイチーム長へ条件
   assert.equal(flor.skills.length, 5);
   assert.equal(flor.unique.length, 0, "Norman's passives are not OCR-recovered onto Flore");
   assert.ok(!flor.skills.find(skill => skill.name === "感覚喪失").dice.some(die => /盾はお前|ノム|速度 4d2/.test(die.effect || "")));
-  assert.deepEqual(norman.skills.map(skill => skill.name), ["ヴァカめ", "自分を守るために", "牽制", "囲えノム", "逆襲ノム！！"]);
+  assert.deepEqual(Array.from(norman.skills, skill => skill.name), ["ヴァカめ", "自分を守るために", "牽制", "囲えノム", "逆襲ノム！！"]);
   assert.match(norman.passives, /俺が上で、お前が下ノム/);
   assert.ok(norman.unique.some(item => item.name === "あなたの盾"));
 });
