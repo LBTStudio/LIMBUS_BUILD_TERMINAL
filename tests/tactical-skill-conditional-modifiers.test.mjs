@@ -22,21 +22,23 @@ function sourceBetween(startMarker, endMarker) {
 function loadHelpers() {
   const controls = Object.fromEntries(
     ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetStats", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "resourceSupportPassiveNames", "condTrigger", "condOther"]
-      .map((id) => [id, { checked: true, value: "" }])
+      .map((id) => [id, { type: ["targetConditionFilter", "resourceSupportPassiveNames"].includes(id) ? "search" : "checkbox", checked: true, value: "" }])
   );
   controls.includePassive.checked = false;
   controls.includeEffect.checked = false;
-  const context = { $: (id) => controls[id] ?? { checked: false }, EMBEDDED_DB: { support_passives: [] } };
+  const context = { $: (id) => controls[id] ?? { checked: false, value: "", type: "text" }, EMBEDDED_DB: { support_passives: [] }, customSortColumn: "", customSortDirection: "desc" };
   vm.createContext(context);
   vm.runInContext(sourceBetween("function slotOf", "const CONDITION_FILTER_IDS"), context);
   vm.runInContext(sourceBetween("const CONDITION_FILTER_IDS=", "function formatModifierReason"), context);
   vm.runInContext(sourceBetween("function formatModifierReason", "function passiveBonus"), context);
   vm.runInContext(sourceBetween("function passiveBonus", "function deferredSkillBonus"), context);
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
+  vm.runInContext(sourceBetween("function filterKey()", "function filteredRecords"), context);
+  vm.runInContext(sourceBetween("function deferredSkillBonus", "function normalizeDbPersona"), context);
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(sourceBetween("function normalizeDbPersona", "function addPersona"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, formatModifierReason, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, normalizeSkillRecord, normalizeSkillSet, derivedSkillMatches, slotOf, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, formatModifierReason, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, normalizeSkillRecord, normalizeSkillSet, derivedSkillMatches, slotOf, resourceSupplyFor, passiveBonus, skillBonus, deferredSkillBonus, filterKey, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -1331,32 +1333,38 @@ test("同じ戦術番号・同じランクにある別スキルを個別の分�
   assert.equal(api.derivedSkillMatches(variants[0], "base"), false);
 });
 
-test("戦術枠と派生スキル番号を分離して保持し、派生単位で絞り込む", () => {
+test("基底形態N-1と派生形態N-2以降を区別して保持し、番号別に絞り込む", () => {
   const { api } = loadHelpers();
-  const base = api.normalizeSkillRecord({ rank: "スキル1", name: "親スキル", dice: [{ roll: "2d6" }] });
-  const first = api.normalizeSkillRecord({ rank: "スキル1-1", name: "派生A", dice: [{ roll: "2d7" }] });
-  const second = api.normalizeSkillRecord({ rank: "スキル1-2", name: "派生B", derived_from: "スキル1", derived_index: 2, derived_condition: "自分の火傷が15以上", dice: [{ roll: "2d8" }] });
-  assert.equal(base.slot, 1);
+  const basePlain = api.normalizeSkillRecord({ rank: "スキル1", name: "単一形態", dice: [{ roll: "2d6" }] });
+  const base = api.normalizeSkillRecord({ rank: "スキル1-1", name: "基底形態", dice: [{ roll: "2d7" }] });
+  const second = api.normalizeSkillRecord({ rank: "スキル1-2", name: "派生形態", dice: [{ roll: "2d8" }] });
+  const third = api.normalizeSkillRecord({ rank: "スキル1-3", name: "三段目", dice: [{ roll: "2d9" }] });
+
+  assert.equal(basePlain.slot, 1);
+  assert.equal(basePlain.isDerived, false);
+  assert.equal(base.formIndex, 1);
+  assert.equal(base.slot, 1, "形態番号を戦術枠番号に混入させない");
+  assert.equal(base.derivedIndex, null, "N-1は派生コードではなく基底形態");
+  assert.equal(base.derivedFrom, "", "N-1には派生元を割り当てない");
   assert.equal(base.isDerived, false);
-  assert.equal(first.slot, 1, "派生番号を戦術枠番号に混入させない");
-  assert.equal(first.derivedIndex, 1, "メタデータがなくてもrank末尾から派生番号を復元する");
-  assert.equal(first.derivedFrom, "スキル1");
-  assert.equal(first.isDerived, true);
-  assert.equal(second.slot, 1);
+  assert.equal(base.isBaseForm, true);
+  assert.equal(second.formIndex, 2);
   assert.equal(second.derivedIndex, 2);
-  assert.equal(second.derivedFrom, "スキル1");
-  assert.equal(second.derivedCondition, "自分の火傷が15以上");
-  assert.equal(api.derivedSkillMatches(base, ""), true);
-  assert.equal(api.derivedSkillMatches(first, "base"), false);
+  assert.equal(second.derivedFrom, "スキル1", "派生元スロットはrankから復元する");
+  assert.equal(second.isDerived, true);
+  assert.equal(third.derivedIndex, 3);
+
+  assert.equal(api.derivedSkillMatches(basePlain, "base"), true);
   assert.equal(api.derivedSkillMatches(base, "base"), true);
-  assert.equal(api.derivedSkillMatches(first, "derived"), true);
+  assert.equal(api.derivedSkillMatches(base, "derived"), false);
+  assert.equal(api.derivedSkillMatches(base, "index:1"), true);
+  assert.equal(api.derivedSkillMatches(second, "base"), false);
+  assert.equal(api.derivedSkillMatches(second, "derived"), true);
   assert.equal(api.derivedSkillMatches(second, "index:2"), true);
-  assert.equal(api.derivedSkillMatches(first, "index:2"), false);
-  assert.equal(api.derivedSkillMatches(second, "index:1"), false);
+  assert.equal(api.derivedSkillMatches(third, "index:3"), true);
 });
 
-
-test("基本・特異・別冊の内蔵データ全件で派生コード末尾を保持する", () => {
+test("基本・特異・別冊の全データでN-1基底形態とN-2以降の派生を正しく分類する", () => {
   const { api } = loadHelpers();
   function embedded(id) {
     const marker = '<script id="' + id + '" type="application/json">';
@@ -1370,19 +1378,33 @@ test("基本・特異・別冊の内蔵データ全件で派生コード末尾�
   const db = embedded("persona-data");
   const appendix = embedded("appendix-data");
   const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  let baseFormCount = 0;
   let derivedCount = 0;
   for (const persona of personas) {
     for (const skill of persona.skills || []) {
       const parts = String(skill.rank || "").replace(/^スキル/, "").split("-");
       if (parts.length !== 2 || !parts.every(part => part.trim() !== "" && Number.isInteger(Number(part)))) continue;
-      derivedCount++;
+      const formIndex = Number(parts[1]);
       const normalized = api.normalizeSkillRecord(skill);
       assert.equal(normalized.slot, Number(parts[0]), persona.name + " / " + skill.rank + " tactical slot");
-      assert.equal(normalized.derivedIndex, Number(parts[1]), persona.name + " / " + skill.rank + " derived suffix");
-      assert.equal(normalized.isDerived, true, persona.name + " / " + skill.rank + " derived flag");
+      assert.equal(normalized.formIndex, formIndex, persona.name + " / " + skill.rank + " form suffix");
+      if (formIndex === 1) {
+        baseFormCount++;
+        assert.equal(normalized.derivedIndex, null, persona.name + " / " + skill.rank + " is a base form");
+        assert.equal(normalized.isDerived, false, persona.name + " / " + skill.rank + " is not derived");
+        assert.equal(normalized.isBaseForm, true, persona.name + " / " + skill.rank + " base flag");
+        assert.equal(api.derivedSkillMatches(normalized, "index:1"), true);
+        assert.equal(api.derivedSkillMatches(normalized, "derived"), false);
+      } else {
+        derivedCount++;
+        assert.equal(normalized.derivedIndex, formIndex, persona.name + " / " + skill.rank + " derived suffix");
+        assert.equal(normalized.isDerived, true, persona.name + " / " + skill.rank + " derived flag");
+        assert.equal(api.derivedSkillMatches(normalized, "derived"), true);
+      }
     }
   }
-  assert.ok(derivedCount >= 140, "基本・特異・別冊の派生スキルを横断する");
+  assert.equal(baseFormCount, 73, "全人格のN-1は基底形態として数える");
+  assert.equal(derivedCount, 75, "全人格のN-2以降だけが派生形態となる");
 
   const knownSameRankVariants = new Set(["中指末姉 チェリク", "ワン家家主候補 ヒスイ", "ロボトミーE.G.O::愛と憎悪の名の下に アリラ", "第四銀工房太刀派代表 ウダ"]);
   const foundSameRankVariants = new Set();
@@ -1398,9 +1420,8 @@ test("基本・特異・別冊の内蔵データ全件で派生コード末尾�
     if ([...grouped.values()].some(group => group.length > 1)) foundSameRankVariants.add(persona.name);
   }
   for (const name of knownSameRankVariants) assert.ok(foundSameRankVariants.has(name), name + " の同一ランク別スキルを識別する");
-  assert.ok(foundSameRankVariants.size >= 4, "同一ランク別スキル群を全件検出する");
+  assert.equal(foundSameRankVariants.size, 4, "同一ランク別スキル群は実データ上4人格");
 });
-
 
 test("negative modifiers preserve direction and distinguish current skill penalties from post-resolution penalties", () => {
   const { api } = loadHelpers();
@@ -1472,4 +1493,87 @@ test("内蔵実データのマッチ敗北後スキル威力ペナルティは�
     assert.equal(candidate.item.afterResolution, true,
       candidate.persona + " / " + candidate.skill + " は敗北後の効果");
   }
+});
+
+
+test("派生元スキルの即時効果を派生先へ継承しない", () => {
+  const { api } = loadHelpers();
+  const parent = {
+    rank: "スキル2-1", name: "基底形態", type: "斬撃",
+    effect: "使用時：自分の呼吸が7以上ならスキル威力+3",
+    dice: [{ roll: "2d6", effect: "" }]
+  };
+  const child = {
+    rank: "スキル2-2", name: "派生形態", type: "斬撃",
+    derived_from: "スキル2", derived_index: 2,
+    effect: "", dice: [{ roll: "2d8", effect: "" }]
+  };
+  const persona = { name: "継承監査用人格", skills: [parent, child] };
+
+  assert.equal(api.skillBonus(parent, persona).candidates.length, 1,
+    "基底形態自身の即時条件は基底形態の候補に残る");
+  assert.equal(api.skillBonus(child, persona).candidates.length, 0,
+    "派生先自身に記載のない親スキル補正は派生先に混ざらない");
+  assert.equal(api.deferredSkillBonus(persona, child).candidates.length, 0,
+    "次ラウンド効果でない親の補正は共通補正にもならない");
+});
+
+test("対象数値フィルターを切り替えると検索キーも必ず変わる", () => {
+  const { api, controls } = loadHelpers();
+  const before = api.filterKey();
+  controls.condTargetStats.checked = false;
+  const after = api.filterKey();
+  assert.notEqual(after, before, "対象数値フィルターをキャッシュキーに含める");
+});
+
+test("複数分類を同時に持つ条件は全ての該当フィルターがONの時だけ加算する", () => {
+  const { api, controls } = loadHelpers();
+  const reason = api.kindMods(
+    "自分の呼吸が7以上かつ対象の速度が4以下ならスキル威力+2",
+    "斬撃",
+    [{ effect: "" }]
+  ).reasons[0];
+  assert.ok(reason);
+  assert.ok(reason.conditionCategories.includes("resource"));
+  assert.ok(reason.conditionCategories.includes("targetStat"));
+  const row = { dieRows: [{}], passCandidates: [], effectCandidates: [reason] };
+
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 2);
+  controls.condResource.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
+  controls.condResource.checked = true;
+  controls.condTargetStats.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
+});
+
+
+test("他スキルが勝利後に得る次Rの威力増加は次Rの別スキルへ渡し、発動元の今回EVには混ぜない", () => {
+  const { api } = loadHelpers();
+  const sourceSkill = {
+    rank: "スキル1", name: "勝利の報酬", type: "打撃",
+    effect: "マッチ勝利時：次のRに打撃威力増加1を得る",
+    dice: [{ roll: "2d6", effect: "" }]
+  };
+  const targetSkill = {
+    rank: "スキル2", name: "次Rの攻撃", type: "打撃",
+    effect: "", dice: [{ roll: "2d7", effect: "" }, { roll: "2d8", effect: "" }]
+  };
+  const persona = { name: "次R補正監査用人格", skills: [sourceSkill, targetSkill] };
+
+  const sourceCandidate = api.skillBonus(sourceSkill, persona).candidates[0];
+  assert.ok(sourceCandidate);
+  assert.equal(sourceCandidate.afterResolution, true,
+    "勝利時に得る効果は発動元スキルの今回EVには入らない");
+
+  const deferred = api.deferredSkillBonus(persona, targetSkill);
+  assert.equal(deferred.candidates.length, 1);
+  assert.equal(deferred.candidates[0].value, 1);
+  assert.equal(deferred.candidates[0].afterResolution, false,
+    "次Rを評価する別スキル側では既に利用可能な補正として扱う");
+  assert.equal(api.conditionalBonus({
+    dieRows: targetSkill.dice,
+    passCandidates: [],
+    effectCandidates: deferred.candidates
+  }, "all", "effect"), 2,
+  "次Rの2ダイスに威力+1を適用する");
 });

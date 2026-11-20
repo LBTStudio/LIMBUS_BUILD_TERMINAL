@@ -120,7 +120,7 @@ tbody td{padding:7px}
    <div class="field"><label for="source">出典</label><select id="source"><option value="">すべて</option><option value="基本">基本ルールブック</option><option value="パック">特定抽出パック</option><option value="別冊">別冊</option></select></div>
    <div class="field"><label for="kind">人格区分</label><select id="kind"><option value="">すべて</option><option value="通常人格">通常人格</option><option value="特異人格">特異人格</option><option value="別冊・同期化">別冊・同期化</option><option value="別冊・同期MAX">別冊・同期MAX</option></select></div>
    <div class="field"><label for="slot">戦術枠</label><select id="slot"><option value="">すべて</option><option value="0">戦術0</option><option value="1">戦術1</option><option value="2">戦術2</option><option value="3">戦術3</option><option value="4">戦術4</option><option value="5">追加枠5</option><option value="unknown">枠未確定</option></select></div>
-   <div class="field"><label for="derived">派生識別子</label><select id="derived"><option value="">すべて</option><option value="base">通常スキルのみ</option><option value="derived">派生・同枠別スキルのみ</option><option value="index:1">コード末尾 1</option><option value="index:2">コード末尾 2</option><option value="index:3">コード末尾 3</option><option value="unknown">コード末尾未記録</option><option value="same">同枠別スキルのみ</option><option value="same:1">同枠別スキル 1</option><option value="same:2">同枠別スキル 2</option><option value="same:3">同枠別スキル 3</option></select></div>
+   <div class="field"><label for="derived">派生識別子</label><select id="derived"><option value="">すべて</option><option value="base">非派生・基底形態のみ</option><option value="derived">派生・同枠別スキルのみ</option><option value="index:1">基底形態（コード末尾1）</option><option value="index:2">派生形態（コード末尾2）</option><option value="index:3">派生形態（コード末尾3）</option><option value="unknown">コード末尾未記録</option><option value="same">同枠別スキルのみ</option><option value="same:1">同枠別スキル 1</option><option value="same:2">同枠別スキル 2</option><option value="same:3">同枠別スキル 3</option></select></div>
    <div class="field"><label for="type">戦術区分</label><select id="type"><option value="">すべて</option><option value="counter">マッチ可能反撃</option><option value="defense">防御</option><option value="normal">通常戦術（反撃・防御以外）</option></select></div>
    <div class="field"><label for="sin">サン属性</label><select id="sin"><option value="">すべて</option><option>憤怒</option><option>色欲</option><option>暴食</option><option>怠惰</option><option>憂鬱</option><option>傲慢</option><option>嫉妬</option></select></div>
    <div class="field"><label for="sort">並び順</label><select id="sort"><option value="selected">選択中の期待値</option><option value="base">基礎期待値</option><option value="passive">固有・パッシブ込み</option><option value="effect">スキル効果込み</option><option value="both">全補正込み（合計）</option><option value="single">ダイス単体ランキング（1ダイス=1行・高い順）</option></select></div>
@@ -227,11 +227,14 @@ function normalizeSkillRecord(s){
  const slot=Number.isInteger(s?.slot)?s.slot:slotOf(rank);
  const suffixIndex=derivedIndexOf(rank);
  const explicitIndex=Number(s?.derived_index);
- const derivedIndex=suffixIndex??(Number.isInteger(explicitIndex)&&explicitIndex>0?explicitIndex:null);
- const derivedFrom=String(s?.derived_from||(derivedIndex!==null&&slot!==null?"スキル"+slot:""));
+ const formIndex=suffixIndex??(Number.isInteger(explicitIndex)&&explicitIndex>0?explicitIndex:null);
+ const derivedIndex=formIndex!==null&&formIndex>1?formIndex:null;
+ const explicitFrom=String(s?.derived_from||"");
+ const derivedFrom=explicitFrom||(derivedIndex!==null&&slot!==null?"スキル"+slot:"");
  const derivedCondition=String(s?.derived_condition||"");
- const isDerived=derivedIndex!==null||!!derivedFrom||!!derivedCondition;
- return {...s,slot,rank,derivedFrom,derivedIndex,derivedCondition,isDerived,isVariant:isDerived};
+ const isDerived=derivedIndex!==null||(!formIndex&&!!explicitFrom)||(!formIndex&&!!derivedCondition);
+ const isBaseForm=formIndex===1&&!isDerived;
+ return {...s,slot,rank,formIndex,derivedFrom,derivedIndex,derivedCondition,isDerived,isBaseForm,isVariant:isDerived||isBaseForm};
 }
 function normalizeSkillSet(skills){
  const normalized=(skills||[]).map(normalizeSkillRecord);
@@ -244,16 +247,16 @@ function normalizeSkillSet(skills){
   const indexes=new Map(signatures.map((signature,index)=>[signature,index+1]));
   for(const skill of group){const signature=JSON.stringify([skill.name,skill.type,skill.sin,skill.effect,(skill.dice||[]).map(d=>[d.roll,d.effect])]);skill.sameRankVariant=true;skill.variantIndex=indexes.get(signature);skill.variantCount=signatures.length;}
  }
- return normalized.map(skill=>({...skill,isVariant:!!skill.isDerived||!!skill.sameRankVariant}));
+ return normalized.map(skill=>({...skill,isVariant:!!skill.isDerived||!!skill.isBaseForm||!!skill.sameRankVariant}));
 }
 function derivedSkillMatches(skill,filter){
  if(!filter)return true;
- if(filter==="base")return !skill.isVariant;
- if(filter==="derived")return !!skill.isVariant;
+ if(filter==="base")return !skill.isDerived&&!skill.sameRankVariant;
+ if(filter==="derived")return !!skill.isDerived||!!skill.sameRankVariant;
  if(filter==="same")return !!skill.sameRankVariant;
  if(filter==="unknown")return !!skill.isDerived&&skill.derivedIndex===null;
  if(filter.startsWith("same:"))return !!skill.sameRankVariant&&String(skill.variantIndex)===filter.slice(5);
- if(filter.startsWith("index:"))return !!skill.isDerived&&String(skill.derivedIndex??"")===filter.slice(6);
+ if(filter.startsWith("index:"))return String(skill.formIndex??"")===filter.slice(6);
  return true;
 }
 const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetStat:"condTargetStats",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
@@ -770,8 +773,8 @@ function deferredSkillBonus(persona,skill){
    if(!text||!/(?:次のR|次R)/.test(text)||/(?:味方|対象).{0,12}(?:威力増加|威力\+)/.test(text))continue;
    const parsed=kindMods(text,skill.type||"",dice,persona);
    for(const x of parsed.reasons){
-    if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(x.context||""))continue;
-    const candidate={...x,conditional:true,conditionCategories:["trigger"],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
+    if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(String(x.source||"")+" "+String(x.context||"")))continue;
+    const candidate={...x,conditional:true,afterResolution:false,conditionCategories:["trigger"],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
     candidates.push(candidate);
     reasons.push(formatModifierReason(candidate,candidate.origin));
    }
@@ -935,7 +938,7 @@ function updateSortHeaders(){
  });
 }
 function filterKey(){
- return ["q","source","kind","slot","derived","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","condTargetAffiliation","targetConditionFilter","resourceSupportPassiveNames","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
+ return ["q","source","kind","slot","derived","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetStats","condTargetType","condTargetAffiliation","targetConditionFilter","resourceSupportPassiveNames","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
@@ -973,8 +976,8 @@ function render(){
   const notes=[...r.passReasons.map(x=>"固有/パッシブ: "+x),...r.effectReasons.map(x=>"スキル効果: "+x)];
   const detail=notes.length?notes.join("\n"):"数値化できる明示的な威力補正なし";
   const slot=s.slot===null?"枠?":`戦術${s.slot}`;
-  const derivedBadge=s.isDerived?'<span class="pill derived-pill">派生コード末尾'+esc(s.derivedIndex??"?")+'</span>':s.sameRankVariant?'<span class="pill derived-pill">同枠別'+esc(s.variantIndex)+'/'+esc(s.variantCount)+'</span>':"";
-  const derivedNote=s.isDerived?'<span class="sub">基底枠：'+esc(s.derivedFrom||"未記録")+(s.derivedCondition?' / 条件：'+esc(s.derivedCondition):"")+'</span>':s.sameRankVariant?'<span class="sub">同一ランク内の別分岐</span>':"";
+  const derivedBadge=s.isDerived?'<span class="pill derived-pill">派生コード末尾'+esc(s.derivedIndex??"?")+'</span>':s.isBaseForm?'<span class="pill derived-pill">基底形態・コード末尾1</span>':s.sameRankVariant?'<span class="pill derived-pill">同枠別'+esc(s.variantIndex)+'/'+esc(s.variantCount)+'</span>':"";
+  const derivedNote=s.isDerived?'<span class="sub">基底枠：'+esc(s.derivedFrom||"未記録")+' / 条件：'+esc(s.derivedCondition||"未記録")+'</span>':s.isBaseForm?'<span class="sub">派生元となる基底形態</span>':s.sameRankVariant?'<span class="sub">同一ランク内の別分岐</span>':"";
   const metric=individualMode?dieMetric(r,r.rankDieIndex):{base:r.base,passive:r.passive,effect:r.effect,conditional:conditionalBonus(r,"all"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"all"),selected:selectedValue(r)};
   return `<tr><td class="num">${(currentPage-1)*PAGE_SIZE+i+1}</td><td><span class="persona">${esc(p.name)}</span><span class="sub">${esc(p.kind)} · ${esc(p.affiliation||"")}<br>${esc(source)}</span></td><td><span class="pill">${esc(slot)}</span>${derivedBadge}<span class="sub">${esc(s.type||"")}</span>${derivedNote}</td><td>${esc(s.name||s.rank||"名称不明")}${individualMode?` <span class="pill">D${r.rankDieIndex+1} 個別</span>`:""}<span class="sub">${esc(s.sin||"")}</span>${detail?`<details><summary>補正内訳</summary><p>${esc(detail)}</p></details>`:""}</td><td>${individualMode?`<strong>D${r.rankDieIndex+1}: ${esc(r.rankDie.roll)}</strong>`:esc(r.diceText)}</td><td class="num base">${metric.base.toFixed(2)}</td><td class="num pass">${(metric.base+metric.passive).toFixed(2)}<span class="sub">+${metric.passive.toFixed(2)}</span></td><td class="num effect">${(metric.base+metric.effect).toFixed(2)}<span class="sub">+${metric.effect.toFixed(2)}</span></td><td class="num condition">${metric.conditional>=0?"+":""}${metric.conditional.toFixed(2)}<span class="sub">候補 ${metric.candidate>=0?"+":""}${metric.candidate.toFixed(2)}</span></td><td class="num">${metric.all.toFixed(2)}</td><td class="diceev">${individualMode?`<span class="sub">D${r.rankDieIndex+1} ${esc(r.rankDie.roll)}</span> <b>${metric.selected.toFixed(2)}</b>`:r.dieRows.map((d,j)=>`<span class="sub">D${j+1} ${esc(d.roll)}</span> <b>${(d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(r,j)).toFixed(2)}</b>`).join("<br>")}</td><td class="num selected">${valueForRow(r).toFixed(2)}</td></tr>`;
  }).join("");
