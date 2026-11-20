@@ -227,7 +227,7 @@ function targetConditionDetails(context){
  for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
   const affiliation=/所属|協会|組織|会社/.test(value);
-  const entity=/機械融和生命体|血鬼|血袋|種族|種別/.test(value);
+  const entity=/機械融和生命体|血鬼|血袋|種族|種別|味方|敵|キャラクター|フィクサー/.test(value);
   items.push({kind:affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value});
  }
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
@@ -427,19 +427,24 @@ function resourceSupplyFor(persona,skill,resource){
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
- if(/(?:自分|自身|本人)(?:と|及び|、)?/.test(source))return {scope:"self",applies:true};
- const affiliationPattern=/([A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,12}?(?:協会|工房|社|組|支部|チーム))(?:所属)?の(?:味方|キャラクター|フィクサー)(?:全体|全員|\\d+名|2名|２名)?(?:に|へ|の)/;
+ if(/(?:自分|自身|本人)を含む/.test(source))return {scope:"self",applies:true};
+ const ownAffiliation=String(persona?.affiliation||"").replace(/所属/g,"");
+ if(/(?:自分と)?同じ所属の(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"affiliation",affiliation:ownAffiliation||"同じ所属",applies:!!ownAffiliation};
+ if(/(?:自分|自身|本人)(?:と|及び|、)[^、。\n]{0,24}(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"self",applies:true};
+ const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた)/.test(source);
+ const affiliationPattern=/([A-ZＡ-Ｚ]社|ラ・マンチャランド(?:第[一二三]区画)?|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|社|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?)(?:所属)?の(?:血鬼の)?(?:味方|キャラクター|フィクサー)(?:全体|全員|\d+名|2名|２名)?(?:に|へ|の)/;
  const affiliationBefore=source.slice(-60).match(new RegExp(affiliationPattern.source+"$"));
  const affiliationAfter=tail.match(new RegExp("^(?:を|が|は)?"+affiliationPattern.source));
  const affiliationMatch=affiliationBefore||affiliationAfter;
  if(affiliationMatch){
   const required=affiliationMatch[1];
   const own=String(persona?.affiliation||"").replace(/所属/g,"");
-  return {scope:"affiliation",affiliation:required,applies:!!own&&(own.includes(required)||required.includes(own))};
+  return {scope:"affiliation",affiliation:required,applies:!!own&&(own===required||own.startsWith(required))};
  }
- const recipientBefore=/(?:味方(?:全体|全員|一人|2名|２名|複数名|\\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
- const recipientAfter=/^(?:を|が|は)?(?:味方(?:全体|全員|一人|2名|２名|複数名|\\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|\\d+名|2名|２名)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
+ const recipientBefore=/(?:味方(?:全体|全員|一人|2名|２名|複数名|\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
+ const recipientAfter=/^(?:を|が|は)?(?:味方(?:全体|全員|一人|2名|２名|複数名|\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|\d+名|2名|２名)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
  if(recipientBefore||recipientAfter)return {scope:"other",applies:false};
+ if(!excludesSelf&&/(?:自分|自身|本人)(?:と|及び|、)?/.test(source))return {scope:"self",applies:true};
  return {scope:"selfOrUnspecified",applies:true};
 }
 function conditionClasses(context){
@@ -448,7 +453,8 @@ function conditionClasses(context){
  if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴|狂信/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
  const targetConditions=targetConditionDetails(s);
- if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(s)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
+ const nonTargetContext=s.replace(/(?:対象|相手|敵)が[^、。\n]{1,24}?(?:ならば|なら|であれば|の場合|の時)/g,"");
+ if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(nonTargetContext)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
  if(targetConditions.some(x=>x.kind==="targetStatus"))tags.push("targetStatus");
  if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
  if(targetConditions.some(x=>x.kind==="targetAffiliation"))tags.push("targetAffiliation");
@@ -644,7 +650,7 @@ function deferredSkillBonus(persona,skill){
  return {candidates,reasons};
 }
 function normalizeDbPersona(p,kind,source){
- return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||"",bullets:p.bullets??null,pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
+ return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||affiliationFromName(p.name),bullets:p.bullets??null,pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
 }
 function addPersona(p){
  const skillset=(p.skills||[]).filter(s=>(s.dice||[]).length);
@@ -702,7 +708,10 @@ function recoverAppendixEmbeddedPassives(persona){
  return recovered.length;
 }
 function affiliationFromName(name){
- const match=String(name||"").match(/[A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,14}?(?:協会|工房|組|支部|チーム|派)/);
+ const text=String(name||"");
+ const lamancha=text.match(/ラ・マンチャランド(?:第[一二三]区画)?/);
+ if(lamancha)return lamancha[0];
+ const match=text.match(/[A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?/);
  return match?.[0]||"";
 }
 function addAppendix(){

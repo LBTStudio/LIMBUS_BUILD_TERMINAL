@@ -33,8 +33,9 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function passiveBonus", "function deferredSkillBonus"), context);
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
+  vm.runInContext(sourceBetween("function normalizeDbPersona", "function addPersona"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, resourceScalingDetails, affiliationFromName, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, resourceScalingDetails, affiliationFromName, normalizeDbPersona, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -701,4 +702,98 @@ test("N社中鎚の狂信はHP条件と前ラウンドのスキル獲得を合�
   const supply = api.resourceSupplyFor(persona, skill, "狂信");
   assert.equal(supply.total, 6, "HP50%未満または混乱時の自己獲得3と、前ラウンドの過半数的中による次R獲得3");
   assert.equal(supply.unresolved, false);
+});
+
+
+test("自分を除外した味方への威力付与を評価対象本人の補正に混ぜない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const excludedTexts = [
+    "自分以外の味方全体にスキル威力+2を付与",
+    "自分を除く味方3名にスキル威力+2を付与",
+    "自分を除いて味方全員にスキル威力+2を付与",
+    "自分が付与したスキル威力+2を味方に付与"
+  ];
+
+  for (const text of excludedTexts) {
+    const reason = api.kindMods(text, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+    assert.ok(reason, text + " の補正記述を検出する");
+    assert.equal(reason.excludedRecipient, true, text + " は他者への付与として除外する");
+    assert.equal(api.skillBonus({ type: "斬撃", effect: text, dice }, { affiliation: "N社" }).bonus, 0, text);
+  }
+
+  const included = "自分を含む味方全体にスキル威力+2を付与";
+  const selfReason = api.kindMods(included, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+  assert.equal(selfReason.excludedRecipient, false, "自分を含むと明記された付与は本人にも適用する");
+  assert.equal(selfReason.recipientScope, "self");
+  assert.equal(api.skillBonus({ type: "斬撃", effect: included, dice }, { affiliation: "N社" }).bonus, 4);
+
+  for (const sharedRecipient of [
+    "自分と最大HPが最も高い味方1名にスキル威力+2を付与",
+    "自分とエドガー家継承者人格の味方にスキル威力+2を付与"
+  ]) {
+    const shared = api.kindMods(sharedRecipient, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+    assert.equal(shared.excludedRecipient, false, sharedRecipient + " は本人も付与対象に含む");
+    assert.equal(shared.recipientScope, "self");
+    assert.equal(api.skillBonus({ type: "斬撃", effect: sharedRecipient, dice }, { affiliation: "N社" }).bonus, 4);
+  }
+});
+
+
+test("複合所属名を正しく解決し、同所属バフだけを本人へ適用する", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+
+  const fourthAffiliation = api.affiliationFromName("第四銀工房輪刃派代表 ヨーゼフ");
+  const lamanchaAffiliation = api.affiliationFromName("ラ・マンチャランド第一区画血鬼 カグラ");
+  const musicAffiliation = api.affiliationFromName("笛吹きの音楽隊指導官 サンジェルマン");
+  assert.equal(fourthAffiliation, "第四銀工房輪刃派");
+  assert.equal(lamanchaAffiliation, "ラ・マンチャランド第一区画");
+  assert.equal(musicAffiliation, "笛吹きの音楽隊");
+  assert.equal(api.normalizeDbPersona({ name: "第四銀工房輪刃派フィクサー", skills: [] }, "通常", "基本").affiliation, fourthAffiliation,
+    "通常人格もDB側の所属欠落を名前から補完する");
+
+  const fourthBuff = "第四銀工房輪刃派の味方に斬撃威力増加1を付与";
+  const fourth = api.kindMods(fourthBuff, "斬撃", dice, { affiliation: fourthAffiliation }).reasons[0];
+  assert.equal(fourth.recipientScope, "affiliation");
+  assert.equal(fourth.excludedRecipient, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: fourthBuff, dice }, { affiliation: fourthAffiliation }).bonus, 2);
+
+  const timedFourthBuff = api.kindMods("R開始時：第四銀工房輪刃派の味方に斬撃威力増加1を付与", "斬撃", dice, { affiliation: fourthAffiliation }).reasons[0];
+  assert.equal(timedFourthBuff.recipientScope, "affiliation");
+  assert.equal(timedFourthBuff.excludedRecipient, false);
+  assert.equal(timedFourthBuff.conditional, true, "開始時の発動タイミングは候補として残す");
+
+  const lamanchaBuff = "ラ・マンチャランド所属の血鬼の味方に斬撃威力増加1を付与";
+  const lamancha = api.kindMods(lamanchaBuff, "斬撃", dice, { affiliation: lamanchaAffiliation }).reasons[0];
+  assert.equal(lamancha.recipientScope, "affiliation");
+  assert.equal(lamancha.excludedRecipient, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: lamanchaBuff, dice }, { affiliation: lamanchaAffiliation }).bonus, 2);
+
+  const districtOnly = "ラ・マンチャランド第一区画所属の血鬼の味方にスキル威力+2を付与";
+  const genericLamancha = api.kindMods(districtOnly, "斬撃", dice, { affiliation: "ラ・マンチャランド" }).reasons[0];
+  assert.equal(genericLamancha.excludedRecipient, true, "一般所属だけでは区画限定の付与対象に含めない");
+
+  const sameAffiliation = "自分と同じ所属の味方にスキル威力+2を付与";
+  const sameAffiliationReason = api.kindMods(sameAffiliation, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+  assert.equal(sameAffiliationReason.recipientScope, "affiliation");
+  assert.equal(sameAffiliationReason.excludedRecipient, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: sameAffiliation, dice }, { affiliation: "N社" }).bonus, 4);
+});
+
+
+test("対象が味方・敵である条件を対象種別へ分類し、編成条件と混同しない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }];
+  const ally = api.kindMods("対象が味方ならスキル威力+1", "斬撃", dice).reasons[0];
+  const enemy = api.kindMods("対象が敵ならスキル威力+1", "斬撃", dice).reasons[0];
+  const team = api.kindMods("味方が3人以上ならスキル威力+1", "斬撃", dice).reasons[0];
+
+  assert.equal(ally.targetConditions[0].kind, "targetType");
+  assert.ok(ally.conditionCategories.includes("targetType"));
+  assert.ok(!ally.conditionCategories.includes("team"), "対象が味方かどうかは編成人数条件ではない");
+  assert.equal(enemy.targetConditions[0].kind, "targetType");
+  assert.ok(enemy.conditionCategories.includes("targetType"));
+  assert.ok(!enemy.conditionCategories.includes("team"));
+  assert.ok(team.conditionCategories.includes("team"), "味方人数そのものを参照する条件は編成条件に残す");
 });
