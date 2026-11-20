@@ -21,7 +21,7 @@ function sourceBetween(startMarker, endMarker) {
 
 function loadHelpers() {
   const controls = Object.fromEntries(
-    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTrigger", "condOther"]
+    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTrigger", "condOther"]
       .map((id) => [id, { checked: true }])
   );
   controls.includePassive.checked = false;
@@ -32,7 +32,7 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function uniqueEffectText", "function passiveBonus"), context);
   vm.runInContext(sourceBetween("function conditionModifierEnabled", "function selectedValue"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls };
 }
@@ -51,7 +51,9 @@ test("無条件・呼吸条件・最大値付き条件を区別して数値化�
   assert.equal(conditional[0].value, 2);
   assert.equal(conditional[0].conditional, true);
   assert.deepEqual(Array.from(conditional[0].conditionCategories), ["resource"]);
-  assert.equal(capped[0].value, 2);
+  assert.equal(capped[0].value, null, "最大値は資源を実際に獲得できる量を証明しない");
+  assert.equal(capped[0].unresolved, true);
+  assert.equal(capped[0].resourceScaling, true);
   assert.equal(capped[0].conditional, true);
 });
 
@@ -155,11 +157,11 @@ test("人格名・状態・速度差を条件にしたマッチ威力補正を�
   const { api } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
   const examples = [
-    ["対象の出血4ごとにマッチ威力+1（最大3）", 3],
-    ["対象の振動の数だけマッチ威力増加（最大3）", 3],
+    ["対象の出血4ごとにマッチ威力+1（最大3）", null],
+    ["対象の振動の数だけマッチ威力増加（最大3）", null],
     ["対象の火傷が8以上ならマッチ威力+2", 2],
     ["自分の速度差2ごとにマッチ威力+1（最大3）", 3],
-    ["対象の沈潜数だけマッチ威力+1（最大2）", 2],
+    ["対象の沈潜数だけマッチ威力+1（最大2）", null],
     ["対象が5種類以上のデバフを保有するならマッチ威力+1", 1]
   ];
   for (const [source, expected] of examples) {
@@ -167,5 +169,46 @@ test("人格名・状態・速度差を条件にしたマッチ威力補正を�
     assert.equal(result.length, 1, source);
     assert.equal(result[0].value, expected, source);
     assert.equal(result[0].conditional, true, source);
+    if(expected===null)assert.equal(result[0].unresolved,true,source);
+  }
+});
+
+
+test("対象状態と対象種別・所属を分離して抽出し、個別フィルターに連動する", () => {
+  const { api, controls } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const source = "使用時：対象にN社の釘があれば、スキル威力+1。対象が機械融和生命体ならばさらにスキル威力+3";
+  const parsed = api.kindMods(source, "貫通", dice).reasons;
+  assert.equal(parsed.length, 2);
+  assert.deepEqual(Array.from(parsed[0].targetConditions, x => [x.kind, x.value]), [["targetStatus", "N社の釘"]]);
+  assert.deepEqual(Array.from(parsed[1].targetConditions, x => [x.kind, x.value]), [["targetType", "機械融和生命体"]]);
+  assert.ok(parsed[0].conditionCategories.includes("targetStatus"));
+  assert.ok(parsed[1].conditionCategories.includes("targetType"));
+  const row = { dieRows: [{}, {}], passCandidates: [], effectCandidates: parsed };
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 8);
+  controls.condTargetStatus.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 6);
+  controls.condTargetStatus.checked = true;
+  controls.condTargetType.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 2);
+});
+
+test("対象条件の種類を任意の明示名で抽出し、対象条件なしと混同しない", () => {
+  const { api } = loadHelpers();
+  const found = api.targetConditionDetails("対象が牙狩の血鬼ならばスキル威力+2");
+  assert.deepEqual(Array.from(found, x => [x.kind, x.value]), [["targetType", "牙狩の血鬼"]]);
+  assert.deepEqual(Array.from(api.targetConditionDetails("自分の呼吸が7以上ならスキル威力+2")), []);
+});
+
+test("資源の数・段階ごとに増える補正は上限値だけで実効値を確定しない", () => {
+  const { api } = loadHelpers();
+  for (const source of [
+    "自分の狂信2ごとにスキル威力+1（最大10）",
+    "呼吸5ごとにスキル威力+1（最大2）",
+    "対象のN社の釘1ごとにスキル威力+1（最大3）"
+  ]) {
+    const reason = api.kindMods(source, "斬撃", [{ effect: "" }]).reasons[0];
+    assert.equal(reason.value, null, source);
+    assert.equal(reason.unresolved, true, source);
   }
 });
