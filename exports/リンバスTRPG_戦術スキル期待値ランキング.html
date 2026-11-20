@@ -471,7 +471,7 @@ function modifierRecipient(before,after,persona,modifierText=""){
  }
  const recipientBefore=/(?:(?:ランダムな|最も[^、。\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(activeSource);
  const recipientAfter=/^(?:を|が|は)?(?:(?:ランダムな|最も[^、。\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
- const characterModifier=/(?:キャラクター(?:全体|全員|[0-9０-９]+名|[0-9０-９]+人)?の)(?:スキル|ダイス)?威力/.test(matched);
+ const characterModifier=/(?:キャラクター(?:全体|全員|[0-9０-９]+名|[0-9０-９]+人)?の)(?:スキル|ダイス)?威力/.test(activeSource+matched);
  if(recipientBefore||recipientAfter||characterModifier){
   const recipientContext=activeSource+" "+matched+" "+tail;
   if(/(?:対象|相手|敵|前方|後方|両隣)/.test(recipientContext))return {scope:"other",applies:false};
