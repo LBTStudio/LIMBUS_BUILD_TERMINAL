@@ -342,6 +342,26 @@ test("マッチ威力は資源比例補正と共鳴補正を計算対象にし�
   assert.equal(affiliationBased[0].value, 1);
 });
 
+test("メインターゲットと攻撃対象の所属条件を対象所属として分類する", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const cases = [
+    "メインターゲットがN社所属ならスキル威力+2",
+    "メインターゲットの所属がN社ならスキル威力+2",
+    "攻撃対象がN社所属ならスキル威力+2",
+    "攻撃対象の所属がN社ならスキル威力+2"
+  ];
+
+  for (const effect of cases) {
+    const reason = api.kindMods(effect, "斬撃", dice, { affiliation: "W社" }).reasons[0];
+    assert.ok(reason, effect);
+    assert.deepEqual(Array.from(reason.targetConditions, item => [item.kind, item.value]), [["targetAffiliation", effect.includes("の所属が") ? "N社" : "N社所属"]]);
+    assert.ok(reason.conditionCategories.includes("targetAffiliation"), effect);
+    assert.ok(!reason.conditionCategories.includes("team"), effect);
+    assert.equal(reason.excludedRecipient, false, effect);
+  }
+});
+
 test("攻撃対象の所属条件と、所属を受け手にするバフを別扱いにする", () => {
   const { api, controls } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
