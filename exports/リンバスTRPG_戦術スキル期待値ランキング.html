@@ -251,6 +251,7 @@ function kindMods(text,skillType,dice=[]){
    const before=src.slice(Math.max(0,start-80),start),after=src.slice(end,Math.min(src.length,end+35));
    if((/対象の(?:スキル|ダイス)?\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||(!p.matchPower&&/マッチ(?:の)?\s*$/.test(before)))continue;
    if(p.matchPower&&/(?:対象|相手|敵)の$/.test(before))continue;
+   if(p.matchPower&&!/(?:自分|自身|本人|マッチ進行時|マッチ開始時|戦闘開始時|使用時|使用前|攻撃時|攻撃前|なら|場合|ごとに|につき)/.test(before))continue;
    if(p.matchPower&&/対象が味方(?:なら|であれば)/.test(before))continue;
    const recipientMatch=p.matchPower?before.match(/(?:味方|対象|敵|キャラクター|前方|後方|両隣)[^。]{0,15}(?:に|へ)(?:次のR|次R)?に?$/):null;
    if(recipientMatch&&!/(?:時|たび|ごと)に(?:次のR|次R)?に?$/.test(recipientMatch[0]))continue;
@@ -396,7 +397,9 @@ function recoverAppendixEmbeddedPassives(persona){
     const titleOnNext=!!next&&!nextIsCondition&&!nextIsCost;
     const name=titleOnNext?next:prev;
     const descStart=titleOnNext?at+2:at+1;
-    const descEnd=n+1<markers.length?markers[n+1]:lines.length;
+    const nextMarker=n+1<markers.length?markers[n+1]:lines.length;
+    const skillHeader=lines.findIndex((line,index)=>index>=descStart&&index<nextMarker&&/(?:憤怒|色欲|暴食|怠惰|憂鬱|傲慢|嫉妬)\s*[:：]\s*(?:斬撃|貫通|打撃|銃撃|防御|回避)/.test(line));
+    const descEnd=skillHeader>=0?skillHeader:nextMarker;
     const desc=lines.slice(descStart,descEnd).filter(Boolean).join("\n").trim();
     if(!name||!desc)continue;
     recovered.push({name,desc,source:"appendix-ocr-recovery",source_skill:skill.name||"",source_die:dieIndex+1});
