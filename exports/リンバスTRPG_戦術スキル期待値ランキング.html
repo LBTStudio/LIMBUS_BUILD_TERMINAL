@@ -208,8 +208,8 @@ function targetConditionDetails(context){
  }
  for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
-  const status=/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|毒|復讐対象|仕返し対象|このRでまだ攻撃でダメージを受けていない/.test(value);
-  items.push({kind:status?"targetStatus":"targetType",value});
+  const entity=/機械融和生命体|血鬼|血袋|所属|協会|組織|会社|種族|種別/.test(value);
+  items.push({kind:entity?"targetType":"targetStatus",value});
  }
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
 }
