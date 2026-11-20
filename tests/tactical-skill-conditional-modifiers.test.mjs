@@ -1733,3 +1733,28 @@ test("親スキルが派生先を変換・使用する追加9パターンを条�
     }
   }
 });
+
+
+test("追加6件の派生形態は親スキル本文に明示された切替条件を保持する", () => {
+  const start = html.indexOf('<script id="appendix-data" type="application/json">');
+  assert.notEqual(start, -1);
+  const contentStart = start + '<script id="appendix-data" type="application/json">'.length;
+  const end = html.indexOf("</script>", contentStart);
+  assert.notEqual(end, -1);
+  const appendix = JSON.parse(html.slice(contentStart, end));
+  const expected = [["ロボトミーE.G.O::涙で研ぎ澄まされた剣 RYU","アルカナ・ティアー・アンド・ピアース","スキル4-2","自分が貫く剣状態",["アルカナ・ティアー・アンド・ピアース"]],["ロボトミーE.G.O::愛と憎悪の名の下に アリラ","悪い子は…倒さなきゃだよね？","スキル3-2","自分のSANが最大の40％以下",["悪い子は…倒さなきゃだよね？"]],["炎拳事務所生存者 ローク","虫ケラ同然の野郎共が…","スキル4-2","炎拳事務所代表 ハンクが死亡している",["虫ケラ同然の野郎共が…"]],["終止符事務所フィクサー ジェフタ","高速粉砕","スキル4-2","自分が特殊弾丸-ロジックアトリエを持っている",["高速粉砕"]],["鬼門事務所フィクサー シュウコン","「グチグチグチグチうるせぇんだよアホ！！！」（妖刀投擲）","スキル4-2","自分の呪いが4以上",["グチグチグチグチうるせぇんだよアホ！！！","妖刀投擲"]],["双鉤海賊団副船長 アリス","手を斬り落とすわ！","スキル4-2","保有弾丸数が0",["手を切り落とすわ！","手を斬り落とすわ！"]]];
+  const normalize = value => String(value || "").replace(/\\s+/g, "").replace(/[「」『』]/g, "");
+  for (const [personaName, skillName, rank, condition, aliases] of expected) {
+    const persona = appendix.find(item => item.name === personaName);
+    assert.ok(persona, personaName + " exists");
+    const skill = persona.skills.find(item => item.name === skillName && item.rank === rank);
+    assert.ok(skill, personaName + " / " + skillName + " exists");
+    assert.equal(skill.derived_condition, condition);
+    const slot = Number(rank.match(/^スキル([0-9]+)-/)[1]);
+    const parent = persona.skills.find(item => item.rank === "スキル" + slot + "-1");
+    assert.ok(parent, personaName + " / " + skillName + " parent exists");
+    const parentSources = [parent.effect || "", ...(parent.dice || []).map(die => die.effect || "")];
+    assert.ok(parentSources.some(source => aliases.some(alias => normalize(source).includes(normalize(alias)))),
+      personaName + " / " + skillName + " parent text includes the child name");
+  }
+});
