@@ -36,7 +36,7 @@ function loadHelpers() {
   vm.runInContext(`
     globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, affiliationFromName, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
-  return { api: context.api, controls };
+  return { api: context.api, controls, context };
 }
 
 test("無条件・呼吸条件・最大値付き条件を区別して数値化する", () => {
@@ -388,8 +388,7 @@ test("資源比例補正は同一人格の開始時・当該スキル使用時�
 });
 
 test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
-  const { api, controls } = loadHelpers();
-  const { context } = loadHelpers();
+  const { api, controls, context } = loadHelpers();
   context.EMBEDDED_DB.support_passives = [
     { name: "釘と金槌", cond: "憤怒x2 色欲x2 保有", effect: "狂信の獲得量とN社の釘の付与量+1" },
     { name: "処断の歓喜", cond: "色欲x6 保有", effect: "N社狂信者所属の人格のみ発動。R開始時、狂信1を得る。" }
