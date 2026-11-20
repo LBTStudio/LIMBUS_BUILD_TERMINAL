@@ -120,7 +120,7 @@ tbody td{padding:7px}
    <div class="field"><label for="source">出典</label><select id="source"><option value="">すべて</option><option value="基本">基本ルールブック</option><option value="パック">特定抽出パック</option><option value="別冊">別冊</option></select></div>
    <div class="field"><label for="kind">人格区分</label><select id="kind"><option value="">すべて</option><option value="通常人格">通常人格</option><option value="特異人格">特異人格</option><option value="別冊・同期化">別冊・同期化</option><option value="別冊・同期MAX">別冊・同期MAX</option></select></div>
    <div class="field"><label for="slot">戦術枠</label><select id="slot"><option value="">すべて</option><option value="0">戦術0</option><option value="1">戦術1</option><option value="2">戦術2</option><option value="3">戦術3</option><option value="4">戦術4</option><option value="5">追加枠5</option><option value="unknown">枠未確定</option></select></div>
-   <div class="field"><label for="derived">派生識別子</label><select id="derived"><option value="">すべて</option><option value="base">親スキルのみ</option><option value="derived">派生スキルのみ</option></select></div>
+   <div class="field"><label for="derived">派生識別子</label><select id="derived"><option value="">すべて</option><option value="base">親スキルのみ</option><option value="derived">派生スキルのみ</option><option value="index:1">コード末尾 1</option><option value="index:2">コード末尾 2</option><option value="index:3">コード末尾 3</option><option value="unknown">コード末尾未記録</option></select></div>
    <div class="field"><label for="type">戦術区分</label><select id="type"><option value="">すべて</option><option value="counter">マッチ可能反撃</option><option value="defense">防御</option><option value="normal">通常戦術（反撃・防御以外）</option></select></div>
    <div class="field"><label for="sin">サン属性</label><select id="sin"><option value="">すべて</option><option>憤怒</option><option>色欲</option><option>暴食</option><option>怠惰</option><option>憂鬱</option><option>傲慢</option><option>嫉妬</option></select></div>
    <div class="field"><label for="sort">並び順</label><select id="sort"><option value="selected">選択中の期待値</option><option value="base">基礎期待値</option><option value="passive">固有・パッシブ込み</option><option value="effect">スキル効果込み</option><option value="both">全補正込み（合計）</option><option value="single">ダイス単体ランキング（1ダイス=1行・高い順）</option></select></div>
@@ -845,12 +845,6 @@ function addAppendix(){
   addPersona(persona);
  }
 }
-function populateDerivedFilter(){
- const select=$("derived");if(!select)return;
- const values=[...new Set(records.filter(r=>r.skill.isDerived&&r.skill.derivedIndex!==null).map(r=>r.skill.derivedIndex))].sort((a,b)=>a-b);
- for(const value of values){const option=document.createElement("option");option.value="index:"+value;option.textContent="コード末尾 "+value;select.appendChild(option);}
- if(records.some(r=>r.skill.isDerived&&r.skill.derivedIndex===null)){const option=document.createElement("option");option.value="unknown";option.textContent="番号未確定の派生";select.appendChild(option);}
-}
 function targetConditionMatches(item,query){
  const value=String(item.value||"").toLocaleLowerCase("ja");
  if(value.includes(query))return true;
@@ -986,7 +980,7 @@ $("prevPage").addEventListener("click",()=>{currentPage=Math.max(1,currentPage-1
 $("export").addEventListener("click",exportCsv);
 addAppendix();
 {
- const n=loadDb(EMBEDDED_DB);populateDerivedFilter();resultCache=null;render();
+ const n=loadDb(EMBEDDED_DB);resultCache=null;render();
  $("loadStatus").textContent="内蔵データを読み込みました。外部通信は行いません。";
  $("sourceStatus").textContent=`計${new Set(records.map(r=>r.persona.name)).size}人格 / ${records.length}スキル`;
 }
