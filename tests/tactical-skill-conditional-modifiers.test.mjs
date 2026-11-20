@@ -702,3 +702,28 @@ test("N社中鎚の狂信はHP条件と前ラウンドのスキル獲得を合�
   assert.equal(supply.total, 6, "HP50%未満または混乱時の自己獲得3と、前ラウンドの過半数的中による次R獲得3");
   assert.equal(supply.unresolved, false);
 });
+
+
+test("自分を除外した味方への威力付与を評価対象本人の補正に混ぜない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const excludedTexts = [
+    "自分以外の味方全体にスキル威力+2を付与",
+    "自分を除く味方3名にスキル威力+2を付与",
+    "自分を除いて味方全員にスキル威力+2を付与",
+    "自分が付与したスキル威力+2を味方に付与"
+  ];
+
+  for (const text of excludedTexts) {
+    const reason = api.kindMods(text, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+    assert.ok(reason, text + " の補正記述を検出する");
+    assert.equal(reason.excludedRecipient, true, text + " は他者への付与として除外する");
+    assert.equal(api.skillBonus({ type: "斬撃", effect: text, dice }, { affiliation: "N社" }).bonus, 0, text);
+  }
+
+  const included = "自分を含む味方全体にスキル威力+2を付与";
+  const selfReason = api.kindMods(included, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+  assert.equal(selfReason.excludedRecipient, false, "自分を含むと明記された付与は本人にも適用する");
+  assert.equal(selfReason.recipientScope, "self");
+  assert.equal(api.skillBonus({ type: "斬撃", effect: included, dice }, { affiliation: "N社" }).bonus, 4);
+});
