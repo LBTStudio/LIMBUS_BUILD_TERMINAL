@@ -844,3 +844,48 @@ test("対象数値条件フィルターを状態条件・種別条件から独�
   controls.condTargetStatus.checked = false;
   assert.equal(api.conditionalBonus(row, "all", "effect"), 2, "対象の数値条件は状態条件フィルターから独立する");
 });
+
+
+test("R社第四群の所属バフとチーム別バフを別々に適用する", () => {
+  const { api } = loadHelpers();
+  const commander = api.normalizeDbPersona({ name: "R社第四群 司令官", skills: [] }, "通常", "基本");
+  const rabbit = api.normalizeDbPersona({ name: "R社第4群ウサギチーム シオン", skills: [] }, "通常", "基本");
+  const dice = [{ effect: "銃撃" }, { effect: "銃撃" }];
+
+  assert.equal(commander.affiliation, "R社第四群");
+  assert.equal(rabbit.affiliation, "R社第四群", "数字表記の第4群も漢数字の第四群へ正規化する");
+  assert.equal(commander.team, "第四群司令官");
+  assert.equal(rabbit.team, "ウサギチーム");
+
+  const affiliationBuff = "R社第四群所属の味方にスキル威力+2を付与";
+  const affiliationReason = api.kindMods(affiliationBuff, "斬撃", dice, rabbit).reasons[0];
+  assert.equal(affiliationReason.recipientScope, "affiliation");
+  assert.equal(affiliationReason.excludedRecipient, false);
+  const numericAffiliation = api.kindMods("R社第4群所属の味方にスキル威力+2を付与", "斬撃", dice, rabbit).reasons[0];
+  assert.equal(numericAffiliation.excludedRecipient, false, "第4群と第四群の表記差を同一所属として扱う");
+
+  const teamBuff = "ウサギチーム：銃撃ダイスのダイス威力+2";
+  const rabbitReason = api.kindMods(teamBuff, "銃撃", dice, rabbit).reasons[0];
+  const commanderReason = api.kindMods(teamBuff, "銃撃", dice, commander).reasons[0];
+  assert.equal(rabbitReason.recipientScope, "team");
+  assert.equal(rabbitReason.excludedRecipient, false);
+  assert.equal(commanderReason.recipientScope, "team");
+  assert.equal(commanderReason.excludedRecipient, true, "ウサギチーム限定の補正を司令官へ加算しない");
+});
+
+test("特殊な所属名を名前から正しく復元する", () => {
+  const { api } = loadHelpers();
+  const blackCloud = api.normalizeDbPersona({ name: "黒雲会副組長 ヨーゼフ", skills: [] }, "通常", "基本");
+  const pirate = api.normalizeDbPersona({ name: "双鉤海賊団副船長 アリス", skills: [] }, "通常", "基本");
+
+  assert.equal(blackCloud.affiliation, "黒雲会", "役職名の副組を所属名に混ぜない");
+  assert.equal(pirate.affiliation, "双鉤海賊団");
+
+  const dice = [{ effect: "" }];
+  const blackBuff = api.kindMods("黒雲会所属の味方にスキル威力+2を付与", "斬撃", dice, blackCloud).reasons[0];
+  const pirateBuff = api.kindMods("双鉤海賊団所属の味方にスキル威力+2を付与", "斬撃", dice, pirate).reasons[0];
+  assert.equal(blackBuff.recipientScope, "affiliation");
+  assert.equal(blackBuff.excludedRecipient, false);
+  assert.equal(pirateBuff.recipientScope, "affiliation");
+  assert.equal(pirateBuff.excludedRecipient, false);
+});

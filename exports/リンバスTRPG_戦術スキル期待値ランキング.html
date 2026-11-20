@@ -433,17 +433,19 @@ function resourceSupplyFor(persona,skill,resource){
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
+ const teamMatch=source.match(/(?:^|[\s、。\n])(ウサギチーム|トナカイチーム|サイチーム|第四群司令官)[：:]\s*$/);
+ if(teamMatch){const required=teamMatch[1],own=String(persona?.team||"");return {scope:"team",team:required,applies:!!own&&own===required};}
  if(/(?:自分|自身|本人)を含む/.test(source))return {scope:"self",applies:true};
  const ownAffiliation=String(persona?.affiliation||"").replace(/所属/g,"");
  if(/(?:自分と)?同じ所属の(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"affiliation",affiliation:ownAffiliation||"同じ所属",applies:!!ownAffiliation};
  if(/(?:自分|自身|本人)(?:と|及び|、)[^、。\n]{0,24}(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"self",applies:true};
  const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた)/.test(source);
- const affiliationPattern=/([A-ZＡ-Ｚ]社|ラ・マンチャランド(?:第[一二三]区画)?|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|社|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?)(?:所属)?の(?:血鬼の)?(?:味方|キャラクター|フィクサー)(?:全体|全員|\d+名|2名|２名)?(?:に|へ|の)/;
+ const affiliationPattern=/([A-ZＡ-Ｚ]社(?:第[一二三四五六七八九0-9０-９]+群)?|ラ・マンチャランド(?:第[一二三]区画)?|黒雲会|双鉤海賊団|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|社|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?)(?:所属)?の(?:血鬼の)?(?:味方|キャラクター|フィクサー)(?:全体|全員|\d+名|2名|２名)?(?:に|へ|の)/;
  const affiliationBefore=source.slice(-60).match(new RegExp(affiliationPattern.source+"$"));
  const affiliationAfter=tail.match(new RegExp("^(?:を|が|は)?"+affiliationPattern.source));
  const affiliationMatch=affiliationBefore||affiliationAfter;
  if(affiliationMatch){
-  const required=affiliationMatch[1];
+  const required=affiliationFromName(affiliationMatch[1])||affiliationMatch[1];
   const own=String(persona?.affiliation||"").replace(/所属/g,"");
   return {scope:"affiliation",affiliation:required,applies:!!own&&(own===required||own.startsWith(required))};
  }
@@ -657,7 +659,7 @@ function deferredSkillBonus(persona,skill){
  return {candidates,reasons};
 }
 function normalizeDbPersona(p,kind,source){
- return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||affiliationFromName(p.name),bullets:p.bullets??null,pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
+ return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||affiliationFromName(p.name),team:p.team||teamFromName(p.name),bullets:p.bullets??null,pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
 }
 function addPersona(p){
  const skillset=(p.skills||[]).filter(s=>(s.dice||[]).length);
@@ -716,14 +718,24 @@ function recoverAppendixEmbeddedPassives(persona){
 }
 function affiliationFromName(name){
  const text=String(name||"");
- const lamancha=text.match(/ラ・マンチャランド(?:第[一二三]区画)?/);
- if(lamancha)return lamancha[0];
+ const rCorp=text.match(/R社第([一二三四五六七八九0-9０-９]+)群/);
+ if(rCorp){
+  const digits={"1":"一","2":"二","3":"三","4":"四","5":"五","6":"六","7":"七","8":"八","9":"九","１":"一","２":"二","３":"三","４":"四","５":"五","６":"六","７":"七","８":"八","９":"九"};
+  const number=Array.from(rCorp[1]).map(x=>digits[x]||x).join("");
+  return "R社第"+number+"群";
+ }
+ const special=text.match(/ラ・マンチャランド(?:第[一二三]区画)?|黒雲会|双鉤海賊団/);
+ if(special)return special[0];
  const match=text.match(/[A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?/);
  return match?.[0]||"";
 }
+function teamFromName(name){
+ const match=String(name||"").match(/ウサギチーム|トナカイチーム|サイチーム|第四群\s*司令官/);
+ return match?.[0]?.replace(/\s/g,"")||"";
+}
 function addAppendix(){
  for(const p of APPENDIX){
-  const persona={...p,affiliation:p.affiliation||affiliationFromName(p.name),passive_effect:"",source:"別冊",
+  const persona={...p,affiliation:p.affiliation||affiliationFromName(p.name),team:p.team||teamFromName(p.name),passive_effect:"",source:"別冊",
    unique:Array.isArray(p.unique)?p.unique.slice():[],
    skills:(p.skills||[]).map(s=>({...s,dice:(s.dice||[]).map(d=>({...d}))}))};
   recoverAppendixEmbeddedPassives(persona);
