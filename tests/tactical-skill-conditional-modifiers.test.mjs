@@ -727,3 +727,32 @@ test("自分を除外した味方への威力付与を評価対象本人の補�
   assert.equal(selfReason.recipientScope, "self");
   assert.equal(api.skillBonus({ type: "斬撃", effect: included, dice }, { affiliation: "N社" }).bonus, 4);
 });
+
+
+test("複合所属名を正しく解決し、同所属バフだけを本人へ適用する", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+
+  const fourthAffiliation = api.affiliationFromName("第四銀工房輪刃派代表 ヨーゼフ");
+  const lamanchaAffiliation = api.affiliationFromName("ラ・マンチャランド第一区画血鬼 カグラ");
+  const musicAffiliation = api.affiliationFromName("笛吹きの音楽隊指導官 サンジェルマン");
+  assert.equal(fourthAffiliation, "第四銀工房輪刃派");
+  assert.equal(lamanchaAffiliation, "ラ・マンチャランド第一区画");
+  assert.equal(musicAffiliation, "笛吹きの音楽隊");
+
+  const fourthBuff = "第四銀工房輪刃派の味方にスキル威力+2を付与";
+  const fourth = api.kindMods(fourthBuff, "斬撃", dice, { affiliation: fourthAffiliation }).reasons[0];
+  assert.equal(fourth.recipientScope, "affiliation");
+  assert.equal(fourth.excludedRecipient, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: fourthBuff, dice }, { affiliation: fourthAffiliation }).bonus, 4);
+
+  const lamanchaBuff = "ラ・マンチャランド所属の血鬼の味方にスキル威力+2を付与";
+  const lamancha = api.kindMods(lamanchaBuff, "斬撃", dice, { affiliation: lamanchaAffiliation }).reasons[0];
+  assert.equal(lamancha.recipientScope, "affiliation");
+  assert.equal(lamancha.excludedRecipient, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: lamanchaBuff, dice }, { affiliation: lamanchaAffiliation }).bonus, 4);
+
+  const districtOnly = "ラ・マンチャランド第一区画所属の血鬼の味方にスキル威力+2を付与";
+  const genericLamancha = api.kindMods(districtOnly, "斬撃", dice, { affiliation: "ラ・マンチャランド" }).reasons[0];
+  assert.equal(genericLamancha.excludedRecipient, true, "一般所属だけでは区画限定の付与対象に含めない");
+});
