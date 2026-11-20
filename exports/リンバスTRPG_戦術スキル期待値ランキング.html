@@ -456,9 +456,15 @@ function addAppendix(){
   addPersona(persona);
  }
 }
+function targetConditionMatches(item,query){
+ const value=String(item.value||"").toLocaleLowerCase("ja");
+ if(value.includes(query))return true;
+ const aliases=/血鬼|血袋/.test(value)?["牙狩の血鬼","血鬼","血袋"]:[];
+ return aliases.some(alias=>alias.toLocaleLowerCase("ja").includes(query)||query.includes(alias.toLocaleLowerCase("ja")));
+}
 function conditionModifierEnabled(x,requireMaster=true){
  const targetFilter=String($("targetConditionFilter")?.value||"").trim().toLocaleLowerCase("ja");
- const targetMatches=!targetFilter||(x.targetConditions||[]).some(item=>String(item.value||"").toLocaleLowerCase("ja").includes(targetFilter));
+ const targetMatches=!targetFilter||(x.targetConditions||[]).some(item=>targetConditionMatches(item,targetFilter));
  return (!requireMaster||!!$("includeConditional")?.checked)&&!x.unresolved&&Number.isFinite(x.value)&&targetMatches&&
   (x.conditionCategories||["other"]).every(k=>$(CONDITION_FILTER_IDS[k]||"condOther")?.checked);
 }
