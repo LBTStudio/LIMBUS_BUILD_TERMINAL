@@ -756,3 +756,20 @@ test("複合所属名を正しく解決し、同所属バフだけを本人へ�
   const genericLamancha = api.kindMods(districtOnly, "斬撃", dice, { affiliation: "ラ・マンチャランド" }).reasons[0];
   assert.equal(genericLamancha.excludedRecipient, true, "一般所属だけでは区画限定の付与対象に含めない");
 });
+
+
+test("対象が味方・敵である条件を対象種別へ分類し、編成条件と混同しない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }];
+  const ally = api.kindMods("対象が味方ならスキル威力+1", "斬撃", dice).reasons[0];
+  const enemy = api.kindMods("対象が敵ならスキル威力+1", "斬撃", dice).reasons[0];
+  const team = api.kindMods("味方が3人以上ならスキル威力+1", "斬撃", dice).reasons[0];
+
+  assert.equal(ally.targetConditions[0].kind, "targetType");
+  assert.ok(ally.conditionCategories.includes("targetType"));
+  assert.ok(!ally.conditionCategories.includes("team"), "対象が味方かどうかは編成人数条件ではない");
+  assert.equal(enemy.targetConditions[0].kind, "targetType");
+  assert.ok(enemy.conditionCategories.includes("targetType"));
+  assert.ok(!enemy.conditionCategories.includes("team"));
+  assert.ok(team.conditionCategories.includes("team"), "味方人数そのものを参照する条件は編成条件に残す");
+});
