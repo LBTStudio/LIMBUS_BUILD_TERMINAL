@@ -251,14 +251,22 @@ test("対象が状態異常を保有する条件は対象種別ではなく対�
 
 test("対象状態・対象数値の段階比例条件も個別フィルターへ分類する", () => {
   const { api } = loadHelpers();
-  const status = api.targetConditionDetails("対象の火傷と振動の合計が7ごとにスキル威力+1");
+  const statusText = "使用時：対象の火傷と振動の合計が7ごとにスキル威力+1（最大2）";
+  const status = api.targetConditionDetails(statusText);
   assert.deepEqual(Array.from(status, x => [x.kind, x.value]), [["targetStatus", "火傷と振動の合計"]]);
+  const statusModifier = api.kindMods(statusText, "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(statusModifier.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(statusModifier.targetConditions, x => [x.kind, x.value]), [["targetStatus", "火傷と振動の合計"]]);
 
-  const debuffs = api.targetConditionDetails("メインターゲットのデバフの種類2ごとにスキル威力+1");
+  const debuffText = "メインターゲットのデバフの種類2ごとにスキル威力+1";
+  const debuffs = api.targetConditionDetails(debuffText);
   assert.deepEqual(Array.from(debuffs, x => [x.kind, x.value]), [["targetStatus", "デバフの種類"]]);
 
-  const speed = api.targetConditionDetails("対象との速度差2ごとにスキル威力+1");
+  const speedText = "対象との速度差2ごとにスキル威力+1";
+  const speed = api.targetConditionDetails(speedText);
   assert.deepEqual(Array.from(speed, x => [x.kind, x.value]), [["targetStat", "速度差"]]);
+  const speedModifier = api.kindMods(speedText, "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(speedModifier.conditionCategories.includes("targetStat"));
 
   const hp = api.targetConditionDetails("対象の失ったHP10ごとにダメージ量+1");
   assert.deepEqual(Array.from(hp, x => [x.kind, x.value]), [["targetStat", "失ったHP"]]);
