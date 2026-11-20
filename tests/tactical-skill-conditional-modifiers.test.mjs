@@ -336,6 +336,9 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
   assert.equal(api.skillBonus({ type: "斬撃", effect: buffText, dice }, nCorp).bonus, 4);
   assert.equal(wBuff.excludedRecipient, true);
   assert.equal(api.skillBonus({ type: "斬撃", effect: buffText, dice }, wCorp).bonus, 0);
+  const passiveRecipient = api.passiveBonus({ ...nCorp, unique: [{ name: "所属支援", desc: buffText }] }, { type: "斬撃", dice });
+  assert.equal(passiveRecipient.bonus, 4);
+  assert.equal(passiveRecipient.candidates[0].conditional, false, "matching affiliation buffs remain ordinary modifiers even in unique-buff sources");
 
   const allyBuff = "味方全体にスキル威力+2を付与";
   const excluded = api.kindMods(allyBuff, "斬撃", dice, nCorp).reasons[0];
