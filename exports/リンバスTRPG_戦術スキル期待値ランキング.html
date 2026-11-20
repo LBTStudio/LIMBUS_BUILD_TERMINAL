@@ -218,7 +218,7 @@ function targetConditionDetails(context){
 }
 function resourceScalingDetails(context){
  const s=String(context||"");
- const re=/(?:(?:自分|自身|本人)の)?([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ]+?)\\s*(\\d+)\\s*ごとに/g;
+ const re=/(?:(?:自分|自身|本人)の)?([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ]+?)\s*(\d+)\s*ごとに/g;
  const common=/^(?:呼吸|充電|電圧|狂信|弾丸|釘|煙|棺|振動|火傷|出血|沈潜|破裂|麻痺|毒|血餐|血に染まった手)$/;
  for(const match of s.matchAll(re)){
   const before=s.slice(Math.max(0,match.index-18),match.index);
@@ -236,10 +236,10 @@ function selectedResourceSupportPassives(){
 function resourceSupplyFor(persona,skill,resource){
  const grants=[],selected=new Set(selectedResourceSupportPassives());
  const affiliation=String(persona?.affiliation||affiliationFromName(persona?.name||""));
- const escaped=resource.replaceAll("[","\\\\[").replaceAll("]","\\\\]");
+ const escaped=resource.replaceAll("[","\\[").replaceAll("]","\\]");
  const addGrants=(text,label,mode)=>{
   const source=String(text||"");
-  const re=new RegExp("(?:("+escaped+")\\\\s*(\\\\d+)\\\\s*を得る|("+escaped+")を\\\\s*(\\\\d+)\\\\s*(?:得る|回復)|("+escaped+")\\\\s*(\\\\d+)\\\\s*回復)","g");
+  const re=new RegExp("(?:("+escaped+")\\s*(\\d+)\\s*を得る|("+escaped+")を\\s*(\\d+)\\s*(?:得る|回復)|("+escaped+")\\s*(\\d+)\\s*回復)","g");
   for(const m of source.matchAll(re)){
    const before=source.slice(Math.max(0,m.index-100),m.index);
    if(/次のR|次R|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|敵討伐時|攻撃後|守備成功時|回避成功時|被攻撃時/.test(before))continue;
@@ -259,8 +259,8 @@ function resourceSupplyFor(persona,skill,resource){
   if(Number.isFinite(bullets)&&bullets>0)grants.push({amount:bullets,source:"初期弾丸所持数",mode:"initial",conditional:false});
  }
  if(resource==="狂信"&&affiliation.includes("N社")){
-  const selfText=[persona?.passive_effect,persona?.passive_always,persona?.passives].filter(Boolean).join("\\n");
-  if(/自分を含めて/.test(selfText)&&/N社狂信者に[^。\\n]{0,30}狂信1を付与/.test(selfText))
+  const selfText=[persona?.passive_effect,persona?.passive_always,persona?.passives].filter(Boolean).join("\n");
+  if(/自分を含めて/.test(selfText)&&/N社狂信者に[^。\n]{0,30}狂信1を付与/.test(selfText))
    grants.push({amount:1,source:"N社狂信者への常時付与（自分を含む）",mode:"passive",conditional:true});
  }
  let total=grants.reduce((sum,x)=>sum+x.amount,0),notes=grants.map(x=>x.source+" +"+x.amount);
@@ -270,13 +270,13 @@ function resourceSupplyFor(persona,skill,resource){
   if(!selected.has(String(item.name||"")))continue;
   const effect=String(item.effect||"");
   if(/N社狂信者/.test(effect)&&!affiliation.includes("N社"))continue;
-  const re=new RegExp("("+escaped+")\\\\s*(\\\\d+)\\\\s*を得る","g");
+  const re=new RegExp("("+escaped+")\\s*(\\d+)\\s*を得る","g");
   for(const m of effect.matchAll(re)){
    const before=effect.slice(Math.max(0,m.index-100),m.index);
    if(!/(?:舞台|戦闘|R)開始時/.test(before)||/次のR|次R/.test(before))continue;
    total+=Number(m[2]);supportGrantCount++;notes.push(item.name+" +"+m[2]+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
   }
-  const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量[^。\\\\n]{0,24}?(?:が)?\\\\s*(?:\\\\+\\\\s*)?(\\\\d+)\\\\s*(?:増加|上昇)?"));
+  const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量[^。\\n]{0,24}?(?:が)?\\s*(?:\\+\\s*)?(\\d+)\\s*(?:増加|上昇)?"));
   if(gain){
    const eligible=grants.filter(x=>!/スキルで獲得する/.test(effect)||x.mode==="skill");
    if(eligible.length){
