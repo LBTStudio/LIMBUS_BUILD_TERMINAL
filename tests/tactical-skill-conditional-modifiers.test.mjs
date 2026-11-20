@@ -339,6 +339,11 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
   assert.equal(api.skillBonus({ type: "斬撃", effect: buffText, dice }, nCorp).bonus, 4);
   assert.equal(wBuff.excludedRecipient, true);
   assert.equal(api.skillBonus({ type: "斬撃", effect: buffText, dice }, wCorp).bonus, 0);
+  const reverseBuff = "スキル威力+2をN社所属の味方に付与";
+  assert.equal(api.skillBonus({ type: "斬撃", effect: reverseBuff, dice }, nCorp).bonus, 4);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: reverseBuff, dice }, wCorp).bonus, 0);
+  const genericReverseBuff = "スキル威力+2を味方に付与";
+  assert.equal(api.skillBonus({ type: "斬撃", effect: genericReverseBuff, dice }, nCorp).bonus, 0);
   const passiveRecipient = api.passiveBonus({ ...nCorp, unique: [{ name: "所属支援", desc: buffText }] }, { type: "斬撃", dice });
   assert.equal(passiveRecipient.bonus, 4);
   assert.equal(passiveRecipient.candidates[0].conditional, false, "matching affiliation buffs remain ordinary modifiers even in unique-buff sources");
