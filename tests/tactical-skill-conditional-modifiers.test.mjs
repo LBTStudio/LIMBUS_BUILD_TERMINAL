@@ -1700,3 +1700,36 @@ test("別冊の明示的な派生先29件は親スキル本文にある切替条
       personaName + " / " + skillName + " is explicitly referenced by its parent form");
   }
 });
+
+
+
+test("親スキルが派生先を変換・使用する追加9パターンを条件メタデータへ保持する", () => {
+  const embedded = (id) => {
+    const open = '<script id="' + id + '" type="application/json">';
+    const start = html.indexOf(open);
+    assert.notEqual(start, -1, "embedded JSON exists: " + id);
+    const contentStart = start + open.length;
+    const end = html.indexOf("</script>", contentStart);
+    assert.notEqual(end, -1, "embedded JSON closes: " + id);
+    return JSON.parse(html.slice(contentStart, end));
+  };
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  const expected = [["蜘蛛の巣 薬指の子方","始まった展示会","スキル0-2","作品名：ファシアがある",1],["蜘蛛の巣 薬指の子方","ファシアの食事時間よ","スキル3-2","作品名：ファシアがある",1],["蜘蛛の巣 薬指の子方","抑圧された肉体の解放","スキル4-2","作品名：ファシアがある",1],["蜘蛛の巣 薬指の親方","設置美術第3号「簡易肋骨」","スキル3-2","対象のデバフの種類が5以上（第3ダイス的中時）",1],["蜘蛛の巣 薬指の親方","閉場 - 設置美術第1号「あなた方がまき散らした肉と骨が客席となり」","スキル4-2","眺望が0（1戦闘に1回）",1],["南部リウ協会5課フィクサー アニス","剛を制す","スキル0-2","回避失敗時（反撃として使用）",2],["ワザリングハイツ・ワイルドハント エーゲ","俺と共に地獄へ落ちろ","スキル4-2","自分に魔女の狼がある",1],["黒獣-卯筆頭 ダザイ","黒獣 卯 奥義-雲解顕現","スキル4-2","天究星刀が10以上",1],["シュエ家家主候補の護衛 サンジェルマン","加斥我援","スキル4-2","味方が攻撃され、その味方のHPが50％未満（戦闘中1回）",1]];
+  for (const [personaName, skillName, rank, condition, expectedCount] of expected) {
+    const matches = personas.filter(persona => persona.name === personaName &&
+      persona.skills.some(skill => skill.name === skillName && skill.rank === rank));
+    assert.equal(matches.length, expectedCount, personaName + " / " + skillName + " profile count");
+    for (const persona of matches) {
+      const skill = persona.skills.find(item => item.name === skillName && item.rank === rank);
+      assert.equal(skill.derived_condition, condition, personaName + " / " + skillName + " condition");
+      const slot = Number(rank.match(/^スキル([0-9]+)-/)[1]);
+      const parent = persona.skills.find(item => item.rank === "スキル" + slot + "-1");
+      assert.ok(parent, personaName + " / " + skillName + " has parent form");
+      const parentSources = [parent.effect || "", ...(parent.dice || []).map(die => die.effect || "")];
+      assert.ok(parentSources.some(source => source.includes(skillName)),
+        personaName + " / " + skillName + " is explicitly invoked by the parent");
+    }
+  }
+});
