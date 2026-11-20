@@ -22,7 +22,7 @@ function sourceBetween(startMarker, endMarker) {
 function loadHelpers() {
   const controls = Object.fromEntries(
     ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTrigger", "condOther"]
-      .map((id) => [id, { checked: true }])
+      .map((id) => [id, { checked: true, value: "" }])
   );
   controls.includePassive.checked = false;
   controls.includeEffect.checked = false;
@@ -211,4 +211,18 @@ test("資源の数・段階ごとに増える補正は上限値だけで実効�
     assert.equal(reason.value, null, source);
     assert.equal(reason.unresolved, true, source);
   }
+});
+
+
+test("対象条件テキストフィルターは選択した対象だけを期待値へ反映する", () => {
+  const { api, controls } = loadHelpers();
+  const parsed = api.kindMods("対象にN社の釘があればスキル威力+1。対象が機械融和生命体ならスキル威力+3", "貫通", [{ effect: "" }]).reasons;
+  const row = { dieRows: [{}], passCandidates: [], effectCandidates: parsed };
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 4);
+  controls.targetConditionFilter.value = "機械融和生命体";
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 3);
+  controls.targetConditionFilter.value = "N社の釘";
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 1);
+  controls.targetConditionFilter.value = "牙狩の血鬼";
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
 });
