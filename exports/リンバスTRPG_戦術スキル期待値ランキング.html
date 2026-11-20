@@ -612,7 +612,7 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
    const targetConditions=targetConditionDetails(context);
    const previousClauseStart=Math.max(src.lastIndexOf("。",clauseStart-2)+1,src.lastIndexOf("\n",clauseStart-2)+1);
    const previousClause=src.slice(previousClauseStart,clauseStart);
-   const inheritedExcludedAllyGrant=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?)[^、。\n]{0,24}味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人)?(?:に|へ)[^。\n]{0,50}(?:増加|威力\\s*[+-])[^。\n]{0,24}付与/.test(previousClause)&&/(?:追加で|さらに)/.test(before)&&/(?:付与|与える)/.test(after);
+   const inheritedExcludedAllyGrant=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?)[^、。\n]{0,24}味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人)?(?:に|へ)[^。\n]{0,50}(?:増加|威力\s*[+-])[^。\n]{0,24}付与/.test(previousClause)&&/(?:追加で|さらに)/.test(before)&&/(?:付与|与える)/.test(after);
    const recipient=inheritedExcludedAllyGrant?{scope:"other",applies:false}:modifierRecipient(before,after,persona);
    const recipientUnresolved=!!recipient.unresolved;
    unresolved=unresolved||recipientUnresolved;
