@@ -1423,6 +1423,12 @@ test("negative modifiers preserve direction and distinguish current skill penalt
   assert.equal(matchLossPenalty.value, -10);
   assert.equal(matchLossPenalty.afterResolution, true);
 
+  const endOfRoundPenalty = api.kindMods("R終了時：スキル威力-2", "斬撃", dice).reasons[0];
+  assert.ok(endOfRoundPenalty);
+  assert.equal(endOfRoundPenalty.value, -2);
+  assert.equal(endOfRoundPenalty.afterResolution, true);
+  assert.equal(endOfRoundPenalty.conditional, true, "後処理タイミングの補正は無条件補正へ混入させない");
+
   const targetDebuff = api.kindMods("怠惰共鳴数/2だけ対象のスキル威力-1", "斬撃", dice).reasons;
   assert.equal(targetDebuff.length, 0, "対象側の威力低下を自分の攻撃EVへ混入させない");
 
