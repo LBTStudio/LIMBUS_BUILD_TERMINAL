@@ -429,7 +429,6 @@ function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
  if(/(?:自分|自身|本人)を含む/.test(source))return {scope:"self",applies:true};
  const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた)/.test(source);
- if(!excludesSelf&&/(?:自分|自身|本人)(?:と|及び|、)?/.test(source))return {scope:"self",applies:true};
  const affiliationPattern=/([A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,12}?(?:協会|工房|社|組|支部|チーム))(?:所属)?の(?:味方|キャラクター|フィクサー)(?:全体|全員|\d+名|2名|２名)?(?:に|へ|の)/;
  const affiliationBefore=source.slice(-60).match(new RegExp(affiliationPattern.source+"$"));
  const affiliationAfter=tail.match(new RegExp("^(?:を|が|は)?"+affiliationPattern.source));
@@ -442,6 +441,7 @@ function modifierRecipient(before,after,persona){
  const recipientBefore=/(?:味方(?:全体|全員|一人|2名|２名|複数名|\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
  const recipientAfter=/^(?:を|が|は)?(?:味方(?:全体|全員|一人|2名|２名|複数名|\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|\d+名|2名|２名)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
  if(recipientBefore||recipientAfter)return {scope:"other",applies:false};
+ if(!excludesSelf&&/(?:自分|自身|本人)(?:と|及び|、)?/.test(source))return {scope:"self",applies:true};
  return {scope:"selfOrUnspecified",applies:true};
 }
 function conditionClasses(context){
