@@ -818,6 +818,31 @@ test("複合所属名を正しく解決し、同所属バフだけを本人へ�
   const genericLamancha = api.kindMods(districtOnly, "斬撃", dice, { affiliation: "ラ・マンチャランド" }).reasons[0];
   assert.equal(genericLamancha.excludedRecipient, true, "一般所属だけでは区画限定の付与対象に含めない");
 
+  const wrappedAffiliationBuff = "舞台開始時、最初のRの終止符事務所所属の味方のス\nキル威力+1";
+  const endMarker = { affiliation: "終止符事務所" };
+  const wrappedReason = api.kindMods(wrappedAffiliationBuff, "斬撃", dice, endMarker).reasons[0];
+  assert.ok(wrappedReason);
+  assert.equal(wrappedReason.source, "スキル威力+1");
+  assert.equal(wrappedReason.recipientScope, "affiliation");
+  assert.equal(wrappedReason.recipientAffiliation, "終止符事務所");
+  assert.equal(wrappedReason.excludedRecipient, false);
+  const wrongAffiliation = { affiliation: "N社" };
+  const wrongReason = api.kindMods(wrappedAffiliationBuff, "斬撃", dice, wrongAffiliation).reasons[0];
+  assert.equal(wrongReason.excludedRecipient, true, "wrapped affiliation restrictions must not leak to unrelated Personas");
+  assert.equal(api.skillBonus({ type: "斬撃", effect: wrappedAffiliationBuff, dice }, wrongAffiliation).bonus, 0);
+  assert.equal(api.passiveBonus({ ...endMarker, passives: wrappedAffiliationBuff }, { type: "斬撃", dice }).bonus, 2);
+  assert.equal(api.passiveBonus({ ...wrongAffiliation, passives: wrappedAffiliationBuff }, { type: "斬撃", dice }).bonus, 0);
+
+  for (const [wrapped, expected] of [
+    ["使用時：マッ\nチ威力+1", "マッチ威力+1"],
+    ["使用時：ダイ\nス威力+1", "ダイス威力+1"],
+    ["全\nてのダイス威力+1", "全てのダイス威力+1"]
+  ]) {
+    const reason = api.kindMods(wrapped, "斬撃", dice, {}).reasons[0];
+    assert.ok(reason, wrapped);
+    assert.equal(reason.source, expected);
+  }
+
   const sameAffiliation = "自分と同じ所属の味方にスキル威力+2を付与";
   const sameAffiliationReason = api.kindMods(sameAffiliation, "斬撃", dice, { affiliation: "N社" }).reasons[0];
   assert.equal(sameAffiliationReason.recipientScope, "affiliation");
