@@ -407,6 +407,15 @@ test("選択したサポートパッシブの資源供給・獲得量補正を�
   assert.equal(nonN.total, 2, "N社-only support passive is not applied to W社");
 });
 
+test("条件付き自己パッシブの資源獲得は候補として数え、発動条件を保持する", () => {
+  const { api } = loadHelpers();
+  const persona = { name: "N社中鎚 ガブナー", passive_effect: "HPが50%未満または混乱状態なら狂信3を得る" };
+  const supply = api.resourceSupplyFor(persona, { effect: "" }, "狂信");
+  assert.equal(supply.known, true);
+  assert.equal(supply.total, 3);
+  assert.equal(supply.conditional, true);
+});
+
 test("味方への付与・対象側資源・次ラウンドの獲得を自分の使用時資源へ混入しない", () => {
   const { api } = loadHelpers();
   const persona = {
