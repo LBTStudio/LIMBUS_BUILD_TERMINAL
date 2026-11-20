@@ -996,6 +996,11 @@ test("直前の文で指定された自分以外の味方への追加威力付�
   assert.equal(reason.recipientScope, "other");
   assert.equal(reason.excludedRecipient, true);
   assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 0);
+
+  const selfEffect = "攻撃後：自分以外の味方全員に貫通ダメージ量増加1を付与。対象が薬指所属なら追加でスキル威力+2";
+  const selfReason = api.kindMods(selfEffect, "斬撃", dice, {}).reasons[0];
+  assert.ok(selfReason);
+  assert.equal(selfReason.excludedRecipient, false, "後続が本人の威力補正なら直前の受け手を引き継がない");
 });
 
 test("選出対象の味方への付与は適用先未確定として加算を保留する", () => {
