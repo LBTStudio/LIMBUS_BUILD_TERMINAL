@@ -445,7 +445,7 @@ function modifierRecipient(before,after,persona){
  const affiliationAfter=tail.match(new RegExp("^(?:を|が|は)?"+affiliationPattern.source));
  const affiliationMatch=affiliationBefore||affiliationAfter;
  if(affiliationMatch){
-  const required=affiliationMatch[1];
+  const required=affiliationFromName(affiliationMatch[1])||affiliationMatch[1];
   const own=String(persona?.affiliation||"").replace(/所属/g,"");
   return {scope:"affiliation",affiliation:required,applies:!!own&&(own===required||own.startsWith(required))};
  }
