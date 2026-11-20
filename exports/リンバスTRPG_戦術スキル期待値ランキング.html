@@ -444,7 +444,8 @@ function modifierRecipient(before,after,persona){
  if(/(?:自分と)?同じ所属の(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"affiliation",affiliation:ownAffiliation||"同じ所属",applies:!!ownAffiliation};
  if(/(?:自分|自身|本人)(?:と|及び|、)[^、。\n]{0,24}(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"self",applies:true};
  const affiliationPattern=/([A-ZＡ-Ｚ]社(?:第[一二三四五六七八九0-9０-９]+群)?|ラ・マンチャランド(?:第[一二三]区画)?|黒雲会|双鉤海賊団|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|社|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?)(?:所属)?の(?:血鬼の)?(?:味方|キャラクター|フィクサー)(全体|全員|複数名|一人|一名|二人|二名|三人|三名|四人|四名|五人|五名|[0-9０-９]+名|[0-9０-９]+人)?(?:に|へ|の)(?:優先して|優先的に|ランダムに)?/;
- const affiliationBefore=source.slice(-80).match(new RegExp(affiliationPattern.source+"$"));
+ const affiliationContext=source.slice(-80).replace(/(?:最もHPが少ない|HPが最も少ない|最もHPの少ない)/g,"");
+ const affiliationBefore=affiliationContext.match(new RegExp(affiliationPattern.source+"$"));
  const affiliationAfter=tail.match(new RegExp("^(?:を|が|は)?"+affiliationPattern.source));
  const affiliationMatch=affiliationBefore||affiliationAfter;
  if(affiliationMatch){
