@@ -151,9 +151,10 @@ tbody td{padding:7px}
     <div class="filter-group target-group">
      <span class="filter-group-title">攻撃対象に関する条件</span>
      <label class="check"><input type="checkbox" id="condTargetStatus" checked> 対象の状態・付与物を参照する条件</label>
+     <label class="check"><input type="checkbox" id="condTargetStats" checked> 対象の数値・耐性を参照する条件</label>
      <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別・特性を参照する条件</label>
      <label class="check"><input type="checkbox" id="condTargetAffiliation" checked> 対象の所属を参照する条件</label>
-     <label class="check target-filter">対象条件の文字列で絞り込む <input type="search" id="targetConditionFilter" placeholder="例：機械融和生命体／牙狩の血鬼／N社の釘"></label>
+     <label class="check target-filter">対象条件の文字列で絞り込む <input type="search" id="targetConditionFilter" placeholder="例：出血／HP／速度／貫通耐性／機械融和生命体／N社の釘"></label>
     </div>
     <div class="filter-group resource-group">
      <span class="filter-group-title">資源比例補正の供給元（スキル威力用）</span>
@@ -215,20 +216,25 @@ function slotOf(rank){
  const m=String(rank??"").match(/(?:スキル)?\s*(\d+)/);
  return m?Number(m[1]):null;
 }
-const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
+const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetStat:"condTargetStats",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
 function targetConditionDetails(context){
  const s=String(context||""),items=[];
- for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g)){
-  const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
+ const add=(kind,value)=>{const clean=String(value||"").trim();if(clean)items.push({kind,value:clean});};
+ const statValue=value=>/^(?:HP|SAN|速度|失ったHP|減少HP|体力|貫通耐性|斬撃耐性|打撃耐性|弾丸耐性)$/.test(value);
+ for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い)/g)){
+  const value=m[1].trim();add(statValue(value)?"targetStat":"targetStatus",value);
  }
- for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\\n]{1,18}?)(?:が)?\s*\d+\s*(?:以上|超|より多い|より高い)/g)){
-  const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
- }
- for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
+ for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:弱点|抵抗|脆弱|普通)(?:なら|の場合|の時)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:対象|相手|敵)より([^、。\n0-9０-９]{1,12}?)(?:が)?(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:対象|相手|敵)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:自分|自身|本人)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー ]{1,18}?)(?:が)?(?:対象|相手|敵)に(?:ある|存在する|付与されている|付与されていれば|付与されているなら)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
   const affiliation=/所属|協会|組織|会社/.test(value);
   const entity=/機械融和生命体|血鬼|血袋|種族|種別|味方|敵|キャラクター|フィクサー/.test(value);
-  items.push({kind:affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value});
+  add(affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value);
  }
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
 }
@@ -457,6 +463,7 @@ function conditionClasses(context){
  if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(nonTargetContext)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
  if(targetConditions.some(x=>x.kind==="targetStatus"))tags.push("targetStatus");
  if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
+ if(targetConditions.some(x=>x.kind==="targetStat"))tags.push("targetStat");
  if(targetConditions.some(x=>x.kind==="targetAffiliation"))tags.push("targetAffiliation");
  if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時|使用時|戦闘開始時|R開始時|攻撃前|攻撃後|次のR|次R|的中時|相殺時|守備成功時|回避成功時/.test(s))tags.push("trigger");
  return tags.length?tags:["other"];

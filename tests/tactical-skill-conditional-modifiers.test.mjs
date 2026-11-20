@@ -21,7 +21,7 @@ function sourceBetween(startMarker, endMarker) {
 
 function loadHelpers() {
   const controls = Object.fromEntries(
-    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "resourceSupportPassiveNames", "condTrigger", "condOther"]
+    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetStats", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "resourceSupportPassiveNames", "condTrigger", "condOther"]
       .map((id) => [id, { checked: true, value: "" }])
   );
   controls.includePassive.checked = false;
@@ -35,7 +35,7 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(sourceBetween("function normalizeDbPersona", "function addPersona"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, resourceScalingDetails, affiliationFromName, normalizeDbPersona, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -796,4 +796,51 @@ test("対象が味方・敵である条件を対象種別へ分類し、編成�
   assert.ok(enemy.conditionCategories.includes("targetType"));
   assert.ok(!enemy.conditionCategories.includes("team"));
   assert.ok(team.conditionCategories.includes("team"), "味方人数そのものを参照する条件は編成条件に残す");
+});
+
+
+test("対象条件検索が未満・以下・逆向きの状態付与・速度比較を拾う", () => {
+  const { api } = loadHelpers();
+  const details = api.targetConditionDetails([
+    "対象の出血が10未満ならスキル威力+1",
+    "対象のHPが50％以下ならスキル威力+2",
+    "自分の速度が対象より2以上高ければスキル威力+1",
+    "対象より速度が高いならスキル威力+1",
+    "対象の速度が自分より高ければスキル威力+1",
+    "対象の貫通耐性が弱点ならダメージ量+7",
+    "獲物の印が対象にあるならマッチ威力+2"
+  ].join("。"));
+
+  assert.ok(details.some(x => x.kind === "targetStatus" && x.value === "出血"));
+  assert.ok(details.some(x => x.kind === "targetStat" && x.value === "HP"));
+  assert.ok(details.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(details.some(x => x.kind === "targetStat" && x.value === "貫通耐性"));
+  assert.ok(details.some(x => x.kind === "targetStatus" && x.value === "獲物の印"));
+  assert.ok(api.targetConditionMatches({ kind: "targetStat", value: "速度" }, "速度"));
+  assert.ok(api.targetConditionMatches({ kind: "targetStatus", value: "出血" }, "出血"));
+
+  const bleed = api.kindMods("対象の出血が10未満ならスキル威力+1", "斬撃", [{ effect: "" }]).reasons[0];
+  const hp = api.kindMods("対象のHPが50％以下ならスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(bleed.conditionCategories.includes("targetStatus"));
+  assert.ok(hp.conditionCategories.includes("stats"));
+  assert.ok(hp.conditionCategories.includes("targetStat"), "対象側の数値条件は専用カテゴリにも分類する");
+});
+
+
+test("対象数値条件フィルターを状態条件・種別条件から独立して切り替えられる", () => {
+  const { api, controls } = loadHelpers();
+  const row = {
+    dieRows: [{}],
+    passCandidates: [],
+    effectCandidates: [{
+      conditional: true, unresolved: false, value: 2, targets: [0], conditionCategories: ["targetStat"]
+    }]
+  };
+
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 2);
+  controls.condTargetStats.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
+  controls.condTargetStats.checked = true;
+  controls.condTargetStatus.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 2, "対象の数値条件は状態条件フィルターから独立する");
 });
