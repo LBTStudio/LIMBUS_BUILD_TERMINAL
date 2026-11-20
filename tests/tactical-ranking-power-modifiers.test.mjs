@@ -248,8 +248,12 @@ test("last-die-only conditional bonus is not spread to the other dice", () => {
   element("condStats").checked = true;
 
   const values = row.dieRows.map((_, index) => tool.dieMetric(row, index).conditional);
-  assert.equal(values[values.length - 1], 6);
-  assert.ok(values.slice(0, -1).every(value => value === 0));
+  assert.equal(values[values.length - 1], 0, "the max HP-loss cap is not a measured HP-loss amount");
+  assert.ok(values.every(value => value === 0));
+  const candidate = row.effectCandidates.find(item => item.resourceScaling && item.targets.includes(row.dieRows.length - 1));
+  assert.ok(candidate, "the last-die HP-loss scaling remains visible as a candidate");
+  assert.equal(candidate.value, null);
+  assert.equal(candidate.unresolved, true);
 });
 
 test("R社第4群の別人格を分離し、正しいサイチーム長へ条件補正を帰属する", () => {
