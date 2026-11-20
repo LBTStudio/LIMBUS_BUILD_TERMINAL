@@ -650,7 +650,7 @@ function deferredSkillBonus(persona,skill){
  return {candidates,reasons};
 }
 function normalizeDbPersona(p,kind,source){
- return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||"",bullets:p.bullets??null,pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
+ return {name:p.name||"名称不明",kind,source,rank:p.rank||"",affiliation:p.affiliation||affiliationFromName(p.name),bullets:p.bullets??null,pages:[],passive_name:p.passive_name||"",passive_cond:p.passive_cond||"",passive_effect:[p.passive_effect,p.passive_always].filter(Boolean).join("\n"),passive_cond:p.passive_cond||"",unique_buffs:p.unique_buffs||[],skills:(p.skills||[]).map(s=>({slot:slotOf(s.rank),rank:s.rank,name:s.name||"",type:s.type||"",sin:s.sin||"",effect:s.effect||"",dice:s.dice||[]})),raw:p};
 }
 function addPersona(p){
  const skillset=(p.skills||[]).filter(s=>(s.dice||[]).length);
