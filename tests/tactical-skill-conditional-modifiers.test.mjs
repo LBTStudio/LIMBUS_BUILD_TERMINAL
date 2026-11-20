@@ -1415,6 +1415,8 @@ test("negative modifiers preserve direction and distinguish current skill penalt
   assert.ok(oneSidedPenalty);
   assert.equal(oneSidedPenalty.value, -3);
   assert.equal(oneSidedPenalty.afterResolution, false);
+  assert.equal(oneSidedPenalty.conditional, true, "一方攻撃時の減少は無条件ペナルティではない");
+  assert.ok(oneSidedPenalty.conditionCategories.includes("trigger"));
 
   const matchLossPenalty = api.kindMods("マッチ敗北時：スキル威力-10", "斬撃", dice).reasons[0];
   assert.ok(matchLossPenalty);
