@@ -990,12 +990,12 @@ test("直前の文で指定された自分以外の味方への追加威力付�
   const { api } = loadHelpers();
   const effect = "攻撃後、対象が混乱するか死亡したなら、自分を除くSANが最も高い味方に次のRにて貫通ダメージ量増加1を付与。対象が薬指所属なら追加で貫通威力増加1を付与";
   const dice = [{ effect }];
-  const reason = api.kindMods(effect, "斬撃", dice, {}).reasons.find(item => item.source === "貫通威力増加1");
+  const reason = api.kindMods(effect, "貫通", dice, {}).reasons.find(item => item.source === "貫通威力増加1");
 
   assert.ok(reason, "後続の追加威力付与を検出する");
   assert.equal(reason.recipientScope, "other");
   assert.equal(reason.excludedRecipient, true);
-  assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 0);
+  assert.equal(api.skillBonus({ type: "貫通", effect, dice }, {}).bonus, 0);
 
   const selfEffect = "攻撃後：自分以外の味方全員に貫通ダメージ量増加1を付与。対象が薬指所属なら追加でスキル威力+2";
   const selfReason = api.kindMods(selfEffect, "斬撃", dice, {}).reasons[0];
