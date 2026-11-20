@@ -340,7 +340,10 @@ function resourceSupplyFor(persona,skill,resource){
   const recipientGrant=new RegExp(escaped+"\\s*\\d+\\s*を付与","g");
   for(const match of source.matchAll(recipientGrant)){
    const before=source.slice(Math.max(0,match.index-90),match.index);
-   if(/自分を含めて/.test(source))continue;
+   if(/自分を含めて|生存している|編成|人数|[一二三四五六七八九十\\d]+名以上|同じ所属/.test(before)){
+    excludedSources.push(label+"（味方編成条件）");
+    continue;
+   }
    if(/(?:味方|対象|敵|相手|前方|後方|両隣)/.test(before)&&!/(?:自分|自身|本人)に/.test(before))
     excludedRecipients.push(label+"（本人への付与が保証されないため除外）");
   }
@@ -406,6 +409,8 @@ function resourceSupplyFor(persona,skill,resource){
    unknownSupport.push(item.name);
   }
  }
+ notes.push(...excludedSources.map(x=>"除外:"+x).filter(x=>!notes.includes(x)));
+ notes.push(...[...new Set(excludedRecipients)].filter(x=>!notes.includes(x)));
  const maximum=resourceMaximumFor(persona,resource);
  const total=maximum==null?rawTotal:Math.min(rawTotal,maximum);
  if(maximum!=null&&rawTotal>maximum)notes.push("資源上限 "+maximum+" により "+rawTotal+" から制限");
