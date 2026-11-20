@@ -334,14 +334,14 @@ function resourceSupplyFor(persona,skill,resource){
    const before=effect.slice(Math.max(0,m.index-100),m.index);
    if(/次のR|次R|マッチ勝利時|マッチ敗北時|的中時|敵討伐時|攻撃後|R終了時/.test(before))continue;
    if(!/(?:舞台|戦闘|R)開始時/.test(before)){unknownSupport.push(item.name);continue;}
-   total+=Number(m[2]);supportGrantCount++;parsedGrant=true;notes.push(item.name+" +"+m[2]+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
+   rawTotal+=Number(m[2]);supportGrantCount++;parsedGrant=true;notes.push(item.name+" +"+m[2]+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
   }
   const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量(?:と[^、。\\n]{0,20})?[^、。\\n]{0,8}?(?:\\+\\s*(\\d+)|(?:が)?\\s*(\\d+)\\s*(?:増加|上昇))"));
   if(gain){
    const eligible=grants.filter(x=>!/スキルで獲得する/.test(effect)||x.mode==="skill"||x.mode==="priorSkill");
    if(eligible.length){
     const amount=Number(gain[1]||gain[2]),extra=amount*eligible.length;
-    total+=extra;notes.push(item.name+" 獲得量+"+amount+" × "+eligible.length+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
+    rawTotal+=extra;notes.push(item.name+" 獲得量+"+amount+" × "+eligible.length+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
    }
   }else if(!parsedGrant&&new RegExp(escaped+".{0,30}(?:獲得量|倍)").test(effect)){
    unknownSupport.push(item.name);
