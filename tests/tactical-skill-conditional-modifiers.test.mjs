@@ -228,8 +228,8 @@ test("対象条件テキストフィルターは選択した対象だけを期�
   assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
   const blood = api.kindMods("対象が血鬼または血袋ならスキル威力+2", "斬撃", [{ effect: "" }]).reasons;
   const bloodRow = { dieRows: [{}], passCandidates: [], effectCandidates: blood };
-  assert.equal(api.conditionalBonus(bloodRow, "all", "effect"), 0);
-  assert.equal(api.conditionalBonus(bloodRow, "all", "effect"), 0);
+  controls.targetConditionFilter.value = "";
+  assert.equal(api.conditionalBonus(bloodRow, "all", "effect"), 2);
   controls.targetConditionFilter.value = "牙狩の血鬼";
   assert.equal(api.conditionalBonus(bloodRow, "all", "effect"), 2, "血鬼または血袋は牙狩の血鬼検索にも一致する");
 });
