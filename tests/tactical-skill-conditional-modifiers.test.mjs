@@ -324,6 +324,19 @@ test("対象状態・対象数値の段階比例条件も個別フィルター�
   assert.ok(targetDefenseDie.some(x => x.kind === "targetType" && x.value === "防御ダイス"));
   const speedGapWithParticle = api.targetConditionDetails("対象と速度差が1以下ならスキル威力+2");
   assert.ok(speedGapWithParticle.some(x => x.kind === "targetStat" && x.value === "速度差"));
+  const specialVibration = api.targetConditionDetails("対象の振動が特殊振動ならマッチ威力+2");
+  assert.ok(specialVibration.some(x => x.kind === "targetStatus" && x.value === "特殊振動"));
+  const bracketedStatus = api.targetConditionDetails("対象の[光電]だけスキル威力増加（最大3）");
+  assert.ok(bracketedStatus.some(x => x.kind === "targetStatus" && x.value === "光電"));
+  for (const [source, expected] of [
+    ["対象の振動が特殊振動ならマッチ威力+2", "特殊振動"],
+    ["対象の[光電]だけスキル威力増加（最大3）", "光電"]
+  ]) {
+    const modifier = api.kindMods(source, "斬撃", [{ effect: "" }]).reasons[0];
+    assert.ok(modifier, source);
+    assert.ok(modifier.targetConditions.some(x => x.kind === "targetStatus" && x.value === expected), source);
+  }
+
 
   for (const source of [
     "対象に引き裂かれた色彩[ルージュ]がないならスキル威力+1",
