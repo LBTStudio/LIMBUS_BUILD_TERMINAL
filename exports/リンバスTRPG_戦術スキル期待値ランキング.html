@@ -539,7 +539,7 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
    const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||targetConditions.length>0||/なら|ならば|であれば|あれば|の場合|ご\s*とに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
    const targetType=p.targetGroup?m[p.targetGroup]:null;
    const targets=targetsForModifier(p.scope,dice.length,dice,targetType,skillType);
-   reasons.push({label:p.label,value,scope:p.scope,targets,conditional:conditional||!!resourceSupply?.conditional,conditionCategories:conditionClasses(context),targetConditions,recipientScope:recipient.scope,recipientAffiliation:recipient.affiliation||null,excludedRecipient,resourceScaling:perUnit,resourceName:resourceScaling?.resource||null,resourceSupply,unresolved,source:m[0],context});
+   reasons.push({label:p.label,value,scope:p.scope,targets,conditional:conditional||!!resourceSupply?.conditional,conditionCategories:conditionClasses(context),targetConditions,recipientScope:recipient.scope,recipientAffiliation:recipient.affiliation||null,excludedRecipient,resourceScaling:perUnit,resourceName:resourceScaling?.resource||resourceCondition?.resource||null,resourceSupply,unresolved,source:m[0],context});
    occupied.push([start,end]);
   }
  }
