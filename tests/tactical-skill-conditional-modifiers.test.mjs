@@ -624,3 +624,37 @@ test("味方への付与・対象側資源・次ラウンドの獲得を自分�
   assert.equal(target.value, null);
   assert.equal(target.unresolved, true);
 });
+
+test("カンパネルラの狂信は固有上限10ではなく本人の現実的な供給量5で評価する", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="appendix-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const appendix = JSON.parse(html.slice(contentStart, end));
+  const persona = appendix.find(item => item.name === "N社 握らんとする者 カンパネルラ");
+  assert.ok(persona, "カンパネルラの別冊人格データが存在する");
+  assert.equal(persona.unique.find(item => item.name === "狂信").max, 10);
+  const skill = persona.skills.find(item => item.name === "聖断");
+  const supply = api.resourceSupplyFor(persona, skill, "狂信");
+  assert.equal(supply.total, 5, "使用時の狂信2と、前ラウンドにマッチ勝利して持ち越す狂信3を合算");
+  assert.equal(supply.unresolved, false);
+  const scaled = api.kindMods("狂信2ごとにスキル威力+1（最大10）", skill.type, skill.dice, persona, skill).reasons.find(item => item.resourceScaling);
+  assert.equal(scaled.value, 2, "本人が到達できる狂信5から比例補正は+2");
+});
+
+test("自分を含む5名以上を要求する狂信付与は単独人格の到達量に含めない", () => {
+  const { api } = loadHelpers();
+  const persona = {
+    name: "N社 握らんとする者",
+    affiliation: "N社",
+    passive_always: "生存しているN社狂信者が自分を含めて5名以上いるならN社狂信者にダメージ量増加1と狂信1を付与",
+    unique_buffs: [{ name: "狂信", max: 10, type: "バフ", desc: "スキル威力+1（最大10）" }]
+  };
+  const supply = api.resourceSupplyFor(persona, { effect: "" }, "狂信");
+  assert.equal(supply.total, 0, "5名のN社編成を単独人格の標準評価へ持ち込まない");
+  assert.equal(supply.known, true);
+  assert.ok(supply.excluded.some(item => item.includes("味方編成条件")));
+  assert.ok(supply.notes.some(item => item.includes("味方編成条件")));
+});
