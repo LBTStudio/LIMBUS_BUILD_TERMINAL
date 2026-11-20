@@ -909,6 +909,7 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   const dice = [{ effect: "" }, { effect: "" }];
   const cases = [
     ["最もHPが少ないヴィリーブ工房所属の味方2名へスキル威力+2を付与", { affiliation: "ヴィリーブ工房" }],
+    ["HPが最も少ないヴィリーブ工房所属の味方2名へスキル威力+2を付与", { affiliation: "ヴィリーブ工房" }],
     ["ラ・マンチャランド所属の血鬼の味方に優先してスキル威力+2を付与", { affiliation: "ラ・マンチャランド" }],
     ["ランダムな味方1名にスキル威力+2を付与", {}],
     ["味方2名にスキル威力+2を付与", {}]
@@ -917,6 +918,7 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   for (const [effect, persona] of cases) {
     const reason = api.kindMods(effect, "斬撃", dice, persona).reasons[0];
     assert.equal(reason.recipientScope, "allySelection", effect);
+    if(effect.includes("ヴィリーブ工房")) assert.equal(reason.affiliation, "ヴィリーブ工房", "選出条件の前置きは所属名に混ぜない");
     assert.equal(reason.recipientUnresolved, true, effect);
     assert.equal(reason.excludedRecipient, false, effect);
     assert.equal(reason.unresolved, true, effect);
