@@ -294,6 +294,10 @@ function resourceMaximumFor(persona,resource){
 function resourceExpiresAfterRound(persona,resource){
  return resourceStatusRecords(persona,resource).some(item=>/\[\s*1R\s*\]|R終了時[^。\n]{0,24}消滅/.test(String(item?.desc||item?.effect||"")));
 }
+function resourcePersistenceKnown(persona,resource){
+ const records=resourceStatusRecords(persona,resource);
+ return records.length>0&&!records.some(item=>/\[\s*1R\s*\]|R終了時[^。\n]{0,24}消滅/.test(String(item?.desc||item?.effect||"")));
+}
 function resourceSupplyFor(persona,skill,resource){
  const grants=[],selected=new Set(selectedResourceSupportPassives()),unknownSources=[],unknownSupport=[],excludedRecipients=[],excludedSources=[];
  const affiliation=String(persona?.affiliation||affiliationFromName(persona?.name||""));
@@ -318,7 +322,11 @@ function resourceSupplyFor(persona,skill,resource){
    const later=/マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃時|攻撃後|守備成功時|回避成功時|被攻撃時|R終了時/.test(timingBefore);
    const nextRound=/次のR|次R/.test(timingBefore);
    if(mode==="priorSkill"){
-    if(resourceExpiresAfterRound(persona,resource)&&!/(?:次のR|次R|R終了時)/.test(timingBefore))continue;
+    const explicitCarry=/(?:次のR|次R|R終了時)/.test(timingBefore);
+    if(!explicitCarry){
+     if(resourceExpiresAfterRound(persona,resource))continue;
+     if(!resourcePersistenceKnown(persona,resource)){unknownSources.push(label);continue;}
+    }
     const knownTiming=/(?:使用前|使用時|マッチ開始時|マッチ進行時|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃前|攻撃後|攻撃時|守備成功時|回避成功時|被攻撃時|(?:舞台|戦闘|R)開始時|R終了時)/.test(timingBefore);
     if(!knownTiming){unknownSources.push(label);continue;}
     const matchOutcome=/マッチ勝利時/.test(timingBefore)?"win":/マッチ敗北時/.test(timingBefore)?"loss":"";
