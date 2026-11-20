@@ -435,7 +435,10 @@ test("選択したサポートパッシブの資源供給・獲得量補正を�
 
 test("所有者が省略された呼吸式は自己資源として扱い、対象側資源は除外する", () => {
   const { api } = loadHelpers();
-  assert.deepEqual(api.resourceScalingDetails("呼吸5ごとにスキル威力+1"), { resource: "呼吸", per: 5, self: true });
+  const ownResource = api.resourceScalingDetails("呼吸5ごとにスキル威力+1");
+  assert.equal(ownResource.resource, "呼吸");
+  assert.equal(ownResource.per, 5);
+  assert.equal(ownResource.self, true);
   assert.equal(api.resourceScalingDetails("対象の出血5ごとにスキル威力+1"), null);
   assert.equal(api.resourceScalingDetails("自分の呼吸と対象の破裂の合計10ごとにスキル威力+1"), null);
 });

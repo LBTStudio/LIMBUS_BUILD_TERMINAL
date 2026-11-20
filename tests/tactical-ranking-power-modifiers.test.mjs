@@ -285,7 +285,7 @@ test("R社第4群の別人格を分離し、正しいサイチーム長へ条件
   assert.equal(flor.skills.length, 5);
   assert.equal(flor.unique.length, 0, "Norman's passives are not OCR-recovered onto Flore");
   assert.ok(!flor.skills.find(skill => skill.name === "感覚喪失").dice.some(die => /盾はお前|ノム|速度 4d2/.test(die.effect || "")));
-  assert.deepEqual(norman.skills.map(skill => skill.name), ["ヴァカめ", "自分を守るために", "牽制", "囲えノム", "逆襲ノム！！"]);
+  assert.deepEqual(Array.from(norman.skills, skill => skill.name), ["ヴァカめ", "自分を守るために", "牽制", "囲えノム", "逆襲ノム！！"]);
   assert.match(norman.passives, /俺が上で、お前が下ノム/);
   assert.ok(norman.unique.some(item => item.name === "あなたの盾"));
 });
