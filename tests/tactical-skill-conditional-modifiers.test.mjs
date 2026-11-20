@@ -21,7 +21,7 @@ function sourceBetween(startMarker, endMarker) {
 
 function loadHelpers() {
   const controls = Object.fromEntries(
-    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "resourceSupportPassiveNames", "condTrigger", "condOther"]
+    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetStats", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "resourceSupportPassiveNames", "condTrigger", "condOther"]
       .map((id) => [id, { checked: true, value: "" }])
   );
   controls.includePassive.checked = false;
@@ -823,4 +823,24 @@ test("対象条件検索が未満・以下・逆向きの状態付与・速度�
   const hp = api.kindMods("対象のHPが50％以下ならスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
   assert.ok(bleed.conditionCategories.includes("targetStatus"));
   assert.ok(hp.conditionCategories.includes("stats"));
+  assert.ok(hp.conditionCategories.includes("targetStat"), "対象側の数値条件は専用カテゴリにも分類する");
+});
+
+
+test("対象数値条件フィルターを状態条件・種別条件から独立して切り替えられる", () => {
+  const { api, controls } = loadHelpers();
+  const row = {
+    dieRows: [{}],
+    passCandidates: [],
+    effectCandidates: [{
+      conditional: true, unresolved: false, value: 2, targets: [0], conditionCategories: ["targetStat"]
+    }]
+  };
+
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 2);
+  controls.condTargetStats.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
+  controls.condTargetStats.checked = true;
+  controls.condTargetStatus.checked = false;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 2, "対象の数値条件は状態条件フィルターから独立する");
 });
