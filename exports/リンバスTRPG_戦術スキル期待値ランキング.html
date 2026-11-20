@@ -361,7 +361,7 @@ function passiveBonus(persona,skill){
  for(const c of chunks){
   const m=kindMods(c.text,skill.type||"",skill.dice||[],persona);
   for(const x0 of m.reasons){
-   const x={...x0,conditional:x0.conditional||!!c.forceConditional,origin:c.label};
+   const x={...x0,conditional:x0.conditional||!!c.forceConditional&&x0.recipientScope!=="affiliation",origin:c.label};
    candidates.push(x);
    if(!x.excludedRecipient&&!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<count)perDie[i]+=x.value;
    reasons.push(formatModifierReason(x,c.label));
