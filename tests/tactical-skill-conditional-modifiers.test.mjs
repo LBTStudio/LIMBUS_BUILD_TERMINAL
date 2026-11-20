@@ -308,6 +308,36 @@ test("対象状態・対象数値の段階比例条件も個別フィルター�
   assert.ok(!ownSpeedAbove.some(x => x.value === "も"), "比較助詞を対象数値名として扱わない");
   const enemyPresence = api.targetConditionDetails("戦闘開始時：仕返し対象状態の敵がいるなら、次のRに味方へ威力増加1を付与。使用時：対象が仕返し対象ならスキル威力+2");
   assert.ok(!enemyPresence.some(x => x.value === "いる"), "敵の存在条件を対象状態として誤分類しない");
+  const absentStatus = api.targetConditionDetails("対象に引き裂かれた色彩[ルージュ]がないならスキル威力+1");
+  assert.ok(absentStatus.some(x => x.kind === "targetStatus" && x.value === "引き裂かれた色彩[ルージュ]"));
+  const presentThreshold = api.targetConditionDetails("対象に沈潜が8以上あるならスキル威力+1");
+  assert.ok(presentThreshold.some(x => x.kind === "targetStatus" && x.value === "沈潜"));
+  const statusCount = api.targetConditionDetails("対象の振動の数だけスキル威力+1");
+  assert.ok(statusCount.some(x => x.kind === "targetStatus" && x.value === "振動"));
+  const statusFraction = api.targetConditionDetails("対象の振動/3だけスキル威力+1");
+  assert.ok(statusFraction.some(x => x.kind === "targetStatus" && x.value === "振動"));
+  const multipliedCount = api.targetConditionDetails("対象の破壊不能ダイスx2だけスキル威力+1");
+  assert.ok(multipliedCount.some(x => x.kind === "targetStatus" && x.value === "破壊不能ダイス"));
+  const allEnemies = api.targetConditionDetails("敵全体の火傷10ごとにスキル威力+1");
+  assert.ok(allEnemies.some(x => x.kind === "targetStatus" && x.value === "火傷"));
+  const targetDefenseDie = api.targetConditionDetails("対象のダイスが防御ダイスならスキル威力+1");
+  assert.ok(targetDefenseDie.some(x => x.kind === "targetType" && x.value === "防御ダイス"));
+  const speedGapWithParticle = api.targetConditionDetails("対象と速度差が1以下ならスキル威力+2");
+  assert.ok(speedGapWithParticle.some(x => x.kind === "targetStat" && x.value === "速度差"));
+
+  for (const source of [
+    "対象に引き裂かれた色彩[ルージュ]がないならスキル威力+1",
+    "対象に沈潜が8以上あるならスキル威力+1",
+    "対象の振動の数だけスキル威力+1",
+    "対象の振動/3だけスキル威力+1",
+    "対象の破壊不能ダイスx2だけスキル威力+1"
+  ]) {
+    const modifier = api.kindMods(source, "斬撃", [{ effect: "" }]).reasons[0];
+    assert.ok(modifier, source);
+    assert.ok(modifier.targetConditions.length > 0, source);
+    assert.ok(modifier.conditionCategories.includes("targetStatus"), source);
+  }
+
 
 
 });
