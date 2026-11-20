@@ -150,12 +150,41 @@ test("uncapped per-unit formulas remain visible but are not assigned a fabricate
   assert.equal(result.value, null);
 });
 
-test("target-side power penalties and match-power changes are not counted as own skill power", () => {
+test("own match-power bonuses are detected while target-side and ally-side changes are excluded", () => {
   const { kindMods } = parseHelpers();
   const dice = [{ roll: "2d6" }, { roll: "2d8" }];
   assert.equal(kindMods("対象のスキル威力-1", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("対象のダイス威力が1減少", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("マッチ開始時：対象のマッチ威力-2", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("対象のマッチ威力+1", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("味方のマッチ威力+2", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("マッチ威力+2を味方に付与", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("味方全体にマッチ威力増加1を付与", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("後方の味方2名に次のRにマッチ威力増加1を付与", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("対象が味方ならマッチ威力が10増加しダメージ量が0に固定", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("マッチ威力+2", "斬撃", dice).reasons.length, 0, "ownerless match power is ambiguous and must not be added");
+  assert.equal(kindMods("マッチ進行時にマッチ威力+1", "斬撃", dice).reasons.length, 1);
+  const duel = kindMods("決闘宣布を付与したキャラクターが付与されたキャラクターとマッチ進行時にマッチ威力+1、マッチ回数2ごとにマッチ威力+1（最大3）", "斬撃", dice).reasons;
+  assert.deepEqual(Array.from(duel, item => item.value), [1, 3]);
+
+  const own = kindMods("自分のマッチ威力+1", "斬撃", dice).reasons[0];
+  assert.equal(own.value, 1);
+  assert.equal(own.scope, "all");
+  assert.equal(own.conditional, false);
+
+  const conditional = kindMods("対象が火傷状態ならマッチ威力+1", "斬撃", dice).reasons[0];
+  assert.equal(conditional.value, 1);
+  assert.equal(conditional.conditional, true);
+
+  const dynamic = kindMods("対象の振動6ごとにマッチ威力増加（最大3）", "斬撃", dice).reasons[0];
+  assert.equal(dynamic.value, 3);
+  assert.equal(dynamic.conditional, true);
+  assert.equal(dynamic.unresolved, false);
+  const numericIncrease = kindMods("自分の充電が10以上ならマッチ威力が10増加する", "斬撃", dice).reasons[0];
+  assert.equal(numericIncrease.value, 10);
+  const suffix = kindMods("数値が5ならマッチ威力増加1", "斬撃", dice).reasons[0];
+  assert.equal(suffix.value, 1);
+  assert.equal(suffix.conditional, true);
 });
 
 test("the embedded complete dataset loads and exposes conditional candidates", () => {
@@ -217,6 +246,52 @@ test("last-die-only conditional bonus is not spread to the other dice", () => {
   const values = row.dieRows.map((_, index) => tool.dieMetric(row, index).conditional);
   assert.equal(values[values.length - 1], 6);
   assert.ok(values.slice(0, -1).every(value => value === 0));
+});
+
+test("R社第4群トナカイチーム ケレス recovers OCR-embedded passive and reaches 29.5 max EV", () => {
+  const { tool, element } = createToolHarness();
+  const row = Array.from(tool.records).find(item =>
+    item.persona.name === "R社第4群トナカイチーム ケレス" && item.skill.name === "大地強打"
+  );
+  assert.ok(row, "Ceres final skill fixture exists");
+  assert.equal(row.base, 23.5, "40-3d10 baseline EV");
+  assert.ok(row.effectCandidates.some(item => item.label === "スキル威力" && item.value === 5 && item.conditional));
+  assert.ok(row.passCandidates.some(item => item.label === "マッチ威力" && item.value === 1 && item.conditional));
+
+  element("includePassive").checked = true;
+  element("includeEffect").checked = true;
+  element("includeConditional").checked = true;
+  element("condResource").checked = true;
+  element("condTrigger").checked = true;
+  assert.equal(tool.selectedValue(row), 29.5);
+
+  const personas = new Set(Array.from(tool.records, item => item.persona));
+  const recovered = Array.from(personas).flatMap(persona =>
+    (persona.unique || []).filter(item => item.source === "appendix-ocr-recovery")
+  );
+  assert.equal(recovered.length, 27);
+  assert.ok(recovered.every(item => !/威力\+|威力増加|発動条件/.test(item.name)));
+
+  const unique = row.persona.unique || [];
+  assert.ok(unique.some(item => item.name === "我らは前しか見えぬ"));
+  assert.ok(unique.some(item => item.name === "進め、進め、踏み砕け"));
+  assert.ok(!(row.persona.skills.find(skill => skill.name === "過集中").dice[2].effect || "").includes("名称"));
+  const flor = Array.from(personas).find(persona => persona.name === "笑う顔たち フロル");
+  const shieldPassive = flor.unique.find(item => item.name === "俺が上で、お前が下ノム！！！");
+  assert.ok(shieldPassive);
+  assert.doesNotMatch(shieldPassive.desc, /ヴァカめ|あなたの盾の数/, "the following skill header/effect must not leak into the passive");
+});
+
+test("appendix OCR passive blocks are detached from their source dice across the dataset", () => {
+  const { tool } = createToolHarness();
+  const personas = new Set(Array.from(tool.records, row => row.persona));
+  const appendix = Array.from(personas).filter(persona => persona.source === "別冊");
+  const contaminated = appendix.flatMap(persona =>
+    (persona.skills || []).flatMap(skill =>
+      (skill.dice || []).filter(die => /\n速度\s+\d+d\d+[\s\S]*名称[\s\S]*発動条件/.test(die.effect || ""))
+    )
+  );
+  assert.equal(contaminated.length, 0, "OCR passive sections must not remain attached to individual dice");
 });
 
 test("rendered ranking rows keep twelve cells after adding conditional EV", () => {
