@@ -433,7 +433,7 @@ function resourceSupplyFor(persona,skill,resource){
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
- const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?|を含まない|を含まず|を含めない)/.test(source)||/他の味方/.test(source)||/自分が付与した[^、。\n]{0,40}味方/.test(source+" "+tail);
+ const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?|を含まない|を含まず|を含めない)[^、。\n]{0,24}味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ|の(?!数|人数|ごと))/.test(source)||/他の味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ|の(?!数|人数|ごと))/.test(source)||/自分が付与した[^、。\n]{0,40}味方/.test(source+" "+tail);
  if(excludesSelf)return {scope:"other",applies:false};
  const teamMatch=source.match(/(?:^|[\s、。\n])(ウサギチーム|トナカイチーム|サイチーム|第四群司令官)[：:]\s*$/);
  if(teamMatch){const required=teamMatch[1],own=String(persona?.team||"");return {scope:"team",team:required,applies:!!own&&own===required};}
