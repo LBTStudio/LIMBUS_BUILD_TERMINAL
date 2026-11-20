@@ -130,7 +130,7 @@ tbody td{padding:7px}
   <div class="conditional-panel" id="conditionalPanel">
    <div class="conditional-head">
     <label class="check"><input type="checkbox" id="includeConditional"> 条件付き威力補正を成立想定で加算</label>
-    <span class="condition-help">成立を仮定し、明記された上限値を採用。数値未確定の式は加算しません。</span>
+    <span class="condition-help">条件付き補正は候補として表示。資源量・対象条件の実効値を確認できないものは加算しません。</span>
    </div>
    <div class="conditional-filters">
     <span class="check-group-label">条件フィルター（分類が複数なら全分類がONの補正のみ採用）：</span>
@@ -140,6 +140,7 @@ tbody td{padding:7px}
     <label class="check"><input type="checkbox" id="condTeam" checked> 共鳴・所属・味方編成</label>
     <label class="check"><input type="checkbox" id="condTargetStatus" checked> 対象の状態・デバフ</label>
     <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別・所属</label>
+    <label class="check target-filter">対象条件を絞り込む <input type="search" id="targetConditionFilter" placeholder="例：機械融和生命体 / 牙狩の血鬼 / N社の釘"></label>
     <label class="check"><input type="checkbox" id="condTrigger" checked> マッチ・会心・討伐など</label>
     <label class="check"><input type="checkbox" id="condOther" checked> その他・分類不能</label>
    </div>
@@ -204,7 +205,9 @@ function targetConditionDetails(context){
   const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
  }
  for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
-  const value=m[1].trim();if(value)items.push({kind:"targetType",value});
+  const value=m[1].trim();if(!value)continue;
+  const status=/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|毒|復讐対象|仕返し対象|このRでまだ攻撃でダメージを受けていない/.test(value);
+  items.push({kind:status?"targetStatus":"targetType",value});
  }
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
 }
@@ -451,7 +454,9 @@ function addAppendix(){
  }
 }
 function conditionModifierEnabled(x,requireMaster=true){
- return (!requireMaster||!!$("includeConditional")?.checked)&&!x.unresolved&&Number.isFinite(x.value)&&
+ const targetFilter=String($("targetConditionFilter")?.value||"").trim().toLocaleLowerCase("ja");
+ const targetMatches=!targetFilter||(x.targetConditions||[]).some(item=>String(item.value||"").toLocaleLowerCase("ja").includes(targetFilter));
+ return (!requireMaster||!!$("includeConditional")?.checked)&&!x.unresolved&&Number.isFinite(x.value)&&targetMatches&&
   (x.conditionCategories||["other"]).every(k=>$(CONDITION_FILTER_IDS[k]||"condOther")?.checked);
 }
 function conditionalPerDie(r,index,mode="selected",source="both"){
@@ -514,7 +519,7 @@ function updateSortHeaders(){
  });
 }
 function filterKey(){
- return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
+ return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","targetConditionFilter","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
