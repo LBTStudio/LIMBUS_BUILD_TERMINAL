@@ -362,6 +362,18 @@ test("メインターゲットと攻撃対象の所属条件を対象所属と�
   }
 });
 
+test("サブターゲットの所属・存在条件を対象条件として分類する", () => {
+  const { api } = loadHelpers();
+  const affiliation = api.kindMods("サブターゲットがN社所属ならスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(affiliation);
+  assert.deepEqual(Array.from(affiliation.targetConditions, item => [item.kind, item.value]), [["targetAffiliation", "N社所属"]]);
+  assert.ok(affiliation.conditionCategories.includes("targetAffiliation"));
+  assert.ok(!affiliation.conditionCategories.includes("team"));
+
+  const absent = api.targetConditionDetails("サブターゲットがいないならスキル威力+1");
+  assert.deepEqual(Array.from(absent, item => [item.kind, item.value]), [["targetStatus", "いない"]]);
+});
+
 test("攻撃対象の所属条件と、所属を受け手にするバフを別扱いにする", () => {
   const { api, controls } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
