@@ -224,12 +224,17 @@ test("conditional filters change selected EV, and breakdown columns do not doubl
   assert.equal(tool.selectedValue(row), 18);
 
   element("includeConditional").checked = true;
-  assert.equal(tool.selectedValue(row), 20);
-  assert.equal(tool.conditionalBonus(row), 2);
+  assert.equal(tool.selectedValue(row), 18, "呼吸の持続・減衰を確定できないため、閾値補正を加算しない");
+  assert.equal(tool.conditionalBonus(row), 0);
+  const breathThreshold=row.effectCandidates.find(item=>item.resourceName==="呼吸");
+  assert.ok(breathThreshold,"呼吸の閾値補正は候補として残る");
+  assert.equal(breathThreshold.value,null);
+  assert.equal(breathThreshold.unresolved,true);
+  assert.equal(breathThreshold.resourceSupply.total,2,"本人が当該スキル使用時に得る呼吸2は把握できるが、前ラウンド分は未確定");
 
   const firstDie = tool.dieMetric(row, 0);
   assert.equal(firstDie.effect, row.dieRows[0].effect);
-  assert.equal(firstDie.conditional, 1);
+  assert.equal(firstDie.conditional, 0, "未確定の呼吸閾値はダイスEVへ加算しない");
   assert.equal(firstDie.all, firstDie.base + firstDie.passive + firstDie.effect + firstDie.conditional);
 
   element("condResource").checked = false;

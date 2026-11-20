@@ -413,6 +413,128 @@ test("資源比例補正は同一人格の開始時・当該スキル使用時�
   assert.deepEqual(Array.from(item.resourceSupply.notes), ["パッシブ +1", "当該スキル使用時 +2"]);
 });
 
+test("前ラウンドに同じスキルを再使用する場合の資源獲得を数え、1R限定資源の即時獲得は持ち越さない", () => {
+  const { api } = loadHelpers();
+  const skill = {
+    name: "罪悪を貫く釘",
+    type: "貫通",
+    effect: "マッチ勝利時：次のRに狂信4を得る",
+    dice: [{ effect: "" }]
+  };
+  const persona = {
+    name: "N社握る者",
+    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 数値2ごとにダメージ量が1増加" }],
+    skills: [skill]
+  };
+  const supply = api.resourceSupplyFor(persona, skill, "狂信");
+  assert.equal(supply.total, 4, "同じスキルを前ラウンドに使用して得た次R分は本人の蓄積として数える");
+  assert.equal(supply.maximum, 10);
+
+  const immediateSkill = {
+    name: "即時獲得",
+    type: "斬撃",
+    effect: "使用時：狂信2を得る",
+    dice: [{ effect: "" }]
+  };
+  const immediate = api.resourceSupplyFor({
+    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 数値2ごとにダメージ量が1増加" }],
+    skills: [immediateSkill]
+  }, immediateSkill, "狂信");
+  assert.equal(immediate.total, 2, "当該スキル使用時の獲得は加算する");
+  assert.equal(immediate.unresolved, false, "1R限定の即時獲得を前ラウンドから持ち越さない");
+});
+
+test("資源の明示上限と前ラウンドのスキル選択上限を適用する", () => {
+  const { api } = loadHelpers();
+  const strongest = {
+    name: "大釘打ち",
+    effect: "マッチ敗北時：次のRに狂信3を得る",
+    dice: [{ effect: "" }]
+  };
+  const weaker = {
+    name: "狂的な浄化",
+    effect: "マッチ勝利時：次のRに狂信1を得る",
+    dice: [{ effect: "" }]
+  };
+  const persona = {
+    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 数値2ごとにダメージ量が1増加" }],
+    skills: [strongest, weaker]
+  };
+  const supply = api.resourceSupplyFor(persona, strongest, "狂信");
+  assert.equal(supply.total, 3, "前ラウンドに使えるスキルは最大1つとして最大供給を採用");
+  assert.equal(supply.maximum, 10);
+
+  const capped = api.resourceSupplyFor({
+    unique_buffs: [{ name: "狂信", max: 5, desc: "[1R] 狂信" }],
+    passive_effect: "R開始時、自分に狂信4を得る",
+    skills: [strongest]
+  }, strongest, "狂信");
+  assert.equal(capped.rawTotal, 7);
+  assert.equal(capped.total, 5, "資源そのものの最大蓄積量を超えない");
+
+  const branchingSkill = {
+    effect: "使用時：狂信2を得る。マッチ勝利時：次のRに狂信1を得る。マッチ敗北時：次のRに狂信3を得る",
+    dice: [{ effect: "" }]
+  };
+  const branching = api.resourceSupplyFor({
+    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 狂信" }],
+    skills: [branchingSkill]
+  }, branchingSkill, "狂信");
+  assert.equal(branching.total, 5, "当該Rの使用時+2と、前Rの勝利/敗北のどちらか一方だけを加算する");
+});
+
+test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越せる量で評価する", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="persona-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const db = JSON.parse(html.slice(contentStart, end));
+  const all = [...(db.normal_personas || []), ...(db.tokui_personas || [])];
+  const byName = (name) => all.find(persona => persona.name === name);
+  const attainable = (persona) => Math.max(0, ...(persona.skills || []).map(skill =>
+    api.resourceSupplyFor(persona, skill, "狂信").total
+  ));
+
+  const hammer = byName("N社大鎚");
+  const smallHammer = byName("N社小鎚");
+  const holder = byName("N社握る者");
+  assert.ok(hammer && smallHammer && holder, "N社の該当人格データが存在する");
+  assert.equal(hammer.unique_buffs[0].max, 10);
+  assert.equal(attainable(hammer), 3, "大鎚は前ラウンドのマッチ敗北による狂信3が本人の最大供給");
+  assert.equal(attainable(smallHammer), 1, "小鎚は前ラウンドのマッチ勝利による狂信1が本人の最大供給");
+  assert.equal(attainable(holder), 4, "握る者は本人のスキルによる次R狂信4を数え、ランダムな味方への付与を本人保証として扱わない");
+  const holderSupply=api.resourceSupplyFor(holder,holder.skills.find(item=>item.name==="罪悪を貫く釘"),"狂信");
+  assert.ok(holderSupply.notes.some(note=>note.includes("本人への付与が保証されないため除外")),"ランダムな味方への狂信付与を本人獲得に混ぜず、除外理由を表示する");
+
+  for (const [persona,skill,expected] of [
+    [hammer,hammer.skills.find(item=>item.name==="大釘打ち"),1],
+    [smallHammer,smallHammer.skills[0],0],
+    [holder,holder.skills.find(item=>item.name==="罪悪を貫く釘"),2]
+  ]) {
+    const uniqueText=api.uniqueEffectText(persona.unique_buffs[0]);
+    assert.match(uniqueText,/狂信2ごとに/,"固有バフの『数値』は固有バフ名の蓄積量として読む");
+    const scaled=api.kindMods(uniqueText,skill.type,skill.dice,persona,skill).reasons.find(item=>item.resourceScaling);
+    assert.ok(scaled,persona.name+" の狂信比例スキル威力が抽出される");
+    assert.equal(scaled.value,expected,persona.name+" は本人の到達可能量から比例補正を算出する");
+    assert.equal(scaled.resourceSupply.total,attainable(persona));
+  }
+
+  const holderSkill=holder.skills.find(item=>item.name==="罪悪を貫く釘");
+  const impossible=api.kindMods("自分の狂信が10以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
+  assert.equal(impossible.value,0,"本人の到達量4では狂信10以上の条件を成立扱いにしない");
+  assert.equal(impossible.unresolved,false);
+  assert.equal(impossible.resourceSupply.total,4);
+  const reachable=api.kindMods("自分の狂信が4以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
+  assert.equal(reachable.value,2,"到達可能な閾値は通常どおり評価する");
+  assert.deepEqual(Array.from(api.targetConditionDetails("対象の狂信が10以上ならスキル威力+2"),item=>[item.kind,item.value]),[["targetStatus","狂信"]]);
+  const target=api.kindMods("対象の狂信が10以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
+  assert.equal(target.value,2,"対象側の蓄積条件は本人の資源量で判定せず、対象条件として扱う");
+  assert.equal(target.unresolved,false);
+  assert.ok(target.conditionCategories.includes("resource"));
+});
+
 test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
   const { api, controls, context } = loadHelpers();
   context.EMBEDDED_DB.support_passives = [
@@ -501,4 +623,82 @@ test("味方への付与・対象側資源・次ラウンドの獲得を自分�
   const target = api.kindMods("対象の狂信2ごとにスキル威力+1（最大10）", "斬撃", skill.dice, persona, skill).reasons[0];
   assert.equal(target.value, null);
   assert.equal(target.unresolved, true);
+});
+
+test("カンパネルラの狂信は固有上限10ではなく本人の現実的な供給量5で評価する", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="appendix-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const appendix = JSON.parse(html.slice(contentStart, end));
+  const persona = appendix.find(item => item.name === "N社 握らんとする者 カンパネルラ");
+  assert.ok(persona, "カンパネルラの別冊人格データが存在する");
+  assert.equal(persona.unique.find(item => item.name === "狂信").max, 10);
+  const skill = persona.skills.find(item => item.name === "聖断");
+  const supply = api.resourceSupplyFor(persona, skill, "狂信");
+  assert.equal(supply.total, 5, "使用時の狂信2と、前ラウンドにマッチ勝利して持ち越す狂信3を合算");
+  assert.equal(supply.unresolved, false);
+  const scaled = api.kindMods("狂信2ごとにスキル威力+1（最大10）", skill.type, skill.dice, persona, skill).reasons.find(item => item.resourceScaling);
+  assert.equal(scaled.value, 2, "本人が到達できる狂信5から比例補正は+2");
+});
+
+test("自分を含む5名以上を要求する狂信付与は単独人格の到達量に含めない", () => {
+  const { api } = loadHelpers();
+  const persona = {
+    name: "N社 握らんとする者",
+    affiliation: "N社",
+    passive_always: "生存しているN社狂信者が自分を含めて5名以上いるならN社狂信者にダメージ量増加1と狂信1を付与",
+    unique_buffs: [{ name: "狂信", max: 10, type: "バフ", desc: "スキル威力+1（最大10）" }]
+  };
+  const supply = api.resourceSupplyFor(persona, { effect: "" }, "狂信");
+  assert.equal(supply.total, 0, "5名のN社編成を単独人格の標準評価へ持ち込まない");
+  assert.equal(supply.known, true);
+  assert.ok(supply.excluded.some(item => item.includes("味方編成条件")));
+  assert.ok(supply.notes.some(item => item.includes("味方編成条件")));
+});
+
+test("持続期間の根拠がない資源は前ラウンドの獲得分を現在値へ持ち越さない", () => {
+  const { api } = loadHelpers();
+  const persona = {
+    skills: [{ name: "前ラウンドの呼吸獲得", effect: "使用時：呼吸2を得る", dice: [] }]
+  };
+  const supply = api.resourceSupplyFor(persona, { effect: "" }, "呼吸");
+  assert.equal(supply.total, 0);
+  assert.equal(supply.unresolved, true, "呼吸の持続・減衰根拠がないため前ラウンド分は未確定");
+});
+
+test("実データのN社握らんとする者は5名編成の狂信付与を除外し本人の次R獲得2で評価する", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="persona-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const db = JSON.parse(html.slice(contentStart, end));
+  const persona = (db.tokui_personas || []).find(item => item.name === "N社握らんとする者");
+  assert.ok(persona, "実データの対象人格が存在する");
+  const skill = persona.skills.find(item => item.name === "自滅的浄化");
+  const supply = api.resourceSupplyFor(persona, skill, "狂信");
+  assert.equal(supply.total, 2, "本人のスキルによる次R獲得2のみを採用");
+  assert.ok(supply.excluded.some(item => item.includes("味方編成条件")), "自分を含むN社狂信者5名条件を除外理由として保持");
+  assert.equal(supply.unresolved, false);
+});
+
+test("N社中鎚の狂信はHP条件と前ラウンドのスキル獲得を合わせても6が到達上限", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="appendix-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const appendix = JSON.parse(html.slice(contentStart, end));
+  const persona = appendix.find(item => item.name === "N社中鎚 ガブナー");
+  assert.ok(persona, "N社中鎚の別冊人格データが存在する");
+  assert.equal(persona.unique.find(item => item.name === "狂信").max, 10);
+  const skill = persona.skills.find(item => item.name === "もう……無い。");
+  const supply = api.resourceSupplyFor(persona, skill, "狂信");
+  assert.equal(supply.total, 6, "HP50%未満または混乱時の自己獲得3と、前ラウンドの過半数的中による次R獲得3");
+  assert.equal(supply.unresolved, false);
 });
