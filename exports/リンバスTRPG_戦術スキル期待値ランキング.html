@@ -226,8 +226,7 @@ function modifierRecipient(before,after,persona){
  }
  const recipient=/味方(?:全体|全員|一人|2名|２名|複数名)?|対象|敵|相手|前方|後方|両隣|キャラクター/;
  const recipientPhrase=recipient.test(source)&&/(?:に|へ|の)$/.test(source);
- const recipientGrant=/(?:付与|与える|得る|受ける|付く|獲得)/.test(tail);
- if(recipientPhrase||recipientGrant&&recipient.test(source))return {scope:"other",applies:false};
+ if(recipientPhrase)return {scope:"other",applies:false};
  return {scope:"selfOrUnspecified",applies:true};
 }
 function conditionClasses(context){
