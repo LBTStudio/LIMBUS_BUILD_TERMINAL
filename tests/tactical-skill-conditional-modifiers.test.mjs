@@ -436,6 +436,18 @@ test("スキル獲得量増加のサポートパッシブはラウンド開始�
   assert.equal(supply.total, 6, "round-start 3 + skill grant 2 + skill-only support gain 1");
 });
 
+test("倍率型のサポート資源補正は加算値に偽装せず未確定として残す", () => {
+  const { api, controls, context } = loadHelpers();
+  context.EMBEDDED_DB.support_passives = [
+    { name: "プラス電力発電装置", cond: "怠惰x3 保有", effect: "充電を得る時充電獲得量を1.5倍にし、充電を消費する時スキル威力+1" }
+  ];
+  controls.resourceSupportPassiveNames.value = "プラス電力発電装置";
+  const supply = api.resourceSupplyFor({}, { effect: "使用時：充電2を得る" }, "充電");
+  assert.equal(supply.total, 2);
+  assert.equal(supply.unresolved, true);
+  assert.ok(supply.unknown.includes("プラス電力発電装置"));
+});
+
 test("条件付き自己パッシブの資源獲得は候補として数え、発動条件を保持する", () => {
   const { api } = loadHelpers();
   const persona = { name: "N社中鎚 ガブナー", passive_effect: "HPが50%未満または混乱状態なら狂信3を得る" };
