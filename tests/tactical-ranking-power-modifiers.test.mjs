@@ -358,10 +358,17 @@ test("メリアニア工房代表スピノのマッチ敗北時-15は今回EVに
     assert.equal(penalty.value, -15);
     assert.equal(penalty.afterResolution, true);
     assert.equal(penalty.conditional, true);
-    assert.equal(tool.conditionalBonus(row, "all", "effect"), 2,
-      "敗北後の-15は除外しつつ、味方死亡条件の今回有効な+2は残す");
-    assert.ok(row.effectCandidates.some(item => item.value === 2 && item.conditional),
-      "同じスキルに併存する今回有効な正の補正を過剰除外しない");
+    const expectedLiveBonus = row.skill.name === "支援" ? 2 : 0;
+    assert.equal(tool.conditionalBonus(row, "all", "effect"), expectedLiveBonus,
+      "敗北後の-15は除外し、支援の固定+2は残す。万歳突撃の人数比例式は未確定のままにする");
+    if (row.skill.name === "支援") {
+      assert.ok(row.effectCandidates.some(item => item.value === 2 && item.conditional),
+        "同じスキルに併存する今回有効な正の補正を過剰除外しない");
+    } else {
+      const scaling = row.effectCandidates.find(item => item.resourceScaling);
+      assert.ok(scaling && scaling.value === null && scaling.unresolved,
+        "死亡した味方の人数が不明な補正を捏造しない");
+    }
   }
 });
 
