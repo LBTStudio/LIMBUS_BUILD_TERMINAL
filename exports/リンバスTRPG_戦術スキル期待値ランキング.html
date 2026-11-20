@@ -221,6 +221,9 @@ function targetConditionDetails(context){
  for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g)){
   const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
  }
+ for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\\n]{1,18}?)(?:が)?\\s*\\d+\\s*(?:以上|超|より多い|より高い)/g)){
+  const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
+ }
  for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
   const affiliation=/所属|協会|組織|会社/.test(value);
