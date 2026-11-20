@@ -226,3 +226,12 @@ test("対象条件テキストフィルターは選択した対象だけを期�
   controls.targetConditionFilter.value = "牙狩の血鬼";
   assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
 });
+
+
+test("対象が状態異常を保有する条件は対象種別ではなく対象状態に分類する", () => {
+  const { api } = loadHelpers();
+  const status = api.targetConditionDetails("対象が出血状態ならスキル威力+1");
+  const type = api.targetConditionDetails("対象が機械融和生命体ならスキル威力+3");
+  assert.equal(status[0].kind, "targetStatus");
+  assert.equal(type[0].kind, "targetType");
+});
