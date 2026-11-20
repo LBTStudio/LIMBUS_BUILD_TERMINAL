@@ -1213,3 +1213,99 @@ test("自分を除外しない味方全体への付与は本人にも適用す�
   assert.equal(reason.recipientUnresolved, false);
   assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 2);
 });
+
+
+test("対象状態の数値表記・対象数比例を個別条件へ分類する", () => {
+  const { api } = loadHelpers();
+  const valuePerStack = api.targetConditionDetails("使用前：対象の決闘高潮の数値ごとに基本スキル威力+1");
+  assert.deepEqual(Array.from(valuePerStack, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+
+  const stateOnly = api.targetConditionDetails("対象の決闘高潮だけダメージ量増加");
+  assert.deepEqual(Array.from(stateOnly, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+
+  const targetCount = api.targetConditionDetails("このスキルの広域指定人数より攻撃対象が少ない場合、対象数1名ごとにダメージ量+4");
+  assert.deepEqual(Array.from(targetCount, x => [x.kind, x.value]), [["targetStat", "対象数"]]);
+
+  const modifier = api.kindMods("対象の決闘高潮だけスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(modifier);
+  assert.ok(modifier.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(modifier.targetConditions, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+});
+
+
+test("対象状態の分数・合計・デバフ種類数・比較条件を分類する", () => {
+  const { api } = loadHelpers();
+  const cases = [
+    ["対象の火傷と出血の合計/2だけダメージ量増加", "targetStatus", "火傷と出血の合計"],
+    ["対象の火傷と出血の合計だけダメージ量増加", "targetStatus", "火傷と出血の合計"],
+    ["対象の沈潜\n/3だけ憂鬱ダメージを与える", "targetStatus", "沈潜"],
+    ["対象の保有するデバフの種類1ごとに再使用確率+10％", "targetStatus", "デバフの種類"],
+    ["対象の破裂の数より自分の呼吸の数の方が大きいならマッチ威力+1", "targetStatus", "破裂"]
+  ];
+  for (const [source, kind, value] of cases) {
+    const found = api.targetConditionDetails(source);
+    assert.ok(found.some(x => x.kind === kind && x.value === value), source);
+  }
+});
+
+
+test("実データ由来の対象状態分数・消費量・速度差を正しく分類する", () => {
+  const { api } = loadHelpers();
+  const cases = [
+    ["（対象の火傷と出血の合計/2）だけ打撃ダメージを与える", "targetStatus", "火傷と出血の合計"],
+    ["対象の\n保有するデバフの種類1ごとに再使用確率+10％", "targetStatus", "デバフの種類"],
+    ["対象との速度差/2だけこのダイスを再使用", "targetStat", "速度差"],
+    ["対象の沈潜を全て消費する。その後、消費した沈潜\n/2だけ毒を付与", "targetStatus", "沈潜"],
+    ["対象にある沈潜を最大20まで消費する。その後、消費した沈潜/3だけ毒を付与", "targetStatus", "沈潜"],
+    ["対象に付与されている武装解除/2だけ虚弱を付与", "targetStatus", "武装解除"]
+  ];
+  for (const [source, kind, value] of cases) {
+    const found = api.targetConditionDetails(source);
+    assert.ok(found.some(x => x.kind === kind && x.value === value), source);
+  }
+
+  const actualModifier = api.kindMods("対象の決闘高潮だけスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(actualModifier);
+  assert.ok(actualModifier.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(actualModifier.targetConditions, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+
+  assert.deepEqual(Array.from(api.targetConditionDetails("対象のスキル威力減少")), [],
+    "対象が受ける効果そのものを対象条件として誤分類しない");
+});
+
+
+test("改行折返し・状態変換・対象との速度一致を対象条件として保持する", () => {
+  const { api } = loadHelpers();
+  const wrapped = api.kindMods("対象の破裂6ご\nとにマッチ威力+1（最大3）", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(wrapped);
+  assert.ok(wrapped.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(wrapped.targetConditions, x => [x.kind, x.value]), [["targetStatus", "破裂"]]);
+
+  const converted = api.kindMods("対象の振動が振動-灼熱に変換されているならスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(converted);
+  assert.ok(converted.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(converted.targetConditions, x => [x.kind, x.value]), [["targetStatus", "振動-灼熱"]]);
+
+  const equalSpeed = api.kindMods("対象と速度が同じならスキル威力+1", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(equalSpeed);
+  assert.ok(equalSpeed.conditionCategories.includes("targetStat"));
+  assert.deepEqual(Array.from(equalSpeed.targetConditions, x => [x.kind, x.value]), [["targetStat", "速度"]]);
+
+  assert.ok(api.conditionClasses("煙状態の対象に与えるダメージ量+3").includes("targetStatus"));
+  assert.ok(api.conditionClasses("対象が出血で受けるダメージ量+3").includes("targetStatus"));
+});
+
+
+test("状態を持つ敵の存在条件を対象状態へ分類し、他者付与の受け手判定と分離する", () => {
+  const { api } = loadHelpers();
+  const source = "戦闘開始時：仕返し対象状態の敵がいるなら、次のRに両隣の味方に嫉妬威力増加1を付与";
+  const found = api.targetConditionDetails(source);
+  assert.deepEqual(Array.from(found, x => [x.kind, x.value]), [["targetStatus", "仕返し対象状態"]]);
+
+  const reason = api.kindMods(source, "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(reason);
+  assert.ok(reason.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(reason.targetConditions, x => [x.kind, x.value]), [["targetStatus", "仕返し対象状態"]]);
+  assert.equal(reason.recipientScope, "other");
+  assert.equal(reason.excludedRecipient, true);
+});

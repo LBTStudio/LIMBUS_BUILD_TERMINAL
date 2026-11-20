@@ -218,8 +218,8 @@ function slotOf(rank){
 }
 const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetStat:"condTargetStats",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
 function targetConditionDetails(context){
- const s=String(context||""),items=[];
- const add=(kind,value)=>{const clean=String(value||"").trim();if(clean)items.push({kind,value:clean});};
+ const s=String(context||"").replace(/\r\n?/g,"\n").replace(/([^\n。！？])\n/g,"$1"),items=[];
+ const add=(kind,value)=>{const clean=String(value||"").replace(/\s+/g," ").trim().replace(kind==="targetStatus"?/^保有(?:する|した)/:"","").replace(kind==="targetStatus"?/の数$/:"","").replace(kind==="targetStatus"?/\s*\/\s*\d+$/:"","");if(clean)items.push({kind,value:clean});};
  const statValue=value=>/^(?:HP|SAN|速度|失ったHP|減少HP|体力|貫通耐性|斬撃耐性|打撃耐性|弾丸耐性)$/.test(value);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い|ならば|なら|の場合|の時)/g)){
@@ -254,14 +254,34 @@ function targetConditionDetails(context){
 
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,24}?)(?:がないなら|がなければ|が存在しないなら|が存在しなければ|を保有していないなら|が付与されていないなら|が付与されていなければ)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:以上|超|未満|以下|以内)(?:ある|存在する)?(?:ならば|なら|の場合|の時)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)の数値ごとに/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)だけ(?=(?:ダメージ量|スキル威力|マッチ威力|固定ダメージ|HPダメージ|SANダメージ))/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)だけ$/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:攻撃対象|対象)数\s*\d+\s*名?ごとに/g))add("targetStat","対象数");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)の数だけ/g))add("targetStatus",m[1]);
- for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)\/\s*\d+\s*だけ/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。]{1,18}?)\/\s*\d+\s*だけ/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)[xｘ×]\s*\d+\s*だけ/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:敵全体|全対象|全ての敵|すべての敵|全ての対象|すべての対象|対象全体)の([^、。\n]{1,24}?)(?:が)?\s*\d+\s*(?:ごとに|につき|に付き)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)のダイスが([^、。\n]{1,12}?)ダイス(?:ならば|なら|の場合|の時)/g))add("targetType",m[1]+"ダイス");
 
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の振動が特殊振動(?:ならば|なら|の場合|の時)/g))add("targetStatus","特殊振動");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の\[([^\]、。\n]{1,18})\](?:の数|だけ|\/\s*\d+)?/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。]{1,24}?の合計)\s*\/\s*\d+\s*[）)]?\s*だけ/g))add("targetStatus",m[1].trim());
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)との速度差\s*\/\s*\d+\s*だけ/g))add("targetStat","速度差");
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に付与されている([^、。]{1,18}?)\s*\/\s*\d+/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の\s*(?:保有する|持つ)?\s*デバフの種類\s*\d+\s*(?:ごとに|につき|に付き)/g))add("targetStatus","デバフの種類");
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)を全て消費/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー]{1,18}?状態)の(?:敵|対象)(?:が)?(?:いる|存在する)(?:ならば|なら|の場合|の時)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)にある([^、。\n]{1,18}?)(?:を|が)[^、。\n]{0,12}(?:消費|除去)/g))add("targetStatus",m[1]);
+
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,24}?)の合計だけ/g))add("targetStatus",m[1].trim()+"の合計");
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の(?:保有する|持つ)?デバフの種類\s*\d+\s*(?:ごとに|につき|に付き)/g))add("targetStatus","デバフの種類");
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)の数より(?:自分|自身|本人)の[^、。\n]{1,18}?の数の方が(?:大きい|小さい|多い|少ない)/g))add("targetStatus",m[1].trim().replace(/の数$/,""));
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。]{1,18}?)が([^、。]{1,18}?)に変換されている(?:ならば|なら|の場合|の時)/g))add("targetStatus",m[2]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)と速度が同じ(?:ならば|なら|の場合|の時)/g))add("targetStat","速度");
+ for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー]{1,18}状態)の対象(?:に|へ|を)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)が([^、。]{1,18}?)で受ける(?:ダメージ|SANダメージ)/g))add("targetStatus",m[1]);
+
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
 }
 function resourceScalingDetails(context){
