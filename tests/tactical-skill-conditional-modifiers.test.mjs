@@ -34,7 +34,7 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, affiliationFromName, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, resourceScalingDetails, affiliationFromName, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -199,7 +199,10 @@ test("対象条件の種類を任意の明示名で抽出し、対象条件な�
   const { api } = loadHelpers();
   const found = api.targetConditionDetails("対象が牙狩の血鬼ならばスキル威力+2");
   assert.deepEqual(Array.from(found, x => [x.kind, x.value]), [["targetType", "牙狩の血鬼"]]);
-  assert.deepEqual(Array.from(api.targetConditionDetails("対象が指令対象ならスキル威力+2")), [{ kind: "targetStatus", value: "指令対象" }]);
+  const commandTarget = api.targetConditionDetails("対象が指令対象ならスキル威力+2");
+  assert.equal(commandTarget.length, 1);
+  assert.equal(commandTarget[0].kind, "targetStatus");
+  assert.equal(commandTarget[0].value, "指令対象");
   assert.deepEqual(Array.from(api.targetConditionDetails("自分の呼吸が7以上ならスキル威力+2")), []);
 });
 
@@ -413,7 +416,7 @@ test("資源比例補正は同一人格の開始時・当該スキル使用時�
 test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
   const { api, controls, context } = loadHelpers();
   context.EMBEDDED_DB.support_passives = [
-    { name: "釘と金槌", cond: "憤怒x2 色欲x2 保有", effect: "狂信の獲得量とN社の釘の付与量+1" },
+    { name: "釘と金槌", cond: "憤怒x2 色欲x2 保有", effect: "N社狂信者所属の人格のみ発動。狂信の獲得量とN社の釘の付与量+1" },
     { name: "処断の歓喜", cond: "色欲x6 保有", effect: "N社狂信者所属の人格のみ発動。R開始時、狂信1を得る。" }
   ];
   controls.resourceSupportPassiveNames.value = "釘と金槌、処断の歓喜";

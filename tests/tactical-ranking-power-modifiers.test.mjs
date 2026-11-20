@@ -184,8 +184,7 @@ test("own match-power bonuses are detected while target-side and ally-side chang
   assert.equal(dynamic.value, null, "the target vibration count is not known from the skill text");
   assert.equal(dynamic.conditional, true);
   assert.equal(dynamic.unresolved, true);
-  const numericIncrease = kindMods("自分の充電が10以上ならマッチ威力が10増加する", "斬撃", dice).reasons[0];
-  assert.equal(numericIncrease.value, 10);
+  assert.equal(kindMods("自分の充電が10以上ならマッチ威力が10増加する", "斬撃", dice).reasons.length, 0, "resource conditions are not evaluated for match power");
   const suffix = kindMods("数値が5ならマッチ威力増加1", "斬撃", dice).reasons[0];
   assert.equal(suffix.value, 1);
   assert.equal(suffix.conditional, true);
@@ -268,14 +267,14 @@ test("R社第4群の別人格を分離し、正しいサイチーム長へ条件
   assert.ok(sais, "the sixth skill belongs to the Sais-team leader");
   assert.equal(sais.base, 23.5, "40-3d10 baseline EV");
   assert.ok(sais.effectCandidates.some(item => item.label === "スキル威力" && item.value === 5 && item.conditional));
-  assert.ok(sais.passCandidates.some(item => item.label === "マッチ威力" && item.value === 1 && item.conditional));
+  assert.ok(!sais.passCandidates.some(item => item.label === "マッチ威力"), "charge-conditioned match-power passive is outside match-power scope");
 
   element("includePassive").checked = true;
   element("includeEffect").checked = true;
   element("includeConditional").checked = true;
   element("condResource").checked = true;
   element("condTrigger").checked = true;
-  assert.equal(tool.selectedValue(sais), 29.5);
+  assert.equal(tool.selectedValue(sais), 28.5, "resource-conditioned match-power +1 is not added");
 
   assert.match(sais.persona.passives, /我らは前しか見えぬ/);
   assert.match(sais.persona.passives, /進め、進め、踏み砕け/);
