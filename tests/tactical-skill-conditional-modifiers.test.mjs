@@ -32,8 +32,9 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function uniqueEffectText", "function passiveBonus"), context);
   vm.runInContext(sourceBetween("function passiveBonus", "function deferredSkillBonus"), context);
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
+  vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, affiliationFromName, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls };
 }
@@ -325,6 +326,8 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
   controls.condTargetAffiliation.checked = false;
   assert.equal(api.conditionalBonus({ dieRows: [{}, {}], passCandidates: [], effectCandidates: [target] }, "all", "effect"), 0);
 
+  assert.equal(api.affiliationFromName("南部リウ協会5課フィクサー アニス"), "南部リウ協会");
+  assert.equal(api.affiliationFromName("薬指点描派 スチューデントB"), "薬指点描派");
   const nCorp = { name: "N社人格", affiliation: "N社" };
   const wCorp = { name: "W社人格", affiliation: "W社" };
   const buffText = "N社所属の味方にスキル威力+2を付与";
