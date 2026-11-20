@@ -407,6 +407,35 @@ test("選択したサポートパッシブの資源供給・獲得量補正を�
   assert.equal(nonN.total, 2, "N社-only support passive is not applied to W社");
 });
 
+test("所有者が省略された呼吸式は自己資源として扱い、対象側資源は除外する", () => {
+  const { api } = loadHelpers();
+  assert.deepEqual(api.resourceScalingDetails("呼吸5ごとにスキル威力+1"), { resource: "呼吸", per: 5, self: true });
+  assert.equal(api.resourceScalingDetails("対象の出血5ごとにスキル威力+1"), null);
+  assert.equal(api.resourceScalingDetails("自分の呼吸と対象の破裂の合計10ごとにスキル威力+1"), null);
+});
+
+test("初期弾丸数を資源供給に含め、効果側の最大値で加算量を制限する", () => {
+  const { api } = loadHelpers();
+  const persona = { name: "ロボトミーE.G.O:厳粛な哀悼", bullets: 20 };
+  const skill = { type: "斬撃", effect: "", dice: [{ effect: "" }] };
+  const item = api.kindMods("自分の弾丸5ごとにスキル威力+1（最大4）", "斬撃", skill.dice, persona, skill).reasons[0];
+  assert.equal(item.resourceSupply.total, 20);
+  assert.equal(item.value, 4);
+  assert.equal(item.unresolved, false);
+});
+
+test("スキル獲得量増加のサポートパッシブはラウンド開始時供給に重複適用しない", () => {
+  const { api, controls, context } = loadHelpers();
+  context.EMBEDDED_DB.support_passives = [
+    { name: "循環呼吸", cond: "傲慢x5 保有", effect: "スキルで獲得する呼吸獲得量+1。マッチ勝利時、呼吸3を得る" }
+  ];
+  controls.resourceSupportPassiveNames.value = "循環呼吸";
+  const persona = { passive_effect: "R開始時、自分に呼吸3を得る" };
+  const skill = { effect: "使用時：呼吸2を得る", dice: [{ effect: "" }] };
+  const supply = api.resourceSupplyFor(persona, skill, "呼吸");
+  assert.equal(supply.total, 6, "round-start 3 + skill grant 2 + skill-only support gain 1");
+});
+
 test("条件付き自己パッシブの資源獲得は候補として数え、発動条件を保持する", () => {
   const { api } = loadHelpers();
   const persona = { name: "N社中鎚 ガブナー", passive_effect: "HPが50%未満または混乱状態なら狂信3を得る" };
