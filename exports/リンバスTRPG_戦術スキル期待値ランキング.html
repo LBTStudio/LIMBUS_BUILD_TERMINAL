@@ -227,7 +227,7 @@ function targetConditionDetails(context){
  for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
   const affiliation=/所属|協会|組織|会社/.test(value);
-  const entity=/機械融和生命体|血鬼|血袋|種族|種別/.test(value);
+  const entity=/機械融和生命体|血鬼|血袋|種族|種別|味方|敵|キャラクター|フィクサー/.test(value);
   items.push({kind:affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value});
  }
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
@@ -450,7 +450,8 @@ function conditionClasses(context){
  if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴|狂信/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
  const targetConditions=targetConditionDetails(s);
- if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(s)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
+ const nonTargetContext=s.replace(/(?:対象|相手|敵)が[^、。\\n]{1,24}?(?:ならば|なら|であれば|の場合|の時)/g,"");
+ if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(nonTargetContext)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
  if(targetConditions.some(x=>x.kind==="targetStatus"))tags.push("targetStatus");
  if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
  if(targetConditions.some(x=>x.kind==="targetAffiliation"))tags.push("targetAffiliation");
