@@ -471,6 +471,16 @@ test("資源の明示上限と前ラウンドのスキル選択上限を適用�
   }, strongest, "狂信");
   assert.equal(capped.rawTotal, 7);
   assert.equal(capped.total, 5, "資源そのものの最大蓄積量を超えない");
+
+  const branchingSkill = {
+    effect: "使用時：狂信2を得る。マッチ勝利時：次のRに狂信1を得る。マッチ敗北時：次のRに狂信3を得る",
+    dice: [{ effect: "" }]
+  };
+  const branching = api.resourceSupplyFor({
+    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 狂信" }],
+    skills: [branchingSkill]
+  }, branchingSkill, "狂信");
+  assert.equal(branching.total, 5, "当該Rの使用時+2と、前Rの勝利/敗北のどちらか一方だけを加算する");
 });
 
 test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越せる量で評価する", () => {
