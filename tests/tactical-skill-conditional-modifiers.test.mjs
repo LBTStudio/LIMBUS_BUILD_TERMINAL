@@ -861,6 +861,8 @@ test("R社第四群の所属バフとチーム別バフを別々に適用する"
   const affiliationReason = api.kindMods(affiliationBuff, "斬撃", dice, rabbit).reasons[0];
   assert.equal(affiliationReason.recipientScope, "affiliation");
   assert.equal(affiliationReason.excludedRecipient, false);
+  const numericAffiliation = api.kindMods("R社第4群所属の味方にスキル威力+2を付与", "斬撃", dice, rabbit).reasons[0];
+  assert.equal(numericAffiliation.excludedRecipient, false, "第4群と第四群の表記差を同一所属として扱う");
 
   const teamBuff = "ウサギチーム：銃撃ダイスのダイス威力+2";
   const rabbitReason = api.kindMods(teamBuff, "銃撃", dice, rabbit).reasons[0];
