@@ -718,14 +718,20 @@ function recoverAppendixEmbeddedPassives(persona){
 }
 function affiliationFromName(name){
  const text=String(name||"");
- const special=text.match(/R社第[一二三四五六七八九0-9０-９]+群|ラ・マンチャランド(?:第[一二三]区画)?|黒雲会|双鉤海賊団/);
+ const rCorp=text.match(/R社第([一二三四五六七八九0-9０-９]+)群/);
+ if(rCorp){
+  const digits={"1":"一","2":"二","3":"三","4":"四","5":"五","6":"六","7":"七","8":"八","9":"九","１":"一","２":"二","３":"三","４":"四","５":"五","６":"六","７":"七","８":"八","９":"九"};
+  const number=Array.from(rCorp[1]).map(x=>digits[x]||x).join("");
+  return "R社第"+number+"群";
+ }
+ const special=text.match(/ラ・マンチャランド(?:第[一二三]区画)?|黒雲会|双鉤海賊団/);
  if(special)return special[0];
  const match=text.match(/[A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?/);
  return match?.[0]||"";
 }
 function teamFromName(name){
- const match=String(name||"").match(/ウサギチーム|トナカイチーム|サイチーム|第四群司令官/);
- return match?.[0]||"";
+ const match=String(name||"").match(/ウサギチーム|トナカイチーム|サイチーム|第四群\s*司令官/);
+ return match?.[0]?.replace(/\s/g,"")||"";
 }
 function addAppendix(){
  for(const p of APPENDIX){
