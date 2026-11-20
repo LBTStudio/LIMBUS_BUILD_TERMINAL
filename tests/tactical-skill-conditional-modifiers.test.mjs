@@ -938,6 +938,20 @@ test("前の同所属条件が後続の味方付与へ漏れない", () => {
   assert.equal(allyGrant.excludedRecipient, true);
 });
 
+test("対象キャラクター全般の威力変化を味方選出と誤表示しない", () => {
+  const { api } = loadHelpers();
+  const effect = "戦闘開始時：私物状態のキャラクターの威力-2";
+  const dice = [{ effect: "" }, { effect: "" }];
+  const reason = api.kindMods(effect, "斬撃", dice, {}).reasons[0];
+
+  assert.ok(reason, "キャラクターへの威力変化を検出する");
+  assert.equal(reason.recipientScope, "characterSelection");
+  assert.equal(reason.recipientUnresolved, true);
+  assert.equal(reason.unresolved, true);
+  assert.match(api.formatModifierReason(reason), /対象キャラクター/);
+  assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 0);
+});
+
 test("前の自分以外への付与が後続の本人威力補正を除外しない", () => {
   const { api } = loadHelpers();
   const effect = "戦闘開始時：自分以外の味方全員に嫉妬威力増加1を付与\n使用時：自分にスキル威力+2";
