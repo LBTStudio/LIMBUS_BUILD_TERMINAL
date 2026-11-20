@@ -917,6 +917,7 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   for (const [effect, persona] of cases) {
     const reason = api.kindMods(effect, "斬撃", dice, persona).reasons[0];
     assert.equal(reason.recipientScope, "allySelection", effect);
+    if(effect.startsWith("最もHPが少ない")) assert.equal(reason.affiliation, "ヴィリーブ工房", "selection preamble must not be parsed as part of the affiliation");
     assert.equal(reason.recipientUnresolved, true, effect);
     assert.equal(reason.excludedRecipient, false, effect);
     assert.equal(reason.unresolved, true, effect);
