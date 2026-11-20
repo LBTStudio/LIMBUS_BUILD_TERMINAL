@@ -99,7 +99,7 @@ test("別人格カードが連結された固有バフ説明は人格境界で�
   const { api } = loadHelpers();
   const cleaned = api.uniqueEffectText({
     name: "探求した知識",
-    desc: "ディエーチ協会フィクサーの特定スキル威力上昇\n「南部ディエーチ協会5課フィクサー シオンの\n人格」\n探求した知識の数だけ攻撃スキル威力増加（最低1、最大3）"
+    desc: "ディエーチ協会フィクサーの特定スキル威力上昇\n「南部ディエーチ協会5課フィクサー シオンの\n人\n格」\n探求した知識の数だけ攻撃スキル威力増加（最低1、最大3）"
   });
   assert.match(cleaned, /探求した知識/);
   assert.doesNotMatch(cleaned, /攻撃スキル威力増加/);
@@ -127,4 +127,45 @@ test("条件フィルター・補正元チェック・全体ON/OFFで加算値�
   controls.includeConditional.checked = false;
   assert.equal(api.conditionalBonus(row, "all", "effect"), 0, "条件補正全体OFFでは加算しない");
   assert.equal(api.conditionalBonus(row, "potential", "effect"), 4, "候補値は全体OFFでも確認できる");
+});
+
+
+test("改行で分かれた段階補正を別々に数え、後続のダメージ量条件を混ぜない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const staged = api.kindMods(
+    "1以上：スキル威力+1\n4以上：スキル威力+1\n5以上：スキル威力+1",
+    "斬撃",
+    dice
+  ).reasons;
+  assert.deepEqual(Array.from(staged, item => item.value), [1, 1, 1]);
+  assert.ok(staged.every(item => item.conditional));
+
+  const adjacent = api.kindMods(
+    "生体材料が10以上ならスキル威力+2\n消費した生体材料2ごとにダメージ量+1（最大8）",
+    "斬撃",
+    dice
+  ).reasons;
+  assert.equal(adjacent.length, 1, "damage-amount scaling must not make the fixed skill-power bonus unresolved");
+  assert.equal(adjacent[0].value, 2);
+  assert.equal(adjacent[0].conditional, true);
+});
+
+test("人格名・状態・速度差を条件にしたマッチ威力補正を拾う", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const examples = [
+    ["対象の出血4ごとにマッチ威力+1（最大3）", 3],
+    ["対象の振動の数だけマッチ威力増加（最大3）", 3],
+    ["対象の火傷が8以上ならマッチ威力+2", 2],
+    ["自分の速度差2ごとにマッチ威力+1（最大3）", 3],
+    ["対象の沈潜数だけマッチ威力+1（最大2）", 2],
+    ["対象が5種類以上のデバフを保有するならマッチ威力+1", 1]
+  ];
+  for (const [source, expected] of examples) {
+    const result = api.kindMods(source, "斬撃", dice).reasons;
+    assert.equal(result.length, 1, source);
+    assert.equal(result[0].value, expected, source);
+    assert.equal(result[0].conditional, true, source);
+  }
 });
