@@ -242,7 +242,7 @@ function resourceSupplyFor(persona,skill,resource){
   const re=new RegExp("(?:("+escaped+")\\s*(\\d+)\\s*を得る|("+escaped+")を\\s*(\\d+)\\s*(?:得る|回復)|("+escaped+")\\s*(\\d+)\\s*回復)","g");
   for(const m of source.matchAll(re)){
    const before=source.slice(Math.max(0,m.index-100),m.index);
-   const later=/次のR|次R|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|敵討伐時|攻撃後|守備成功時|回避成功時|被攻撃時|R終了時/.test(before);
+   const later=/次のR|次R|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃時|攻撃後|守備成功時|回避成功時|被攻撃時|R終了時/.test(before);
    const selfRecipient=/(?:自分|自身|本人)に/.test(before);
    const otherRecipient=/(?:味方|対象|敵|相手|前方|後方|両隣)に/.test(before);
    if(later||otherRecipient&&!selfRecipient)continue;
@@ -436,7 +436,7 @@ function formatModifierReason(x,origin=""){
  const scope=x.scope==="all"?"全ダイス":x.scope==="first"?"最初のダイス":x.scope==="last"?"最終ダイス":x.scope==="matching"?"該当属性ダイス":"対象ダイス";
  const target=x.targetConditions?.length?` / 対象:${x.targetConditions.map(item=>item.value).join("・")}`:"";
  const recipient=x.excludedRecipient?"（評価対象外：他者への付与）":x.recipientScope==="affiliation"?`（${x.recipientAffiliation}所属の受け手限定）`:"";
- const supply=x.resourceSupply?.known?`（${x.resourceName}供給:${x.resourceSupply.total} / ${x.resourceSupply.notes.join("・")}）`:"";
+ const supply=x.resourceSupply?`（${x.resourceName}供給:${x.resourceSupply.total}${x.resourceSupply.notes.length?" / "+x.resourceSupply.notes.join("・"):""}${x.resourceSupply.unknown?.length?" / 未確定:"+x.resourceSupply.unknown.join("・"):""}）`:"";
  return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${target}${recipient}${supply}${x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):""}`;
 }
 function uniqueEffectText(u){
