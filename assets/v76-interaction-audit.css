@@ -1,4 +1,0 @@
-/* V76: keep the sticky build navigation above scrollable catalog content. */
-.build-tabs.is-b-workbench {
-  z-index: 24;
-}
