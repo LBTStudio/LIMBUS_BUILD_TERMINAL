@@ -1604,3 +1604,13 @@ test("前行の数値未確定式をマッチ敗北時の固定減少へ引き�
   assert.equal(penalty.unresolved, false);
   assert.equal(penalty.conditional, true);
 });
+
+
+test("80文字より前にある処理後トリガーを負の威力補正の発動時点判定で見落とさない", () => {
+  const { api } = loadHelpers();
+  const source = "マッチ敗北時：" + "対象と戦況についての補足説明".repeat(8) + "スキル威力-15";
+  const penalty = api.kindMods(source, "斬撃", [{ roll: "2d8", effect: "" }]).reasons.find(item => item.value === -15);
+  assert.ok(penalty, "長い処理説明の末尾にある負の威力補正を検出する");
+  assert.equal(penalty.afterResolution, true, "発動時点が80文字より前にあっても敗北後として除外する");
+  assert.equal(penalty.conditional, true);
+});
