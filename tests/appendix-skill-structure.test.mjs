@@ -5,10 +5,13 @@ import test from "node:test";
 const html = readFileSync(new URL("../exports/リンバスTRPG_戦術スキル期待値ランキング.html", import.meta.url), "utf8");
 
 function embedded(id) {
-  const re = new RegExp('<script id="' + id + '" type="application/json">([\\\\s\\\\S]*?)</script>');
-  const match = html.match(re);
-  assert.ok(match, "embedded JSON exists: " + id);
-  return JSON.parse(match[1]);
+  const marker = '<script id="' + id + '" type="application/json">';
+  const start = html.indexOf(marker);
+  assert.notEqual(start, -1, "embedded JSON exists: " + id);
+  const contentStart = start + marker.length;
+  const end = html.indexOf("</script>", contentStart);
+  assert.notEqual(end, -1, "embedded JSON closes: " + id);
+  return JSON.parse(html.slice(contentStart, end));
 }
 
 test("ガブナーのスキル0に混入していた非礼勿動を戦術1へ分離する", () => {
