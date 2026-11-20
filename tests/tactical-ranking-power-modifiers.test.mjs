@@ -160,6 +160,7 @@ test("own match-power bonuses are detected while target-side and ally-side chang
   assert.equal(kindMods("味方全体にマッチ威力増加1を付与", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("後方の味方2名に次のRにマッチ威力増加1を付与", "斬撃", dice).reasons.length, 0);
   assert.equal(kindMods("対象が味方ならマッチ威力が10増加しダメージ量が0に固定", "斬撃", dice).reasons.length, 0);
+  assert.equal(kindMods("マッチ威力+2", "斬撃", dice).reasons.length, 0, "ownerless match power is ambiguous and must not be added");
   assert.equal(kindMods("マッチ進行時にマッチ威力+1", "斬撃", dice).reasons.length, 1);
   const duel = kindMods("決闘宣布を付与したキャラクターが付与されたキャラクターとマッチ進行時にマッチ威力+1、マッチ回数2ごとにマッチ威力+1（最大3）", "斬撃", dice).reasons;
   assert.deepEqual(Array.from(duel, item => item.value), [1, 3]);
@@ -273,6 +274,10 @@ test("R社第4群トナカイチーム ケレス recovers OCR-embedded passive a
   assert.ok(unique.some(item => item.name === "我らは前しか見えぬ"));
   assert.ok(unique.some(item => item.name === "進め、進め、踏み砕け"));
   assert.ok(!(row.persona.skills.find(skill => skill.name === "過集中").dice[2].effect || "").includes("名称"));
+  const flor = Array.from(personas).find(persona => persona.name === "笑う顔たち フロル");
+  const shieldPassive = flor.unique.find(item => item.name === "俺が上で、お前が下ノム！！！");
+  assert.ok(shieldPassive);
+  assert.doesNotMatch(shieldPassive.desc, /ヴァカめ|あなたの盾の数/, "the following skill header/effect must not leak into the passive");
 });
 
 test("appendix OCR passive blocks are detached from their source dice across the dataset", () => {
