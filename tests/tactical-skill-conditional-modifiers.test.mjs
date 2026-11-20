@@ -197,6 +197,7 @@ test("対象条件の種類を任意の明示名で抽出し、対象条件な�
   const { api } = loadHelpers();
   const found = api.targetConditionDetails("対象が牙狩の血鬼ならばスキル威力+2");
   assert.deepEqual(Array.from(found, x => [x.kind, x.value]), [["targetType", "牙狩の血鬼"]]);
+  assert.deepEqual(Array.from(api.targetConditionDetails("対象が指令対象ならスキル威力+2")), [{ kind: "targetStatus", value: "指令対象" }]);
   assert.deepEqual(Array.from(api.targetConditionDetails("自分の呼吸が7以上ならスキル威力+2")), []);
 });
 
