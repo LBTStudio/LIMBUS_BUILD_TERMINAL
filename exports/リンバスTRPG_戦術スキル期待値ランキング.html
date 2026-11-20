@@ -265,6 +265,10 @@ function targetConditionDetails(context){
 
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の振動が特殊振動(?:ならば|なら|の場合|の時)/g))add("targetStatus","特殊振動");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の\[([^\]、。\n]{1,18})\](?:の数|だけ|\/\s*\d+)?/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。]{1,24}?)(の合計)?\s*\/\s*\d+\s*だけ/g))add("targetStatus",m[1].trim()+(m[2]||""));
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,24}?)の合計だけ/g))add("targetStatus",m[1].trim()+"の合計");
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の(?:保有する|持つ)?デバフの種類\s*\d+\s*(?:ごとに|につき|に付き)/g))add("targetStatus","デバフの種類");
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)の数より(?:自分|自身|本人)の[^、。\n]{1,18}?の数の方が(?:大きい|小さい|多い|少ない)/g))add("targetStatus",m[1].trim().replace(/の数$/,""));
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
 }
 function resourceScalingDetails(context){
