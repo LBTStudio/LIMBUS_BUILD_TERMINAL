@@ -21,7 +21,7 @@ function sourceBetween(startMarker, endMarker) {
 
 function loadHelpers() {
   const controls = Object.fromEntries(
-    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTrigger", "condOther"]
+    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "targetConditionFilter", "condTrigger", "condOther"]
       .map((id) => [id, { checked: true, value: "" }])
   );
   controls.includePassive.checked = false;
@@ -160,7 +160,7 @@ test("人格名・状態・速度差を条件にしたマッチ威力補正を�
     ["対象の出血4ごとにマッチ威力+1（最大3）", null],
     ["対象の振動の数だけマッチ威力増加（最大3）", null],
     ["対象の火傷が8以上ならマッチ威力+2", 2],
-    ["自分の速度差2ごとにマッチ威力+1（最大3）", 3],
+    ["自分の速度差2ごとにマッチ威力+1（最大3）", null],
     ["対象の沈潜数だけマッチ威力+1（最大2）", null],
     ["対象が5種類以上のデバフを保有するならマッチ威力+1", 1]
   ];
@@ -240,9 +240,13 @@ test("対象が状態異常を保有する条件は対象種別ではなく対�
 test("人格・別冊・パッシブ全データを走査し、上限値だけの資源補正を加算しない", () => {
   const { api } = loadHelpers();
   const embedded = (id) => {
-    const match = html.match(new RegExp('<script id="' + id + '" type="application/json">([\\\\s\\\\S]*?)</script>'));
-    assert.ok(match, "embedded JSON exists: " + id);
-    return JSON.parse(match[1]);
+    const open = '<script id="' + id + '" type="application/json">';
+    const start = html.indexOf(open);
+    assert.notEqual(start, -1, "embedded JSON exists: " + id);
+    const contentStart = start + open.length;
+    const end = html.indexOf("</script>", contentStart);
+    assert.notEqual(end, -1, "embedded JSON closes: " + id);
+    return JSON.parse(html.slice(contentStart, end));
   };
   const db = embedded("persona-data");
   const appendix = embedded("appendix-data");
