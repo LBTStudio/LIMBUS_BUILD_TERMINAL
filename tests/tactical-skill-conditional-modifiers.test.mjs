@@ -909,6 +909,7 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   const dice = [{ effect: "" }, { effect: "" }];
   const cases = [
     ["最もHPが少ないヴィリーブ工房所属の味方2名へスキル威力+2を付与", { affiliation: "ヴィリーブ工房" }],
+    ["HPが最も少ないヴィリーブ工房所属の味方2名へスキル威力+2を付与", { affiliation: "ヴィリーブ工房" }],
     ["ラ・マンチャランド所属の血鬼の味方に優先してスキル威力+2を付与", { affiliation: "ラ・マンチャランド" }],
     ["ランダムな味方1名にスキル威力+2を付与", {}],
     ["味方2名にスキル威力+2を付与", {}]
@@ -917,12 +918,26 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   for (const [effect, persona] of cases) {
     const reason = api.kindMods(effect, "斬撃", dice, persona).reasons[0];
     assert.equal(reason.recipientScope, "allySelection", effect);
+    if(effect.includes("ヴィリーブ工房")) assert.equal(reason.recipientAffiliation, "ヴィリーブ工房", "選出条件の前置きは所属名に混ぜない");
     assert.equal(reason.recipientUnresolved, true, effect);
     assert.equal(reason.excludedRecipient, false, effect);
     assert.equal(reason.unresolved, true, effect);
     assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, persona).bonus, 0, effect);
     assert.match(api.formatModifierReason(reason), /受け手未確定/);
   }
+});
+
+test("ランダムに選ばれた味方の指令の印スキルへの威力補正は本人へ加算しない", () => {
+  const { api } = loadHelpers();
+  const effect = "戦闘開始時：ランダムな人差し指所属の味方1名の指令の印スキルのスキル威力+2";
+  const dice = [{ effect: "" }, { effect: "" }];
+  const reason = api.kindMods(effect, "斬撃", dice, {}).reasons[0];
+
+  assert.ok(reason, "指令の印スキルへの威力補正を検出する");
+  assert.equal(reason.recipientScope, "allySelection");
+  assert.equal(reason.recipientUnresolved, true);
+  assert.equal(reason.excludedRecipient, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 0);
 });
 
 test("前の同所属条件が後続の味方付与へ漏れない", () => {
