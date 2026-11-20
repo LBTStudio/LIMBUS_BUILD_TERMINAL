@@ -246,15 +246,21 @@ function resourceScalingDetails(context){
 function selectedResourceSupportPassives(){
  return String($("resourceSupportPassiveNames")?.value||"").split(/[、,，]/).map(x=>x.trim()).filter(Boolean);
 }
-function resourceMaximumFor(persona,resource){
+function resourceStatusRecords(persona,resource){
  const local=[...(persona?.unique_buffs||[]),...(persona?.unique||[])].filter(item=>String(item?.name||"")===resource);
+ if(local.length)return local;
  const allRecords=[
   ...(typeof EMBEDDED_DB!=="undefined"?[...(EMBEDDED_DB.normal_personas||[]),...(EMBEDDED_DB.tokui_personas||[])]:[]),
   ...(typeof APPENDIX!=="undefined"&&Array.isArray(APPENDIX)?APPENDIX:[])
  ];
- const records=local.length?local:allRecords.flatMap(record=>[...(record.unique_buffs||[]),...(record.unique||[])]).filter(item=>String(item?.name||"")===resource);
- const maxima=records.map(item=>Number(item?.max)).filter(value=>Number.isFinite(value)&&value>0);
+ return allRecords.flatMap(record=>[...(record.unique_buffs||[]),...(record.unique||[])]).filter(item=>String(item?.name||"")===resource);
+}
+function resourceMaximumFor(persona,resource){
+ const maxima=resourceStatusRecords(persona,resource).map(item=>Number(item?.max)).filter(value=>Number.isFinite(value)&&value>0);
  return maxima.length?Math.min(...maxima):null;
+}
+function resourceExpiresAfterRound(persona,resource){
+ return resourceStatusRecords(persona,resource).some(item=>/\[\s*1R\s*\]|R終了時[^。\n]{0,24}消滅/.test(String(item?.desc||item?.effect||"")));
 }
 function resourceSupplyFor(persona,skill,resource){
  const grants=[],selected=new Set(selectedResourceSupportPassives()),unknownSources=[],unknownSupport=[];
@@ -273,7 +279,10 @@ function resourceSupplyFor(persona,skill,resource){
    const nextRound=/次のR|次R/.test(before);
    if(mode==="priorSkill"){
     // A prior-round skill only contributes resources explicitly carried into the following round.
-    if(!/(?:次のR|次R|R終了時)/.test(before)){unknownSources.push(label);continue;}
+    if(!/(?:次のR|次R|R終了時)/.test(before)){
+     if(resourceExpiresAfterRound(persona,resource))continue;
+     unknownSources.push(label);continue;
+    }
     target.push({amount:Number(m[2]||m[4]||m[6]),source:label,mode,conditional:true});
     continue;
    }
