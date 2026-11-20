@@ -442,6 +442,7 @@ function modifierRecipient(before,after,persona){
  if(/(?:味方全体|味方全員|全ての味方|すべての味方)[^、。\n]{0,16}(?:の|が)使用(?:している)?スキル/.test(sharedSkillContext))return {scope:"self",applies:true};
  if(/味方[^、。\n]{0,24}(?:の使用する|が使用する|が使う|の使用している|が使用している)スキル/.test(sharedSkillContext))return {scope:"allySelection",applies:true,unresolved:true};
  if(/(?:自分と)?同じ所属の(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"affiliation",affiliation:ownAffiliation||"同じ所属",applies:!!ownAffiliation};
+ if(/自分と同じ所属の(?:キャラクター|味方|フィクサー)[^、。]{0,24}(?:が|は)[^、。]{0,20}(?:スキル|攻撃)[^、。]{0,12}(?:使う|使用する)/.test(source))return {scope:"selfOrUnspecified",applies:true};
  if(/(?:自分|自身|本人)(?:と|及び|、)[^、。\n]{0,24}(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"self",applies:true};
  const affiliationPattern=/([A-ZＡ-Ｚ]社(?:第[一二三四五六七八九0-9０-９]+群)?|ラ・マンチャランド(?:第[一二三]区画)?|黒雲会|双鉤海賊団|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|社|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?)(?:所属)?の(?:血鬼の)?(?:味方|キャラクター|フィクサー)(全体|全員|複数名|一人|一名|二人|二名|三人|三名|四人|四名|五人|五名|[0-9０-９]+名|[0-9０-９]+人)?(?:に|へ|の)(?:優先して|優先的に|ランダムに)?/;
  const affiliationBefore=source.slice(-80).match(new RegExp(affiliationPattern.source+"$"));
@@ -456,6 +457,13 @@ function modifierRecipient(before,after,persona){
   return {scope:"affiliation",affiliation:required,applies:!!own&&(own===required||own.startsWith(required))};
  }
  if(/(?:自分|自身|本人)を含む/.test(source))return {scope:"self",applies:true};
+ const grantRecipientMatch=source.match(/((?:(?:両隣|前方|後方|ランダムな|優先して|優先的に|最も[^、。]{0,20}?)の?)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?に)[^、。]{0,24}$/);
+ if(grantRecipientMatch&&/(?:付与|与える|獲得)/.test(tail)){
+  const recipientText=grantRecipientMatch[1];
+  if(/味方(?:全体|全員)|全ての味方|すべての味方/.test(source))return {scope:"self",applies:true};
+  if(/(?:両隣|前方|後方)/.test(recipientText))return {scope:"other",applies:false};
+  return {scope:"allySelection",applies:true,unresolved:true};
+ }
  const recipientBefore=/(?:(?:ランダムな|最も[^、。\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
  const recipientAfter=/^(?:を|が|は)?(?:(?:ランダムな|最も[^、。\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
  if(recipientBefore||recipientAfter){
