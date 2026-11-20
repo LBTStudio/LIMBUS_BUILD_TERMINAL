@@ -532,7 +532,7 @@ test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越�
   const target=api.kindMods("対象の狂信が10以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
   assert.equal(target.value,2,"対象側の蓄積条件は本人の資源量で判定せず、対象条件として扱う");
   assert.equal(target.unresolved,false);
-  assert.ok(target.conditionCategories.includes("targetStatus"));
+  assert.ok(target.conditionCategories.includes("resource"));
 });
 
 test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
