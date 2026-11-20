@@ -48,6 +48,9 @@ function createToolHarness() {
     condResource: { type: "checkbox", checked: true },
     condStats: { type: "checkbox", checked: true },
     condTeam: { type: "checkbox", checked: true },
+    condTargetStatus: { type: "checkbox", checked: true },
+    condTargetType: { type: "checkbox", checked: true },
+    targetConditionFilter: { type: "search", value: "" },
     condTrigger: { type: "checkbox", checked: true },
     condOther: { type: "checkbox", checked: true }
   };
