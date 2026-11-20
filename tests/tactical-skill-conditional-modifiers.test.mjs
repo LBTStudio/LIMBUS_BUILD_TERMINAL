@@ -925,6 +925,17 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   }
 });
 
+test("前の味方付与が後続の本人威力補正へ漏れない", () => {
+  const { api } = loadHelpers();
+  const effect = "戦闘開始時：両隣の味方に嫉妬威力増加1を付与\n使用時：自分にスキル威力+2を付与";
+  const reasons = api.kindMods(effect, "斬撃", [{ effect: "" }], {}).reasons;
+  const self = reasons.find(item => item.source === "スキル威力+2");
+
+  assert.ok(self, "後続の本人威力補正を検出する");
+  assert.equal(self.excludedRecipient, false);
+  assert.notEqual(self.recipientScope, "other");
+});
+
 test("状態名を挟んだ両隣の味方への威力増加付与を本人に加算しない", () => {
   const { api, controls } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
