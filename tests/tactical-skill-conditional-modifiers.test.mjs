@@ -30,7 +30,7 @@ function loadHelpers() {
   vm.createContext(context);
   vm.runInContext(sourceBetween("const CONDITION_FILTER_IDS=", "function formatModifierReason"), context);
   vm.runInContext(sourceBetween("function uniqueEffectText", "function passiveBonus"), context);
-  vm.runInContext(sourceBetween("function conditionModifierEnabled", "function selectedValue"), context);
+  vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
   vm.runInContext(`
     globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, conditionalPerDie, conditionalBonus };
   `, context);
