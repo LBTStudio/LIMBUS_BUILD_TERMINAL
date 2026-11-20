@@ -235,3 +235,67 @@ test("対象が状態異常を保有する条件は対象種別ではなく対�
   assert.equal(status[0].kind, "targetStatus");
   assert.equal(type[0].kind, "targetType");
 });
+
+
+test("人格・別冊・パッシブ全データを走査し、上限値だけの資源補正を加算しない", () => {
+  const { api } = loadHelpers();
+  const embedded = (id) => {
+    const match = html.match(new RegExp('<script id="' + id + '" type="application/json">([\\\\s\\\\S]*?)</script>'));
+    assert.ok(match, "embedded JSON exists: " + id);
+    return JSON.parse(match[1]);
+  };
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  let scannedSkills = 0;
+  let resourceScalingCandidates = 0;
+  const targetTypes = new Set();
+  const targetStatuses = new Set();
+  for (const persona of personas) {
+    for (const skill of persona.skills || []) {
+      scannedSkills++;
+      const fields = [skill.effect || "", ...(skill.dice || []).map(die => die.effect || "")];
+      for (const source of fields) {
+        for (const item of api.kindMods(source, skill.type || "", skill.dice || []).reasons) {
+          if (item.resourceScaling) {
+            resourceScalingCandidates++;
+            assert.equal(item.value, null, persona.name + " / " + (skill.name || skill.rank));
+            assert.equal(item.unresolved, true, persona.name + " / " + (skill.name || skill.rank));
+          }
+          for (const target of item.targetConditions || []) {
+            if (target.kind === "targetType") targetTypes.add(target.value);
+            if (target.kind === "targetStatus") targetStatuses.add(target.value);
+          }
+        }
+      }
+    }
+    for (const source of [persona.passive_effect, persona.passive_always, persona.passives]) {
+      if (typeof source !== "string" || !source) continue;
+      for (const item of api.kindMods(source, "攻撃", []).reasons) {
+        if (item.resourceScaling) {
+          resourceScalingCandidates++;
+          assert.equal(item.value, null, persona.name + " / passive");
+          assert.equal(item.unresolved, true, persona.name + " / passive");
+        }
+      }
+    }
+    for (const unique of persona.unique_buffs || persona.unique || []) {
+      const source = [unique.name, unique.desc, unique.effect].filter(Boolean).join(" ");
+      for (const item of api.kindMods(source, "攻撃", []).reasons) {
+        if (item.resourceScaling) {
+          resourceScalingCandidates++;
+          assert.equal(item.value, null, persona.name + " / " + unique.name);
+          assert.equal(item.unresolved, true, persona.name + " / " + unique.name);
+        }
+      }
+    }
+  }
+  assert.ok(scannedSkills > 2000, "main and appendix skill records are included");
+  assert.ok(resourceScalingCandidates > 400, "resource/stack-scaled modifiers were audited");
+  assert.ok(targetTypes.has("機械融和生命体"));
+  assert.ok([...targetTypes].some(value => value.includes("血鬼")));
+  assert.ok(targetStatuses.has("N社の釘"));
+  const support = db.support_passives || [];
+  assert.ok(support.some(item => item.name === "釘と金槌"));
+  assert.ok(support.some(item => item.name === "処断の歓喜"));
+});
