@@ -224,8 +224,7 @@ function modifierRecipient(before,after,persona){
   const own=String(persona?.affiliation||"").replace(/所属/g,"");
   return {scope:"affiliation",affiliation:required,applies:!!own&&(own.includes(required)||required.includes(own))};
  }
- const recipient=/味方(?:全体|全員|一人|2名|２名|複数名)?|対象|敵|相手|前方|後方|両隣|キャラクター/;
- const recipientPhrase=recipient.test(source)&&/(?:に|へ|の)$/.test(source);
+ const recipientPhrase=/(?:味方(?:全体|全員|一人|2名|２名|複数名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
  if(recipientPhrase)return {scope:"other",applies:false};
  return {scope:"selfOrUnspecified",applies:true};
 }
