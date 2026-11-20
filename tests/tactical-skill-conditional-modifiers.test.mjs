@@ -1337,17 +1337,22 @@ test("戦術枠と派生スキル番号を分離して保持し、派生単位�
 });
 
 
-test("内蔵人格データ全件で派生コード末尾を保持する", () => {
+test("基本・特異・別冊の内蔵データ全件で派生コード末尾を保持する", () => {
   const { api } = loadHelpers();
-  const marker = '<script id="persona-data" type="application/json">';
-  const markerStart = html.indexOf(marker);
-  assert.notEqual(markerStart, -1, "内蔵人格データが存在する");
-  const dataStart = markerStart + marker.length;
-  const dataEnd = html.indexOf("</script>", dataStart);
-  assert.notEqual(dataEnd, -1, "内蔵人格データの終端が存在する");
-  const db = JSON.parse(html.slice(dataStart, dataEnd));
+  function embedded(id) {
+    const marker = '<script id="' + id + '" type="application/json">';
+    const markerStart = html.indexOf(marker);
+    assert.notEqual(markerStart, -1, id + " が存在する");
+    const dataStart = markerStart + marker.length;
+    const dataEnd = html.indexOf("</script>", dataStart);
+    assert.notEqual(dataEnd, -1, id + " の終端が存在する");
+    return JSON.parse(html.slice(dataStart, dataEnd));
+  }
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
   let derivedCount = 0;
-  for (const persona of [...(db.normal_personas || []), ...(db.tokui_personas || [])]) {
+  for (const persona of personas) {
     for (const skill of persona.skills || []) {
       const parts = String(skill.rank || "").replace(/^スキル/, "").split("-");
       if (parts.length !== 2 || !parts.every(part => part.trim() !== "" && Number.isInteger(Number(part)))) continue;
@@ -1358,5 +1363,5 @@ test("内蔵人格データ全件で派生コード末尾を保持する", () =>
       assert.equal(normalized.isDerived, true, persona.name + " / " + skill.rank + " derived flag");
     }
   }
-  assert.ok(derivedCount >= 90, "現在の埋め込みデータに含まれる派生スキル群を横断する");
+  assert.ok(derivedCount >= 140, "基本・特異・別冊の派生スキルを横断する");
 });
