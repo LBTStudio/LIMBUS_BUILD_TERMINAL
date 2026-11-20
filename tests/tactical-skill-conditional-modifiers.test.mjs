@@ -1400,3 +1400,76 @@ test("基本・特異・別冊の内蔵データ全件で派生コード末尾�
   for (const name of knownSameRankVariants) assert.ok(foundSameRankVariants.has(name), name + " の同一ランク別スキルを識別する");
   assert.ok(foundSameRankVariants.size >= 4, "同一ランク別スキル群を全件検出する");
 });
+
+
+test("negative modifiers preserve direction and distinguish current skill penalties from post-resolution penalties", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+
+  const currentMatchPenalty = api.kindMods("マッチ開始時：マッチ威力-2", "斬撃", dice).reasons[0];
+  assert.ok(currentMatchPenalty);
+  assert.equal(currentMatchPenalty.value, -2);
+  assert.equal(currentMatchPenalty.afterResolution, false);
+
+  const oneSidedPenalty = api.kindMods("一方攻撃時：スキル威力-3", "斬撃", dice).reasons[0];
+  assert.ok(oneSidedPenalty);
+  assert.equal(oneSidedPenalty.value, -3);
+  assert.equal(oneSidedPenalty.afterResolution, false);
+  assert.equal(oneSidedPenalty.conditional, true, "一方攻撃時の減少は無条件ペナルティではない");
+  assert.ok(oneSidedPenalty.conditionCategories.includes("trigger"));
+
+  const matchLossPenalty = api.kindMods("マッチ敗北時：スキル威力-10", "斬撃", dice).reasons[0];
+  assert.ok(matchLossPenalty);
+  assert.equal(matchLossPenalty.value, -10);
+  assert.equal(matchLossPenalty.afterResolution, true);
+
+  const endOfRoundPenalty = api.kindMods("R終了時：スキル威力-2", "斬撃", dice).reasons[0];
+  assert.ok(endOfRoundPenalty);
+  assert.equal(endOfRoundPenalty.value, -2);
+  assert.equal(endOfRoundPenalty.afterResolution, true);
+  assert.equal(endOfRoundPenalty.conditional, true, "後処理タイミングの補正は無条件補正へ混入させない");
+
+  const targetDebuff = api.kindMods("怠惰共鳴数/2だけ対象のスキル威力-1", "斬撃", dice).reasons;
+  assert.equal(targetDebuff.length, 0, "対象側の威力低下を自分の攻撃EVへ混入させない");
+
+  const row = {
+    dieRows: [{}, {}],
+    passCandidates: [],
+    effectCandidates: [currentMatchPenalty, matchLossPenalty]
+  };
+  assert.equal(api.conditionalBonus(row, "all", "effect"), -4,
+    "現在のマッチ開始時ペナルティだけを2ダイス分反映し、敗北後ペナルティは除外する");
+});
+
+test("内蔵実データのマッチ敗北後スキル威力ペナルティは今回のランキングEVに加算しない", () => {
+  const { api } = loadHelpers();
+  const embedded = (id) => {
+    const open = '<script id="' + id + '" type="application/json">';
+    const start = html.indexOf(open);
+    assert.notEqual(start, -1, "embedded JSON exists: " + id);
+    const contentStart = start + open.length;
+    const end = html.indexOf("</script>", contentStart);
+    assert.notEqual(end, -1, "embedded JSON closes: " + id);
+    return JSON.parse(html.slice(contentStart, end));
+  };
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  const candidates = [];
+  for (const persona of personas) {
+    for (const skill of persona.skills || []) {
+      const sources = [skill.effect || "", ...(skill.dice || []).map(die => die.effect || "")];
+      for (const source of sources) {
+        if (!/マッチ敗北時/.test(source) || !/(?:スキル|ダイス)?威力\s*[-－−]\s*\d+/.test(source)) continue;
+        for (const item of api.kindMods(source, skill.type || "", skill.dice || [], persona, skill).reasons) {
+          if (item.value < 0) candidates.push({ persona: persona.name, skill: skill.name, item });
+        }
+      }
+    }
+  }
+  assert.ok(candidates.length >= 8, "複数人格の実データから敗北後ペナルティを検出する");
+  for (const candidate of candidates) {
+    assert.equal(candidate.item.afterResolution, true,
+      candidate.persona + " / " + candidate.skill + " は敗北後の効果");
+  }
+});

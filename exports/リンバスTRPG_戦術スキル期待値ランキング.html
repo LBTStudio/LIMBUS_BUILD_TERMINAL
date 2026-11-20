@@ -519,7 +519,7 @@ function resourceSupplyFor(persona,skill,resource){
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
- const triggerMatches=[...source.matchAll(/戦闘開始時|R開始時|次のRに|次Rに|使用時|使用前|攻撃前|攻撃後|攻撃時|的中時|マッチ開始時|マッチ進行時|マッチ勝利時|マッチ敗北時|敵討伐時|被攻撃時|相殺時|クリティカル/g)];
+ const triggerMatches=[...source.matchAll(/戦闘開始時|R開始時|R終了時|ターン終了時|次のRに|次Rに|使用時|使用前|攻撃前|攻撃後|攻撃時|的中時|マッチ開始時|マッチ進行時|マッチ勝利時|マッチ敗北時|一方攻撃時|敵討伐時|被攻撃時|相殺時|クリティカル/g)];
  const activeSource=source.slice(triggerMatches.length?triggerMatches[triggerMatches.length-1].index:0);
  const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?|を含まない|を含まず|を含めない)[^、。\n]{0,24}味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ|の(?!数|人数|ごと))/.test(activeSource)||/他の味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ|の(?!数|人数|ごと))/.test(activeSource)||/自分が付与した[^、。\n]{0,40}味方/.test(activeSource+" "+tail);
  if(excludesSelf)return {scope:"other",applies:false};
@@ -580,7 +580,7 @@ function conditionClasses(context){
  if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
  if(targetConditions.some(x=>x.kind==="targetStat"))tags.push("targetStat");
  if(targetConditions.some(x=>x.kind==="targetAffiliation"))tags.push("targetAffiliation");
- if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時|使用時|戦闘開始時|R開始時|攻撃前|攻撃後|次のR|次R|的中時|相殺時|守備成功時|回避成功時/.test(s))tags.push("trigger");
+ if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時|一方攻撃時|使用時|戦闘開始時|R開始時|R終了時|ターン終了時|攻撃前|攻撃後|次のR|次R|的中時|相殺時|守備成功時|回避成功時/.test(s))tags.push("trigger");
  return tags.length?tags:["other"];
 }
 function targetsForModifier(scope,count,dice,targetType,skillType){
@@ -685,7 +685,9 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
     if(resourceSupply.unresolved){value=null;unresolved=true;}
     else if(resourceSupply.total<resourceCondition.minimum){value=0;unresolved=false;}
    }
-   const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
+   const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|一方攻撃時|R終了時|ターン終了時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
+   // Outcome/post-resolution triggers cannot change the skill power that already produced this attack.
+   const afterResolution=/(?:マッチ勝利時|マッチ敗北時|攻撃後|的中時|敵討伐時|R終了時|ターン終了時|相殺時|被攻撃時|被攻撃前|守備成功時|回避成功時)/.test(before);
    const targetConditions=targetConditionDetails(context);
    const previousClauseStart=Math.max(src.lastIndexOf("。",clauseStart-2)+1,src.lastIndexOf("\n",clauseStart-2)+1);
    const previousClause=src.slice(previousClauseStart,clauseStart);
@@ -694,10 +696,10 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
    const recipientUnresolved=!!recipient.unresolved;
    unresolved=unresolved||recipientUnresolved;
    const excludedRecipient=!recipient.applies;
-   const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||targetConditions.length>0||/なら|ならば|であれば|あれば|の場合|ご\s*とに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
+   const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||targetConditions.length>0||/なら|ならば|であれば|あれば|の場合|ご\s*とに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event||afterResolution;
    const targetType=p.targetGroup?m[p.targetGroup]:null;
    const targets=targetsForModifier(p.scope,dice.length,dice,targetType,skillType);
-   reasons.push({label:p.label,value,scope:p.scope,targets,conditional:conditional||!!resourceSupply?.conditional,conditionCategories:conditionClasses(context),targetConditions,recipientScope:recipient.scope,recipientAffiliation:recipient.affiliation||null,recipientTeam:recipient.team||null,recipientUnresolved,excludedRecipient,resourceScaling:perUnit,resourceName:resourceScaling?.resource||resourceCondition?.resource||null,resourceSupply,unresolved,source:m[0],context});
+   reasons.push({label:p.label,value,scope:p.scope,targets,conditional:conditional||!!resourceSupply?.conditional,afterResolution,conditionCategories:conditionClasses(context),targetConditions,recipientScope:recipient.scope,recipientAffiliation:recipient.affiliation||null,recipientTeam:recipient.team||null,recipientUnresolved,excludedRecipient,resourceScaling:perUnit,resourceName:resourceScaling?.resource||resourceCondition?.resource||null,resourceSupply,unresolved,source:m[0],context});
    occupied.push([start,end]);
   }
  }
@@ -709,7 +711,7 @@ function formatModifierReason(x,origin=""){
  const target=x.targetConditions?.length?" / 対象:"+x.targetConditions.map(item=>item.value).join("・"):"";
  const recipient=x.recipientUnresolved?"（受け手未確定："+(x.recipientAffiliation?x.recipientAffiliation+"所属の":"")+"味方の選出）":x.recipientScope==="affiliation"?"（"+x.recipientAffiliation+"所属の受け手限定"+(x.excludedRecipient?"：評価対象外":"")+"）":x.recipientScope==="team"?"（"+x.recipientTeam+"限定"+(x.excludedRecipient?"：評価対象外":"")+"）":x.excludedRecipient?"（評価対象外：他者への付与）":"";
  const supply=x.resourceSupply?"（"+x.resourceName+"供給:"+x.resourceSupply.total+(x.resourceSupply.notes.length?" / "+x.resourceSupply.notes.join("・"):"")+(x.resourceSupply.unknown?.length?" / 未確定:"+x.resourceSupply.unknown.join("・"):"")+"）":"";
- const status=x.recipientUnresolved?(x.value===null?"（数値・受け手未確定）":""):x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):"";
+ const status=x.afterResolution?"（今回の威力計算後：ランキングEV対象外）":x.recipientUnresolved?(x.value===null?"（数値・受け手未確定）":""):x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):"";
  return (origin?origin+": ":"")+x.label+" "+amount+" / "+scope+target+recipient+supply+status;
 }
 function uniqueEffectText(u){
@@ -870,7 +872,7 @@ function targetConditionMatches(item,query){
 function conditionModifierEnabled(x,requireMaster=true){
  const targetFilter=String($("targetConditionFilter")?.value||"").trim().toLocaleLowerCase("ja");
  const targetMatches=!targetFilter||(x.targetConditions||[]).some(item=>targetConditionMatches(item,targetFilter));
- return (!requireMaster||!!$("includeConditional")?.checked)&&!x.excludedRecipient&&!x.unresolved&&Number.isFinite(x.value)&&targetMatches&&
+ return (!requireMaster||!!$("includeConditional")?.checked)&&!x.afterResolution&&!x.excludedRecipient&&!x.unresolved&&Number.isFinite(x.value)&&targetMatches&&
   (x.conditionCategories||["other"]).every(k=>$(CONDITION_FILTER_IDS[k]||"condOther")?.checked);
 }
 function conditionalPerDie(r,index,mode="selected",source="both"){
