@@ -773,8 +773,8 @@ function deferredSkillBonus(persona,skill){
    if(!text||!/(?:次のR|次R)/.test(text)||/(?:味方|対象).{0,12}(?:威力増加|威力\+)/.test(text))continue;
    const parsed=kindMods(text,skill.type||"",dice,persona);
    for(const x of parsed.reasons){
-    if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(x.context||""))continue;
-    const candidate={...x,conditional:true,afterResolution:false,conditionCategories:["trigger"],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
+    if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(String(x.source||"")+" "+String(x.context||"")))continue;
+    const candidate={...x,conditional:true,conditionCategories:["trigger"],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
     candidates.push(candidate);
     reasons.push(formatModifierReason(candidate,candidate.origin));
    }
