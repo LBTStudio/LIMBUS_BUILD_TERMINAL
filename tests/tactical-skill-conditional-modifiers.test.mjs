@@ -21,7 +21,7 @@ function sourceBetween(startMarker, endMarker) {
 
 function loadHelpers() {
   const controls = Object.fromEntries(
-    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "targetConditionFilter", "condTrigger", "condOther"]
+    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "condTrigger", "condOther"]
       .map((id) => [id, { checked: true, value: "" }])
   );
   controls.includePassive.checked = false;
@@ -30,9 +30,10 @@ function loadHelpers() {
   vm.createContext(context);
   vm.runInContext(sourceBetween("const CONDITION_FILTER_IDS=", "function formatModifierReason"), context);
   vm.runInContext(sourceBetween("function uniqueEffectText", "function passiveBonus"), context);
+  vm.runInContext(sourceBetween("function passiveBonus", "function deferredSkillBonus"), context);
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls };
 }
@@ -310,4 +311,37 @@ test("人格・別冊・パッシブ全データを走査し、上限値だけ�
   const support = db.support_passives || [];
   assert.ok(support.some(item => item.name === "釘と金槌"));
   assert.ok(support.some(item => item.name === "処断の歓喜"));
+});
+
+
+test("攻撃対象の所属条件と、所属を受け手にするバフを別扱いにする", () => {
+  const { api, controls } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const target = api.kindMods("対象がN社所属ならスキル威力+2", "斬撃", dice, { affiliation: "W社" }).reasons[0];
+  assert.equal(target.conditional, true);
+  assert.deepEqual(Array.from(target.targetConditions, item => [item.kind, item.value]), [["targetAffiliation", "N社所属"]]);
+  assert.ok(target.conditionCategories.includes("targetAffiliation"));
+  assert.equal(api.conditionalBonus({ dieRows: [{}, {}], passCandidates: [], effectCandidates: [target] }, "all", "effect"), 4);
+  controls.condTargetAffiliation.checked = false;
+  assert.equal(api.conditionalBonus({ dieRows: [{}, {}], passCandidates: [], effectCandidates: [target] }, "all", "effect"), 0);
+
+  const nCorp = { name: "N社人格", affiliation: "N社" };
+  const wCorp = { name: "W社人格", affiliation: "W社" };
+  const buffText = "N社所属の味方にスキル威力+2を付与";
+  const nBuff = api.kindMods(buffText, "斬撃", dice, nCorp).reasons[0];
+  const wBuff = api.kindMods(buffText, "斬撃", dice, wCorp).reasons[0];
+  assert.equal(nBuff.recipientScope, "affiliation");
+  assert.equal(nBuff.excludedRecipient, false);
+  assert.equal(nBuff.conditional, false, "recipient affiliation is resolved against the evaluated identity, not treated as target affiliation");
+  assert.equal(api.skillBonus({ type: "斬撃", effect: buffText, dice }, nCorp).bonus, 4);
+  assert.equal(wBuff.excludedRecipient, true);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: buffText, dice }, wCorp).bonus, 0);
+
+  const allyBuff = "味方全体にスキル威力+2を付与";
+  const excluded = api.kindMods(allyBuff, "斬撃", dice, nCorp).reasons[0];
+  assert.equal(excluded.excludedRecipient, true);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: allyBuff, dice }, nCorp).bonus, 0);
+
+  const selfBuff = "自分にスキル威力+2";
+  assert.equal(api.skillBonus({ type: "斬撃", effect: selfBuff, dice }, wCorp).bonus, 4);
 });
