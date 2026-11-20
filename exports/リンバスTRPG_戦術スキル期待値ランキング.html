@@ -141,7 +141,8 @@ tbody td{padding:7px}
     <label class="check"><input type="checkbox" id="condStats" checked> HP・SAN・速度</label>
     <label class="check"><input type="checkbox" id="condTeam" checked> 共鳴・所属・味方編成</label>
     <label class="check"><input type="checkbox" id="condTargetStatus" checked> 対象状態・条件</label>
-    <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別・所属</label>
+    <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別</label>
+    <label class="check"><input type="checkbox" id="condTargetAffiliation" checked> 攻撃対象の所属</label>
     <label class="check target-filter">対象条件を絞り込む <input type="search" id="targetConditionFilter" placeholder="例：機械融和生命体 / 牙狩の血鬼 / N社の釘"></label>
     <label class="check"><input type="checkbox" id="condTrigger" checked> マッチ・会心・討伐など</label>
     <label class="check"><input type="checkbox" id="condOther" checked> その他・分類不能</label>
@@ -200,7 +201,7 @@ function slotOf(rank){
  const m=String(rank??"").match(/(?:スキル)?\s*(\d+)/);
  return m?Number(m[1]):null;
 }
-const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetType:"condTargetType",trigger:"condTrigger",other:"condOther"};
+const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
 function targetConditionDetails(context){
  const s=String(context||""),items=[];
  for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g)){
@@ -208,20 +209,37 @@ function targetConditionDetails(context){
  }
  for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
-  const entity=/機械融和生命体|血鬼|血袋|所属|協会|組織|会社|種族|種別/.test(value);
-  items.push({kind:entity?"targetType":"targetStatus",value});
+  const affiliation=/所属|協会|組織|会社/.test(value);
+  const entity=/機械融和生命体|血鬼|血袋|種族|種別/.test(value);
+  items.push({kind:affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value});
  }
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
+}
+function modifierRecipient(before,after,persona){
+ const source=String(before||""),tail=String(after||"");
+ if(/(?:自分|自身|本人)(?:と|及び|、)?/.test(source))return {scope:"self",applies:true};
+ const affiliationMatch=source.match(/([A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,12}(?:協会|工房|社|組|支部|チーム))(?:所属)?の(?:味方|キャラクター|フィクサー)/);
+ if(affiliationMatch){
+  const required=affiliationMatch[1].replace(/所属$/,"");
+  const own=String(persona?.affiliation||"").replace(/所属/g,"");
+  return {scope:"affiliation",affiliation:required,applies:!!own&&(own.includes(required)||required.includes(own))};
+ }
+ const recipient=/味方(?:全体|全員|一人|2名|２名|複数名)?|対象|敵|相手|前方|後方|両隣|キャラクター/;
+ const recipientPhrase=recipient.test(source)&&/(?:に|へ|の)$/.test(source);
+ const recipientGrant=/(?:付与|与える|得る|受ける|付く|獲得)/.test(tail);
+ if(recipientPhrase||recipientGrant&&recipient.test(source))return {scope:"other",applies:false};
+ return {scope:"selfOrUnspecified",applies:true};
 }
 function conditionClasses(context){
  const s=String(context||""),tags=[];
  if(/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|挑発|守る剣|貫く剣|ヒステリー|仕返し対象|指令対象|特殊振動|眩惑|毒/.test(s))tags.push("status");
  if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|保有|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴|狂信/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
- if(/共鳴|所属|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(s))tags.push("team");
  const targetConditions=targetConditionDetails(s);
+ if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(s)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
  if(targetConditions.some(x=>x.kind==="targetStatus"))tags.push("targetStatus");
  if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
+ if(targetConditions.some(x=>x.kind==="targetAffiliation"))tags.push("targetAffiliation");
  if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時|使用時|戦闘開始時|R開始時|攻撃前|攻撃後|次のR|次R|的中時|相殺時|守備成功時|回避成功時/.test(s))tags.push("trigger");
  return tags.length?tags:["other"];
 }
@@ -234,7 +252,7 @@ function targetsForModifier(scope,count,dice,targetType,skillType){
  }
  return Array.from({length:count},(_,i)=>i);
 }
-function kindMods(text,skillType,dice=[]){
+function kindMods(text,skillType,dice=[],persona=null){
  const src=String(text||"").replace(/[＋]/g,"+").replace(/[－−]/g,"-").replace(/\r\n?/g,"\n").split("\n").map(line=>line.replace(/[ \t\u3000]+/g,"")).join("\n");
  const reasons=[],occupied=[];
  const applies=prefix=>!prefix||(prefix==="攻撃"?!/防御|回避/.test(skillType):String(skillType||"").includes(prefix));
@@ -311,10 +329,12 @@ function kindMods(text,skillType,dice=[]){
    if(perUnit){value=null;unresolved=true;}
    const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
    const targetConditions=targetConditionDetails(context);
+   const recipient=modifierRecipient(before,after,persona);
+   const excludedRecipient=!recipient.applies;
    const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||targetConditions.length>0||/なら|ならば|であれば|あれば|の場合|ご\s*とに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
    const targetType=p.targetGroup?m[p.targetGroup]:null;
    const targets=targetsForModifier(p.scope,dice.length,dice,targetType,skillType);
-   reasons.push({label:p.label,value,scope:p.scope,targets,conditional,conditionCategories:conditionClasses(context),targetConditions,resourceScaling:perUnit,unresolved,source:m[0],context});
+   reasons.push({label:p.label,value,scope:p.scope,targets,conditional,conditionCategories:conditionClasses(context),targetConditions,recipientScope:recipient.scope,recipientAffiliation:recipient.affiliation||null,excludedRecipient,resourceScaling:perUnit,unresolved,source:m[0],context});
    occupied.push([start,end]);
   }
  }
@@ -324,7 +344,8 @@ function formatModifierReason(x,origin=""){
  const amount=x.unresolved?"数値未確定":`${x.value>=0?"+":""}${x.value}`;
  const scope=x.scope==="all"?"全ダイス":x.scope==="first"?"最初のダイス":x.scope==="last"?"最終ダイス":x.scope==="matching"?"該当属性ダイス":"対象ダイス";
  const target=x.targetConditions?.length?` / 対象:${x.targetConditions.map(item=>item.value).join("・")}`:"";
- return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${target}${x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):""}`;
+ const recipient=x.excludedRecipient?"（評価対象外：他者への付与）":x.recipientScope==="affiliation"?`（${x.recipientAffiliation}所属の受け手限定）`:"";
+ return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${target}${recipient}${x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):""}`;
 }
 function uniqueEffectText(u){
  const text=[u.name,u.desc,u.effect].filter(Boolean).join(" ");
@@ -340,31 +361,31 @@ function passiveBonus(persona,skill){
  for(const u of (persona.unique_buffs||persona.unique||[]))chunks.push({label:`固有バフ:${u.name||"名称不明"}`,text:uniqueEffectText(u),forceConditional:true});
  const count=(skill.dice||[]).length,perDie=Array(count).fill(0),reasons=[],candidates=[],text=chunks.map(c=>`${c.label}\n${c.text}`).join("\n");
  for(const c of chunks){
-  const m=kindMods(c.text,skill.type||"",skill.dice||[]);
+  const m=kindMods(c.text,skill.type||"",skill.dice||[],persona);
   for(const x0 of m.reasons){
    const x={...x0,conditional:x0.conditional||!!c.forceConditional,origin:c.label};
    candidates.push(x);
-   if(!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<count)perDie[i]+=x.value;
+   if(!x.excludedRecipient&&!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<count)perDie[i]+=x.value;
    reasons.push(formatModifierReason(x,c.label));
   }
  }
  return {bonus:perDie.reduce((a,b)=>a+b,0),perDie,reasons,candidates,text};
 }
-function skillBonus(skill){
+function skillBonus(skill,persona=null){
  const dice=skill.dice||[],perDie=Array(dice.length).fill(0),reasons=[],candidates=[];
- const whole=kindMods(skill.effect||"",skill.type||"",dice);
+ const whole=kindMods(skill.effect||"",skill.type||"",dice,persona);
  for(const x of whole.reasons){
   candidates.push(x);
-  if(!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<perDie.length)perDie[i]+=x.value;
+  if(!x.excludedRecipient&&!x.conditional&&!x.unresolved&&Number.isFinite(x.value))for(const i of x.targets)if(i>=0&&i<perDie.length)perDie[i]+=x.value;
   reasons.push(formatModifierReason(x));
  }
  dice.forEach((d,i)=>{
-  const m=kindMods(d.effect||"",skill.type||"",dice);
+  const m=kindMods(d.effect||"",skill.type||"",dice,persona);
   for(const x of m.reasons){
    const targets=x.scope==="all"?[i]:x.targets;
    const candidate={...x,targets};
    candidates.push(candidate);
-   if(!candidate.conditional&&!candidate.unresolved&&Number.isFinite(candidate.value))for(const target of targets)if(target>=0&&target<perDie.length)perDie[target]+=candidate.value;
+   if(!candidate.excludedRecipient&&!candidate.conditional&&!candidate.unresolved&&Number.isFinite(candidate.value))for(const target of targets)if(target>=0&&target<perDie.length)perDie[target]+=candidate.value;
    reasons.push(`ダイス${i+1}: ${formatModifierReason(candidate)}`);
   }
  });
@@ -378,7 +399,7 @@ function deferredSkillBonus(persona,skill){
   const fields=[["スキル効果",sourceSkill.effect||""],...(sourceSkill.dice||[]).map((d,i)=>[`ダイス${i+1}`,d.effect||""])];
   for(const [field,text] of fields){
    if(!text||!/(?:次のR|次R)/.test(text)||/(?:味方|対象).{0,12}(?:威力増加|威力\+)/.test(text))continue;
-   const parsed=kindMods(text,skill.type||"",dice);
+   const parsed=kindMods(text,skill.type||"",dice,persona);
    for(const x of parsed.reasons){
     if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(x.context||""))continue;
     const candidate={...x,conditional:true,conditionCategories:["trigger"],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
@@ -396,7 +417,7 @@ function addPersona(p){
  const skillset=(p.skills||[]).filter(s=>(s.dice||[]).length);
  for(const skill of skillset){
   const dice=skill.dice||[], base=dice.reduce((a,d)=>a+(evRoll(d.roll)??0),0);
-  const pass=passiveBonus(p,skill), effect=skillBonus(skill), deferred=deferredSkillBonus(p,skill);
+  const pass=passiveBonus(p,skill), effect=skillBonus(skill,p), deferred=deferredSkillBonus(p,skill);
   effect.candidates.push(...deferred.candidates);effect.reasons.push(...deferred.reasons);
   const dieRows=dice.map((d,i)=>({roll:d.roll,base:evRoll(d.roll)??0,passive:pass.perDie[i]||0,effect:effect.perDie[i]||0}));
   const row={persona:p,skill,base,passive:pass.bonus,effect:effect.bonus,all:base+pass.bonus+effect.bonus,dieRows,searchText:[p.name,p.affiliation,skill.name,skill.type,skill.effect,skill.sin].join(" ").toLowerCase(),
@@ -465,7 +486,7 @@ function targetConditionMatches(item,query){
 function conditionModifierEnabled(x,requireMaster=true){
  const targetFilter=String($("targetConditionFilter")?.value||"").trim().toLocaleLowerCase("ja");
  const targetMatches=!targetFilter||(x.targetConditions||[]).some(item=>targetConditionMatches(item,targetFilter));
- return (!requireMaster||!!$("includeConditional")?.checked)&&!x.unresolved&&Number.isFinite(x.value)&&targetMatches&&
+ return (!requireMaster||!!$("includeConditional")?.checked)&&!x.excludedRecipient&&!x.unresolved&&Number.isFinite(x.value)&&targetMatches&&
   (x.conditionCategories||["other"]).every(k=>$(CONDITION_FILTER_IDS[k]||"condOther")?.checked);
 }
 function conditionalPerDie(r,index,mode="selected",source="both"){
@@ -528,7 +549,7 @@ function updateSortHeaders(){
  });
 }
 function filterKey(){
- return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","targetConditionFilter","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
+ return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","condTargetAffiliation","targetConditionFilter","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
