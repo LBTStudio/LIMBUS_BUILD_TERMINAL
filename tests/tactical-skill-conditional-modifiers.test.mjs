@@ -249,6 +249,21 @@ test("対象が状態異常を保有する条件は対象種別ではなく対�
   assert.equal(type[0].kind, "targetType");
 });
 
+test("対象状態・対象数値の段階比例条件も個別フィルターへ分類する", () => {
+  const { api } = loadHelpers();
+  const status = api.targetConditionDetails("対象の火傷と振動の合計が7ごとにスキル威力+1");
+  assert.deepEqual(Array.from(status, x => [x.kind, x.value]), [["targetStatus", "火傷と振動の合計"]]);
+
+  const debuffs = api.targetConditionDetails("メインターゲットのデバフの種類2ごとにスキル威力+1");
+  assert.deepEqual(Array.from(debuffs, x => [x.kind, x.value]), [["targetStatus", "デバフの種類"]]);
+
+  const speed = api.targetConditionDetails("対象との速度差2ごとにスキル威力+1");
+  assert.deepEqual(Array.from(speed, x => [x.kind, x.value]), [["targetStat", "速度差"]]);
+
+  const hp = api.targetConditionDetails("対象の失ったHP10ごとにダメージ量+1");
+  assert.deepEqual(Array.from(hp, x => [x.kind, x.value]), [["targetStat", "失ったHP"]]);
+});
+
 
 test("人格・別冊・パッシブ全データを走査し、上限値だけの資源補正を加算しない", () => {
   const { api } = loadHelpers();
