@@ -298,6 +298,17 @@ test("対象状態・対象数値の段階比例条件も個別フィルター�
   assert.ok(speedGap.some(x => x.kind === "targetStat" && x.value === "速度差"));
   const equalSpeed = api.targetConditionDetails("対象と自分の速度が同じならスキル威力+1");
   assert.ok(equalSpeed.some(x => x.kind === "targetStat" && x.value === "速度"));
+  const mixedThreshold = api.targetConditionDetails("自分の呼吸と対象の出血の合計が6以上ならスキル威力+1");
+  assert.ok(mixedThreshold.some(x => x.kind === "targetStatus" && x.value === "出血の合計"));
+  const targetSpeedBelow = api.targetConditionDetails("対象の速度が自分より3以上低ければスキル威力+1");
+  assert.ok(targetSpeedBelow.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(!targetSpeedBelow.some(x => x.kind === "targetStatus" && /自分より/.test(x.value)));
+  const ownSpeedAbove = api.targetConditionDetails("自分の速度が対象よりも3以上高ければスキル威力+1");
+  assert.ok(ownSpeedAbove.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(!ownSpeedAbove.some(x => x.value === "も"), "比較助詞を対象数値名として扱わない");
+  const enemyPresence = api.targetConditionDetails("戦闘開始時：仕返し対象状態の敵がいるなら、次のRに味方へ威力増加1を付与。使用時：対象が仕返し対象ならスキル威力+2");
+  assert.ok(!enemyPresence.some(x => x.value === "いる"), "敵の存在条件を対象状態として誤分類しない");
+
 
 });
 
