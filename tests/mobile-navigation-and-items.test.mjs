@@ -1,0 +1,67 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const refinements = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
+const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
+const itemSource = readFileSync(new URL("../js/ItemCodex.js", import.meta.url), "utf8");
+const sectionsSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+const mobilePreview = readFileSync(new URL("../mobile-preview.html", import.meta.url), "utf8");
+
+test("モバイルの下部ナビゲーションは横スクロールせず全機能を1段7列で常時表示し、操作・保存を右端に収める", () => {
+  const v64r94 = refinements.slice(refinements.indexOf("v64r94"));
+  const v64r95 = refinements.slice(refinements.indexOf("v64r95"));
+  /* 旧2段×6列では7項目目「その他」だけが2行目へ落ちていた。 */
+  assert.match(v64r94, /grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)/);
+  assert.match(v64r94, /grid-template-rows: 52px;/);
+  assert.match(v64r94, /\.rail \{[\s\S]*?overflow: hidden;/);
+  assert.match(v64r94, /\.rail \{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;/);
+  /* !important は 2026-10-01 に全 156 件から 2 件（reduced-motion の抑制のみ）へ
+     削減した。これらは CSS 側の同名宣言より強い必要がある mobile 幅の規則群で、
+     インライン style との競合を避けている。 !important が無い状態も
+     別途検証する（v56 は読み込み順で最後に当たっており、同詳細度なら必ず勝つ）。 */
+  assert.match(v64r95, /\.topbar \.topbar-actions \{ display: none; \}/);
+  assert.match(v64r95, /\.topbar > \.utility-trigger \{[\s\S]*?min-width: 104px;/);
+  assert.match(v64r94, /grid-template-rows: var\(--topbar-h\) minmax\(0, 1fr\);/);
+  assert.match(v64r94, /grid-template-rows: minmax\(var\(--topbar-h\), auto\) minmax\(0, 1fr\);/, "最後に適用されるスマホGridも実際のトップバー高に追従する");
+  assert.match(v64r94, /--lbt-mobile-rail-h: calc\(60px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  assert.match(v64r94, /\.focus \{ padding-bottom: calc\(var\(--lbt-mobile-rail-h\) \+ 12px\); \}/);
+  assert.match(v64r94, /padding: 4px 4px calc\(4px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  assert.match(v64r94, /bottom: var\(--lbt-mobile-rail-h\);/);
+  assert.match(v64r95, /\.focus,\s*\.rail \{\s*min-height: 0;/);
+  const v64r100 = refinements.slice(refinements.indexOf("v64r100"));
+  assert.match(v64r100, /@media \(min-width: 641px\) and \(max-width: 1024px\) and \(max-height: 520px\)/);
+  assert.match(v64r100, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.match(v64r100, /grid-template-rows: repeat\(2, 40px\)/);
+  assert.match(v64r100, /height: var\(--lbt-landscape-rail-h\);/);
+});
+
+test("アイテムは独立セクションを持たず、BuildからRecordの所持品管理へ直接移動できる", () => {
+  assert.match(appSource, /id: "shop", label: "ショップ"[^\n]*購入/);
+  assert.doesNotMatch(appSource, /id: "items", label: "アイテム"/);
+  assert.match(sectionsSource, /currentSection: "roster", libraryTab: "inventory"/);
+});
+
+test("所持品削除は危険操作として確認し、実使用の消費とは区別する", () => {
+  assert.match(itemSource, /window\.confirm\(/);
+  assert.match(itemSource, /削除では消費履歴は作られず/);
+  assert.match(itemSource, /onClick: removeItem/);
+  assert.match(itemSource, /"所持品から削除"/);
+});
+
+test("実機のモバイル確認ページは端末全画面に追従し、確認フレーム由来のスクロールバーを出さない", () => {
+  assert.match(mobilePreview, /\.device \{[\s\S]*?overflow: hidden;/);
+  assert.match(mobilePreview, /@media \(max-width: 430px\) \{[\s\S]*?body \{ display: block; width: 100vw; min-height: 100dvh; height: 100dvh; padding: 0; overflow: hidden; \}/);
+  assert.match(mobilePreview, /\.device \{ width: 100vw; max-width: none; height: 100dvh; border: 0;/);
+});
+
+
+test("スマホのホーム・その他・取込ナビは現在地と開閉状態を反映する", () => {
+  assert.match(appSource, /active: current === "home"/);
+  assert.match(appSource, /currentSection: "home", previewOpen: false/);
+  assert.match(appSource, /const otherActive = utilityOpen \|\| \["shop", "settings", "help"\]\.includes\(current\)/);
+  assert.match(appSource, /active: importRouterOpen, expanded: importRouterOpen/);
+  assert.match(appSource, /active: otherActive, expanded: utilityOpen/);
+  assert.match(appSource, /"aria-expanded": item\.expanded/);
+  assert.match(appSource, /importRouterOpen, utilityOpen, dispatch, onOpenImportRouter/);
+});

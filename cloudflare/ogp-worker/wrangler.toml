@@ -1,0 +1,21 @@
+name = "lbt-ogp"
+main = "worker.js"
+compatibility_date = "2026-10-25"
+workers_dev = true
+
+# Workers Freeプランを維持する。R2やPaidプランは使用しない。
+[vars]
+APP_ORIGIN = "https://lbtstudio.github.io"
+SHARE_VIEWER_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html"
+SHARE_PUBLIC_ORIGIN = "https://lbt-ogp.lbtstudio-share.workers.dev"
+OG_IMAGE_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png"
+
+[[kv_namespaces]]
+binding = "SHARES"
+# `npx wrangler kv namespace create SHARES` の出力に置き換えてからデプロイする。
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[[ratelimits]]
+name = "SHARE_PUBLISH_LIMIT"
+namespace_id = "20261025"
+simple = { limit = 10, period = 60 }

@@ -1,0 +1,424 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { deflateRawSync } from "node:zlib";
+import { handleRequest, parseSources, previewFromQuery, previewFromSnapshot } from "../ogp-gateway/worker.mjs";
+
+function toBase64Url(text) {
+  return Buffer.from(text).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function token(snapshot) {
+  return `j.${toBase64Url(JSON.stringify({ _lbtShare: 1, ...snapshot }))}`;
+}
+
+
+test("画像付き共有のquery summaryは保存tokenと画像ルートを使い、既定カードへ置き換えない", async () => {
+  const image = "data:image/webp;base64,QUJDRA==";
+  const shareToken = token({
+    personaSrc: { name: "共有画像PC" }, hp: "100", san: "45", speed: "2-4",
+    shareImageData: image, roster: { personas: [] }
+  });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Image?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const search = "?s=t:LBT-Image&lbt_n=%E5%85%B1%E6%9C%89%E7%94%BB%E5%83%8FPC&lbt_hp=100&lbt_san=45&lbt_spd=2-4&lbt_img=1&cv=2";
+  const page = await handleRequest(new Request(`https://lbt-ogp.example/s${search}`), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="共有画像PC">/);
+  assert.match(html, /og:image" content="https:\/\/lbt-ogp\.example\/i\?/);
+  assert.doesNotMatch(html, /og:image" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/assets\/lbt-share-card\.png"/);
+  const imageResponse = await handleRequest(new Request(`https://lbt-ogp.example/i${search}`), { fetchImpl });
+  assert.equal(imageResponse.headers.get("content-type"), "image/webp");
+  assert.equal(Buffer.from(await imageResponse.arrayBuffer()).toString(), "ABCD");
+});
+
+test("SPDを持たない旧共有URLは保存tokenを読み直し、実際のSPDをOGPへ表示する", async () => {
+  const query = new URL("https://lbt-ogp.example/s?s=t:LBT-Legacy&lbt_n=旧人格&lbt_hp=120&lbt_san=45&lbt_sync=00");
+  assert.equal(previewFromQuery(query), null, "SPDのない旧summaryはsnapshot経路へ戻す");
+  const shareToken = token({
+    personaSrc: { name: "旧人格" },
+    hp: "120", san: "45", speed: "2d3+1",
+    roster: { personas: [{ syncRank: "00", syncMax: false }] }
+  });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Legacy?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const page = await handleRequest(new Request(query), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="旧人格">/);
+  assert.match(html, /HP 120 ｜ SAN 45 ｜ SPD 2d3\+1 ｜ 同期00/);
+});
+
+test("query preview は SPD を含めて OGP 説明文を生成する", () => {
+  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sync=000&lbt_max=1&lbt_img=0"));
+  assert.equal(preview.description, "HP 120 ｜ SAN 50 ｜ SPD 3-7 ｜ 同期000 · MAX");
+});
+
+test("OGPゲートウェイは許可形式の共有IDだけを受理する", () => {
+  const url = new URL("https://lbt-ogp.example/s?s=t:Share-A,r:valid_id-01");
+  assert.deepEqual(parseSources(url), [{ source: "telegraph", id: "Share-A" }, { source: "rentry", id: "valid_id-01" }]);
+  assert.deepEqual(parseSources(new URL("https://lbt-ogp.example/s?s=r:https%3A%2F%2Fevil.example")), []);
+});
+
+test("手動画像付き共有から個別OGP HTMLとWebP画像を無状態で返す", async () => {
+  const image = "data:image/webp;base64,QUJDRA==";
+  const shareToken = token({ charName: "検証PC", personaSrc: { name: "東部親指カポIIII" }, hp: "120", san: "50", speed: "3-7", shareImageData: image, roster: { personas: [{ syncRank: "000", syncMax: true }] } });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Test?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Test"), { fetchImpl });
+  const html = await page.text();
+  assert.equal(page.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.match(page.headers.get("cache-control"), /max-age=604800/);
+  assert.match(page.headers.get("cache-control"), /stale-while-revalidate=2592000/);
+  assert.match(page.headers.get("cache-control"), /stale-if-error=2592000/);
+  assert.doesNotMatch(page.headers.get("cache-control"), /s-maxage=/);
+  assert.match(html, /<meta property="og:title" content="東部親指カポIIII">/);
+  assert.match(html, /HP 120 ｜ SAN 50 ｜ SPD 3-7 ｜ 同期000 ｜ MAX/);
+  assert.doesNotMatch(html, /LBT キャラクターシート · HP/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html\?s=t%3ALBT-Test">/);
+  assert.match(html, /<meta property="og:url" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html\?s=t%3ALBT-Test">/);
+  assert.match(html, /https:\/\/lbt-ogp\.example\/i\?s=t%3ALBT-Test/);
+  const imageResponse = await handleRequest(new Request("https://lbt-ogp.example/i?s=t:LBT-Test"), { fetchImpl });
+  assert.equal(imageResponse.headers.get("content-type"), "image/webp");
+  assert.equal(Buffer.from(await imageResponse.arrayBuffer()).toString(), "ABCD");
+});
+
+test("手動画像がない共有は自動生成OGPカードを返し、人格名・HP・SAN・SPDをメタ情報へ含める", async () => {
+  const card = "data:image/webp;base64,QUJDRA==";
+  const shareToken = token({ personaSrc: { name: "既定カード人格" }, hp: "130", san: "55", speed: "2-6", ogpImageData: card });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Default-Card?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Default-Card"), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="既定カード人格">/);
+  assert.match(html, /HP 130 ｜ SAN 55 ｜ SPD 2-6/);
+  assert.match(html, /https:\/\/lbt-ogp\.example\/i\?s=t%3ALBT-Default-Card/);
+  const imageResponse = await handleRequest(new Request("https://lbt-ogp.example/i?s=t:LBT-Default-Card"), { fetchImpl });
+  assert.equal(imageResponse.headers.get("content-type"), "image/webp");
+  assert.equal(Buffer.from(await imageResponse.arrayBuffer()).toString(), "ABCD");
+});
+
+test("共有保存先の直読みが失敗した閲覧者向けに、同じ共有IDからトークンを返す予備復元口を提供する", async () => {
+  const shareToken = token({ charName: "予備復元PC" });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Recovery?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Recovery"), { fetchImpl });
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(await response.text(), shareToken);
+});
+
+test("予備復元口は主保存先が失敗してもURL内の予備保存先からトークンを返す", async () => {
+  const shareToken = token({ charName: "予備先からの復元" });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Recovery?return_content=true") return new Response("not found", { status: 404 });
+    assert.equal(String(url), "https://rentry.co/lbt-recovery");
+    return new Response(`LBT_SHARE_TOKEN=${shareToken}`);
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Recovery,r:lbt-recovery"), { fetchImpl });
+  assert.equal(await response.text(), shareToken);
+});
+
+test("予備復元口は主保存先のトークンが破損していても有効な予備保存先へ切り替える", async () => {
+  const shareToken = token({ charName: "破損主保存の予備" });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://rentry.co/lbt-corrupt-primary") return new Response("LBT_SHARE_TOKEN=j.e30...");
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Valid-Backup?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/d?s=r:lbt-corrupt-primary,t:LBT-Valid-Backup"), { fetchImpl });
+  assert.equal(await response.text(), shareToken);
+});
+
+test("WorkerはRentry本文に分割保存された長いトークンを再結合してOGPを生成する", async () => {
+  const shareToken = token({ charName: "分割Rentry復元" });
+  const midpoint = Math.floor(shareToken.length / 2);
+  const chunks = [shareToken.slice(0, midpoint), shareToken.slice(midpoint)];
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://rentry.co/lbt-chunked");
+    return new Response(chunks.map((chunk, index) => `LBT_SHARE_TOKEN_PART=${index + 1}/2:${chunk}`).join("\n"));
+  };
+  const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=r:lbt-chunked"), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="分割Rentry復元">/);
+});
+
+test("公式人格を参照する既存共有では固定DBから名前・HP・SANを補完してOGPへ表示する", async () => {
+  const shareToken = token({ personaRef: { mode: "n", no: 7 }, roster: { personas: [{ syncRank: "00", syncMax: false }] } });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Legacy?return_content=true") {
+      return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+    }
+    assert.equal(String(url), "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json");
+    return new Response(JSON.stringify({ normal_personas: [{ no: 7, name: "補完人格", hp: 135, san: 42, speed: "4-8" }] }));
+  };
+  const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Legacy"), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="補完人格">/);
+  assert.match(html, /HP 135 ｜ SAN 42 ｜ SPD 4-8 ｜ 同期00/);
+});
+
+test("長い人格名は表示枠へ収め、同期ランクとMAXを同時にOGPへ表示する", async () => {
+  const longName = "長い人格名をDiscordのカード表示で見切れずに読める範囲へ整形するための検証用フィクサー・補足情報まで含む完全名称";
+  const visibleName = `${Array.from(longName).slice(0, 48).join("")}…`;
+  const shareToken = token({ personaSrc: { name: longName }, hp: "145", san: "55", speed: "3-6", roster: { personas: [{ syncRank: "000", syncMax: true }] } });
+  const fetchImpl = async () => new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Long"), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, new RegExp(`<meta property="og:title" content="${visibleName}">`));
+  assert.match(html, /HP 145 ｜ SAN 55 ｜ SPD 3-6 ｜ 同期000 ｜ MAX/);
+});
+
+test("共有データの取得失敗時も静的共有ページへ安全にフォールバックする", async () => {
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=r:missing-entry"), { fetchImpl: async () => new Response("missing", { status: 404 }) });
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html\?s=r%3Amissing-entry/);
+  assert.match(html, /LIMBUS BUILD TERMINAL — キャラクターシート/);
+});
+
+test("共有IDの候補は2件までに制限する", () => {
+  // 発行側は primary + backup の最大2本しか作らない。
+  // 上限がないと s=r:a,t:b,r:c,... で外部保存先を順に試行できる。
+  // rentry の id は 3 文字以上、telegraph は 1 文字以上を要求する。
+  assert.deepEqual(parseSources(new URL("https://x/s?s=t:Alpha,r:bravo01")), [
+    { source: "telegraph", id: "Alpha" },
+    { source: "rentry", id: "bravo01" },
+  ]);
+  // 3本指定は不正として拒否する（黙って切り詰めない）
+  assert.deepEqual(parseSources(new URL("https://x/s?s=t:Alpha,r:bravo01,t:Charlie")), []);
+  // 同じ source の重複は 1 件に畳まれる
+  assert.deepEqual(parseSources(new URL("https://x/s?s=r:alpha01,r:alpha01")), [{ source: "rentry", id: "alpha01" }]);
+  assert.deepEqual(parseSources(new URL("https://x/s?s=r:a1,r:b2,r:c3,r:d4,r:e5")), []);
+});
+
+test("書き込み系メソッドはWorker処理に入る前に拒否する", async () => {
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=r:valid_id", { method }));
+    assert.equal(response.status, 405, `${method} は 405 になること`);
+    assert.equal(response.headers.get("allow"), "GET, HEAD");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+});
+
+test("token fallback (/d) は短期キャッシュし、HEADでは本文を返さない", async () => {
+  const shareToken = token({ charName: "検証PC" });
+  const fetchImpl = async () => new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+
+  const get = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Test"), { fetchImpl });
+  assert.equal(get.status, 200);
+  assert.equal(await get.text(), shareToken);
+  // 毎回 no-store にすると障害時に同じ token を何度も取り直すことになる
+  assert.match(get.headers.get("cache-control"), /max-age=86400/);
+
+  const head = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Test", { method: "HEAD" }), { fetchImpl });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+});
+
+test("外部保存先の障害時は失敗結果を短時間キャッシュする", async () => {
+  const failing = { fetchImpl: async () => new Response("down", { status: 503 }) };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=r:any_id_1"), failing);
+  assert.equal(response.status, 200);
+  // 同一障害を crawler ごとに作り直さないよう negative cache を効かせる
+  assert.match(response.headers.get("cache-control"), /max-age=30/);
+  assert.match(response.headers.get("cache-control"), /stale-if-error=300/);
+  // 正常系の7日 cache とは別ポリシーであること
+  assert.doesNotMatch(response.headers.get("cache-control"), /max-age=604800/);
+});
+
+
+test("snapshot経路は強化のHP/SAN加算と全角数字をOGPへ反映する", () => {
+  const preview = previewFromSnapshot({
+    charName: "強化反映PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    _r: { h: [{
+      name: "汎用強化",
+      effect: "HPを１０上昇させる。SANを５上昇させる。"
+    }] }
+  });
+  assert.match(preview.description, /HP 110 ｜ SAN 50/);
+});
+
+test("OGP snapshotはgeneratorが認識するHP/SAN強化表記だけを加算する", () => {
+  const preview = previewFromSnapshot({
+    charName: "強化表記確認PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    enhancements: [{
+      name: "異なる表記",
+      effect: "HPを7増加させる。SANを3増加させる。"
+    }]
+  });
+  assert.match(preview.description, /HP 100 ｜ SAN 45/,
+    "generatorの正規形式でない「HPをN増加」「SANをN増加」は加算しない");
+});
+
+test("同期手動モードでは人格専用強化を除外してsnapshot OGPを生成する", () => {
+  const preview = previewFromSnapshot({
+    charName: "同期手動PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    syncedManual: true,
+    enhancements: [
+      { name: "汎用強化", category: "common", effect: "HPを１０上昇させる。" },
+      { name: "人格専用強化", category: "persona", effect: "HPを２０上昇させる。SANを５上昇させる。" }
+    ]
+  });
+  assert.match(preview.description, /HP 110 ｜ SAN 45/);
+});
+
+test("旧共有snapshotの参照圧縮された強化をDBから解決してOGPへ加算する", async () => {
+  const shareToken = token({
+    charName: "旧強化参照PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    _r: { h: ["OGP用強化"] }
+  });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Enhancement-Ref?return_content=true") {
+      return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+    }
+    assert.equal(String(url), "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json");
+    return new Response(JSON.stringify({
+      normal_enhancements: [{ name: "OGP用強化", category: "common", effect: "HPを１０上昇させる。SANを５上昇させる。" }],
+      special_enhancements: []
+    }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Enhancement-Ref"), { fetchImpl });
+  const html = await response.text();
+  assert.match(html, /HP 110 ｜ SAN 50/);
+});
+
+test("同期手動共有の旧強化オブジェクトはDBのcategoryを補って人格専用分を除外する", async () => {
+  const shareToken = token({
+    charName: "同期手動旧形式PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    syncedManual: true,
+    _r: { h: [{ name: "人格専用強化", effect: "HPを２０上昇させる。" }] }
+  });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Synced-Manual?return_content=true") {
+      return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+    }
+    assert.equal(String(url), "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json");
+    return new Response(JSON.stringify({
+      normal_enhancements: [{ name: "人格専用強化", category: "persona", effect: "HPを２０上昇させる。" }],
+      special_enhancements: []
+    }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Synced-Manual"), { fetchImpl });
+  const html = await response.text();
+  assert.match(html, /HP 100 ｜ SAN 45/);
+});
+
+test("OGP summary には最多資源属性も表示する", () => {
+  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sin=%E6%86%A4%E6%80%92&lbt_sync=000&lbt_max=1&lbt_img=0"));
+  assert.equal(preview.primarySin, "憤怒");
+  assert.match(preview.description, /最多資源属性：憤怒/);
+});
+
+
+test("旧形式のpersonaMode/personaNoだけを持つ共有でも公式人格のHP/SANをOGPへ補完する", async () => {
+  const shareToken = token({
+    personaMode: "n",
+    personaNo: 7,
+    personaSrc: { name: "旧形式の公式人格", hp: "120", san: "40", speed: "1-1" },
+    roster: { personas: [] }
+  });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Old-Reference?return_content=true") {
+      return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+    }
+    assert.equal(String(url), "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json");
+    return new Response(JSON.stringify({
+      normal_personas: [{ no: 7, name: "旧形式の公式人格", hp: 138, san: 47, speed: "3-7", skills: [] }]
+    }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Old-Reference"), { fetchImpl });
+  const html = await response.text();
+  assert.match(html, /<meta property="og:title" content="旧形式の公式人格">/);
+  assert.match(html, /HP 138 ｜ SAN 47 ｜ SPD 3-7/);
+});
+
+test("カスタムpersonaSrc内のHP/SANをOGPへ反映し、未設定表示を疑似初期値へ置き換えない", async () => {
+  const customToken = token({
+    personaMode: "custom",
+    personaSrc: { name: "カスタム人格", hp: "144", san: "58" },
+    roster: { personas: [] }
+  });
+  let fetchCalls = 0;
+  const fetchImpl = async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${customToken}`] }] } }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Custom-Stats"), { fetchImpl });
+  const html = await response.text();
+  assert.match(html, /HP 144 ｜ SAN 58/);
+  assert.equal(fetchCalls, 1, "カスタム人格は公式DBを取りに行かず、Telegraphだけ読む");
+});
+
+test("OGP画像Workerはブラウザ共有と同じ4MiBまでの圧縮共有データを復元する", async () => {
+  const snapshot = {
+    _lbtShare: 1,
+    personaSrc: { name: "大容量共有人格" },
+    ogpImageData: "data:image/webp;base64,QUJDRA==",
+    largeField: "x".repeat(300_000)
+  };
+  const compressed = deflateRawSync(Buffer.from(JSON.stringify(snapshot), "utf8"));
+  const shareToken = "z." + compressed.toString("base64url");
+  assert.ok(shareToken.length < 160_002);
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Large-Image?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/i?s=t:LBT-Large-Image"), { fetchImpl });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "image/webp");
+  assert.equal(Buffer.from(await response.arrayBuffer()).toString("utf8"), "ABCD");
+});
+
+
+test("不完全な旧OGP要約は軽量経路にせず、共有snapshotから値を復元する", () => {
+  const missingHp = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_san=50&lbt_spd=3-7&lbt_img=0"));
+  const missingSan = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_spd=3-7&lbt_img=0"));
+  const legacyUnknown = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=?&lbt_san=50&lbt_spd=3-7&lbt_img=0"));
+  assert.equal(missingHp, null);
+  assert.equal(missingSan, null);
+  assert.equal(legacyUnknown, null);
+});
+
+test("共有snapshotのSPD未設定は共有HTMLと同じ「—」でOGPへ表示する", () => {
+  const preview = previewFromSnapshot({ charName: "速度未設定", hp: "100", san: "45" });
+  assert.match(preview.description, /SPD —/);
+});
+
+test("HP/SAN/SPDがすべて明示された新summaryは未設定値も「—」で保持する", () => {
+  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=—&lbt_san=—&lbt_spd=—&lbt_img=0"));
+  assert.equal(preview.description, "HP — ｜ SAN — ｜ SPD —");
+});
+
+
+test("カスタム人格のnull HP/SANはpersonaSrcの基礎値へフォールバックする", () => {
+  const preview = previewFromSnapshot({
+    personaMode: "custom",
+    hp: null,
+    san: null,
+    personaSrc: { name: "null値のカスタム人格", hp: "144", san: "58" }
+  });
+  assert.match(preview.description, /HP 144 ｜ SAN 58/);
+});

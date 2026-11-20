@@ -1,0 +1,335 @@
+/* LBT ledger workbench v73.
+   Result history remains in natural vertical flow. Frequently used cross-list
+   actions stay close at hand; unclassified work is moved into a searchable drawer. */
+.ledger-command-bar {
+  position: sticky; top: 62px; z-index: 42;
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  margin: 0 0 12px; padding: 7px 9px;
+  border: 1px solid var(--line-dim); border-radius: var(--r);
+  background: color-mix(in srgb, var(--surface-1) 96%, transparent);
+  box-shadow: 0 4px 14px rgba(0,0,0,.22); backdrop-filter: blur(12px);
+}
+.ledger-command-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 0; min-height: 36px; padding: 0 12px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent; color: var(--tx-2);
+  font: 600 var(--fs-11) var(--f-body); cursor: pointer; white-space: nowrap;
+}
+.ledger-command-action:hover,.ledger-command-action:focus-visible {
+  border-color: var(--gold-line); background: var(--surface-2); color: var(--gold-hi);
+}
+.ledger-command-action.is-queue { border-color: var(--gold-line); background: var(--gold-tint); color: var(--gold-hi); }
+.ledger-command-action b {
+  display: inline-grid; place-items: center; min-width: 21px; height: 21px; padding: 0 5px;
+  border: 1px solid var(--line-dim); border-radius: 99px; background: var(--surface-3);
+  color: var(--tx); font: 700 var(--fs-10) var(--f-mono);
+}
+.ledger-results-toolbar {
+  position: sticky; top: 112px; z-index: 38;
+  display: grid; grid-template-columns: auto minmax(220px,1fr) minmax(130px,170px) auto;
+  align-items: center; gap: 8px; margin: 0 0 10px; padding: 9px 10px;
+  border: 1px solid var(--line); border-radius: var(--r);
+  background: color-mix(in srgb, var(--surface-1) 97%, transparent);
+  box-shadow: 0 4px 14px rgba(0,0,0,.2); backdrop-filter: blur(12px);
+  scroll-margin-top: 112px;
+}
+.ledger-results-toolbar-pages { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ledger-results-toolbar-pages .btn { min-height: 30px; padding: 0 7px; font-size: var(--fs-10); }
+.ledger-results-toolbar-pages .ledger-results-page-number { min-width: 42px; text-align: center; white-space: nowrap; }
+.ledger-cards { display: grid; grid-template-columns: minmax(0,1fr) !important; align-items: stretch; gap: 9px; }
+.ledger-card-wrap { width: 100%; min-width: 0; }
+.ledger-card-wrap .ledger-card { width: 100%; max-width: 100%; height: auto; }
+.ledger-card-wrap .ledger-card .card-body.ledger-card-body {
+  display: grid; grid-template-columns: minmax(220px,.62fr) minmax(0,1.38fr);
+  align-items: start; column-gap: 18px; row-gap: 10px;
+}
+.ledger-card-body > .ledger-card-income { grid-column: 1; grid-row: 1; align-self: start; }
+.ledger-card-body > .ledger-result-details {
+  grid-column: 2; grid-row: 1; min-width: 0; margin: 0;
+  padding: 0 0 0 15px; border-top: 0; border-left: 1px solid var(--line-dim);
+}
+.ledger-card-body > .ledger-card-edit-inline { grid-column: 1 / -1; }
+.ledger-result-summary { min-height: 34px; padding-inline: 2px; }
+.ledger-results-toolbar,.ledger-command-bar,#ledger-results-section,#ledger-new-result-entry,#ledger-draw-ledger {
+  scroll-margin-top: 120px;
+}
+.ledger-result-entry-card:not(.is-open) > .ledger-result-entry-body { display: none !important; }
+.ledger-result-entry-card:not(.is-open) { border-color: var(--line-dim); background: var(--surface-1); }
+.ledger-result-entry-card:not(.is-open) .ledger-result-entry-card-head {
+  min-height: 48px; border-bottom: 0; background: transparent;
+}
+.ledger-result-entry-card .ledger-new-entry-toggle {
+  min-height: 34px; padding-inline: 13px; border-color: var(--gold-line);
+  background: var(--gold-tint); color: var(--gold-hi);
+}
+.ledger-result-entry-card.is-open .ledger-new-entry-toggle {
+  background: var(--surface-2); border-color: var(--line); color: var(--tx-2);
+}
+.ledger-manual-expense-disclosure {
+  border: 1px solid var(--line-dim); border-radius: var(--r);
+  background: var(--surface-1); overflow: hidden;
+}
+.ledger-manual-expense-disclosure > summary {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 44px; padding: 8px 13px; border: 0; border-radius: 0;
+  background: transparent; color: var(--tx-2);
+}
+.ledger-manual-expense-disclosure > summary .ledger-note { margin: 0; font-size: var(--fs-10); }
+.ledger-manual-expense-disclosure[open] > summary { border-bottom: 1px solid var(--line-dim); background: var(--surface-2); }
+.ledger-manual-expense-body { padding: 12px; }
+.ledger-queue-overlay {
+  position: fixed; inset: 0; z-index: 1200; display: flex; justify-content: flex-end;
+  background: rgba(5,4,3,.68); backdrop-filter: blur(3px); overscroll-behavior: contain;
+}
+.ledger-queue-drawer {
+  display: flex; flex-direction: column; gap: 12px; width: min(480px, 94vw);
+  height: 100dvh; max-height: 100dvh; padding: 16px;
+  border-left: 1px solid var(--line-strong); background: var(--surface-1);
+  box-shadow: -12px 0 36px rgba(0,0,0,.42); overflow: hidden;
+}
+.ledger-queue-drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-bottom: 11px; border-bottom: 1px solid var(--line);
+}
+.ledger-queue-drawer-title-wrap { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.ledger-queue-drawer-title-wrap strong { font-size: var(--fs-15); color: var(--text-strong); }
+.ledger-queue-drawer-count { color: var(--gold-hi); font-size: var(--fs-12); font-family: var(--f-mono); }
+.ledger-queue-drawer-close,.ledger-queue-item-move,.ledger-queue-item-delete,
+.ledger-queue-transfer-unclassify,.ledger-queue-transfer-cancel {
+  min-height: 36px; padding: 0 11px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--tx-2); font: 600 var(--fs-11) var(--f-body);
+  cursor: pointer; white-space: nowrap;
+}
+.ledger-queue-drawer-close:hover,.ledger-queue-item-move:hover,.ledger-queue-transfer-unclassify:hover {
+  border-color: var(--gold-line); color: var(--gold-hi);
+}
+.ledger-queue-search-label { display: grid; gap: 5px; min-width: 0; color: var(--tx-2); font-size: var(--fs-10); }
+.ledger-queue-search {
+  width: 100%; min-width: 0; min-height: 40px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-inset);
+  color: var(--tx); font: 500 var(--fs-12) var(--f-body);
+}
+.ledger-queue-transfer {
+  display: grid; gap: 9px; padding: 11px; border: 1px solid var(--gold-line);
+  border-radius: var(--r); background: var(--gold-tint);
+}
+.ledger-queue-transfer-head { display: grid; gap: 3px; min-width: 0; }
+.ledger-queue-transfer-head strong { overflow-wrap: anywhere; color: var(--gold-hi); font-size: var(--fs-12); }
+.ledger-queue-destination-list {
+  display: grid; gap: 5px; max-height: 220px; margin-top: 7px; overflow-y: auto;
+}
+.ledger-queue-destination {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-width: 0; min-height: 40px; padding: 6px 9px; border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm); background: var(--surface-2); color: var(--tx); text-align: start; cursor: pointer;
+}
+.ledger-queue-destination:hover,.ledger-queue-destination:focus-visible {
+  border-color: var(--gold-line); background: var(--surface-3);
+}
+.ledger-queue-destination > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ledger-queue-destination > small { flex: 0 0 auto; color: var(--tx-mute); font-size: var(--fs-10); }
+.ledger-queue-transfer-cancel { justify-self: end; min-height: 30px; border-color: transparent; background: transparent; }
+.ledger-queue-drawer-list {
+  display: flex; flex: 1 1 auto; flex-direction: column; gap: 7px; min-height: 0;
+  padding-top: 2px; overflow-y: auto; overscroll-behavior: contain;
+}
+.ledger-queue-item {
+  display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 9px;
+  padding: 10px; border: 1px solid var(--line-dim); border-radius: var(--r);
+  background: var(--surface-2); cursor: grab;
+}
+.ledger-queue-item:active { cursor: grabbing; }
+.ledger-queue-item-main { display: grid; gap: 3px; min-width: 0; }
+.ledger-queue-item-main strong { overflow-wrap: anywhere; font-size: var(--fs-12); color: var(--text-strong); }
+.ledger-queue-item-main > span { color: var(--tx-mute); font-size: var(--fs-10); }
+.ledger-queue-item-actions { display: flex; align-items: center; gap: 5px; }
+.ledger-queue-item-delete { padding-inline: 8px; border-color: var(--line-dim); background: transparent; color: var(--tx-mute); }
+.ledger-queue-item-delete:hover { border-color: var(--err-line); color: var(--err-ink); }
+.ledger-queue-item-move { border-color: var(--gold-line); background: var(--gold-tint); color: var(--gold-hi); }
+@media (max-width: 800px) {
+  .ledger-command-bar { top: 58px; }
+  .ledger-results-toolbar {
+    top: 108px; grid-template-columns: minmax(0,1fr) minmax(110px,150px); gap: 6px; padding: 8px;
+  }
+  .ledger-results-count { grid-column: 1 / -1; }
+  .ledger-results-toolbar-pages { grid-column: 1 / -1; justify-content: space-between; }
+  .ledger-results-toolbar-pages .btn { flex: 1 1 0; }
+  .ledger-card-wrap .ledger-card .card-body.ledger-card-body { display: flex; flex-direction: column; gap: 10px; }
+  .ledger-card-body > .ledger-result-details {
+    width: 100%; padding: 8px 0 0; border-top: 1px solid var(--line-dim); border-left: 0;
+  }
+}
+@media (max-width: 560px) {
+  .ledger-command-bar {
+    top: 54px; gap: 2px; padding: 5px; margin-bottom: 8px; overflow-x: auto; scrollbar-width: none;
+  }
+  .ledger-command-bar::-webkit-scrollbar { display: none; }
+  .ledger-command-action { flex: 1 0 auto; min-height: 40px; gap: 5px; padding: 0 8px; font-size: var(--fs-10); }
+  .ledger-results-toolbar { top: 104px; grid-template-columns: minmax(0,1fr); }
+  .ledger-results-toolbar-pages { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 3px; }
+  .ledger-results-toolbar-pages .btn { min-width: 0; padding-inline: 2px; font-size: var(--fs-9); }
+  .ledger-queue-overlay {
+    justify-content: center; align-items: flex-end; padding: 0 8px max(82px, env(safe-area-inset-bottom));
+  }
+  .ledger-queue-drawer {
+    width: 100%; height: min(78dvh, 720px); max-height: calc(100dvh - 132px);
+    padding: 11px; border: 1px solid var(--line-strong); border-radius: 12px 12px 0 0;
+  }
+  .ledger-queue-item { grid-template-columns: minmax(0,1fr); }
+  .ledger-queue-item-actions { justify-content: flex-end; }
+  .ledger-result-entry-card:not(.is-open) .ledger-result-entry-card-head { min-height: 50px; flex-wrap: wrap; }
+  .ledger-manual-expense-disclosure > summary { align-items: flex-start; flex-direction: column; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ledger-command-action,.ledger-queue-drawer-close,.ledger-queue-item-move,.ledger-queue-item-delete { transition: none; }
+}
+
+/* The ledger has its own secondary-work surface; keep its mobile controls touchable. */
+.ledger-queue-move-target {
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--gold-tint);
+  color: var(--gold-hi);
+  font: 600 var(--fs-11) var(--f-body);
+  cursor: pointer;
+}
+.ledger-queue-move-target:hover,
+.ledger-queue-move-target:focus-visible {
+  border-color: var(--gold);
+  background: var(--surface-3);
+}
+@media (max-width: 800px) {
+  .ledger-results-toolbar-pages .btn,
+  .ledger-result-entry-card .ledger-new-entry-toggle {
+    min-height: 40px;
+  }
+  .ledger-queue-item-move,
+  .ledger-queue-item-delete,
+  .ledger-queue-drawer-close,
+  .ledger-queue-transfer-unclassify,
+  .ledger-queue-move-target {
+    min-height: 40px;
+  }
+  .ledger-balance {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px;
+  }
+  .ledger-balance > .ledger-chip {
+    min-width: 0;
+    flex: initial;
+    padding: 10px 11px;
+  }
+  .ledger-balance > .ledger-balance-sub {
+    grid-column: 1 / -1;
+    padding-top: 8px;
+    font-size: var(--fs-10);
+    line-height: 1.45;
+  }
+}
+@media (max-width: 560px) {
+  .ledger-results-toolbar-pages .btn {
+    min-height: 40px;
+  }
+}
+
+/* At phone widths the four entry points fit in a compact 2×2 grid.
+   Avoid a horizontally scrolling toolbar: all four routes stay visible. */
+@media (max-width: 560px) {
+  .ledger-command-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 5px;
+    overflow: visible;
+  }
+  .ledger-command-action {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    flex: initial;
+    justify-content: space-between;
+    padding-inline: 10px;
+  }
+  .ledger-results-toolbar { top: 154px; }
+}
+
+/* Keep the mobile sticky toolbar short enough that it cannot cover the
+   collapsed new-result entry while the page is scrolled. */
+@media (max-width: 560px) {
+  .ledger-results-toolbar {
+    top: 154px;
+    grid-template-columns: minmax(0, 1fr) minmax(108px, 124px);
+    gap: 6px;
+    padding: 8px;
+  }
+  .ledger-results-count { grid-column: 1 / -1; }
+  .ledger-results-search { grid-column: 1; min-width: 0; }
+  .ledger-results-sort { grid-column: 2; min-width: 0; }
+  .ledger-results-toolbar-pages {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+  }
+}
+
+/* Phone screens: keep the command shortcuts in document flow.
+   Only the result search/pagination bar stays sticky; this prevents it from
+   stacking over the new-result form or covering controls during touch scroll. */
+@media (max-width: 560px) {
+  .ledger-command-bar {
+    position: static;
+    top: auto;
+    z-index: auto;
+    margin-block-end: 10px;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .ledger-results-toolbar {
+    top: 54px;
+    scroll-margin-top: 64px;
+  }
+}
+
+/* The result filter follows the entry form, so it becomes sticky only when
+   the user reaches the history list; it never floats over the form itself. */
+
+/* At very narrow phone widths, give the result-entry title its own row.
+   The two actions remain side by side instead of squeezing the title to one glyph per line. */
+@media (max-width: 360px) {
+  .ledger-result-entry-card-head {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 8px;
+  }
+  .ledger-result-entry-card-head > .t-label {
+    grid-column: 1 / -1;
+    min-width: 0;
+    white-space: normal;
+  }
+  .ledger-result-entry-card-head .ledger-new-entry-toggle,
+  .ledger-result-entry-card-head .ledger-import-toggle {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+
+/* On tablet widths, the ledger command rail otherwise floats over the
+   multi-step entry card while it is being filled. Keep it in document flow. */
+@media (min-width: 561px) and (max-width: 1100px) {
+  .ledger-command-bar {
+    position: static;
+    top: auto;
+    z-index: auto;
+    margin-block-end: 10px;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+}

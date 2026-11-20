@@ -1,0 +1,13 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "present": true,
+  "text": "← → キーでも移動",
+  "width": 0,
+  "height": 0,
+  "color": "rgb(238, 207, 138)",
+  "background": "oklab(0.315056 0.00554294 0.019028)",
+  "overflowX": false
+}

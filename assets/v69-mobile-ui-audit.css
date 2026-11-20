@@ -1,0 +1,864 @@
+/* UI audit refinements: preserve readable controls on narrow screens and long dialogs. */
+
+.preview-mobile-toggle {
+  display: none;
+}
+
+/* The import-category list may be long, but its decision controls must stay reachable. */
+.import-scope-dialog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+}
+.import-scope-options {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 2px 4px 0;
+}
+.import-scope-options > label {
+  min-height: 40px;
+  flex-shrink: 0;
+}
+.import-scope-options > label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.import-scope-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-dim);
+  background: var(--surface-1);
+}
+.import-scope-actions .btn {
+  min-height: 40px;
+}
+
+/* At phone width, move the preview action into the top bar rather than on top of content. */
+@media (max-width: 640px) {
+  .preview-edge-toggle,
+  .preview-reopen {
+    display: none !important;
+  }
+
+  .preview-mobile-toggle {
+    display: inline-flex;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    min-width: 34px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    color: var(--gold);
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+  }
+
+  .preview-mobile-toggle:hover {
+    color: var(--gold-hi);
+    background: var(--surface-3);
+  }
+
+  .preview-mobile-toggle:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 2px;
+  }
+
+  .section-title-row {
+    padding-right: 0;
+  }
+
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    min-height: 40px;
+    padding: 7px 2px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    justify-content: center;
+    font-size: var(--fs-11);
+    line-height: 1.25;
+    letter-spacing: .02em;
+  }
+
+  .import-scope-dialog {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .import-scope-options {
+    padding-right: 2px;
+  }
+
+  .import-scope-options > label {
+    min-height: 44px;
+  }
+
+  .import-scope-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .import-scope-actions > div {
+    display: none;
+  }
+
+  .import-scope-actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: 6px;
+    white-space: normal;
+  }
+}
+
+/* Keep account creation as a focused, fully operable step. The optional cloud
+   recovery panel should not compete with the create/save actions while a form
+   is open; it returns when the form is cancelled or submitted. */
+.acct-gate-panel:has(.acct-card--form) .acct-panel-cloud {
+  display: none;
+}
+
+.acct-gate-panel:has(.acct-card--form) .acct-panel-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The form content must keep its intrinsic height instead of collapsing inside
+   the gate's bounded grid row. On very short screens the grid can scroll, but
+   the primary actions remain part of the form rather than being clipped. */
+.acct-gate-panel:has(.acct-card--form) .acct-panel-accounts > .acct-grid--gate {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
+}
+
+.acct-gate-panel:has(.acct-card--form) .acct-card--form {
+  min-height: max-content;
+  align-self: start;
+}
+
+
+/* On phones, expose the entire category/tab set instead of cropping the trailing
+   choices under the old preview rail or relying on undiscoverable horizontal scroll. */
+@media (max-width: 640px) {
+  .guide-filter-row {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+  .guide-filter-row .guide-filter {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .shop-tabs-sticky .shop-tabs[role="tablist"][aria-label="ショップの種別"] {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+  .shop-tabs-sticky .shop-tabs[role="tablist"][aria-label="ショップの種別"] > button {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    min-height: 40px;
+    padding: 7px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .record-tabbar .card-header > .segmented[role="tablist"][aria-label="記録セクションの種別"] {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin-left: 0 !important;
+    overflow: visible;
+  }
+  .record-tabbar .card-header > .segmented[role="tablist"][aria-label="記録セクションの種別"] > button {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    min-height: 40px;
+    padding: 7px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+}
+
+
+/* 狭い設定画面では式の入力欄を独立した全幅行にし、ボタン列と競合させない。 */
+@media (max-width: 400px) {
+  .settings-builtin-formula-row {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "name action"
+      "expression expression";
+    row-gap: 8px;
+  }
+  .settings-builtin-formula-name { grid-area: name; }
+  .settings-builtin-formula-expression,
+  .settings-builtin-formula-hidden {
+    grid-area: expression;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .settings-builtin-formula-action {
+    grid-area: action;
+    min-width: 88px;
+    min-height: 40px;
+  }
+}
+
+/* 320px級では情報優先度の低いブランド文字・操作ラベルを畳み、操作面を残す。 */
+@media (max-width: 360px) {
+  .topbar {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+  .topbar > .brand {
+    flex: 0 0 18px;
+    width: 18px;
+    max-width: 18px;
+    gap: 0;
+  }
+  .topbar > .brand .brand-name { display: none; }
+  .topbar > .topbar-spacer { display: none; }
+  .topbar > .topbar-search {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    justify-content: center;
+    padding: 6px;
+  }
+  .topbar > .topbar-balance {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 4px 8px;
+    gap: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .topbar-balance-item { gap: 2px; }
+  .topbar-balance-unit { font-size: 8px; }
+  .topbar > .preview-mobile-toggle {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+  .topbar > .utility-trigger {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+  }
+  .topbar > .utility-trigger > span { display: none; }
+}
+
+/* 320px幅では複数の装備枠を横並びにせず、内容と操作を読める幅で縦積みにする。 */
+@media (max-width: 360px) {
+  .spp-slots {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .spp-slot {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
+
+/* PERSONA AUDIT disclosure is a primary touch target on narrow record views. */
+@media (max-width: 640px) {
+  .ledger-persona-audit-disclosure > summary {
+    min-height: 40px;
+    box-sizing: border-box;
+  }
+}
+
+
+/* 2026-11-01 audit follow-up: include high-impact controls omitted by the first target whitelist. */
+@media (max-width: 640px) {
+  /* 起動時SINNER SELECTの編集導線。カード選択とは別操作なので十分な面積を確保する。 */
+  .acct-gate-edit-btn {
+    box-sizing: border-box;
+    min-width: 72px;
+    min-height: 40px;
+  }
+
+  /* サポート枠の解除。アイコンは小さいまま、押せる面積を40pxに広げる。 */
+  .spp-slot .rm {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    top: 0;
+    right: 0;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  /* 解除ボタンを拡大した分、並べ替え操作を左へ離して誤タップを防ぐ。 */
+  .spp-slot .reorder-btns { margin-right: 44px; }
+
+  .record-import-launch { min-height: 40px; }
+}
+
+
+/* アカウント名・用途・アイコン・共有URLの編集中は、オンライン保全パネルを
+   一時的に退避してフォームの表示／スクロール領域を確保する。編集終了後は一覧に戻して再表示。 */
+.acct-panel:has(> .acct-grid.is-editing) > .lbt-cloud-panel {
+  display: none;
+}
+
+
+/* -------------------------------------------------------------------------
+   Mobile account gate + result entry/editing
+   Keep the first-run selector proportional to a phone viewport and turn the
+   result form into labeled, predictable sections instead of placeholder-only
+   controls packed into a narrow grid.
+------------------------------------------------------------------------- */
+
+.ledger-result-entry-card,
+.ledger-result-entry-body,
+.ledger-result-entry-section,
+.ledger-result-entry-ticket-section {
+  min-width: 0;
+}
+.ledger-result-entry-card > .ledger-result-entry-card-head {
+  align-items: center;
+  gap: 10px;
+}
+.ledger-result-entry-body {
+  display: grid;
+  gap: 14px;
+}
+.ledger-result-entry-section,
+.ledger-result-entry-ticket-section {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--line-dim, #494033);
+  border-radius: var(--r-md, 8px);
+  background: var(--surface-inset, #171512);
+}
+.ledger-result-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.ledger-result-section-heading > .t-label {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ledger-result-input-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.ledger-result-input-field > span {
+  color: var(--tx-2, #d0c8ba);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.ledger-result-input-field .ledger-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 9px 11px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.ledger-result-entry-section .ledger-result-income-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(150px, 1fr) repeat(2, minmax(92px, .7fr));
+  gap: 9px;
+  align-items: end;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-inputs {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-inputs > .t-label {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field--pack-select { grid-column: span 2; }
+.ledger-result-entry-ticket-section .ledger-ticket-field--pack-count { grid-column: span 1; }
+.ledger-result-entry-ticket-section .ledger-ticket-field--pack-select .select {
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field > span {
+  min-width: 0;
+  color: var(--tx-2, #d0c8ba);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.ledger-result-entry-ticket-section .ledger-ticket-field .ledger-input,
+.ledger-result-entry-ticket-section .ledger-ticket-field .select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 8px;
+  font-size: 14px;
+}
+.ledger-result-entry-card .ledger-result-reward-disclosure {
+  min-width: 0;
+}
+.ledger-result-entry-card .ledger-result-reward-disclosure > summary {
+  min-height: 50px;
+  padding: 11px 13px;
+  line-height: 1.5;
+}
+.ledger-result-entry-card .ledger-result-reward-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.ledger-result-entry-card .ledger-reward-item-editor {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+.ledger-result-entry-card .ledger-reward-item-head {
+  display: grid;
+  gap: 3px;
+  align-items: start;
+}
+.ledger-result-entry-card .ledger-reward-item-head .t-label {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ledger-result-entry-card .ledger-reward-item-head .ledger-note {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.ledger-result-entry-card .ledger-persona-search {
+  min-width: 0;
+}
+.ledger-result-entry-card .ledger-persona-search > .ledger-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 9px 11px;
+  font-size: 15px;
+}
+.ledger-result-entry-card .ledger-reward-item-controls {
+  min-width: 0;
+}
+.ledger-result-entry-footer {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.ledger-result-entry-footer .ledger-error-note {
+  overflow-wrap: anywhere;
+}
+.ledger-result-entry-footer .ledger-result-submit {
+  justify-content: stretch;
+}
+.ledger-result-entry-footer .ledger-result-submit > * {
+  width: 100%;
+  min-width: 0;
+}
+.ledger-result-entry-footer .ledger-result-submit .btn {
+  width: 100%;
+  min-height: 48px;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* Existing result cards use the same touch-friendly field rhythm when edited. */
+.ledger-card-wrap.is-editing .ledger-card .card-header.is-editing {
+  min-width: 0;
+  align-items: stretch;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-head-fields {
+  min-width: 0;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-head-field {
+  min-width: 0;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-inline {
+  min-width: 0;
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-field .ledger-input,
+.ledger-card-wrap.is-editing .ledger-card-edit-inline .ledger-input,
+.ledger-card-wrap.is-editing .ledger-card-edit-inline .select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Account selection: one horizontal card pattern and one scrollable list. */
+@media (max-width: 640px) {
+  main.acct-gate {
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+  .acct-gate-panel {
+    box-sizing: border-box;
+    width: min(100%, 520px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 16px;
+  }
+  .acct-gate-panel > .acct-panel-head {
+    flex: 0 0 auto;
+    padding: 15px 15px 12px;
+  }
+  .acct-gate-panel > .acct-panel-head .acct-kicker {
+    font-size: 15px;
+    letter-spacing: .1em;
+    line-height: 1.4;
+  }
+  .acct-gate-panel > .acct-panel-head .acct-lead {
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+    gap: 9px;
+    padding: 11px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--gate {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    min-width: 0;
+    min-height: 94px;
+    height: auto;
+    padding: 11px 12px;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-card-body {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    justify-items: start;
+    gap: 2px 10px;
+    min-width: 0;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-mark {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    width: 44px;
+    height: 44px;
+  }
+  .acct-gate-panel .acct-card--gate .acct-name {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.35;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-purpose {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    font-size: 10px;
+  }
+  .acct-gate-panel .acct-card--gate .acct-meta {
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+    font-size: 10px;
+    line-height: 1.35;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  .acct-gate-panel .acct-card--gate .acct-gate-cta {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+    justify-self: start;
+    margin: 7px 80px 0 0;
+    font-size: 10px;
+    line-height: 1.3;
+    letter-spacing: .04em;
+    text-align: left;
+  }
+  .acct-gate-panel .acct-card--gate .acct-gate-edit-btn {
+    top: auto;
+    right: 10px;
+    bottom: 9px;
+    box-sizing: border-box;
+    min-width: 64px;
+    min-height: 40px;
+    padding-inline: 8px;
+  }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--add {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 62px;
+    padding: 10px 12px;
+  }
+  .acct-gate-panel:has(.acct-card--form) .acct-panel-accounts > .acct-grid--gate {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+  }
+  .acct-gate-panel:has(.acct-card--form) .acct-card--form {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+  }
+  .acct-gate-panel > .acct-panel-foot {
+    flex: 0 0 auto;
+    display: grid;
+    gap: 5px;
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+  .acct-gate-panel > .acct-panel-foot .acct-foot-note {
+    max-width: none;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+
+  .ledger-result-entry-body { gap: 11px; }
+  .ledger-result-entry-section,
+  .ledger-result-entry-ticket-section { padding: 11px; gap: 9px; }
+  .ledger-result-entry-section .ledger-result-income-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .ledger-result-input-field--name { grid-column: 1 / -1; }
+  .ledger-result-input-field > span { font-size: 12px; }
+  .ledger-result-entry-ticket-section .ledger-ticket-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .ledger-result-entry-ticket-section .ledger-ticket-field--pack-select,
+  .ledger-result-entry-ticket-section .ledger-ticket-field--pack-count {
+    grid-column: 1 / -1;
+  }
+  .ledger-result-entry-card .ledger-result-reward-disclosure > summary {
+    min-height: 48px;
+    padding: 10px 11px;
+    font-size: 13px;
+  }
+  .ledger-result-entry-card .ledger-reward-item-editor { padding: 10px; }
+  .ledger-result-entry-card .ledger-reward-item-controls {
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 8px;
+  }
+  .ledger-result-entry-card .ledger-reward-item-controls > :first-child,
+  .ledger-result-entry-card .ledger-reward-item-controls > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .ledger-result-entry-card .ledger-reward-item-controls > :last-child {
+    grid-column: 2;
+    min-height: 44px;
+  }
+  .ledger-result-entry-card .ledger-reward-item-chip {
+    max-width: 100%;
+    min-height: 40px;
+    align-items: center;
+    flex-wrap: wrap;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+  }
+  .ledger-result-entry-card .ledger-reward-item-chip button {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .ledger-result-entry-footer .ledger-result-submit .btn {
+    min-height: 50px;
+    font-size: 14px;
+  }
+
+  .ledger-card-wrap.is-editing .ledger-card .card-header.is-editing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-fields {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+    gap: 8px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-field > span {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-head-field .ledger-input {
+    min-height: 44px;
+    height: auto;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: stretch;
+    gap: 8px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-save,
+  .ledger-card-wrap.is-editing .ledger-card-edit-cancel,
+  .ledger-card-wrap.is-editing .ledger-card-edit-delete {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+  /* 長い抽出チケット名が 1 行で押し出して 320px で 21px はみ出すのを防ぐ。 */
+  .ledger-card-wrap.is-editing .ledger-card-edit-inline .ledger-ticket-field > span {
+    overflow-wrap: anywhere;
+    white-space: normal;
+    min-width: 0;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-income {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-field .ledger-input,
+  .ledger-card-wrap.is-editing .ledger-card-edit-inline .ledger-input,
+  .ledger-card-wrap.is-editing .ledger-card-edit-inline .select {
+    min-height: 44px;
+    height: auto;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .ledger-card-wrap.is-editing .ledger-card-edit-ticket-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ledger-card-wrap.is-editing .ledger-history-editor {
+    padding: 8px;
+  }
+}
+@media (max-width: 380px) {
+  .acct-gate-panel > .acct-panel-head { padding: 13px 13px 10px; }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate { padding: 9px; }
+  .acct-gate-panel .acct-panel-accounts > .acct-grid--gate > .acct-card--gate { padding: 10px; }
+  .ledger-result-entry-section,
+  .ledger-result-entry-ticket-section { padding: 9px; }
+  .ledger-result-entry-card .ledger-result-reward-content { gap: 8px; }
+}
+
+@media (max-width: 360px) {
+  /* Native date controls need more room than a half-width field on narrow phones. */
+  .ledger-result-input-field:has(.ledger-input--date) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 360px) {
+  /* 320px以下ではステップ名を優先し、非選択段階の補足を畳む。選択中の補足は残す。 */
+  .ledger-result-progress { gap: 6px; padding: 9px; }
+  .ledger-result-progress-heading { align-items: flex-start; flex-wrap: wrap; gap: 2px 8px; }
+  .ledger-result-step { align-items: center; gap: 6px; min-height: 44px; padding: 6px; }
+  .ledger-result-step-number { flex-basis: 23px; width: 23px; height: 23px; }
+  .ledger-result-step-copy small { display: none; }
+  .ledger-result-step.is-active .ledger-result-step-copy small { display: block; }
+}

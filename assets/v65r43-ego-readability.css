@@ -1,0 +1,86 @@
+/* ---------------------------------------------------------------------------
+   v65r43-ego-readability.css  →  @layer v65r43-ego-readability
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer v65r43-ego-readability {
+/* V65r43 — E.G.O資源の判読性と詳細未選択一覧の作業幅 */
+.ego-resource-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.ego-resource-chip {
+  --ego-resource-color: var(--sin-特殊);
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in oklab, var(--ego-resource-color) 66%, var(--line));
+  border-radius: var(--r-sm);
+  background: color-mix(in oklab, var(--ego-resource-color) 16%, var(--surface-inset));
+  color: var(--tx);
+  font-family: var(--f-mono);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.ego-resource-chip-name { color: var(--tx); }
+.ego-resource-chip-count { color: var(--ego-resource-color); font-weight: 700; }
+.ego-resource-chip[data-sin="憤怒"] { --ego-resource-color: var(--sin-憤怒); }
+.ego-resource-chip[data-sin="色欲"] { --ego-resource-color: var(--sin-色欲); }
+.ego-resource-chip[data-sin="怠惰"] { --ego-resource-color: var(--sin-怠惰); }
+.ego-resource-chip[data-sin="暴食"] { --ego-resource-color: var(--sin-暴食); }
+.ego-resource-chip[data-sin="憂鬱"] { --ego-resource-color: var(--sin-憂鬱); }
+.ego-resource-chip[data-sin="傲慢"] { --ego-resource-color: var(--sin-傲慢); }
+.ego-resource-chip[data-sin="嫉妬"] { --ego-resource-color: var(--sin-嫉妬); }
+.ego-resource-chips.is-slot { margin-top: 2px; }
+.ego-resource-chips.is-catalog { margin-top: 6px; }
+.ego-resource-filter-controls { display: grid; gap: 4px; }
+.ego-resource-filter-row { align-items: center; }
+.ego-resource-filter-note {
+  color: var(--tx-mute);
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.ego-resource-filter-row .chips-group { min-width: 0; }
+/* --err は surface-1 上で 4.26:1 で、9px の本文には AA の 4.5:1 に届かない。
+   背景 nearer な --err-ink に進めると 5.5:1 まで上がる。色相は維持したまま
+   濃度だけ上げるので、警告であることも保てる。 */
+.ego-resource-filter-row.is-exclude .ego-resource-filter-note { color: var(--err-ink); }
+.ego-resource-filter-row.is-exclude .ego-resource-filter-chip.is-active {
+  background: color-mix(in oklab, var(--err) 22%, var(--surface-2));
+  border-color: var(--err);
+  color: var(--tx);
+  text-decoration: line-through;
+  text-decoration-color: var(--err);
+  text-decoration-thickness: 1px;
+}
+
+@media (min-width: 1281px) {
+  .ego-section.is-catalog-only .codex {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .ego-section.is-catalog-only .codex-detail { display: none; }
+}
+
+@media (max-width: 640px) {
+  .ego-catalog-filters:not(.is-filter-open) > .ego-resource-filter-controls { display: none; }
+  .ego-catalog-filters.is-filter-open > .ego-resource-filter-controls {
+    padding-top: 6px;
+    border-top: 1px solid var(--line-dim);
+  }
+  .ego-resource-chip { min-height: 24px; font-size: var(--fs-11); }
+  .ego-resource-filter-row { align-items: flex-start; }
+  .ego-resource-filter-note { margin-top: 5px; }
+}
+}
+/* end @layer v65r43-ego-readability */

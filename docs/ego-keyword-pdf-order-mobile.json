@@ -1,0 +1,120 @@
+{
+  "focus": {
+    "scrollTop": 533,
+    "clientHeight": 736,
+    "scrollHeight": 2318
+  },
+  "keywordRow": {
+    "top": 528,
+    "bottom": 829,
+    "offsetTop": 1061
+  },
+  "filterRows": [
+    {
+      "top": -54,
+      "bottom": 42,
+      "display": "flex",
+      "visibility": "visible"
+    },
+    {
+      "label": "ランク",
+      "top": 54,
+      "bottom": 155,
+      "display": "flex",
+      "visibility": "visible"
+    },
+    {
+      "label": "大罪",
+      "top": 0,
+      "bottom": 0,
+      "display": "none",
+      "visibility": "visible"
+    },
+    {
+      "label": "必要資源",
+      "top": 174,
+      "bottom": 318,
+      "display": "flex",
+      "visibility": "visible"
+    },
+    {
+      "label": "除外資源",
+      "top": 322,
+      "bottom": 516,
+      "display": "flex",
+      "visibility": "visible"
+    },
+    {
+      "label": "キーワード",
+      "top": 528,
+      "bottom": 829,
+      "display": "flex",
+      "visibility": "visible"
+    },
+    {
+      "label": "所持",
+      "top": 841,
+      "bottom": 892,
+      "display": "flex",
+      "visibility": "visible"
+    }
+  ],
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "candidateCount": "7",
+  "selectedKeyword": "充電",
+  "horizontalOverflow": false,
+  "expectedOrder": [
+    "パワー",
+    "忍耐",
+    "クイック",
+    "保護",
+    "充電",
+    "呼吸",
+    "ダメージ量増加",
+    "虚弱",
+    "武装解除",
+    "束縛",
+    "脆弱",
+    "火傷",
+    "沈潜",
+    "出血",
+    "恐慌",
+    "破裂",
+    "振動",
+    "ダメージ量減少",
+    "毒",
+    "麻痺",
+    "バリア",
+    "弾丸",
+    "回復"
+  ],
+  "actualOrder": [
+    "パワー",
+    "忍耐",
+    "クイック",
+    "保護",
+    "充電",
+    "呼吸",
+    "ダメージ量増加",
+    "虚弱",
+    "武装解除",
+    "束縛",
+    "脆弱",
+    "火傷",
+    "沈潜",
+    "出血",
+    "恐慌",
+    "破裂",
+    "振動",
+    "ダメージ量減少",
+    "毒",
+    "麻痺",
+    "バリア",
+    "弾丸",
+    "回復"
+  ],
+  "matchesPdfOrder": true
+}

@@ -1,0 +1,391 @@
+/**
+ * LBT OGP Gateway
+ *
+ * Workers Free 向けの無状態ゲートウェイ。KV/R2/D1/Queues/Images等の
+ * 課金対象サービスを使わず、既存のRentry/Telegraph共有トークンだけから
+ * OGP HTMLと共有画像を都度復元する。
+ */
+
+const LBT_SHARE_PAGE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html";
+const STATIC_FALLBACK_IMAGE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png";
+const OFFICIAL_DB_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json";
+const EXTERNAL_TOKEN_MARKER = "LBT_SHARE_TOKEN=";
+const EXTERNAL_TOKEN_PART_MARKER = "LBT_SHARE_TOKEN_PART=";
+const MAX_TOKEN_CHARS = 160000;
+const MAX_DECOMPRESSED_BYTES = 4 * 1024 * 1024;
+// 共有IDは一度発行した内容を変更しない。不変のOGP・画像を長くキャッシュして、
+// Discordの再プレビューや多人数の同時閲覧でWorker実行と外部保存先の読込を重複させない。
+// `s-maxage` はCloudflare Workers Cacheで stale-while-revalidate / stale-if-error を無効化する。
+// 共有IDは不変なので、7日間はfresh、その後30日間は外部保存先障害時にも直近の成功応答を継続利用する。
+const CACHE_CONTROL = "public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000";
+
+// `/d` は Rentry/Telegraph の直接読み込みが失敗した時だけ呼ばれる fallback。
+// token は発行後に不変なので同じ内容を何度も外部保存先から取り直す必要はない。
+// ただし token 自体の秘匿性は，共有 URL と同じ扱いに留めるため
+// s/i の 7 日 cache ではなく 1 日に留める。
+const TOKEN_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=3600, stale-if-error=86400";
+
+// 外部保存先の障害時に返すフォールバックページ。同じ失敗を crawler ごとに
+// 作り直さないよう、短い negative cache を効かせる。
+// 正常系の 7 日 cache とは別ポリシーで、失敗時のみ効く。
+const FALLBACK_CACHE_CONTROL = "public, max-age=30, stale-if-error=300";
+
+function htmlEscape(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[char]));
+}
+
+function bytesFromBase64Url(value) {
+  if (!/^[A-Za-z0-9_-]+$/.test(value || "") || value.length > MAX_TOKEN_CHARS) throw new Error("不正な共有トークンです");
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function inflateRaw(bytes) {
+  const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  const chunks = [];
+  let length = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    length += value.byteLength;
+    if (length > MAX_DECOMPRESSED_BYTES) throw new Error("共有データが大きすぎます");
+    chunks.push(value);
+  }
+  const joined = new Uint8Array(length);
+  let offset = 0;
+  chunks.forEach((chunk) => { joined.set(chunk, offset); offset += chunk.byteLength; });
+  return joined;
+}
+
+export async function decodeToken(token) {
+  const match = /^(z|j)\.([A-Za-z0-9_-]+)$/.exec(String(token || ""));
+  if (!match) throw new Error("共有トークンの形式が不正です");
+  let bytes = bytesFromBase64Url(match[2]);
+  if (match[1] === "z") bytes = await inflateRaw(bytes);
+  if (bytes.byteLength > MAX_DECOMPRESSED_BYTES) throw new Error("共有データが大きすぎます");
+  const data = JSON.parse(new TextDecoder().decode(bytes));
+  if (!data || data._lbtShare !== 1) throw new Error("LBT形式の共有データではありません");
+  return data;
+}
+
+export function parseSources(url) {
+  const raw = String(url.searchParams.get("s") || "");
+  if (!raw || raw.length > 700) return [];
+  // 発行側は primary 1 本と backup 1 本の最大 2 本しか作らない
+  //（publishExternalTokens は Rentry と Telegraph の 2 保存先）。
+  // 上限を設けないと ?s=r:a,t:b,r:c,... で外部保存先を順に試しomixでき、
+  // Workers Free の subrequest 上限（1 request あたり 50件）を浪費する。
+  // 正常系の共有 URL には影響せず、攻撃面だけを狭める。
+  const MAX_SOURCES = 2;
+  const parsed = raw.split(",").slice(0, MAX_SOURCES).map((segment) => {
+    const match = /^([tr]):(.+)$/.exec(segment);
+    if (!match) return null;
+    const source = match[1] === "t" ? "telegraph" : "rentry";
+    const id = match[2];
+    const valid = source === "rentry"
+      ? /^[A-Za-z0-9_-]{3,64}$/.test(id)
+      : /^[A-Za-z0-9_-]{1,256}$/.test(id);
+    return valid ? { source, id } : null;
+  }).filter(Boolean).filter((entry, index, entries) => entries.findIndex((other) => other.source === entry.source && other.id === entry.id) === index);
+  // 上限を超えた場合は不正として扱う（黙って切り詰めない）。
+  // 3 本以上を含む要求は正規利用では発生しない。
+  if (raw.split(",").length > MAX_SOURCES) return [];
+  return parsed;
+}
+
+function findToken(text) {
+  const source = String(text || "");
+  const match = new RegExp(`${EXTERNAL_TOKEN_MARKER}(z|j)\\.([A-Za-z0-9_-]{1,${MAX_TOKEN_CHARS}})`).exec(source);
+  if (match) return `${match[1]}.${match[2]}`;
+  const parts = [...source.matchAll(new RegExp(`${EXTERNAL_TOKEN_PART_MARKER}(\\d{1,4})/(\\d{1,4}):([A-Za-z0-9_.-]+)`, "g"))]
+    .map((entry) => ({ index: Number(entry[1]), total: Number(entry[2]), value: entry[3] }))
+    .filter((entry) => entry.total > 0 && entry.total <= 2000 && entry.index > 0 && entry.index <= entry.total);
+  if (!parts.length) return "";
+  const total = parts[0].total;
+  if (parts.some((entry) => entry.total !== total) || parts.length !== total) return "";
+  parts.sort((a, b) => a.index - b.index);
+  if (parts.some((entry, index) => entry.index !== index + 1)) return "";
+  const token = parts.map((entry) => entry.value).join("");
+  return new RegExp(`^(z|j)\\.[A-Za-z0-9_-]{1,${MAX_TOKEN_CHARS}}$`).test(token) ? token : "";
+}
+
+async function tokenFromSource(source, fetchImpl) {
+  if (source.source === "rentry") {
+    const response = await fetchImpl(`https://rentry.co/${encodeURIComponent(source.id)}`, { redirect: "follow" });
+    if (!response.ok) throw new Error(`Rentry HTTP ${response.status}`);
+    const token = findToken(await response.text());
+    if (!token) throw new Error("Rentry内に共有トークンがありません");
+    return token;
+  }
+  const response = await fetchImpl(`https://api.telegra.ph/getPage/${encodeURIComponent(source.id)}?return_content=true`);
+  if (!response.ok) throw new Error(`Telegraph HTTP ${response.status}`);
+  const payload = await response.json();
+  const token = findToken(JSON.stringify(payload?.result?.content || payload?.content || []));
+  if (!token) throw new Error("Telegraph内に共有トークンがありません");
+  return token;
+}
+
+export async function loadToken(sources, fetchImpl = fetch) {
+  const failures = [];
+  for (const source of sources) {
+    try {
+      const token = await tokenFromSource(source, fetchImpl);
+      await decodeToken(token);
+      return token;
+    } catch (error) {
+      failures.push(error?.message || "共有データの取得に失敗しました");
+    }
+  }
+  throw new Error(failures.join(" / ") || "共有データが見つかりません");
+}
+
+export async function loadSnapshot(sources, fetchImpl = fetch) {
+  return decodeToken(await loadToken(sources, fetchImpl));
+}
+
+function selectedSync(snapshot) {
+  const selected = Array.isArray(snapshot?.roster?.personas) ? snapshot.roster.personas[0] : null;
+  const rank = ["0", "00", "000"].includes(String(selected?.syncRank || "")) ? selected.syncRank : "";
+  return [rank ? `同期${rank}` : "", selected?.syncMax === true ? "MAX" : ""].filter(Boolean).join(" ｜ ");
+}
+
+const PRIMARY_RESOURCE_ATTRIBUTES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
+function primaryResourceAttribute(skills) {
+  const counts = new Map();
+  (Array.isArray(skills) ? skills : []).forEach((skill) => {
+    const sin = String(skill?.sin || "").trim();
+    if (PRIMARY_RESOURCE_ATTRIBUTES.includes(sin)) counts.set(sin, (counts.get(sin) || 0) + 1);
+  });
+  let best = "", bestCount = 0;
+  for (const [sin, count] of counts) if (count > bestCount) { best = sin; bestCount = count; }
+  return best;
+}
+
+export function previewFromSnapshot(snapshot) {
+  const rawPersonaName = String(snapshot?.personaSrc?.name || snapshot?.charName || "LBT キャラクターシート").trim();
+  const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
+  // HTML共有側の基礎値解決に合わせて、空欄・nullはpersonaSrcへ戻す。
+  const statusValue = (key) => [snapshot?.[key], snapshot?.personaSrc?.[key]]
+    .find((value) => value !== "" && value !== null && value !== undefined);
+  const enhancements = Array.isArray(snapshot?.enhancements) ? snapshot.enhancements
+    : Array.isArray(snapshot?._r?.h) ? snapshot._r.h : [];
+  // share-link.js と同じく、同期手動モードでは人格専用強化を適用しない。
+  const activeEnhancements = enhancements.filter((entry) =>
+    !(snapshot?.syncedManual && entry?.category === "persona")
+  );
+  const enhancementText = activeEnhancements.map((entry) => String(entry?.effect || "")).join("\n")
+    .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
+  const statusWithEnhancements = (field) => {
+    const raw = statusValue(field);
+    if (raw === undefined) return "—";
+    const parsed = parseInt(String(raw), 10);
+    const base = Number.isFinite(parsed) ? parsed : 0;
+    // generator.js の computeEnhancementBonuses と同じ4形式だけを加算する。
+    const targets = field === "hp"
+      ? [/HPを(\d+)上昇/g, /HP\+(\d+)/g]
+      : [/SANを(\d+)上昇/g, /SAN\+(\d+)/g];
+    let bonus = 0, match;
+    for (const target of targets) {
+      while ((match = target.exec(enhancementText)) !== null) bonus += parseInt(match[1], 10) || 0;
+    }
+    return String(base + bonus);
+  };
+  const hp = statusWithEnhancements("hp").trim().slice(0, 12) || "—";
+  const san = statusWithEnhancements("san").trim().slice(0, 12) || "—";
+  const speed = String(snapshot?.speed ?? "—").trim().slice(0, 16) || "—";
+  const primarySin = String(snapshot?.primarySin || primaryResourceAttribute(snapshot?.skills) || primaryResourceAttribute(snapshot?.personaSrc?.skills) || "").trim();
+  const sync = selectedSync(snapshot);
+  return {
+    personaName,
+    title: personaName,
+    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync, primarySin ? `最多資源属性：${primarySin}` : ""].filter(Boolean).join(" ｜ "),
+    shareImageData: String(snapshot?.shareImageData || ""),
+    ogpImageData: String(snapshot?.ogpImageData || ""),
+    primarySin
+  };
+}
+
+/* 発行時に query へ載せた preview から OGP HTML を直接組み立てる。
+ *
+ * snapshot を読み込まずに済ませるため、Rentry/Telegraph への外部 fetch と
+ * 公式DBへの補完が 0 回になる。query が欠けている・壊れている場合は
+ * null を返し、呼び出し側は従来の snapshot 経路へ戻す。
+ * 共有URLの互換性を優先するので、要約の欠落は静かに無視しない。 */
+export function previewFromQuery(url) {
+  const params = url.searchParams;
+  const rawName = String(params.get("lbt_n") || "").trim();
+  const rawHp = String(params.get("lbt_hp") || "").trim();
+  const rawSan = String(params.get("lbt_san") || "").trim();
+  const rawSpeed = String(params.get("lbt_spd") || "").trim();
+  /* 古いURLでHP/SAN/SPDのどれかが欠けると共有HTMLと一致しない。
+     完全なsummaryなら画像の有無を問わず軽量経路でOGP文面を組み立てる。
+     画像本体は /i がsnapshotから別取得するため、lbt_img=1でも安全に分離できる。 */
+  const validStatus = (value) => /^(?:\d{1,12}|—)$/.test(value);
+  const imageMode = params.get("lbt_img");
+  if (!rawName || !rawSpeed || !validStatus(rawHp) || !validStatus(rawSan) || !["0", "1"].includes(imageMode)) return null;
+  const chars = Array.from(rawName);
+  const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
+  const hp = rawHp.slice(0, 12);
+  const san = rawSan.slice(0, 12);
+  const speed = rawSpeed.slice(0, 16) || "—";
+  const sinCandidate = String(params.get("lbt_sin") || "");
+  const primarySin = PRIMARY_RESOURCE_ATTRIBUTES.includes(sinCandidate) ? sinCandidate : "";
+  const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
+  const syncMax = params.get("lbt_max") === "1";
+  const sync = [syncRank ? `同期${syncRank}` : "", syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
+  return {
+    personaName,
+    title: personaName,
+    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync, primarySin ? `最多資源属性：${primarySin}` : ""].filter(Boolean).join(" ｜ "),
+    // summary 経路では snapshot を読まないので画像は空のまま返す。
+    // ogpHtml は skipImageRoute で静的な既定カードを選ぶ。
+    shareImageData: "",
+    ogpImageData: "",
+    primarySin
+  };
+}
+
+async function enrichOfficialPersona(snapshot, fetchImpl) {
+  const ref = snapshot?.personaRef;
+  const mode = String(ref?.mode || snapshot?.personaMode || "");
+  // 新形式は personaRef.no、旧形式は personaNo を持つ。両方の識別子を解決する。
+  const personaNo = ref?.no ?? snapshot?.personaNo;
+  const hasOwn = (key) => Object.prototype.hasOwnProperty.call(snapshot || {}, key);
+  const needsName = !String(snapshot?.personaSrc?.name || snapshot?.charName || "").trim();
+  const officialMode = ["n", "t"].includes(mode);
+  // 公式参照の欠落値はDBから補い、参照圧縮された強化もOGP計算用に解決する。
+  const needsHp = officialMode && (!hasOwn("hp") || snapshot.hp === null || snapshot.hp === "");
+  const needsSan = officialMode && (!hasOwn("san") || snapshot.san === null || snapshot.san === "");
+  const needsSpeed = officialMode && !hasOwn("speed");
+  const needsPrimarySin = officialMode && !String(snapshot?.primarySin || "").trim();
+  const enhancementRefs = Array.isArray(snapshot?._r?.h) ? snapshot._r.h : null;
+  const enhancementEntries = Array.isArray(snapshot?.enhancements) ? snapshot.enhancements : enhancementRefs;
+  // share-link.js は category が無い強化も DB 名称から分類する。
+  // syncedManual 共有ではこの分類がないと人格専用強化を誤って加算する。
+  const needsEnhancements = !!enhancementEntries?.some((entry) =>
+    typeof entry === "string"
+    || (snapshot?.syncedManual && entry && typeof entry === "object" && !entry.category && entry.name)
+  );
+  const needsPersonaDb = officialMode && personaNo !== undefined && personaNo !== null
+    && (needsName || needsHp || needsSan || needsSpeed || needsPrimarySin);
+  if (!needsPersonaDb && !needsEnhancements) return snapshot;
+  try {
+    const response = await fetchImpl(OFFICIAL_DB_URL, { headers: { Accept: "application/json" } });
+    if (!response.ok) return snapshot;
+    const db = await response.json();
+    const next = { ...snapshot };
+    if (needsEnhancements) {
+      const enhancementRows = [...(db?.normal_enhancements || []), ...(db?.special_enhancements || [])];
+      next.enhancements = enhancementEntries.map((entry) => {
+        if (typeof entry === "string") return enhancementRows.find((row) => row?.name === entry) || { name: entry };
+        if (!entry || typeof entry !== "object" || !snapshot?.syncedManual || entry.category || !entry.name) return entry;
+        const source = enhancementRows.find((row) => row?.name === entry.name);
+        return source ? { ...entry, category: source.category || "" } : entry;
+      });
+    }
+    if (needsPersonaDb) {
+      const rows = mode === "t" ? db?.tokui_personas : db?.normal_personas;
+      const persona = Array.isArray(rows) ? rows.find((entry) => String(entry?.no) === String(personaNo)) : null;
+      if (persona) {
+        next.personaSrc = snapshot?.personaSrc && typeof snapshot.personaSrc === "object"
+          ? { ...snapshot.personaSrc, name: snapshot.personaSrc.name || persona.name }
+          : { name: persona.name };
+        next.hp = needsHp ? persona.hp : snapshot.hp;
+        next.san = needsSan ? persona.san : snapshot.san;
+        next.speed = needsSpeed ? persona.speed : snapshot.speed;
+        next.primarySin = needsPrimarySin ? primaryResourceAttribute(persona.skills) : snapshot.primarySin;
+      }
+    }
+    return next;
+  } catch (_) {
+    return snapshot;
+  }
+}
+
+function imageResponse(dataUri, method) {
+  const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(String(dataUri || ""));
+  if (!match) return null;
+  const binary = atob(match[2]);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new Response(method === "HEAD" ? null : bytes, {
+    headers: {
+      "Content-Type": `image/${match[1]}`,
+      "Content-Length": String(bytes.byteLength),
+      "Cache-Control": CACHE_CONTROL,
+      "X-Content-Type-Options": "nosniff"
+    }
+  });
+}
+
+function shareTarget(url) {
+  const compact = String(url.searchParams.get("s") || "");
+  return compact ? `${LBT_SHARE_PAGE}?s=${encodeURIComponent(compact)}` : LBT_SHARE_PAGE;
+}
+
+function fallbackHtml(url, detail = "") {
+  const target = shareTarget(url);
+  const safeTarget = htmlEscape(target);
+  return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;url=${safeTarget}"><title>LIMBUS BUILD TERMINAL</title><meta property="og:title" content="LIMBUS BUILD TERMINAL — キャラクターシート"><meta property="og:description" content="LBT キャラクターシート共有リンク"><meta property="og:image" content="${STATIC_FALLBACK_IMAGE}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a>${detail ? `<small>${htmlEscape(detail)}</small>` : ""}</body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": FALLBACK_CACHE_CONTROL } });
+}
+
+function ogpHtml(requestUrl, snapshot, { skipImageRoute = false, forceImageRoute = false, preview: givenPreview = null } = {}) {
+  const url = new URL(requestUrl);
+  /* summary 経路では preview が完成済みなので、snapshot を再度解釈しない。
+     snapshot を渡さない場合にのみ previewFromSnapshot で求める。 */
+  const preview = givenPreview || previewFromSnapshot(snapshot);
+  const target = shareTarget(url);
+  const imageData = preview.shareImageData || preview.ogpImageData;
+  /* summary 経路は画像の有無を snapshot 読まずに判定できないため、
+     静的な既定カードを使う。共有画像は /i を個別に叩いたときだけ効く。 */
+  const image = skipImageRoute
+    ? STATIC_FALLBACK_IMAGE
+    : forceImageRoute || /^data:image\/(webp|jpeg);base64,/.test(imageData)
+      ? `${url.origin}/i?${url.searchParams.toString()}`
+      : STATIC_FALLBACK_IMAGE;
+  const safeTarget = htmlEscape(target);
+  return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><link rel="canonical" href="${safeTarget}"><title>${htmlEscape(preview.title)}</title><meta property="og:type" content="website"><meta property="og:site_name" content="LIMBUS BUILD TERMINAL"><meta property="og:url" content="${safeTarget}"><meta property="og:title" content="${htmlEscape(preview.title)}"><meta property="og:description" content="${htmlEscape(preview.description)}"><meta property="og:image" content="${htmlEscape(image)}"><meta property="og:image:alt" content="${htmlEscape(preview.personaName)} の共有画像"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${htmlEscape(preview.title)}"><meta name="twitter:description" content="${htmlEscape(preview.description)}"><meta name="twitter:image" content="${htmlEscape(image)}"><meta http-equiv="refresh" content="0;url=${safeTarget}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": CACHE_CONTROL, "X-Content-Type-Options": "nosniff" } });
+}
+
+export async function handleRequest(request, { fetchImpl = fetch } = {}) {
+  const url = new URL(request.url);
+  // Workers Cache が対象とするのは GET/HEAD のみ。書き込み系で叩かれても
+  // cache を経由せず Worker 実行と subrequest を使うため、入口で拒む。
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new Response("Method Not Allowed", { status: 405, headers: { "Cache-Control": "no-store", Allow: "GET, HEAD" } });
+  }
+  if (url.pathname === "/health") return new Response("LBT OGP gateway: free/stateless", { headers: { "Cache-Control": "no-store" } });
+  if (!["/s", "/i", "/d"].includes(url.pathname)) return fallbackHtml(url);
+  const sources = parseSources(url);
+  if (!sources.length) return new Response("共有IDが不正です", { status: 400, headers: { "Cache-Control": "no-store" } });
+  try {
+    if (url.pathname === "/d") {
+      const token = await loadToken(sources, fetchImpl);
+      // 共有 token は発行後に不変。Rentry/Telegraph の障害時は
+      // /d は毎回 Worker を実行して外部保存先を再取得していた。
+      // 同じ token を短时间内何度も引かないよう短期 cache を効かせる
+      // （s/i の 7 日 cache とは別ポリシー。障害時のフォールバック専用）。
+      return new Response(request.method === "HEAD" ? null : token, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": TOKEN_CACHE_CONTROL, "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" } });
+    }
+    /* /s は発行時に query へ載せた summary から直接 HTML を組み立てる。
+       これで Rentry/Telegraph への外部 fetch と公式DBの補完が 0 回になる。
+       summary が無い URL（既存の共有や 1900 字超過時の切り詰め）は
+       従来どおり snapshot を読む。QUERY_SOURCES 検証は parseSources と
+       同じ条件战士 restrictive し、s パラメータは /d と /i のために必ず必要とする。 */
+    if (url.pathname === "/s") {
+      const queryPreview = previewFromQuery(url);
+      if (queryPreview) {
+        return ogpHtml(request.url, null, { forceImageRoute: true, preview: queryPreview });
+      }
+    }
+    const snapshot = await loadSnapshot(sources, fetchImpl);
+    if (url.pathname === "/i") return imageResponse(snapshot.shareImageData, request.method) || imageResponse(snapshot.ogpImageData, request.method) || new Response(null, { status: 302, headers: { Location: STATIC_FALLBACK_IMAGE, "Cache-Control": CACHE_CONTROL, "X-Content-Type-Options": "nosniff" } });
+    return ogpHtml(request.url, await enrichOfficialPersona(snapshot, fetchImpl));
+  } catch (error) {
+    return fallbackHtml(url, error?.message || "共有データの取得に失敗しました");
+  }
+}
+
+export default { fetch: handleRequest };

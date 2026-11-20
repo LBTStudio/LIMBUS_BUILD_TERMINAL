@@ -1,0 +1,2176 @@
+@layer v66-accounts {
+/* ---------------------------------------------------------------------------
+   v66-accounts.css  →  @layer v66-accounts
+   アカウント切替オーバーレイ（SINNER SELECT）と topbar のアカウント chip。
+
+   色・余白・radius・速度は design-system.css のトークンのみを使う。
+   （--gold / --surface-0..4 / --line* / --tx* / --s-* / --r-* / --t* / --e-out）
+
+   動きの設計:
+     - オーバーレイは 180ms フェード、パネルは scale(.96)→1（--e-out）。
+       低頻度の操作なので「触った」と分かる程度の余韻を持たせる。
+     - カードは 100ms 間隔で順に入る（600ms で打ち切り）。情報のまとまりを
+       段階的に見せるためのものです。頻度の高い操作には使わない。
+     - 戻るときは 140ms の短いフェードのみ（translate で大きく動かさない）。
+     - prefers-reduced-motion は design-system.css が全 transition/animation を
+       0ms 化するため、ここでは追加の無効化は不要。
+--------------------------------------------------------------------------- */
+
+.acct-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 196px;
+  height: 26px;
+  padding: 0 8px 0 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+  color: var(--tx-2);
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.acct-chip:hover {
+  border-color: var(--gold-line);
+  background: var(--surface-2);
+  color: var(--tx);
+}
+.acct-chip-mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font: 700 11px/1 var(--f-display);
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: 50%;
+}
+.acct-chip-name {
+  min-width: 0;
+  font: 600 var(--fs-11) var(--f-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct-chip-count {
+  flex: none;
+  font: 700 var(--fs-9) var(--f-mono);
+  color: var(--tx-mute);
+}
+.acct-chip-arrow {
+  flex: none;
+  font-size: 9px;
+  color: var(--tx-mute);
+}
+
+/* ---- 設定セクションの現在アカウント要約 ---- */
+.acct-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-1);
+}
+.acct-summary-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.acct-summary-mark {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  font: 700 16px/1 var(--f-display);
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: 50%;
+}
+.acct-summary-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.acct-summary-text strong {
+  font: 600 var(--fs-13) var(--f-body);
+  color: var(--tx);
+}
+.acct-summary-text span {
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+  line-height: 1.5;
+}
+
+/* ---- オーバーレイ ---- */
+.acct-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10065;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  background: rgba(6, 4, 3, .74);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: acct-fade var(--t) var(--e-out);
+}
+.acct-overlay.is-closing {
+  animation: acct-fade-out 140ms var(--e-out) forwards;
+}
+@keyframes acct-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes acct-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.acct-panel {
+  width: min(640px, 100%);
+  max-height: min(86vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55), 0 0 0 1px var(--gold-tint);
+  overflow-y: auto;
+  overflow-x: hidden;
+  animation: acct-pop var(--t) var(--e-out);
+}
+@keyframes acct-pop {
+  from { opacity: 0; transform: scale(.96) translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.acct-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--line-dim);
+}
+.acct-kicker {
+  font: 700 var(--fs-15) var(--f-display);
+  letter-spacing: .2em;
+  color: var(--gold);
+}
+.acct-lead {
+  margin: 6px 0 0;
+  max-width: 46em;
+  font-size: var(--fs-11);
+  line-height: var(--lh-loose);
+  color: var(--tx-mute);
+}
+.acct-close {
+  flex: none;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--tx-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  transition: color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out);
+}
+.acct-close:hover {
+  color: var(--gold-hi);
+  border-color: var(--gold-line);
+}
+
+/* ---- カード群 ---- */
+.acct-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-4);
+  overflow-y: auto;
+}
+.acct-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-height: 156px;
+  padding: var(--s-4) var(--s-3) calc(var(--s-3) + 28px);
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  transition: transform var(--t) var(--e-out), border-color var(--t) var(--e-out), box-shadow var(--t) var(--e-out), background-color var(--t) var(--e-out);
+  animation: acct-card-in var(--t-slow) var(--e-out) backwards;
+  animation-delay: min(calc(var(--i, 0) * 100ms), 500ms);
+}
+@keyframes acct-card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.acct-card:hover,
+.acct-card:focus-within {
+  border-color: var(--gold-line);
+  background: var(--surface-2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .4);
+}
+.acct-card:has(.acct-card-hit:active) {
+  transform: scale(.97);
+}
+.acct-card.is-active {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 7%, var(--surface-1));
+}
+.acct-card.is-active:hover {
+  background: color-mix(in srgb, var(--gold) 10%, var(--surface-2));
+}
+/* 選択領域はカード全面。本文は飾りなので当たり判定を持たせない。 */
+.acct-card-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: auto;
+  border-radius: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.acct-card-hit:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.acct-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+/* アップロードアイコンは画像で塗る。モノグラムと同じ枠（同心円）を使い、
+   画像でも頭文字でも見た目の大きさが変わらない。 */
+.acct-mark-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.acct-card-body .acct-mark:has(.acct-mark-img) {
+  background: var(--surface-2);
+}
+.acct-chip-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.acct-chip-mark:has(.acct-chip-img) {
+  background: var(--surface-2);
+}
+.acct-mark {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font: 700 20px/1 var(--f-display);
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: 50%;
+}
+.acct-name {
+  max-width: 100%;
+  font: 600 var(--fs-13) var(--f-body);
+  line-height: 1.3;
+  color: var(--tx);
+  overflow-wrap: anywhere;
+}
+.acct-purpose {
+  max-width: 100%;
+  padding: 2px 8px;
+  font: 700 var(--fs-10) var(--f-display);
+  letter-spacing: .06em;
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-pill);
+}
+.acct-meta {
+  font: 400 var(--fs-10) var(--f-mono);
+  color: var(--tx-mute);
+}
+.acct-badge {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  font: 700 var(--fs-9) var(--f-display);
+  letter-spacing: .08em;
+  color: var(--tx-inv);
+  background: var(--gold);
+  border-radius: var(--r-sm);
+}
+.acct-card-actions {
+  position: absolute;
+  z-index: 2;
+  bottom: var(--s-2);
+  right: var(--s-2);
+  display: flex;
+  gap: 4px;
+  opacity: 1;
+  transform: none;
+}
+.acct-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--tx-dim);
+  background: color-mix(in srgb, var(--surface-0) 82%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  transition: color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.acct-icon-btn:hover {
+  color: var(--gold-hi);
+  border-color: var(--gold-line);
+}
+.acct-icon-btn.is-danger:hover {
+  color: var(--accent-hi);
+  border-color: var(--accent-line);
+}
+.acct-icon-btn:active {
+  transform: scale(.96);
+}
+.acct-edit-btn {
+  width: auto;
+  min-width: 60px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font: 700 var(--fs-10) var(--f-body);
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border-color: var(--gold-line);
+  white-space: nowrap;
+}
+.acct-edit-btn:hover {
+  color: var(--gold-hi);
+  background: var(--gold-glow);
+  border-color: var(--gold);
+}
+
+
+/* 編集中フォームは通常カードと同じ156px行へ押し込まない。
+   全列を使って内容高まで展開し、共有URL取込・保存操作を同じカード内で操作可能にする。 */
+.acct-grid > .acct-card--form,
+.acct-grid > .acct-card--editing {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: max-content;
+  height: auto;
+  align-self: start;
+}
+
+/* ---- 追加カード / フォームカード ---- */
+.acct-card--add {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 138px;
+  font: 600 var(--fs-11) var(--f-body);
+  color: var(--tx-mute);
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line-strong);
+  cursor: pointer;
+}
+.acct-card--add:hover {
+  color: var(--gold-hi);
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+}
+.acct-add-plus {
+  font: 700 20px/1 var(--f-display);
+  color: var(--gold);
+}
+.acct-card--form,
+.acct-card--editing {
+  gap: var(--s-2);
+  text-align: left;
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+/* 編集・新規作成中はフォームの内容高を確保するため、カード一覧を縦積みにする。
+   通常時は従来の複数列グリッドへ戻す。スクロール領域は acct-grid のまま維持する。 */
+
+/* 管理画面カードは最終更新と編集・削除操作を同じカード内に収める。 */
+.acct-panel-accounts > .acct-grid--manager > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+  min-height: 184px;
+}
+
+.acct-grid.is-editing {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-content: normal;
+}
+.acct-grid.is-editing > * {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.acct-grid.is-editing > .acct-card--form,
+.acct-grid.is-editing > .acct-card--editing {
+  min-height: max-content;
+  height: auto;
+}
+
+.acct-card--form:hover,
+.acct-card--editing:hover {
+  transform: none;
+  box-shadow: none;
+}
+.acct-form-kicker {
+  font: 700 var(--fs-10) var(--f-display);
+  letter-spacing: .12em;
+  color: var(--gold);
+}
+.acct-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+/* ---- アイコン設定行 ---- */
+.acct-icon-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+  background: var(--surface-inset);
+}
+.acct-icon-row-label {
+  font: 700 var(--fs-10) var(--f-display);
+  letter-spacing: .08em;
+  color: var(--tx-mute);
+}
+.acct-icon-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  grid-column: 2;
+}
+.acct-icon-row-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-9);
+  line-height: var(--lh-loose);
+  color: var(--tx-mute);
+}
+.acct-upload-btn {
+  height: 26px;
+  padding: 0 9px;
+  font: 600 var(--fs-11) var(--f-body);
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  transition: background-color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.acct-upload-btn:hover {
+  background: var(--gold-glow);
+}
+.acct-upload-btn.is-clear {
+  color: var(--tx-dim);
+  background: transparent;
+  border-color: var(--line);
+}
+.acct-upload-btn.is-clear:hover {
+  color: var(--accent-hi);
+  border-color: var(--accent-line);
+}
+.acct-icon-busy {
+  font-size: var(--fs-10);
+  color: var(--gold);
+}
+.acct-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: auto;
+}
+.acct-empty {
+  padding: var(--s-8) var(--s-4);
+  text-align: center;
+  font-size: var(--fs-12);
+  color: var(--tx-mute);
+}
+
+/* ---- フッター ---- */
+.acct-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  justify-content: space-between;
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line-dim);
+  background: var(--surface-inset);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.acct-foot-note {
+  max-width: 34em;
+  color: var(--tx-dim);
+  line-height: 1.6;
+}
+
+/* ---- アクセス時のアカウント選択ゲート ---- */
+/* main でも section でも同じ見た目に揃える（要素名は语义のためだけに使う）。 */
+main.acct-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  overflow-y: auto;
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--gold) 5%, transparent) 0%, transparent 60%),
+    var(--bg);
+  animation: acct-fade var(--t) var(--e-out);
+}
+.acct-gate .acct-kicker {
+  margin: 0;
+}
+/* ゲートは切替オーバーレイより上に重ねる（押下対象が一つに絞れる）。 */
+.acct-gate-panel {
+  width: min(720px, 100%);
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, .6), 0 0 0 1px var(--gold-tint);
+  overflow-y: auto;
+  overflow-x: hidden;
+  animation: acct-pop var(--t) var(--e-out);
+}
+.acct-gate-panel .acct-grid {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+.acct-card--gate {
+  min-height: 152px;
+}
+/* 起動直後のゲートでも編集導線を隠さない。選択領域より前面に置き、タッチでも即操作できる。 */
+.acct-gate-edit-btn {
+  position: absolute;
+  z-index: 2;
+  top: var(--s-2);
+  right: var(--s-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 58px;
+  min-height: 30px;
+  padding: 0 8px;
+  color: var(--gold-hi);
+  background: color-mix(in srgb, var(--surface-0) 90%, var(--gold) 10%);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  font: 700 var(--fs-10) var(--f-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.acct-gate-edit-btn:hover,
+.acct-gate-edit-btn:focus-visible {
+  color: var(--gold-hi);
+  border-color: var(--gold);
+  background: var(--gold-glow);
+}
+.acct-gate-edit-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.acct-gate-edit-btn:active {
+  transform: scale(.97);
+}
+.acct-card--gate:hover,
+.acct-card--gate:focus-within {
+  transform: translateY(-3px);
+}
+.acct-gate-cta {
+  pointer-events: none;
+  margin-top: auto;
+  font: 700 var(--fs-10) var(--f-display);
+  letter-spacing: .1em;
+  color: var(--gold);
+}
+.acct-card--gate.is-active .acct-gate-cta {
+  color: var(--gold-hi);
+}
+
+/* ---- アクセシビリティ監査で指摘された landmark の整形 ---- */
+.acct-chip:focus-visible,
+.acct-card-hit:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+/* ---- アイコン切り抜きエディタ（BAND 系の円形マスク方式） ----
+   枠は円。外側は暗く落として「残る部分」を一目で判別させる。
+   グリッドは三分割で、顔の位置を合わせる目安に使う。 */
+.acct-crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10070;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  overflow-y: auto;
+  background: rgba(6, 4, 3, .78);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: acct-fade var(--t) var(--e-out);
+}
+.acct-crop-panel {
+  width: min(560px, 100%);
+  max-height: min(92vh, 760px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, .6), 0 0 0 1px var(--gold-tint);
+  overflow: hidden;
+  animation: acct-pop var(--t) var(--e-out);
+}
+.acct-crop-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  align-items: flex-start;
+  padding: var(--s-4);
+  overflow-y: auto;
+}
+/* 丸い枠。box-shadow で枠の外を一気に暗くして穴を空ける。 */
+.acct-crop-stage {
+  position: relative;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-inset);
+}
+.acct-crop-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(6, 4, 3, .72);
+  pointer-events: none;
+}
+/* 実物と同じ金の縁。保存後の見た目との差を無くす。 */
+.acct-crop-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  border: 1px solid var(--gold-line);
+  pointer-events: none;
+}
+.acct-crop-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.acct-crop-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-11);
+  color: var(--tx-mute);
+}
+.acct-crop-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  background:
+    linear-gradient(to right, transparent 33.2%, var(--gold-tint) 33.2%, var(--gold-tint) 33.5%, transparent 33.5%, transparent 66.4%, var(--gold-tint) 66.4%, var(--gold-tint) 66.7%, transparent 66.7%),
+    linear-gradient(to bottom, transparent 33.2%, var(--gold-tint) 33.2%, var(--gold-tint) 33.5%, transparent 33.5%, transparent 66.4%, var(--gold-tint) 66.4%, var(--gold-tint) 66.7%, transparent 66.7%);
+  pointer-events: none;
+}
+.acct-crop-side {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.acct-crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.acct-crop-zoom input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--gold);
+}
+.acct-crop-zoom b {
+  flex: none;
+  min-width: 3.2em;
+  text-align: right;
+  font: 700 var(--fs-11) var(--f-mono);
+  color: var(--gold-hi);
+}
+/* 実サイズの見え方。切替パネルの一覧は20px・名前の横は44pxで表示されるため、
+   232px のステージでは確かめられない。その2サイズを実物大で並べて示す。
+   ラベルを上に置くと丸の右側が空白になるため、1行に束ねて説明を右へ置く。 */
+.acct-crop-preview {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+  background: var(--surface-inset);
+}
+.acct-crop-preview-cap {
+  margin-left: auto;
+  font-size: var(--fs-10);
+  line-height: 1.6;
+  color: var(--tx-mute);
+  text-align: right;
+}
+/* 実サイズの生サムネイル。丸く切り取って、保存後そのままの見た目を示す。 */
+.acct-crop-thumb {
+  position: relative;
+  flex: none;
+  display: block;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--gold-line);
+}
+.acct-crop-thumb--sm { width: 20px; height: 20px; }
+.acct-crop-thumb--md { width: 44px; height: 44px; }
+.acct-crop-thumb img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+}
+/* 切替パネル内の注記。フォーム側の .acct-icon-row-note はグリッド用
+   （grid-column: 1 / -1）なので、ここでは流用せず専用の class を使う。 */
+.acct-crop-note {
+  margin: 0;
+  font-size: var(--fs-9);
+  line-height: var(--lh-loose);
+  color: var(--tx-mute);
+}
+.acct-crop-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line-dim);
+  background: var(--surface-inset);
+}
+@media (max-width: 640px) {
+  .acct-crop-body { justify-content: center; }
+}
+@media (max-width: 640px) {
+  .acct-chip-name,
+  .acct-chip-count,
+  .acct-chip-arrow { display: none; }
+  .acct-chip { padding: 0 3px; }
+  .acct-panel-head { padding: var(--s-3); }
+  .acct-grid {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: var(--s-2);
+    padding: var(--s-3);
+  }
+  .acct-card { min-height: 124px; padding: var(--s-3) var(--s-2) var(--s-2); }
+  .acct-panel-foot { padding: var(--s-3); }
+}
+
+/* ---------------------------------------------------------------------------
+   硝子窓からの取り込み（GarasumadoImportPanel）— 決定面。
+
+   この面の仕事は 1 つ:「何を入れるか」を利用者が決めること。
+   だから装飾は一切入れない。構造だけで意味を伝える。
+
+   色の使いどころ:
+     - 金色（--gold）は switch の ON と主要ボタンだけ。
+       「入れる」という決定にだけ accent を使う。
+     - 赤（--err）は消さない。「判定できない」と「価格が引けない」の2つ。
+     - それ以外は全部ニュートラル（--tx-2 / --line）。
+
+   形の使いどころ:
+     - 角は r-sm（入力）と r-lg（面）の2種類だけ。pill は switch だけ。
+     - 影は面の段差に1つだけ。カードには影を持たせない。
+
+   動き:
+     - パネルは既存の --t(180ms) / --e-out に合わせる。
+     - 行は 100ms 間隔で順に入る（低頻度の操作なので許す）。
+     - switch は --t-fast(120ms) の色のみ。動きが唯一の手がかりにならないよう
+       文字（ON/OFF）も同時に切り替える。
+     - prefers-reduced-motion は design-system.css が --t* を 0ms にするので
+       ここでは追加の無効化は不要。
+   --------------------------------------------------------------------------- */
+
+.gara {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: var(--s-4);
+}
+
+.gara > *:not(.gara-rail) {
+  grid-column: 1;
+}
+
+/* 狭い幅では右列を廃して 1 段に戻す。追従レールのままでは狭くて使えない。 */
+@media (max-width: 900px) {
+  .gara {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gara-rail {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+    max-height: none;
+  }
+}
+
+.gara-title {
+  margin: 0;
+  font-size: var(--fs-md, 15px);
+  font-weight: 600;
+  color: var(--tx);
+  letter-spacing: .01em;
+}
+
+.gara-lead {
+  margin: 0;
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.7;
+  color: var(--tx-2);
+}
+
+.gara-hint,
+.gara-note {
+  margin: 0;
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.7;
+  color: var(--tx-2);
+}
+
+.gara-rail {
+  /* 右列。スクロールしても追従して消えない。 */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  grid-column: 2;
+  grid-row: 1 / span 64;
+  max-height: 100vh;
+  overflow: auto;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  transition: border-color .12s ease, background .12s ease;
+}
+
+/* カードの行をここへ戻すドラッグ中。受け取る場所だと分かるように縁を灯す。 */
+.gara-rail.is-over {
+  border-color: var(--accent-line);
+  background: color-mix(in srgb, var(--accent-line) 10%, var(--surface-2));
+}
+
+/* 戻した行はフォーカスが移る。見えないとどこへ戻ったか分からない。 */
+.gara-rail .gara-chip:focus {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+.gara-rail-title {
+  margin: 0 0 var(--s-1);
+  font-size: var(--fs-sm, 13px);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.gara-rail-hint {
+  margin: 0 0 var(--s-2);
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.gara-chip {
+  display: flex;
+  /* 名称・理由を上、select を下に積む。横並びでは select が幅を奪い
+     名称が数文字で切れて判別できない（2026-10-17 実機確認）。 */
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  cursor: grab;
+}
+
+.gara-chip:active {
+  cursor: grabbing;
+}
+
+.gara-chip-name {
+  font-weight: 600;
+  line-height: 1.45;
+  /* レール幅でも全文を出す。折り返す前に省略しない。 */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx);
+}
+
+/* チップ内では名称を1行・理由をその下に。横に続けると
+   折り返しが文中に混ざって読みにくい。 */
+.gara-chip .gara-item-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+/* 割当済み行は名称行→操作行の縦積み。select に幅を奪わせない。 */
+.gara-row-assigned {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-2);
+}
+
+.gara-item-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.gara-item-acts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  align-items: end;
+}
+
+.gara-item-acts .gara-decide-field {
+  min-width: 0;
+}
+
+.gara-item-acts .input {
+  width: 100%;
+}
+
+.gara-item-acts-one {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 560px) {
+  .gara-item-acts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ドロップ先のカード。カーソルを-drop に変えて受け皿欠缺を示す。 */
+.gara-result .gara-rows {
+  min-height: 12px;
+}
+
+.gara-result.is-drop {
+  outline: 2px dashed var(--line-hot);
+  outline-offset: 3px;
+}
+
+.gara-out {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+
+/* --- URL 入力 ----------------------------------------------------------- */
+.gara-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.gara-field { flex: 1 1 320px; }
+.gara-label {
+  display: block;
+  margin-bottom: var(--s-1);
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-error {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--err);
+  border-radius: var(--r-sm);
+  background: rgba(217, 74, 68, .10);
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.6;
+  color: var(--err-ink);
+}
+
+/* --- グループ ----------------------------------------------------------- */
+.gara-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.gara-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.gara-group-title {
+  margin: 0;
+  font-size: var(--fs-sm, 13px);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.gara-group-note {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-group-acts {
+  display: flex;
+  gap: var(--s-1);
+  margin-left: auto;
+}
+
+.gara-mini {
+  min-height: 28px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.gara-mini:hover:not(:disabled) {
+  border-color: var(--line-hot);
+  background: var(--surface-3);
+  color: var(--tx);
+}
+.gara-mini:disabled { opacity: .45; cursor: default; }
+
+/* --- 行 ---------------------------------------------------------------- */
+.gara-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.gara-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-2);
+  animation: gara-row-in 220ms var(--e-out) backwards;
+  animation-delay: min(calc(var(--i, 0) * 40ms), 400ms);
+}
+
+@keyframes gara-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 押すと候補が開く本体。 */
+.gara-row-hit {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  color: var(--tx);
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-sm, 13px);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.gara-row-hit:hover {
+  border-color: var(--line-hot);
+  background: var(--surface-2);
+}
+.gara-row-hit.is-open {
+  border-color: var(--gold-line);
+  background: var(--surface-2);
+}
+.gara-row.is-unsure .gara-row-hit {
+  border-color: rgba(217, 74, 68, .45);
+}
+
+.gara-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gara-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: var(--fs-xs, 12px);
+  color: var(--tx-2);
+}
+
+.gara-row-caret {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--tx-2);
+  transition: transform var(--t-fast) var(--e-out);
+}
+.gara-row-hit.is-open .gara-row-caret { transform: rotate(180deg); }
+
+/* ON / OFF。文字と色の両方で状態を示す（色だけに頼らない）。 */
+.gara-switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--tx-2);
+  font-size: var(--fs-xs, 12px);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.gara-switch:hover { border-color: var(--line-hot); color: var(--tx); }
+.gara-switch-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-hot);
+  transition: background-color var(--t-fast) var(--e-out);
+}
+.gara-switch.is-on {
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+  color: var(--gold-hi);
+}
+.gara-switch.is-on .gara-switch-dot { background: var(--gold); }
+.gara-switch-text {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+/* --- 候補のポップオーバー ------------------------------------------------ */
+/* --- 候補のポップオーバー（固定座標・親の overflow に切られない） ---------- */
+.gara-pop {
+  position: fixed;
+  z-index: 10090;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: gara-pop-in 140ms var(--e-out);
+}
+
+@keyframes gara-pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.gara-pop-head {
+  margin: 0;
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  color: var(--tx-2);
+  letter-spacing: .04em;
+}
+
+.gara-pop-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.gara-pop-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  color: var(--tx);
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-sm, 13px);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.gara-pop-item:hover {
+  border-color: var(--gold-line);
+  background: var(--surface-2);
+}
+.gara-pop-item.is-chosen {
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+}
+
+.gara-pop-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gara-pop-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-size: var(--fs-xs, 12px);
+  color: var(--tx-2);
+}
+
+.gara-pop-src,
+.gara-pop-src-inline {
+  font-size: var(--fs-xs, 12px);
+  color: var(--line-hot);
+}
+
+.gara-pop-empty {
+  margin: 0;
+  padding: var(--s-2) 0;
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.6;
+  color: var(--tx-2);
+}
+
+.gara-pop-foot {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.gara-pop-hint {
+  margin: 0;
+  font-size: var(--fs-xs, 12px);
+  color: var(--line-hot);
+}
+
+.gara-pick-dot { color: var(--line-hot); }
+
+/* --- 購入履歴 ----------------------------------------------------------- */
+.gara-scen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* 帰属先と入手方法を選ぶ欄。1 行に 2 列で置き、狭い画面では積む。 */
+.gara-decide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--line-soft, var(--border-soft, rgba(127, 127, 127, 0.25)));
+  border-radius: var(--r-sm, 4px);
+  background: var(--bg-sub, transparent);
+}
+
+.gara-decide-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1, 4px);
+  min-width: 0;
+}
+
+/* 所持全件は縦に長くなるので、照合結果は枠内でスクロールさせる。 */
+.gara-scen.is-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: var(--s-2, 4px);
+}
+
+.gara-scen-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.gara-scen-name {
+  font-size: var(--fs-xs, 12px);
+  color: var(--tx-2);
+}
+
+/* --- 実行 --------------------------------------------------------------- */
+.gara-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.gara-foot-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-foot-warn {
+  font-size: var(--fs-sm, 13px);
+  color: var(--err-ink);
+}
+
+.gara-foot-acts {
+  display: flex;
+  gap: var(--s-2);
+  margin-left: auto;
+}
+
+/* 320px まで縦積みを崩さない。 */
+@media (max-width: 420px) {
+  .gara-row { flex-wrap: wrap; }
+  .gara-row-hit { flex: 1 1 100%; }
+  .gara-switch { min-height: 34px; }
+  .gara-pop { width: 100%; }
+}
+
+
+/* アカウント編集カードの共有URL取込導線。
+   小さな補助ボタンではなく、用途・説明・操作をひとまとまりにした主導線として表示する。 */
+.acct-gara-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--gold) 5%, var(--surface-1));
+}
+.acct-gara-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.acct-gara-title {
+  font: 700 var(--fs-12) var(--f-display);
+  letter-spacing: .06em;
+  color: var(--gold-hi);
+}
+.acct-gara-note {
+  margin: 0;
+  font-size: var(--fs-11);
+  line-height: var(--lh-loose);
+  color: var(--tx-mute);
+}
+.acct-import-toggle {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  font: 700 var(--fs-12) var(--f-body);
+  color: var(--tx-inv);
+  background: var(--gold);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  transition: background-color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.acct-import-toggle:hover {
+  background: var(--gold-hi);
+  border-color: var(--gold-hi);
+}
+.acct-import-toggle.is-open {
+  color: var(--gold-hi);
+  background: var(--surface-2);
+  border-color: var(--gold);
+}
+.acct-import-toggle:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 3px;
+}
+.acct-gara-body {
+  min-width: 0;
+  width: 100%;
+  padding: var(--s-3) 0 var(--s-1);
+}
+
+
+/* SINNER SELECT 内の共有URL取込は通常画面用の .gara レイアウトを使う。
+   取込パネルをカード1枚の幅に閉じ込めると、2列レイアウトの最小幅が確保できず
+   日本語の本文・ボタンが1字ずつ折り返される。展開中だけカード列全体を使う。 */
+.acct-card--import-open {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+  align-items: stretch;
+  text-align: left;
+}
+.acct-card--import-open .acct-gara-body,
+.acct-card--import-open .gara {
+  min-width: 0;
+  width: 100%;
+}
+/* 候補ポップオーバーの fixed 座標をカードの transform でずらさない。 */
+.acct-card--import-open:hover,
+.acct-card--import-open:focus-within {
+  transform: none;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------
+   topbar の残高チップ。どの画面でも見える必要があるため
+   .topbar-actions の外側（.topbar の直接子）に置く。
+   ------------------------------------------------------------ */
+.topbar-balance {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex: 0 0 auto;
+  padding: 5px var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--tx);
+  font-family: var(--f-display);
+  font-size: var(--fs-11);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.topbar-balance:hover { background: var(--surface-3); border-color: var(--gold-line); }
+.topbar-balance:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.topbar-balance-item { display: inline-flex; align-items: baseline; gap: 3px; }
+.topbar-balance-num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.topbar-balance-unit { font-size: var(--fs-9); color: var(--tx-2); letter-spacing: 0.08em; }
+.topbar-balance-sep { color: var(--tx-2); }
+
+/* リザルトタブでは中身を持たないため、見出しの下罫線を持たない。 */
+.record-tabbar.is-bodyless .card-header { border-bottom-color: transparent; }
+
+/* 幅が足りないときは brand の副題が先に畳まれ、残高は残るようにする。 */
+@media (max-width: 640px) {
+  .topbar-balance { padding: 4px var(--s-2); font-size: var(--fs-10); gap: var(--s-1); }
+  .topbar-balance-unit { font-size: var(--fs-9); }
+}
+
+
+/* SINNER SELECT内の狭い取込カードは一列で表示し、追従レールを通常配置へ戻す。 */
+.acct-card--import-open .acct-gara-body { min-width: 0; width: 100%; }
+.acct-card--import-open .gara { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; width: 100%; }
+.acct-card--import-open .gara-rail { position: static; grid-column: 1; grid-row: auto; max-height: none; }
+
+/* --- 硝子窓共有URLの入力・取得状況を明確にする --- */
+.gara-import-start {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+}
+.gara-step-kicker {
+  font: 700 var(--fs-10) var(--f-display);
+  letter-spacing: .12em;
+  color: var(--gold-hi);
+}
+.gara-url-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.gara-url-form .gara-field { min-width: 0; }
+.gara-url-list {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 132px;
+  padding: var(--s-3);
+  resize: vertical;
+  font-family: var(--f-mono);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+}
+.gara-load-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  background: var(--gold);
+  color: var(--tx-inv);
+  font: 700 var(--fs-11) var(--f-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--e-out), opacity var(--t-fast) var(--e-out);
+}
+.gara-load-button:hover:not(:disabled) { background: var(--gold-hi); }
+.gara-load-button:disabled { opacity: .55; cursor: wait; }
+.gara-load-button:focus-visible, .gara-change-url:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 3px; }
+.gara-field-help { margin: 0; font-size: var(--fs-10); line-height: 1.65; color: var(--tx-2); }
+.gara-loading {
+  margin: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--gold-tint);
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.6;
+  color: var(--tx);
+}
+.gara-url-report {
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-11);
+  line-height: 1.55;
+}
+.gara-url-report.has-errors {
+  border-color: var(--err);
+  background: color-mix(in srgb, var(--err) 6%, var(--surface-1));
+}
+.gara-url-report-summary { margin: 0; color: var(--tx-2); }
+.gara-url-report-item {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+.gara-url-report-item code { overflow-wrap: anywhere; color: var(--tx); font-size: var(--fs-10); }
+.gara-url-report-item span { color: var(--tx-2); }
+
+/* --- 読み込み後の確認画面：先に要点、末尾までスクロールしても確定操作を保持 --- */
+.gara-import-review { min-width: 0; }
+.gara-import-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: 0 0 var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+.gara-import-heading-copy { display: grid; gap: var(--s-2); min-width: 0; }
+.gara-import-balance { margin: 0; font-size: var(--fs-10); color: var(--tx-2); }
+.gara-change-url {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-10);
+  cursor: pointer;
+}
+.gara-change-url:hover { border-color: var(--gold-line); color: var(--gold-hi); }
+.gara-import-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  min-width: 0;
+}
+.gara-import-stat {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-1);
+}
+.gara-import-stat.is-warning { border-color: var(--err); background: color-mix(in srgb, var(--err) 7%, var(--surface-1)); }
+.gara-import-stat.is-ready { border-color: var(--gold-line); background: color-mix(in srgb, var(--gold) 5%, var(--surface-1)); }
+.gara-import-stat-label { font-size: var(--fs-10); line-height: 1.4; color: var(--tx-2); }
+.gara-import-stat-value { font: 700 var(--fs-15) var(--f-display); color: var(--tx); overflow-wrap: anywhere; }
+.gara-import-stat-detail { font-size: var(--fs-10); line-height: 1.5; color: var(--tx-2); }
+.gara-import-instructions {
+  margin: 0;
+  padding: var(--s-3);
+  border-left: 3px solid var(--gold);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-11);
+  line-height: 1.65;
+}
+.gara-import-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 12;
+  align-items: center;
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: 0 -8px 20px color-mix(in srgb, var(--surface-0) 80%, transparent);
+}
+.gara-import-actions .gara-foot-meta { min-width: 0; flex: 1 1 220px; }
+.gara-import-actions .gara-foot-acts { flex-wrap: wrap; }
+.gara-import-actions .gara-foot-acts button:last-child { min-height: 40px; }
+
+/* 項目名の省略をやめ、価格・選択状況を下段で読めるようにする。 */
+.gara-row-hit {
+  position: relative;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-1) var(--s-2);
+  min-height: 48px;
+  padding: var(--s-2) calc(var(--s-2) + 16px) var(--s-2) var(--s-3);
+}
+.gara-row-hit .gara-row-name {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.gara-row-hit .gara-row-meta {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  flex-wrap: wrap;
+  line-height: 1.45;
+}
+.gara-row-hit .gara-row-caret { position: absolute; top: 50%; right: var(--s-2); transform: translateY(-50%); }
+.gara-row-hit.is-open .gara-row-caret { transform: translateY(-50%) rotate(180deg); }
+
+@media (max-width: 560px) {
+  .gara-url-form { grid-template-columns: minmax(0, 1fr); }
+  .gara-load-button { width: 100%; white-space: normal; }
+  .gara-import-heading { flex-direction: column; align-items: stretch; }
+  .gara-change-url { align-self: flex-start; }
+  .gara-import-overview { grid-template-columns: minmax(0, 1fr); }
+  .gara-import-actions { align-items: stretch; }
+  .gara-import-actions .gara-foot-acts { width: 100%; margin-left: 0; }
+  .gara-import-actions .gara-foot-acts button:last-child { flex: 1 1 100%; }
+}
+
+/* ------------------------------------------------------------
+   共有URL取込レビュー：URL取得後だけ全画面ワークスペースへ。
+   入口ボタンは既存スタイルを保持し、確認・編集ステップの情報密度を下げる。
+   ------------------------------------------------------------ */
+.gara-import-workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: clamp(16px, 2.2vw, 32px);
+  background: var(--bg);
+  color: var(--tx);
+}
+.gara-import-workspace > .gara {
+  width: min(100%, 1720px);
+  margin: 0 auto;
+}
+.gara-import-workspace > .gara:not(.gara-import-review) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  align-content: start;
+}
+.gara-import-workspace > .gara-import-review {
+  min-height: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: var(--s-5);
+  align-content: start;
+}
+.gara-import-workspace .gara-import-heading {
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-2) 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
+}
+.gara-import-workspace .gara-import-heading-copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--s-2);
+}
+.gara-import-workspace .gara-title {
+  font-size: clamp(var(--fs-20), 1.8vw, var(--fs-24));
+  line-height: 1.3;
+}
+.gara-import-workspace .gara-lead {
+  max-width: 76ch;
+  line-height: 1.8;
+}
+.gara-import-heading-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--s-2);
+}
+.gara-import-workspace .gara-change-url,
+.gara-import-workspace .gara-review-dismiss {
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--tx-2);
+  font: 600 var(--fs-12) var(--f-body);
+  white-space: nowrap;
+}
+.gara-import-workspace .gara-change-url:hover,
+.gara-import-workspace .gara-review-dismiss:hover {
+  border-color: var(--gold-line);
+  color: var(--gold-hi);
+  background: var(--surface-3);
+}
+.gara-import-workspace .gara-review-dismiss { border-color: var(--line); }
+.gara-import-workspace .gara-review-dismiss:focus-visible,
+.gara-import-workspace .gara-change-url:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.gara-import-workspace .gara-import-overview {
+  gap: var(--s-3);
+  margin-block: var(--s-3);
+}
+.gara-import-workspace .gara-import-stat {
+  min-height: 104px;
+  padding: var(--s-4);
+  gap: var(--s-2);
+}
+.gara-import-workspace .gara-import-stat-value {
+  font-size: var(--fs-20);
+  line-height: 1.3;
+}
+.gara-import-workspace .gara-group {
+  margin-block: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+}
+.gara-import-workspace .gara-group-head {
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.gara-import-workspace .gara-rail {
+  top: var(--s-5);
+  max-height: calc(100dvh - var(--s-10));
+  padding: var(--s-4);
+}
+.gara-import-workspace .gara-rail-title {
+  font-size: var(--fs-14);
+  margin-bottom: var(--s-2);
+}
+.gara-import-workspace .gara-row {
+  min-height: 42px;
+  gap: var(--s-2) var(--s-3);
+}
+.gara-import-workspace .gara-import-actions {
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  background: color-mix(in srgb, var(--surface-0) 94%, transparent);
+  backdrop-filter: blur(12px);
+  border-color: var(--line-strong);
+}
+.gara-import-workspace .gara-import-actions .gara-foot-acts { gap: var(--s-2); }
+.gara-import-workspace .gara-import-actions .gara-foot-acts button:last-child {
+  min-height: 44px;
+  padding-inline: var(--s-5);
+}
+.gara-import-workspace .gara-import-complete {
+  max-width: 980px;
+  padding-top: var(--s-8);
+}
+.gara-import-workspace .gara-import-complete .gara-title { font-size: var(--fs-24); }
+@media (max-width: 1100px) {
+  .gara-import-workspace > .gara-import-review {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  }
+}
+@media (max-width: 900px) {
+  .gara-import-workspace { padding: var(--s-4); }
+  .gara-import-workspace > .gara-import-review { grid-template-columns: minmax(0, 1fr); }
+  .gara-import-workspace .gara-rail { top: auto; max-height: none; }
+}
+@media (max-width: 560px) {
+  .gara-import-workspace { padding: var(--s-3); }
+  .gara-import-workspace .gara-import-heading { align-items: stretch; gap: var(--s-3); }
+  .gara-import-heading-actions { width: 100%; justify-content: stretch; }
+  .gara-import-heading-actions > button { flex: 1 1 auto; }
+  .gara-import-workspace .gara-import-overview { grid-template-columns: minmax(0, 1fr); }
+  .gara-import-workspace .gara-import-stat { min-height: auto; }
+}
+
+
+/* 購入候補は収支の確定に関わるため、本文の言及・価格・承認操作を一まとまりにする。 */
+.gara-purchase-review {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx);
+  line-height: 1.5;
+}
+.gara-purchase-review > strong {
+  color: var(--gold-hi);
+  font-size: var(--fs-13);
+}
+.gara-purchase-review > p {
+  margin: 0;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+}
+.gara-purchase-candidate {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px var(--s-2);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--s-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-inset);
+  cursor: pointer;
+}
+.gara-purchase-candidate:hover {
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+}
+.gara-purchase-candidate:focus-within {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.gara-purchase-candidate input {
+  grid-row: 1 / span 2;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--gold);
+}
+.gara-purchase-candidate .gara-row-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.gara-purchase-candidate .gara-row-meta {
+  justify-self: end;
+  white-space: normal;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.gara-purchase-candidate small {
+  grid-column: 2 / -1;
+  min-width: 0;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .gara-purchase-candidate {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 5px var(--s-2);
+    padding: var(--s-2);
+  }
+  .gara-purchase-candidate .gara-row-meta {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+  .gara-purchase-candidate small {
+    grid-column: 2;
+  }
+}
+
+/* ---- SINNER SELECT: アカウント一覧と復旧パネルを独立ペイン化 ----
+   復旧キー入力・比較結果の展開でアカウント一覧の高さを奪わない。
+   一覧と保全ペインは各自でスクロールし、親パネルは見出し・フッターを固定する。 */
+.acct-panel,
+.acct-gate-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.acct-panel {
+  width: min(1040px, 100%);
+  max-height: min(92vh, 860px);
+  max-height: min(92dvh, 860px);
+}
+
+.acct-gate-panel {
+  width: min(1040px, 100%);
+  max-height: min(92vh, 860px);
+  max-height: min(92dvh, 860px);
+}
+
+.acct-panel > .acct-panel-head,
+.acct-panel > .acct-panel-foot,
+.acct-gate-panel > .acct-panel-head,
+.acct-gate-panel > .acct-panel-foot {
+  flex: 0 0 auto;
+}
+
+.acct-panel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.acct-panel-accounts {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.acct-panel-accounts > .acct-empty {
+  flex: 0 0 auto;
+}
+
+.acct-panel-accounts > .acct-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.acct-panel-accounts > .acct-grid--manager {
+  grid-auto-rows: minmax(184px, max-content);
+}
+
+.acct-panel-accounts > .acct-grid--gate {
+  grid-auto-rows: minmax(156px, max-content);
+}
+
+.acct-panel-cloud {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-3);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-left: 1px solid var(--line-dim);
+  background: var(--surface-0);
+}
+
+.acct-panel-cloud > .lbt-cloud-panel.is-compact {
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .acct-panel-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(140px, 1fr) minmax(112px, min(34vh, 260px));
+  }
+
+  .acct-panel-accounts > .acct-grid--manager,
+  .acct-panel-accounts > .acct-grid--gate {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .acct-panel-cloud {
+    padding: var(--s-2) var(--s-3);
+    border-top: 1px solid var(--line-dim);
+    border-left: 0;
+  }
+}
+
+}
+
+/* First-run account gate: create with a name first; keep optional metadata folded. */
+.acct-gate-title { letter-spacing: .04em; }
+.acct-first-run-note {
+  display: grid;
+  gap: 4px;
+  margin: 0 var(--s-4) var(--s-1);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--gold) 5%, var(--surface-1));
+}
+.acct-first-run-note strong { color: var(--tx); font-size: var(--fs-11); }
+.acct-first-run-note span { color: var(--tx-2); font-size: var(--fs-10); line-height: 1.55; }
+.acct-panel-accounts > .acct-grid:has(.acct-card--add:only-child) {
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
+  padding-top: var(--s-2);
+}
+.acct-panel-accounts > .acct-grid:has(.acct-card--add:only-child) .acct-card--add {
+  min-height: 76px;
+  flex-direction: row;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-style: solid;
+  border-color: var(--gold-line);
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+}
+.acct-panel-accounts > .acct-grid:has(.acct-card--add:only-child) .acct-add-plus {
+  font-size: 24px;
+}
+.acct-primary-name-field { margin-bottom: var(--s-2); }
+.acct-primary-name-field input { min-height: 44px; font-size: var(--fs-14); }
+.acct-optional-settings {
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-1) 0 var(--s-2);
+  padding: 0 var(--s-3) var(--s-3);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+  background: var(--surface-inset);
+}
+.acct-optional-settings > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--tx-2);
+  font-size: var(--fs-10);
+  cursor: pointer;
+  list-style-position: inside;
+}
+.acct-optional-settings > summary:hover { color: var(--gold-hi); }
+.acct-optional-settings-body { display: grid; gap: var(--s-3); min-width: 0; }
+.acct-optional-settings .acct-icon-row { margin-top: 0; }
+@media (max-width: 560px) {
+  .acct-first-run-note { margin-inline: var(--s-3); }
+  .acct-panel-accounts > .acct-grid:has(.acct-card--add:only-child) { padding: var(--s-2) var(--s-3) var(--s-3); }
+  .acct-panel-accounts > .acct-grid:has(.acct-card--add:only-child) .acct-card--add { min-height: 64px; }
+}
+
+/* 320px級では編集ヘッダーの説明を省き、任意設定を閉じたまま保存操作を見せる。 */
+@media (max-width: 360px) {
+  .acct-panel.is-editing > .acct-panel-head {
+    padding: var(--s-2) var(--s-3);
+  }
+  .acct-panel.is-editing > .acct-panel-head .acct-kicker {
+    font-size: var(--fs-12);
+    letter-spacing: .06em;
+  }
+  .acct-panel.is-editing > .acct-panel-head .acct-lead { display: none; }
+  .acct-panel.is-editing .acct-card--form { gap: var(--s-1); padding: var(--s-3); }
+}
+
+}

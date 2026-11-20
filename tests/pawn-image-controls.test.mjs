@@ -1,0 +1,83 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const other = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../assets/pawn-image-controls.css", import.meta.url), "utf8");
+const audit = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
+const previewRegression = readFileSync(new URL("../tools/ui/capture-preview-control-regression.mjs", import.meta.url), "utf8");
+
+test("駒画像はホイール拡大後にポインタードラッグで位置を移動できる", () => {
+  assert.match(other, /const handleImagePointerDown =/);
+  assert.match(other, /const handleImagePointerMove =/);
+  assert.match(other, /setPointerCapture\(event\.pointerId\)/);
+  assert.match(other, /onPointerDown: handleImagePointerDown/);
+  assert.match(other, /onPointerMove: handleImagePointerMove/);
+  assert.match(other, /translate3d\(" \+ imagePan\.x/);
+  assert.match(other, /data-zoomed/);
+  assert.match(other, /draggable: false/);
+});
+
+test("駒画像プレビューは初期展開し、必要なときは利用者が折りたためる", () => {
+  assert.match(other, /imagePreviewOpen, setImagePreviewOpen/);
+  assert.match(other, /useState\(true\)/);
+  assert.match(other, /piece-art-preview-toggle/);
+  assert.match(audit, /basic-image-preview-default-expanded/);
+  assert.match(other, /aria-expanded": imagePreviewOpen/);
+  assert.match(other, /hidden: !imagePreviewOpen/);
+  assert.match(other, /id: "piece-art-preview-live"/);
+  assert.ok(css.includes(".piece-art-preview-live[hidden] { display: none !important; }"));
+  assert.match(audit, /basic-image-preview-collapsed-by-user/);
+});
+
+test("全体表示リセットはズームとドラッグ位置を同時に初期化する", () => {
+  const resetIndex = other.indexOf("className: \"piece-url-preview-zoom-reset\"");
+  assert.notEqual(resetIndex, -1);
+  const resetHandler = other.slice(resetIndex, resetIndex + 900);
+  assert.match(resetHandler, /setImageZoom\(1\)/);
+  assert.match(resetHandler, /setImageZoomOrigin\("50% 50%"\)/);
+  assert.match(resetHandler, /setImagePan\(\{ x: 0, y: 0 \}\)/);
+  assert.match(resetHandler, /imageDragRef\.current = null/);
+  assert.match(resetHandler, /setImageDragging\(false\)/);
+  assert.match(previewRegression, /full-fit reset clears both zoom and drag offset/);
+  assert.match(previewRegression, /transformAfterDrag/);
+});
+
+test("画像の全身表示と従来サイズを維持する", () => {
+  const parity = readFileSync(new URL("../assets/b-type-ui-parity.css", import.meta.url), "utf8");
+  assert.match(other, /objectFit: "contain"/);
+  assert.match(parity, /height: clamp\(260px, 38vh, 420px\)/);
+  assert.match(parity, /height: min\(42vh, 340px\)/);
+  assert.doesNotMatch(css, /height: clamp\(180px, 27vh, 290px\) !important/);
+  assert.doesNotMatch(css, /height: clamp\(145px, 22vh, 195px\) !important/);
+});
+
+test("320x640の小型画面では差分列と固定ナビの間に余白を確保する", () => {
+  assert.match(css, /@media \(max-width: 360px\) and \(max-height: 700px\)[\s\S]*?height: 180px !important[\s\S]*?min-height: 180px/);
+  assert.match(css, /\.piece-url-preview-list \{[\s\S]*?padding-bottom: 4px !important/);
+  assert.ok(audit.includes("controlsBeforeBottomNav:!!strip&&strip.bottom<=(navRect?.top??innerHeight)-4"));
+});
+
+test("スマホのズーム説明と全体表示リセットは同じ行に収まり、固定ナビに隠れない", () => {
+  assert.match(css, /\.piece-url-preview-zoom-controls \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto/);
+  assert.match(css, /\.piece-url-preview-zoom-help \{[\s\S]*?white-space: normal/);
+  assert.match(css, /\.piece-url-preview-zoom-reset \{[\s\S]*?min-height: 44px !important[\s\S]*?white-space: nowrap/);
+  assert.match(audit, /zoomResetLayout\.button\.right > zoomResetLayout\.viewportWidth/);
+  assert.match(audit, /zoomResetLayout\.help\.scrollWidth > zoomResetLayout\.help\.clientWidth/);
+  assert.match(audit, /zoomReset\.scrollIntoViewIfNeeded\(\)/);
+});
+
+test("ブラウザー監査は拡大・ドラッグ移動・全体表示リセットを検証する", () => {
+  assert.match(audit, /basic-image-preview-dragged/);
+  assert.match(audit, /transformAfterDrag/);
+  assert.match(audit, /立ち絵を拡大し、ドラッグで表示位置を調整した状態/);
+});
+
+
+test("preview drag regression scrolls the portrait into view and confirms a real pointer hit target", () => {
+  const regression = readFileSync(new URL("../tools/ui/capture-preview-control-regression.mjs", import.meta.url), "utf8");
+  assert.match(regression, /portraitFrame\.scrollIntoViewIfNeeded\(\)/);
+  assert.match(regression, /document\.elementFromPoint\(x, y\)/);
+  assert.match(regression, /if \(!dragStart\.hitFrame\)/);
+  assert.match(regression, /attemptedDirections: panDirections, dragStart/);
+});

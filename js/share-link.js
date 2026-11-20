@@ -1,0 +1,1410 @@
+/*
+ * LBT共有リンク（v64r76）
+ * URLの#fragmentに圧縮した共有スナップショットを格納する。fragmentはHTTP要求へ送信されず、
+ * GitHub Pagesで公開する静的share.htmlのOGPと、共有者のビルドデータを分離できる。
+ */
+(function () {
+  const SHARE_SCHEMA = 1;
+  const MAX_TOKEN_LENGTH = 160000;
+  const MAX_DECOMPRESSED_BYTES = 4 * 1024 * 1024;
+  const PRACTICAL_DISCORD_URL_LENGTH = 1900;
+  const SHARE_IMAGE_TARGET_BYTES = 32 * 1024;
+  // Telegraphのページ本文は64KB上限。フォームエンコードとプレフィックス分を見込み、
+  // 画像入りトークンを安全にそのまま保存できる上限を60KBに置く。
+  const TELEGRAPH_SAFE_TOKEN_LENGTH = 60000;
+  const TINYURL_CREATE_ENDPOINT = "https://tinyurl.com/api-create.php";
+  const EXTERNAL_TOKEN_MARKER = "LBT_SHARE_TOKEN=";
+  const EXTERNAL_TOKEN_PART_MARKER = "LBT_SHARE_TOKEN_PART=";
+  const RENTRY_TOKEN_PART_LENGTH = 180;
+  const RENTRY_READ_PROXY = "https://r.jina.ai/http://rentry.co/";
+  const EXTERNAL_READ_TIMEOUT_MS = 6000;
+  // Publishing must be bounded too: a hung upload must never prevent the local compressed fallback.
+  const EXTERNAL_PUBLISH_TIMEOUT_MS = 4000;
+  const CLOUDFLARE_PUBLISH_TIMEOUT_MS = 2500;
+  // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
+  // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
+  const OGP_CARD_CACHE_VERSION = "5";
+  // localStorage tracks creation, not the Worker's last-access refresh. Refresh cached KV links
+  // conservatively before their 7-day idle expiry so a stale cache cannot return a dead URL.
+  const LOCAL_KV_SHARE_REUSE_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
+  // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
+  // 従来どおりGitHub Pagesのshare.htmlを直接使うため、共有機能を止めない。
+  const OGP_GATEWAY_FALLBACK_ORIGIN = "";
+  const LAST_PUBLISHED_SHARE_KEY = "lbt:last-published-share:v1";
+  const pendingPublishedStates = new Map();
+  const SHARE_KEYS = new Set([
+    "charName", "plName", "shareImageData", "personaMode", "personaNo", "personaSrc",
+    "hp", "san", "speed", "bullets", "resS", "resP", "resB",
+    "pas", "pas2Enabled", "pas2", "extraPassives", "spirit", "spiritAlways", "spiritMorale", "spiritConfuse",
+    "skills", "egoSlots", "supports", "deathSupport", "uniqueBuffs", "customStatuses", "enhancements", "syncedManual", "syncedManual",
+    // 手動設定の士気低下ラインは出力（computeMoraleLine）が優先して使う共有対象の値。
+    // スナップショットから落とすと、共有ページだけ SAN/4 の自動計算へ戻ってしまう。
+    "moraleLine",
+    "inventory", "customItems", "shareOptions"
+  ]);
+
+  // core.js が提供する cloneJSON を使う。core.js が未読込の環境用フォールバック。
+  const cloneJSON = window.LBT_core?.cloneJSON || function(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); };
+
+  function localStorageLike() {
+    try {
+      return window.localStorage && typeof window.localStorage.getItem === "function" ? window.localStorage : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function isCurrentCloudflareKvUrl(value) {
+    const origin = ogpGatewayOrigin();
+    if (!origin) return false;
+    try {
+      const parsed = new URL(String(value || ""));
+      return parsed.origin === origin
+        && /^\/s\/[A-Za-z0-9_-]{16}$/.test(parsed.pathname)
+        && !parsed.search
+        && !parsed.hash;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function reuseLastPublishedUrl(token, state, fetchImpl) {
+    const storage = localStorageLike();
+    if (!storage) return null;
+    try {
+      const cached = JSON.parse(storage.getItem(LAST_PUBLISHED_SHARE_KEY) || "null");
+      if (!cached || cached.token !== token || !/^https:\/\//.test(String(cached.url || ""))) return null;
+      const previousUrl = String(cached.url);
+      const isCurrentKvUrl = isCurrentCloudflareKvUrl(previousUrl);
+      if (isCurrentKvUrl) {
+        const savedAt = Number(cached.savedAt);
+        const ageMs = Date.now() - savedAt;
+        // Missing, corrupt, or future timestamps are not safe evidence that the short URL is alive.
+        if (!Number.isFinite(savedAt) || savedAt <= 0 || ageMs < 0 || ageMs >= LOCAL_KV_SHARE_REUSE_MAX_AGE_MS) return null;
+      }
+      let url = previousUrl;
+      let strategy = isCurrentKvUrl ? "cloudflare-kv" : (cached.strategy || "self");
+      let backups = Array.isArray(cached.backups) ? cached.backups : [];
+      const preview = cached.preview || sharePreview(state);
+      let warning = "共有内容に変更がないため、直近の共有リンクを再利用しています。";
+      let migrated = false;
+
+      // 「発行済み」キャッシュが旧URL形式でも、保存済みトークンから現在のKV APIへ再発行する。
+      // これで同じ内容を再共有した時にも /s/<ID> の最新形式になり、OGP HTMLも新規保存される。
+      if (ogpGatewayOrigin() && !isCurrentKvUrl) {
+        const published = await publishCloudflareKvShare(token, preview, [], fetchImpl);
+        if (published.status === "published") {
+          url = published.url;
+          strategy = "cloudflare-kv";
+          backups = backups.slice();
+          if (!backups.some((entry) => entry?.url === previousUrl)) {
+            backups.push({ source: "移行前の共有URL", id: "", url: previousUrl });
+          }
+          warning = "既発行の共有URLを最新のCloudflare KV短縮URLへ移行しました。移行前のURLは予備リンクとして残しています。7日間アクセスがないと短縮URLの保存データは失効します。";
+          migrated = true;
+        }
+      }
+
+      // 移行先APIが利用できない時は、従来URLを壊さず、既存のOGP経路だけ更新して再利用する。
+      if (!migrated) {
+        url = ogpGatewayUrl(previousUrl) || previousUrl;
+      }
+      const length = url.length;
+      const updated = {
+        ...cached,
+        url,
+        length,
+        strategy,
+        backups,
+        preview,
+        savedAt: url !== previousUrl || Number(cached.length) !== length ? Date.now() : (cached.savedAt || Date.now())
+      };
+      if (url !== previousUrl || Number(cached.length) !== length || strategy !== cached.strategy || migrated) {
+        try {
+          storage.setItem(LAST_PUBLISHED_SHARE_KEY, JSON.stringify(updated));
+        } catch (_) {
+          // キャッシュの更新失敗は共有URLの再利用そのものを妨げない。
+        }
+      }
+      return {
+        url,
+        length,
+        strategy,
+        backups,
+        preview,
+        warning,
+        reused: true,
+        ...(migrated ? { migrated: true } : {})
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function rememberPublishedUrl(token, result) {
+    const storage = localStorageLike();
+    if (!storage) return;
+    try {
+      storage.setItem(LAST_PUBLISHED_SHARE_KEY, JSON.stringify({
+        token,
+        url: result.url,
+        length: result.length,
+        strategy: result.strategy,
+        backups: result.backups || [],
+        preview: result.preview || null,
+        savedAt: Date.now()
+      }));
+    } catch (_) {
+      // プライベートモード等で保存できない場合でも、現在の共有発行を妨げない。
+    }
+  }
+
+  function shareImageBytes(value) {
+    const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
+    if (!match) return 0;
+    const payload = match[2];
+    const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+    return Math.max(0, Math.floor(payload.length * 3 / 4) - padding);
+  }
+
+  function validateShareImageForPublish(state) {
+    const blockedMessage = String(state?.shareImageBlockedReason || "").trim();
+    if (blockedMessage) return {
+      ok: false,
+      bytes: 0,
+      maxBytes: SHARE_IMAGE_TARGET_BYTES,
+      message: blockedMessage
+    };
+    const data = String(state?.shareImageData || "");
+    if (!data) return { ok: true, bytes: 0, maxBytes: SHARE_IMAGE_TARGET_BYTES };
+    const bytes = shareImageBytes(data);
+    if (!bytes) return {
+      ok: false,
+      bytes: 0,
+      maxBytes: SHARE_IMAGE_TARGET_BYTES,
+      message: "共有画像の形式を確認できませんでした。Base infoでPNG・JPEG・WebP画像を再アップロードしてください"
+    };
+    if (bytes > SHARE_IMAGE_TARGET_BYTES) return {
+      ok: false,
+      bytes,
+      maxBytes: SHARE_IMAGE_TARGET_BYTES,
+      message: `共有画像の圧縮見込みが規定量を超えています（${Math.ceil(bytes / 1024)}KB / 32KB）。共有リンクは発行しません。Base infoで別の画像を再アップロードしてください`
+    };
+    return { ok: true, bytes, maxBytes: SHARE_IMAGE_TARGET_BYTES };
+  }
+
+  function personaPool(db, mode) {
+    return mode === "n" ? (db?.normal_personas || []) : mode === "t" ? (db?.tokui_personas || []) : [];
+  }
+
+  function findPersonaSource(db, mode, no, name) {
+    const pool = personaPool(db, mode);
+    return pool.find((entry) => String(entry?.no) === String(no) && (!name || entry?.name === name)) || null;
+  }
+
+  function selectedPersonaRecord(state) {
+    const personas = Array.isArray(state?.roster?.personas) ? state.roster.personas : [];
+    const key = `${state?.personaMode ?? ""}:${state?.personaNo ?? ""}`;
+    const selected = personas.find((entry) => `${entry?.mode ?? ""}:${entry?.no ?? ""}` === key)
+      || personas.find((entry) => entry?.equipped)
+      || null;
+    if (!selected) return null;
+    const rawSyncRank = String(selected.syncRank || "");
+    return {
+      no: selected.no,
+      mode: selected.mode,
+      syncRank: ["0", "00", "000"].includes(rawSyncRank) ? rawSyncRank : null,
+      syncMax: selected.syncMax === true
+    };
+  }
+
+  function compactValue(value) {
+    if (Array.isArray(value)) {
+      const compacted = value.map(compactValue).filter((entry) => entry !== undefined);
+      return compacted.length ? compacted : undefined;
+    }
+    if (!value || typeof value !== "object") return value === "" ? undefined : value;
+    const compacted = {};
+    Object.entries(value).forEach(([key, entry]) => {
+      const normalized = compactValue(entry);
+      if (normalized !== undefined) compacted[key] = normalized;
+    });
+    return Object.keys(compacted).length ? compacted : undefined;
+  }
+
+  function sheetSkill(skill, index) {
+    return compactValue({
+      rank: skill?.rank || `スキル${index}`,
+      type: skill?.type || "",
+      sin: skill?.sin || "",
+      aoe: skill?.aoe || "",
+      aoeCount: skill?.aoeCount || "",
+      name: skill?.name || "",
+      effect: skill?.effect || "",
+      dice: (skill?.dice || []).map((die) => compactValue({ roll: die?.roll || "", effect: die?.effect || "" }))
+    });
+  }
+
+  function sheetUniqueBuff(buff) {
+    return compactValue({
+      name: buff?.name || "",
+      type: buff?.type || "バフ",
+      initial: buff?.initial ?? 0,
+      max: buff?.max || 20,
+      desc: buff?.desc || "",
+      place: buff?.place || "status"
+    });
+  }
+
+  function sourceSheetFields(source) {
+    return {
+      hp: String(source?.hp || ""),
+      san: String(source?.san || ""),
+      speed: source?.speed || "",
+      bullets: source?.bullets || "×",
+      resS: source?.res_slash || "普通",
+      resP: source?.res_pierce || "普通",
+      resB: source?.res_blunt || "普通",
+      pas: compactValue({ name: source?.passive_name || "", cond: source?.passive_cond || "", always: source?.passive_always || "", effect: source?.passive_effect || "" }),
+      skills: (source?.skills || []).map(sheetSkill),
+      uniqueBuffs: (source?.unique_buffs || []).map(sheetUniqueBuff)
+    };
+  }
+
+  function normalizeSheetFields(snapshot) {
+    if (Array.isArray(snapshot.skills)) snapshot.skills = snapshot.skills.map(sheetSkill);
+    if (Array.isArray(snapshot.uniqueBuffs)) snapshot.uniqueBuffs = snapshot.uniqueBuffs.map(sheetUniqueBuff);
+    if (snapshot.pas) snapshot.pas = compactValue({ name: snapshot.pas.name || "", cond: snapshot.pas.cond || "", always: snapshot.pas.always || "", effect: snapshot.pas.effect || "" });
+    return snapshot;
+  }
+
+  function sameJSON(left, right) {
+    return JSON.stringify(compactValue(left) ?? null) === JSON.stringify(compactValue(right) ?? null);
+  }
+
+  function stripOfficialTransient(value) {
+    if (Array.isArray(value)) return value.map(stripOfficialTransient);
+    if (!value || typeof value !== "object") return value;
+    const next = {};
+    Object.entries(value).forEach(([key, entry]) => {
+      if (["id", "slotVariants", "kind", "originSlot", "selectedByUser"].includes(key)) return;
+      next[key] = stripOfficialTransient(entry);
+    });
+    return compactValue(next);
+  }
+
+  function officialNameReference(value, rows) {
+    if (!value?.name) return null;
+    const source = (rows || []).find((entry) => entry?.name === value.name && sameJSON(stripOfficialTransient(entry), stripOfficialTransient(value)));
+    return source?.name || null;
+  }
+
+  function officialEgoReference(rank, value, db) {
+    if (!value?.name || value?.no === undefined) return null;
+    const source = (db?.egos || []).find((entry) => entry?.rank === rank && String(entry?.no) === String(value.no) && entry?.name === value.name);
+    return source && sameJSON(stripOfficialTransient(source), stripOfficialTransient(value)) ? source.no : null;
+  }
+
+  function comparableItem(value) {
+    return {
+      name: value?.name || "",
+      category: value?.category || "その他",
+      tags: Array.isArray(value?.tags) ? value.tags : [],
+      effect: value?.effect || "",
+      palette: value?.palette || "",
+      price: value?.price || "",
+      maxOwned: value?.maxOwned ?? null
+    };
+  }
+
+  function officialItemReference(value, items) {
+    const source = (items || []).find((entry) => sameJSON(comparableItem(entry), comparableItem(value)));
+    return source?.id || null;
+  }
+
+  function compactOfficialReferences(snapshot, db) {
+    const refs = {};
+    if (snapshot.egoSlots) {
+      refs.e = Object.fromEntries(Object.entries(snapshot.egoSlots).map(([rank, slot]) => {
+        if (!slot) return [rank, null];
+        return [rank, officialEgoReference(rank, slot, db) ?? slot];
+      }));
+      delete snapshot.egoSlots;
+    }
+    if (Array.isArray(snapshot.supports)) {
+      refs.s = snapshot.supports.map((support) => officialNameReference(support, db?.support_passives) || support);
+      delete snapshot.supports;
+    }
+    if (snapshot.deathSupport) {
+      refs.d = officialNameReference(snapshot.deathSupport, db?.death_passives) || snapshot.deathSupport;
+      delete snapshot.deathSupport;
+    }
+    if (Array.isArray(snapshot.enhancements)) {
+      const rows = [...(db?.normal_enhancements || []), ...(db?.special_enhancements || [])];
+      refs.h = snapshot.enhancements.map((enhancement) => officialNameReference(enhancement, rows) || enhancement);
+      delete snapshot.enhancements;
+    }
+    const spirit = (db?.spirits || []).find((entry) => entry?.name === snapshot.spirit
+      && String(entry?.always_effect || "") === String(snapshot.spiritAlways || "")
+      && String(entry?.morale_effect || "") === String(snapshot.spiritMorale || "")
+      && String(entry?.confuse_effect || "") === String(snapshot.spiritConfuse || ""));
+    if (spirit) {
+      refs.p = spirit.name;
+      ["spirit", "spiritAlways", "spiritMorale", "spiritConfuse"].forEach((key) => delete snapshot[key]);
+    }
+    if (Array.isArray(snapshot.customItems)) {
+      refs.c = snapshot.customItems.map((item) => {
+        const officialId = officialItemReference(item, db?.items);
+        return officialId ? [item.id, officialId] : item;
+      });
+      delete snapshot.customItems;
+    }
+    if (Object.keys(refs).length) snapshot._r = refs;
+    return snapshot;
+  }
+
+  function normalizeShareState(data) {
+    const state = data && typeof data === "object" ? data : {};
+    const shareImageData = String(state.shareImageData || "");
+    state.shareImageData = /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(shareImageData) && shareImageData.length <= 48000
+      ? shareImageData : "";
+    const ogpImageData = String(state.ogpImageData || "");
+    state.ogpImageData = /^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(ogpImageData) && shareImageBytes(ogpImageData) <= SHARE_IMAGE_TARGET_BYTES
+      ? ogpImageData : "";
+    state.syncedManual = state.syncedManual === true;
+    state.skills = Array.isArray(state.skills) ? state.skills : [];
+    state.supports = Array.isArray(state.supports) ? state.supports : [];
+    state.uniqueBuffs = Array.isArray(state.uniqueBuffs) ? state.uniqueBuffs : [];
+    state.customStatuses = Array.isArray(state.customStatuses) ? state.customStatuses : [];
+    state.enhancements = Array.isArray(state.enhancements) ? state.enhancements : [];
+    state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
+    state.customItems = Array.isArray(state.customItems) ? state.customItems : [];
+    state.egoSlots = { ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null, ...(state.egoSlots || {}) };
+    state.pas = { name: "", cond: "", always: "", effect: "", ...(state.pas || {}) };
+    state.roster = { personas: [], egos: [], ...(state.roster || {}) };
+    state.roster.personas = Array.isArray(state.roster.personas) ? state.roster.personas : [];
+    state.roster.egos = [];
+    return state;
+  }
+
+  function hydratePersonaReference(state, db) {
+    const refs = state?._r;
+    if (refs?.e) {
+      state.egoSlots = Object.fromEntries(Object.entries(refs.e).map(([rank, value]) => {
+        if (value === null) return [rank, null];
+        if (typeof value === "number" || typeof value === "string") {
+          const source = (db?.egos || []).find((entry) => entry?.rank === rank && String(entry?.no) === String(value));
+          return [rank, source ? cloneJSON(source) : null];
+        }
+        return [rank, value];
+      }));
+    }
+    if (Array.isArray(refs?.s)) state.supports = refs.s.map((value) => typeof value === "string"
+      ? cloneJSON((db?.support_passives || []).find((entry) => entry?.name === value) || { name: value }) : value);
+    if (refs?.d) state.deathSupport = typeof refs.d === "string"
+      ? cloneJSON((db?.death_passives || []).find((entry) => entry?.name === refs.d) || { name: refs.d }) : refs.d;
+    if (Array.isArray(refs?.h)) {
+      const rows = [...(db?.normal_enhancements || []), ...(db?.special_enhancements || [])];
+      state.enhancements = refs.h.map((value) => typeof value === "string"
+        ? cloneJSON(rows.find((entry) => entry?.name === value) || { name: value }) : value);
+    }
+    if (typeof refs?.p === "string") {
+      const spirit = (db?.spirits || []).find((entry) => entry?.name === refs.p);
+      if (spirit) {
+        state.spirit = spirit.name;
+        state.spiritAlways = spirit.always_effect || "";
+        state.spiritMorale = spirit.morale_effect || "";
+        state.spiritConfuse = spirit.confuse_effect || "";
+      }
+    }
+    if (Array.isArray(refs?.c)) state.customItems = refs.c.map((value) => {
+      if (!Array.isArray(value)) return value;
+      const [customId, officialId] = value;
+      const source = (db?.items || []).find((item) => item?.id === officialId);
+      return source ? { ...cloneJSON(source), id: customId, custom: true, maxOwned: source.maxOwned ?? null } : { id: customId, name: officialId, custom: true };
+    });
+    delete state._r;
+  const ref = state?.personaRef;
+  if (!ref) return normalizeShareState(state);
+  const source = findPersonaSource(db, ref.mode, ref.no, ref.name);
+  if (!source) {
+    /* 旧バージョンで発行された共有リンクには、カスタム人格のデータが
+       snapshotState の参照化バグで欠落している（personaRef のみで
+       personaSrc・uniqueBuffs・skills が全てundefined）ものがある。
+       白紙クラッシュではなく、受信者に状況が伝わる最小限の人格データで
+       レンダリングを継続できるようにする。 */
+    if (!state.personaSrc) {
+      state.personaSrc = {
+        name: "（旧バージョンの共有データ）",
+        no: ref.no,
+        hp: "", san: "", speed: "",
+        skills: [], unique_buffs: [],
+        passive_name: "", passive_cond: "", passive_always: "", passive_effect: ""
+      };
+    }
+    return normalizeShareState(state);
+  }
+    Object.entries(sourceSheetFields(source)).forEach(([key, baseValue]) => {
+      // 共有HTML生成時のHP/SANは空欄ならpersonaSrcの基礎値を表示する。
+      // 公式人格は参照化でpersonaSrcを名前だけに縮約するため、復元時も同じ値へ戻す。
+      const statusFallback = (key === "hp" || key === "san") && (state[key] === "" || state[key] === null);
+      if (state[key] === undefined || statusFallback) state[key] = cloneJSON(baseValue);
+    });
+    // 旧バージョンのDBで作成された共有リンクには、エラッタ前の固有バフ・
+    // パッシブ・サポート・強化・精神の古いコピーがそのまま埋め込まれている。
+    // undefined 補完だけでは古い値が残り続けるため、公式DBに同名で存在する
+    // レコードは最新版へ更新する。ユーザーが手動追加したもの（DBに無い名前）は保護する。
+    if (Array.isArray(source.unique_buffs) && Array.isArray(state.uniqueBuffs)) {
+      state.uniqueBuffs = state.uniqueBuffs.map((ub) => {
+        const dbBuff = source.unique_buffs.find((db) => db?.name === ub?.name);
+        if (!dbBuff) return ub;
+        return { ...ub, desc: dbBuff.desc, type: dbBuff.type || ub.type, initial: dbBuff.initial, max: dbBuff.max || 20 };
+      });
+    }
+    // DB参照として共有された支援パッシブは refs.s / refs.d の復元時点で最新DBから解決済み。
+    // ここへ届く実オブジェクトは編集済み・カスタムデータなので、同名DBレコードで上書きしない。
+    if (Array.isArray(state.enhancements)) {
+      const enhRows = [...(db?.normal_enhancements || []), ...(db?.special_enhancements || [])];
+      state.enhancements = state.enhancements.map((e) => {
+        const dbRec = enhRows.find((entry) => entry?.name === e?.name);
+        if (!dbRec) return e;
+        return { ...e, effect: dbRec.effect || e.effect };
+      });
+    }
+    if (state.spirit) {
+      const dbSpirit = (db?.spirits || []).find((entry) => entry?.name === state.spirit);
+      if (dbSpirit) {
+        state.spiritAlways = dbSpirit.always_effect || "";
+        state.spiritMorale = dbSpirit.morale_effect || "";
+        state.spiritConfuse = dbSpirit.confuse_effect || "";
+      }
+    }
+    // 共有スナップショットにパッシブがあれば、同期・カスタム編集済みの値として保持する。
+    // 未格納の場合は直前の sourceSheetFields 補完で現行DBの値が入っているため、
+    // ここでDB値を無条件に再代入すると共有者が変更した内容を破壊してしまう。
+    state.personaSrc = { name: state.personaSrc?.name || source.name };
+    delete state.personaRef;
+    return normalizeShareState(state);
+  }
+
+  function snapshotState(state, options = {}) {
+    const source = state && typeof state === "object" ? state : {};
+    const snapshot = { _lbtShare: SHARE_SCHEMA };
+    Object.entries(source).forEach(([key, value]) => {
+      if (SHARE_KEYS.has(key) && value !== undefined) snapshot[key] = cloneJSON(value);
+    });
+    if (snapshot.shareOptions?.showSyncRank !== false) delete snapshot.shareOptions;
+    else snapshot.shareOptions = { showSyncRank: false };
+    const ownedItemIds = new Set((snapshot.inventory || []).map((entry) => String(entry?.itemId || "")).filter(Boolean));
+    snapshot.customItems = (snapshot.customItems || []).filter((item) => ownedItemIds.has(String(item?.id || "")));
+    const selected = selectedPersonaRecord(source);
+    snapshot.roster = { personas: selected ? [selected] : [] };
+    const affiliation = source.personaSrc?.__affiliation;
+    const affiliatedSource = affiliation && (affiliation.mode === "n" || affiliation.mode === "t")
+      ? findPersonaSource(window.DB, affiliation.mode, affiliation.no)
+      : null;
+    // 公式参照化は personaMode が "n" または "t" のときだけ適用する。
+    // カスタム人格（mode "custom"）は __affiliation が公式DB人格を指していても
+    // スナップショットからデータを削除すると受信側で一切復元できなくなる。
+    // （findPersonaSource は custom mode の pool を持たないため null を返し、
+    //  uniqueBuffs・skills・personaSrc が全て欠落した空の共有リンクになる）
+    const isOfficialMode = source.personaMode === "n" || source.personaMode === "t";
+    const personaSource = isOfficialMode
+      ? (affiliatedSource || findPersonaSource(window.DB, source.personaMode, source.personaNo, source.personaSrc?.name))
+      : null;
+    const isAffiliatedDraft = isOfficialMode && !!affiliatedSource && affiliation.mode === source.personaMode && String(affiliation.no) === String(source.personaNo);
+    if (!personaSource && (source.personaMode === "n" || source.personaMode === "t")) {
+      snapshot.personaSrc = source.personaSrc?.name ? { name: String(source.personaSrc.name) } : undefined;
+    }
+    if (personaSource) {
+      // 公式人格だけはDBから復元できるため、表示に不要な編集用一時値を除いた形で比較・参照化する。
+      // DB外のオリジナル人格は入力されたオブジェクトを一切縮約せず、そのまま共有する。
+      normalizeSheetFields(snapshot);
+      snapshot.personaSrc = source.personaSrc?.name ? { name: String(source.personaSrc.name) } : undefined;
+      snapshot.personaRef = { mode: source.personaMode, no: source.personaNo, name: personaSource.name };
+      Object.entries(sourceSheetFields(personaSource)).forEach(([key, baseValue]) => {
+        if (sameJSON(snapshot[key], baseValue)) delete snapshot[key];
+      });
+      if (!isAffiliatedDraft) delete snapshot.personaSrc;
+      snapshot.personaRef = { mode: source.personaMode, no: source.personaNo };
+    }
+    compactOfficialReferences(snapshot, window.DB);
+    // 手動画像が未設定の場合だけ、無料・無状態で読める既定OGPカードを共有データへ同梱する。
+    if (options.includeOgpImage !== false && !snapshot.shareImageData) {
+      const generatedOgpImage = createDefaultOgpImageData(source);
+      if (generatedOgpImage) snapshot.ogpImageData = generatedOgpImage;
+    }
+    return compactValue(snapshot) || { _lbtShare: SHARE_SCHEMA };
+  }
+
+  function bytesToBase64Url(bytes) {
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function base64UrlToBytes(value) {
+    if (!value || value.length > MAX_TOKEN_LENGTH || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("共有リンクのデータ形式が不正です");
+    const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+    const binary = atob(padded);
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  }
+
+  async function transform(bytes, stream, maxOutputBytes = MAX_DECOMPRESSED_BYTES) {
+    const transformed = new Blob([bytes]).stream().pipeThrough(stream);
+    const reader = transformed.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        total += part.value.byteLength;
+        if (total > maxOutputBytes) {
+          try { await reader.cancel(); } catch (_) {}
+          throw new Error("共有データの展開サイズが上限（4 MiB）を超えています");
+        }
+        chunks.push(part.value);
+      }
+    } finally {
+      try { reader.releaseLock(); } catch (_) {}
+    }
+    const output = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      output.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return output;
+  }
+
+  async function encodeSnapshot(snapshot) {
+    const bytes = new TextEncoder().encode(JSON.stringify(snapshot));
+    if (bytes.byteLength > MAX_DECOMPRESSED_BYTES) throw new Error("共有データが上限（4 MiB）を超えています");
+
+    // Decode-side limit is enforced against the Base64URL payload, so validate the chosen
+    // representation only after comparing raw JSON bytes with the compressed bytes.
+    const tokenFromBytes = (prefix, payload) => {
+      const encoded = bytesToBase64Url(payload);
+      if (encoded.length > MAX_TOKEN_LENGTH) {
+        throw new Error("共有データが復元側のサイズ上限（160,000文字）を超えています。カスタムデータを減らして再発行してください");
+      }
+      return `${prefix}.${encoded}`;
+    };
+
+    // Compression is useful only when the final URL-safe payload becomes smaller.
+    // A few fields can be shorter as plain JSON once DEFLATE headers and Base64URL are counted.
+    // Require both APIs so we never emit a z-token that this browser cannot decode.
+    if (typeof CompressionStream === "function" && typeof DecompressionStream === "function") {
+      try {
+        const compressed = await transform(bytes, new CompressionStream("deflate-raw"));
+        if (compressed.byteLength < bytes.byteLength) return tokenFromBytes("z", compressed);
+      } catch (_) {
+        // Unsupported deflate-raw implementations must degrade to a self-contained j-token.
+      }
+    }
+    return tokenFromBytes("j", bytes);
+  }
+
+  async function encodeState(state, options = {}) {
+    return encodeSnapshot(snapshotState(state, options));
+  }
+
+  async function decodeToken(token) {
+    const match = /^(z|j)\.([A-Za-z0-9_-]+)$/.exec(String(token || ""));
+    if (!match) throw new Error("共有リンクの形式が不正です");
+    let bytes = base64UrlToBytes(match[2]);
+    if (match[1] === "z") {
+      if (typeof DecompressionStream !== "function") throw new Error("このブラウザは圧縮共有リンクに対応していません");
+      bytes = await transform(bytes, new DecompressionStream("deflate-raw"));
+    }
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    if (!data || data._lbtShare !== SHARE_SCHEMA) throw new Error("この共有リンクはLBTの対応形式ではありません");
+    delete data._lbtShare;
+    // 人格参照型は共有ページがDBから基礎データを補う前に空配列等を補完すると、
+    // 「未格納」と「意図して空」を区別できなくなる。復元後にのみ正規化する。
+    return data.personaRef || data._r ? data : normalizeShareState(data);
+  }
+
+  async function createUrl(state, baseUrl) {
+    // A direct URL has no dynamic OGP endpoint; do not bloat it with a generated preview image.
+    const token = await encodeState(state, { includeOgpImage: false });
+    return createUrlFromToken(token, baseUrl);
+  }
+
+  function createUrlFromToken(token, baseUrl) {
+    const target = String(baseUrl || window.LBT_SHARE_CANONICAL_URL || new URL("share.html", window.location.href).href).replace(/#.*/, "");
+    const url = `${target}#lbt=${token}`;
+    return {
+      url,
+      length: url.length,
+      warning: url.length > PRACTICAL_DISCORD_URL_LENGTH
+        ? "URLが長いためDiscord本文の文字数上限に収まらない可能性があります。共有HTMLのダウンロードを併用してください。"
+        : ""
+    };
+  }
+
+  function shareBaseUrl(baseUrl) {
+    return String(baseUrl || window.LBT_SHARE_CANONICAL_URL || new URL("share.html", window.location.href).href).replace(/[?#].*/, "");
+  }
+
+  function displayStatus(state, field, officialPersona = null) {
+    // 編集値を最優先し、公式人格は復元後の共有HTMLと同じく公式DBを優先する。
+    // カスタム人格は personaSrc に基礎値が残るため、そちらを参照する。
+    const mode = String(state?.personaRef?.mode || state?.personaMode || "");
+    const isOfficial = mode === "n" || mode === "t";
+    const candidates = isOfficial && officialPersona
+      ? [state?.[field], officialPersona?.[field]]
+      : [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
+    const raw = candidates.find((value) => value !== "" && value !== null && value !== undefined);
+    if (raw === undefined) return "—";
+    const parsed = parseInt(String(raw), 10);
+    const base = Number.isFinite(parsed) ? parsed : 0;
+    const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || state?.enhancements || [];
+    // generator.js は原典の全角数字を半角へ正規化してからHP/SAN強化値を読む。
+    const enhancementText = activeEnhancements.map((entry) => String(entry?.effect || "")).join("\n")
+      .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
+    const target = field === "hp" ? /HP(?:を|\+)(\d+)(?:上昇)?/g : /SAN(?:を|\+)(\d+)(?:上昇)?/g;
+    let bonus = 0;
+    let match;
+    while ((match = target.exec(enhancementText)) !== null) bonus += parseInt(match[1], 10) || 0;
+    return String(base + bonus);
+  }
+
+  const PRIMARY_RESOURCE_ATTRIBUTES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
+  function primaryResourceAttribute(skills) {
+    const counts = new Map();
+    (Array.isArray(skills) ? skills : []).forEach((skill) => {
+      const sin = String(skill?.sin || "").trim();
+      if (PRIMARY_RESOURCE_ATTRIBUTES.includes(sin)) counts.set(sin, (counts.get(sin) || 0) + 1);
+    });
+    let best = "", bestCount = 0;
+    // First-seen skill order is the deterministic tie-break, matching PersonaCodex.
+    for (const [sin, count] of counts) if (count > bestCount) { best = sin; bestCount = count; }
+    return best;
+  }
+
+  function sharePreview(state) {
+    const selected = selectedPersonaRecord(state);
+    /* 公式人格は snapshot 側で personaSrc を削除して personaRef だけを残すため、
+       共有判断に使う state には名前が無い。personaRef の mode/no から
+       公式DBを引き直さないと summary に名前が入らない。
+       Worker 側の enrichOfficialPersona と同じ解決順にしている。 */
+    const ref = state?.personaRef || {};
+    const refName = String(ref.name || ref.override?.name || "").trim();
+    const refMode = String(ref.mode || state?.personaMode || "");
+    const refNo = ref.no ?? state?.personaNo;
+    const official = (refMode === "n" || refMode === "t") && refNo != null
+      ? findPersonaSource(window.DB, refMode, refNo, "")
+      : null;
+    const personaName = String(
+      state?.personaSrc?.name || refName || official?.name || ""
+    ).trim();
+    const isOfficial = refMode === "n" || refMode === "t";
+    // 速度は共有HTML側がstate.speedのみを表示する。公式参照化でキー自体が
+    // 省略された場合に限りDBから戻し、明示的な空欄は「—」のままにする。
+    const hasExplicitSpeed = !!state
+      && Object.prototype.hasOwnProperty.call(state, "speed")
+      && state.speed !== "";
+    const speedValue = String(hasExplicitSpeed ? state.speed ?? "" : (isOfficial ? official?.speed ?? "" : "")).trim();
+    const fallbackPersona = isOfficial && official ? official : state?.personaSrc;
+    const primarySin = primaryResourceAttribute(state?.skills)
+      || primaryResourceAttribute(fallbackPersona?.skills);
+    return {
+      personaName,
+      hp: displayStatus(state, "hp", official),
+      san: displayStatus(state, "san", official),
+      speed: speedValue ? clipOgpCardText(speedValue, 16) : "—",
+      primarySin,
+      hasShareImage: Boolean(state?.shareImageData),
+      syncRank: selected?.syncRank || "",
+      syncMax: selected?.syncMax === true
+    };
+  }
+
+  function clipOgpCardText(value, max) {
+    const chars = Array.from(String(value || "").trim());
+    return chars.length > max ? `${chars.slice(0, Math.max(1, max - 1)).join("")}…` : chars.join("");
+  }
+
+  /* 既定 OGP カードの色。
+   canvas は CSS 変数を読めないため、CSS の token と同じ値をここで固定している。
+   assets/design-system.css の --surface-0 / --gold 系と対応している。
+   色を変えるときは CSS 側も併せて確認すること。 */
+  const OGP_CARD_COLORS = {
+    surfaceTop: "#0d0b09",
+    surfaceMid: "#251812",
+    surfaceBottom: "#100d0b",
+    frame: "rgba(212,175,95,.25)",
+    clockFill: "#280d0d",
+    clockRing: "#6f2924",
+    clockRingInner: "#160909",
+    clockFace: "#151414",
+    clockHand: "#d1a44d",
+    title: "#eecf8a",
+    subtitle: "#f0c96d",
+    accent: "#d6aa54",
+    gold: "#d4af5f",
+    body: "#f2ece1",
+    outline: "#d8b25f",
+    label: "#1d100d",
+    muted: "#17100d",
+    /* 時計の針。影側の太い線と本体で 2 諧調に分ける。 */
+    clockHandBody: "#d0a34f"
+  };
+
+  function createDefaultOgpImageData(state) {
+    try {
+      if (!window.document?.createElement) return "";
+      const canvas = window.document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 630;
+      const ctx = canvas.getContext?.("2d");
+      if (!ctx) return "";
+      const preview = sharePreview(state);
+      const personaName = clipOgpCardText(preview.personaName || state?.charName || "キャラクターシート", 34);
+      const speed = clipOgpCardText(preview.speed || "—", 12);
+      const primarySin = clipOgpCardText(preview.primarySin || "—", 12);
+      const sync = [preview.syncRank ? `同期${preview.syncRank}` : "", preview.syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
+      const C = OGP_CARD_COLORS;
+      const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+      gradient.addColorStop(0, C.surfaceTop);
+      gradient.addColorStop(.54, C.surfaceMid);
+      gradient.addColorStop(1, C.surfaceBottom);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1200, 630);
+      ctx.strokeStyle = C.frame;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(38, 38, 1124, 554);
+      // 右上は二重丸ではなく、ダンテを想起させる深紅の時計として描く。
+      // 文字領域を侵食しないよう、旧装飾と同じ右上領域（中心1070,135）に収める。
+      const clockX = 1070;
+      const clockY = 135;
+      const clockR = 122;
+      ctx.save();
+      ctx.fillStyle = C.clockFill;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR + 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = C.clockRing;
+      ctx.lineWidth = 16;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = C.clockRingInner;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = C.clockFace;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR - 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = C.clockHand;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR - 13, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(246,210,120,.58)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR - 20, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let tick = 0; tick < 12; tick += 1) {
+        const angle = tick * Math.PI / 6 - Math.PI / 2;
+        const inner = clockR - (tick % 3 === 0 ? 39 : 33);
+        const outer = clockR - 22;
+        ctx.strokeStyle = C.outline;
+        ctx.lineWidth = tick % 3 === 0 ? 5 : 3;
+        ctx.beginPath();
+        ctx.moveTo(clockX + Math.cos(angle) * inner, clockY + Math.sin(angle) * inner);
+        ctx.lineTo(clockX + Math.cos(angle) * outer, clockY + Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+      const drawClockHand = (angle, length, width) => {
+        const endX = clockX + Math.cos(angle) * length;
+        const endY = clockY + Math.sin(angle) * length;
+        ctx.strokeStyle = C.label;
+        ctx.lineWidth = width + 5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(clockX, clockY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        ctx.strokeStyle = C.clockHandBody;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(clockX, clockY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      };
+      drawClockHand(-5 * Math.PI / 6, 80, 7);
+      drawClockHand(-Math.PI / 6, 96, 6);
+      ctx.fillStyle = C.muted;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.accent;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.subtitle;
+      ctx.beginPath();
+      ctx.arc(clockX - 2, clockY - 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = C.gold;
+      ctx.font = "600 25px sans-serif";
+      ctx.fillText("PERSONA / 人格", 82, 112);
+      ctx.fillStyle = "rgba(242,236,225,.76)";
+      ctx.font = "500 18px sans-serif";
+      ctx.fillText("CCFOLIA CHARACTER SHEET", 84, 147);
+      ctx.fillStyle = C.body;
+      ctx.font = personaName.length > 24 ? "700 52px sans-serif" : "700 68px sans-serif";
+      ctx.fillText(personaName, 82, 255);
+      if (sync) {
+        ctx.fillStyle = C.title;
+        ctx.font = "600 24px sans-serif";
+        ctx.fillText(sync, 86, 300);
+      }
+      const cardValues = [["HP", preview.hp], ["SAN", preview.san], ["SPD", speed], ["最多資源属性", primarySin]];
+      cardValues.forEach(([label, value], index) => {
+        const x = 82 + index * 260;
+        const cardWidth = 238;
+        ctx.fillStyle = "rgba(13,11,9,.72)";
+        ctx.fillRect(x, 370, cardWidth, 132);
+        ctx.strokeStyle = "rgba(212,175,95,.38)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, 370, cardWidth, 132);
+        ctx.fillStyle = C.gold;
+        ctx.font = label.length > 4 ? "600 18px sans-serif" : "600 20px sans-serif";
+        ctx.fillText(label, x + 18, 408, cardWidth - 30);
+        ctx.fillStyle = C.body;
+        ctx.font = "700 48px sans-serif";
+        ctx.fillText(String(value || "—"), x + 18, 473, cardWidth - 30);
+      });
+      const data = canvas.toDataURL("image/webp", .76);
+      return shareImageBytes(data) > 0 && shareImageBytes(data) <= SHARE_IMAGE_TARGET_BYTES ? data : "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function appendPreviewParams(params, preview) {
+    if (!preview?.personaName) return;
+    params.set("lbt_n", preview.personaName.slice(0, 72));
+    if (preview.hp) params.set("lbt_hp", preview.hp);
+    if (preview.san) params.set("lbt_san", preview.san);
+    if (preview.speed) params.set("lbt_spd", preview.speed);
+    if (preview.primarySin) params.set("lbt_sin", preview.primarySin);
+    if (preview.syncRank) params.set("lbt_sync", preview.syncRank);
+    if (preview.syncMax) params.set("lbt_max", "1");
+    // 古いリンクとの互換性を守るため画像の有無を明示し、完全summaryの判定に使う。
+    params.set("lbt_img", preview.hasShareImage ? "1" : "0");
+  }
+
+  function externalViewerUrl(baseUrl, source, id, fallbacks = [], preview = null) {
+    const target = shareBaseUrl(baseUrl);
+    const params = new URLSearchParams({ lbt_source: source, lbt_id: id });
+    const backup = (fallbacks || []).find((entry) => entry && entry.source && entry.id);
+    if (backup) {
+      params.set("lbt_fallback_source", backup.source);
+      params.set("lbt_fallback_id", backup.id);
+    }
+    appendPreviewParams(params, preview);
+    return `${target}?${params.toString()}`;
+  }
+
+  function sourceCode(source) {
+    return source === "telegraph" ? "t" : source === "rentry" ? "r" : "";
+  }
+
+  function sourceFromCode(code) {
+    return code === "t" ? "telegraph" : code === "r" ? "rentry" : "";
+  }
+
+  // 外部保存先のIDだけをURLへ残す。保存先名・事前サマリー・長いクエリ名は
+  // 共有データの読み込み後に補えるため、閲覧URLの短縮対象にする。
+  function shortViewerUrl(baseUrl, primary, fallbacks = [], preview = null) {
+    const targets = [primary, ...(fallbacks || [])].filter((entry) => entry?.source && entry?.id);
+    const segments = targets.map((entry) => {
+      const code = sourceCode(entry.source);
+      return code ? `${code}:${encodeURIComponent(entry.id)}` : "";
+    }).filter(Boolean);
+    /* 発行時に確定した preview を載せる。Worker の /s はこの値だけで
+       OGP HTML を組み立てられ、Rentry/Telegraph へ一切 read しなくて済む。
+       URL 長の上限を超えた場合は summary を落として従来方式（snapshot 読み）に
+       戻す。共有リンクCutting Breaking Compatibility のほうが OGP 最適化より優先。 */
+    const base = `${shareBaseUrl(baseUrl)}?s=${segments.join(",")}`;
+    if (!preview?.personaName) return base;
+    const params = new URLSearchParams();
+    appendPreviewParams(params, preview);
+    if (!params.toString()) return base;
+    const withSummary = `${base}&${params.toString()}`;
+    if (withSummary.length > PRACTICAL_DISCORD_URL_LENGTH) {
+      const url = new URL(withSummary);
+      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sin", "lbt_sync", "lbt_max", "lbt_img"]) url.searchParams.delete(key);
+      const trimmed = url.toString();
+      return trimmed.length <= PRACTICAL_DISCORD_URL_LENGTH ? trimmed : base;
+    }
+    return withSummary;
+  }
+
+  function ogpGatewayOrigin() {
+    const candidate = String(window.LBT_OGP_GATEWAY_ORIGIN || OGP_GATEWAY_FALLBACK_ORIGIN || "").replace(/\/$/, "");
+    try {
+      const url = new URL(candidate);
+      return url.protocol === "https:" && /^lbt-ogp\.[a-z0-9-]+\.workers\.dev$/i.test(url.hostname) ? url.origin : "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function ogpGatewayUrl(viewerUrl) {
+    const origin = ogpGatewayOrigin();
+    if (!origin) return "";
+    try {
+      const params = new URLSearchParams(new URL(viewerUrl).search);
+      if (!params.get("s")) return "";
+      params.set("cv", OGP_CARD_CACHE_VERSION);
+      return `${origin}/s?${params.toString()}`;
+    } catch (_) {
+      return "";
+    }
+  }
+
+  async function publishCloudflareKvShare(token, preview, fallbacks = [], fetchImpl = window.fetch?.bind(window)) {
+    const origin = ogpGatewayOrigin();
+    if (!origin || typeof fetchImpl !== "function") return { status: "unavailable" };
+
+    const safeFallbacks = (fallbacks || [])
+      .filter((entry) => entry && sourceCode(entry.source) && entry.id)
+      .map((entry) => ({ source: entry.source, id: String(entry.id) }));
+    let payload;
+    try {
+      payload = await withPublishTimeout(async (signal) => {
+        const response = await fetchImpl(origin + "/api/r2-share/v1", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, preview, fallbacks: safeFallbacks }),
+          ...(signal ? { signal } : {})
+        });
+        if (response.status === 404 || response.status === 405) return { status: "legacy-only" };
+        if (!response.ok) return { status: "unavailable" };
+        let result;
+        try {
+          // Keep the timeout active through body consumption; fetch alone may resolve before json().
+          result = await response.json();
+        } catch (_) {
+          return { status: "unavailable" };
+        }
+        return { status: "received", result };
+      }, CLOUDFLARE_PUBLISH_TIMEOUT_MS, "Cloudflare共有の発行がタイムアウトしました");
+    } catch (_) {
+      return { status: "unavailable" };
+    }
+    if (payload?.status !== "received") return payload || { status: "unavailable" };
+    const result = payload.result;
+    if (result?.ok !== true || !/^[A-Za-z0-9_-]{16}$/.test(String(result.id || ""))) {
+      return { status: "unavailable" };
+    }
+
+    const url = String(result.url || (origin + "/s/" + result.id));
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" || parsed.origin !== origin
+        || parsed.pathname !== ("/s/" + result.id) || parsed.search || parsed.hash) return { status: "unavailable" };
+    } catch (_) {
+      return { status: "unavailable" };
+    }
+    return { status: "published", id: result.id, url, length: url.length };
+  }
+
+  async function responseJson(response, context) {
+    if (!response?.ok) throw new Error(`${context}に失敗しました（HTTP ${response?.status || "?"}）`);
+    const data = await response.json();
+    if (data?.ok === false) throw new Error(data.error || `${context}に失敗しました`);
+    return data?.result || data;
+  }
+
+  async function createTinyUrl(url, fetchImpl = window.fetch?.bind(window)) {
+    if (typeof fetchImpl !== "function") throw new Error("短縮URLの通信機能を利用できません");
+    const endpoint = `${TINYURL_CREATE_ENDPOINT}?${new URLSearchParams({ url }).toString()}`;
+    const response = await fetchImpl(endpoint);
+    const shortUrl = String(await response.text()).trim();
+    if (!response.ok || !/^https:\/\/tinyurl\.com\/[A-Za-z0-9_-]+$/i.test(shortUrl)) {
+      throw new Error("短縮URLを発行できませんでした");
+    }
+    return shortUrl;
+  }
+
+  async function withPublishTimeout(operation, timeoutMs, message) {
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = window.setTimeout(() => {
+        reject(new Error(message));
+        try { controller?.abort(); } catch (_) {}
+      }, timeoutMs);
+    });
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => operation(controller?.signal)),
+        timeout
+      ]);
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+    }
+  }
+
+  async function publishRentryToken(token, baseUrl, fetchImpl, preview, signal = null) {
+    const storedLines = [];
+    if (token.length <= RENTRY_TOKEN_PART_LENGTH) {
+      storedLines.push(`${EXTERNAL_TOKEN_MARKER}${token}`);
+    } else {
+      const total = Math.ceil(token.length / RENTRY_TOKEN_PART_LENGTH);
+      for (let index = 0; index < total; index += 1) {
+        storedLines.push(`${EXTERNAL_TOKEN_PART_MARKER}${index + 1}/${total}:${token.slice(index * RENTRY_TOKEN_PART_LENGTH, (index + 1) * RENTRY_TOKEN_PART_LENGTH)}`);
+      }
+    }
+    const body = [
+      "PAGE_TITLE = LBT Share",
+      "SHARE_TITLE = LBT Share",
+      "OPTION_DISABLE_SEARCH_ENGINE = true",
+      "",
+      "```text",
+      ...storedLines,
+      "```"
+    ].join("\n");
+    const response = await fetchImpl("https://rentry.co/api/new", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams({ text: body }).toString(),
+      ...(signal ? { signal } : {})
+    });
+    const result = await responseJson(response, "Rentryへの保存");
+    const id = String(result?.url_short || new URL(String(result?.url || "")).pathname.replace(/^\//, ""));
+    if (!/^[A-Za-z0-9_-]{3,64}$/.test(id)) throw new Error("Rentryの共有IDを取得できませんでした");
+    return { source: "rentry", id, url: externalViewerUrl(baseUrl, "rentry", id, [], preview) };
+  }
+
+  async function publishTelegraphToken(token, baseUrl, fetchImpl, preview, includesShareImage = false, signal = null) {
+    const accountResponse = await fetchImpl("https://api.telegra.ph/createAccount", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams({ short_name: "LBTShare", author_name: "LIMBUS BUILD TERMINAL" }).toString(),
+      ...(signal ? { signal } : {})
+    });
+    const account = await responseJson(accountResponse, "Telegraphアカウントの作成");
+    const accessToken = String(account?.access_token || "");
+    if (!accessToken) throw new Error("Telegraphの発行権限を取得できませんでした");
+    const content = JSON.stringify([{ tag: "pre", children: [`${EXTERNAL_TOKEN_MARKER}${token}`] }]);
+    const pageResponse = await fetchImpl("https://api.telegra.ph/createPage", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams({
+        access_token: accessToken,
+        // 人格名は最終LBTシートで表示する。保存先IDを短く安定させるため、Telegraph側のページタイトルは固定する。
+        title: "LBT Share",
+        author_name: "LIMBUS BUILD TERMINAL",
+        content
+      }).toString(),
+      ...(signal ? { signal } : {})
+    });
+    const page = await responseJson(pageResponse, "Telegraphへの保存");
+    const id = String(page?.path || new URL(String(page?.url || "")).pathname.replace(/^\//, ""));
+    if (!id || id.length > 256) throw new Error("Telegraphの共有IDを取得できませんでした");
+    return {
+      source: "telegraph",
+      id,
+      url: externalViewerUrl(baseUrl, "telegraph", id, [], preview),
+      includesShareImage
+    };
+  }
+
+  async function publishExternalTokens(token, baseUrl, fetchImpl = window.fetch?.bind(window), preview = null, telegraphToken = token) {
+    if (typeof fetchImpl !== "function") return [];
+    const results = await Promise.allSettled([
+      withPublishTimeout(
+        (signal) => publishRentryToken(token, baseUrl, fetchImpl, preview, signal),
+        EXTERNAL_PUBLISH_TIMEOUT_MS,
+        "Rentryへの保存がタイムアウトしました"
+      ),
+      withPublishTimeout(
+        (signal) => publishTelegraphToken(telegraphToken, baseUrl, fetchImpl, preview, telegraphToken === token, signal),
+        EXTERNAL_PUBLISH_TIMEOUT_MS,
+        "Telegraphへの保存がタイムアウトしました"
+      )
+    ]);
+    return results.filter((entry) => entry.status === "fulfilled").map((entry) => entry.value);
+  }
+
+  async function createPublishedUrl(state, baseUrl, fetchImpl = window.fetch?.bind(window)) {
+    const pendingKey = JSON.stringify(snapshotState(state, { includeOgpImage: false }));
+    if (pendingPublishedStates.has(pendingKey)) return pendingPublishedStates.get(pendingKey);
+    const task = createPublishedUrlOnce(state, baseUrl, fetchImpl);
+    pendingPublishedStates.set(pendingKey, task);
+    try {
+      return await task;
+    } finally {
+      pendingPublishedStates.delete(pendingKey);
+    }
+  }
+
+  async function createPublishedUrlOnce(state, baseUrl, fetchImpl = window.fetch?.bind(window)) {
+    const shareImageCheck = validateShareImageForPublish(state);
+    if (!shareImageCheck.ok) throw new Error(shareImageCheck.message);
+    const token = await encodeState(state);
+    const reused = await reuseLastPublishedUrl(token, state, fetchImpl);
+    if (reused) return reused;
+
+    const target = shareBaseUrl(baseUrl);
+    const canKeepShareImageInTelegraph = !state?.shareImageData || token.length <= TELEGRAPH_SAFE_TOKEN_LENGTH;
+    const telegraphToken = canKeepShareImageInTelegraph
+      ? token
+      : await encodeState({ ...state, shareImageData: "" }, { includeOgpImage: false });
+    const preview = sharePreview(state);
+    const published = await publishExternalTokens(token, target, fetchImpl, preview, telegraphToken);
+    const cloudflare = await publishCloudflareKvShare(token, preview, published, fetchImpl);
+    let result;
+
+    // A standalone URL is the last-resort artifact. It must contain the actual build data,
+    // but not an auto-generated OGP-only image that cannot be rendered from a URL fragment.
+    // Build it only when needed so successful short-link issuance does not compress twice.
+    const createDirectFallback = async () => {
+      const directToken = await encodeState(state, { includeOgpImage: false });
+      return createUrlFromToken(directToken, baseUrl);
+    };
+
+    if (cloudflare.status === "published") {
+      const primary = state?.shareImageData
+        ? published.find((entry) => entry.source === "rentry")
+          || published.find((entry) => entry.source === "telegraph" && entry.includesShareImage)
+          || published[0]
+        : published.find((entry) => entry.source === "telegraph") || published[0];
+      const backups = published.filter((entry) => entry !== primary);
+      const fallbackUrl = published.length
+        ? shortViewerUrl(target, primary, backups, preview)
+        : (await createDirectFallback()).url;
+      // KVの短縮URLには予備保存先IDやキャッシュ世代を付けない。
+      // OGPメタデータは保存済みHTMLに含まれ、予備URLは別リンクで提供する。
+      // アイドル期限切れ後はこの短縮URLも失効するため、URL自体を最短に保てる。
+      result = {
+        url: cloudflare.url,
+        length: cloudflare.url.length,
+        strategy: "cloudflare-kv",
+        backups: [{ source: published.length ? "既存方式" : "自己完結", id: primary?.id || "", url: fallbackUrl }],
+        preview,
+        warning: "Cloudflare KVの短縮URLです。予備URLは共有リンクと別に保存してください。7日間アクセスがないと短縮URLの保存データは失効します。"
+      };
+    } else if (published.length) {
+      const primary = state?.shareImageData
+        ? published.find((entry) => entry.source === "rentry")
+          || published.find((entry) => entry.source === "telegraph" && entry.includesShareImage)
+          || published[0]
+        : published.find((entry) => entry.source === "telegraph") || published[0];
+      const backups = published.filter((entry) => entry !== primary);
+      const staticUrl = shortViewerUrl(target, primary, backups, preview);
+      // APIが未対応の旧Workerなら従来OGP経路を維持。
+      // Workerへの通信そのものが失敗した場合は、障害中のWorkerをURLに含めない。
+      const url = cloudflare.status === "legacy-only" ? (ogpGatewayUrl(staticUrl) || staticUrl) : staticUrl;
+      result = {
+        url,
+        length: url.length,
+        strategy: primary.source,
+        backups,
+        preview,
+        warning: cloudflare.status === "legacy-only"
+          ? "短いLBT共有URLです。外部保存先は内部で自動復元します。"
+          : "Cloudflare共有を利用できなかったため、既存の共有保存先へ切り替えました。"
+      };
+    } else {
+      const direct = await createDirectFallback();
+      result = {
+        ...direct,
+        strategy: "self",
+        backups: [{ source: "自己完結", id: "", url: direct.url }],
+        preview,
+        warning: direct.length > PRACTICAL_DISCORD_URL_LENGTH
+          ? "外部保存先が利用できないため自己完結URLへ切り替えましたが、URLが長くDiscord本文の上限を超える可能性があります。共有HTMLのダウンロードを併用してください。"
+          : "外部保存先が利用できないため、圧縮済みの自己完結URLへ切り替えました。"
+      };
+    }
+    rememberPublishedUrl(token, result);
+    return result;
+  }
+
+  function externalSourceFromLocation(locationLike) {
+    const params = new URLSearchParams(String(locationLike?.search || ""));
+    const source = params.get("lbt_source") || "";
+    const id = params.get("lbt_id") || "";
+    if (source === "rentry" && /^[A-Za-z0-9_-]{3,64}$/.test(id)) return { source, id };
+    if (source === "telegraph" && id && id.length <= 256) return { source, id };
+    return null;
+  }
+
+  function shortSourcesFromLocation(locationLike) {
+    const params = new URLSearchParams(String(locationLike?.search || ""));
+    const compact = String(params.get("s") || "");
+    if (!compact) return [];
+    return compact.split(",").map((segment) => {
+      const match = /^([tr]):(.+)$/.exec(segment);
+      if (!match) return null;
+      const source = sourceFromCode(match[1]);
+      const id = match[2];
+      if (source === "rentry" && /^[A-Za-z0-9_-]{3,64}$/.test(id)) return { source, id };
+      if (source === "telegraph" && id && id.length <= 256) return { source, id };
+      return null;
+    }).filter(Boolean).filter((entry, index, entries) => entries.findIndex((other) => other.source === entry.source && other.id === entry.id) === index);
+  }
+
+  function externalSourcesFromLocation(locationLike) {
+    const compact = shortSourcesFromLocation(locationLike);
+    if (compact.length) return compact;
+    const params = new URLSearchParams(String(locationLike?.search || ""));
+    const primary = externalSourceFromLocation(locationLike);
+    const fallbackSource = params.get("lbt_fallback_source") || "";
+    const fallbackId = params.get("lbt_fallback_id") || "";
+    const fallback = externalSourceFromLocation({ search: `?lbt_source=${encodeURIComponent(fallbackSource)}&lbt_id=${encodeURIComponent(fallbackId)}` });
+    return [primary, fallback].filter(Boolean).filter((entry, index, entries) => entries.findIndex((other) => other.source === entry.source && other.id === entry.id) === index);
+  }
+
+  function tokenFromExternalText(text) {
+    const source = String(text || "");
+    const match = new RegExp(`${EXTERNAL_TOKEN_MARKER}(z|j)\\.([A-Za-z0-9_-]+)`).exec(source);
+    if (match) return `${match[1]}.${match[2]}`;
+    const parts = [...source.matchAll(new RegExp(`${EXTERNAL_TOKEN_PART_MARKER}(\\d{1,4})/(\\d{1,4}):([A-Za-z0-9_.-]+)`, "g"))]
+      .map((entry) => ({ index: Number(entry[1]), total: Number(entry[2]), value: entry[3] }))
+      .filter((entry) => entry.total > 0 && entry.total <= 2000 && entry.index > 0 && entry.index <= entry.total);
+    if (!parts.length) return "";
+    const total = parts[0].total;
+    if (parts.some((entry) => entry.total !== total) || parts.length !== total) return "";
+    parts.sort((a, b) => a.index - b.index);
+    if (parts.some((entry, index) => entry.index !== index + 1)) return "";
+    const token = parts.map((entry) => entry.value).join("");
+    return /^(z|j)\.[A-Za-z0-9_-]+$/.test(token) ? token : "";
+  }
+
+  async function verifiedExternalToken(text, sourceLabel) {
+    const token = tokenFromExternalText(text);
+    if (!token) throw new Error(`${sourceLabel}の共有データにLBTトークンがありません`);
+    try {
+      await decodeToken(token);
+    } catch (_) {
+      throw new Error(`${sourceLabel}の共有トークンが破損しているため、予備保存先を確認します`);
+    }
+    return token;
+  }
+
+  async function withExternalReadTimeout(read) {
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = window.setTimeout(() => {
+        // Race the timeout even when AbortController is unavailable or a response body ignores abort.
+        reject(new Error("共有データの取得がタイムアウトしました"));
+        try { controller?.abort(); } catch (_) {}
+      }, EXTERNAL_READ_TIMEOUT_MS);
+    });
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => read(controller?.signal)),
+        timeout
+      ]);
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+    }
+  }
+
+  async function tokenFromExternalTarget(target, fetchImpl) {
+    if (target.source === "rentry") {
+      const id = encodeURIComponent(target.id);
+      const directUrl = `https://rentry.co/${id}`;
+      const readToken = async (url, context) => {
+        const text = await withExternalReadTimeout(async (signal) => {
+          const response = await fetchImpl(url, signal ? { signal } : undefined);
+          if (!response.ok) throw new Error(`${context}（HTTP ${response.status || "?"}）`);
+          // Keep the timeout active through body consumption; fetch may resolve before the body does.
+          return response.text();
+        });
+        return verifiedExternalToken(text, "Rentry");
+      };
+      try {
+        return await readToken(directUrl, "Rentryの共有データを取得できませんでした");
+      } catch (directError) {
+        // RentryがブラウザのCORS要求を拒む環境だけ、HTMLをテキストとして読む公開互換経路を使う。
+        // 閲覧者はどちらの場合もLBT共有ページを開いたままであり、中間ページへ遷移しない。
+        try {
+          return await readToken(`${RENTRY_READ_PROXY}${id}`, "Rentry予備共有データを取得できませんでした");
+        } catch (proxyError) {
+          throw new Error(`${directError?.message || "Rentryの共有データを取得できませんでした"} / ${proxyError?.message || "Rentry予備共有データを取得できませんでした"}`);
+        }
+      }
+    }
+    const page = await withExternalReadTimeout(async (signal) => {
+      const options = signal ? { signal } : undefined;
+      const response = await fetchImpl(`https://api.telegra.ph/getPage/${encodeURIComponent(target.id)}?return_content=true`, options);
+      return responseJson(response, "Telegraphの共有データ取得");
+    });
+    return verifiedExternalToken(JSON.stringify(page?.content || []), "Telegraph");
+  }
+
+  async function tokenFromExternalSource(locationLike, fetchImpl = window.fetch?.bind(window)) {
+    const targets = externalSourcesFromLocation(locationLike);
+    if (!targets.length) return "";
+    if (typeof fetchImpl !== "function") throw new Error("外部共有データの通信機能を利用できません");
+    const failures = [];
+    for (const target of targets) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          return await tokenFromExternalTarget(target, fetchImpl);
+        } catch (error) {
+          failures.push(error?.message || `${target.source}の共有データを取得できませんでした`);
+        }
+      }
+    }
+    throw new Error(`共有データを取得できませんでした。${failures.join(" / ")}`);
+  }
+
+  async function tokenFromOgpGateway(locationLike, fetchImpl = window.fetch?.bind(window)) {
+    const origin = ogpGatewayOrigin();
+    const sources = externalSourcesFromLocation(locationLike);
+    if (!origin || !sources.length || typeof fetchImpl !== "function") return "";
+    const compact = sources.map((source) => `${sourceCode(source.source)}:${source.id}`).join(",");
+    const token = await withExternalReadTimeout(async (signal) => {
+      const options = { headers: { Accept: "text/plain" }, ...(signal ? { signal } : {}) };
+      const response = await fetchImpl(`${origin}/d?s=${encodeURIComponent(compact)}`, options);
+      if (!response.ok) throw new Error(`共有データの予備復元に失敗しました（HTTP ${response.status || "?"}）`);
+      return String(await response.text()).trim();
+    });
+    if (!/^(z|j)\.[A-Za-z0-9_-]+$/.test(token)) throw new Error("共有データの予備復元形式が不正です");
+    return token;
+  }
+
+  function tokenFromLocation(locationLike) {
+    const hash = String(locationLike?.hash || "").replace(/^#/, "");
+    return new URLSearchParams(hash).get("lbt") || "";
+  }
+
+  function previewFromLocation(locationLike) {
+    const params = new URLSearchParams(String(locationLike?.search || ""));
+    const personaName = String(params.get("lbt_n") || "").trim().slice(0, 72);
+    const hp = String(params.get("lbt_hp") || "").trim().replace(/[^0-9?—-]/g, "").slice(0, 8);
+    const san = String(params.get("lbt_san") || "").trim().replace(/[^0-9?—-]/g, "").slice(0, 8);
+    const speed = String(params.get("lbt_spd") || "").trim().replace(/[\u0000-\u001F\u007F]/g, "").slice(0, 16);
+    const sinCandidate = String(params.get("lbt_sin") || "");
+    const primarySin = PRIMARY_RESOURCE_ATTRIBUTES.includes(sinCandidate) ? sinCandidate : "";
+    const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
+    return { personaName, hp, san, speed, primarySin, syncRank, syncMax: params.get("lbt_max") === "1", hasShareImage: params.get("lbt_img") === "1" };
+  }
+
+  window.LBT_shareLink = {
+    snapshotState, encodeState, decodeToken, hydratePersonaReference, createUrl, createPublishedUrl,
+    createTinyUrl, publishExternalTokens, externalViewerUrl, shortViewerUrl, ogpGatewayUrl, externalSourceFromLocation, shortSourcesFromLocation, externalSourcesFromLocation,
+    tokenFromLocation, tokenFromExternalSource, tokenFromOgpGateway, previewFromLocation, sharePreview, createDefaultOgpImageData, PRACTICAL_DISCORD_URL_LENGTH,
+    SHARE_IMAGE_TARGET_BYTES, shareImageBytes, validateShareImageForPublish
+  };
+})();
