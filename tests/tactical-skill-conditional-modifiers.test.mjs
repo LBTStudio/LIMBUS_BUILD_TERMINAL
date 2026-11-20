@@ -1339,18 +1339,22 @@ test("戦術枠と派生スキル番号を分離して保持し、派生単位�
 
 test("内蔵人格データ全件で派生コード末尾を保持する", () => {
   const { api } = loadHelpers();
-  const match = html.match(/<script id="persona-data" type="application\\/json">([\\s\\S]*?)<\\/script>/);
-  assert.ok(match, "内蔵人格データが存在する");
-  const db = JSON.parse(match[1]);
+  const marker = '<script id="persona-data" type="application/json">';
+  const markerStart = html.indexOf(marker);
+  assert.notEqual(markerStart, -1, "内蔵人格データが存在する");
+  const dataStart = markerStart + marker.length;
+  const dataEnd = html.indexOf("</script>", dataStart);
+  assert.notEqual(dataEnd, -1, "内蔵人格データの終端が存在する");
+  const db = JSON.parse(html.slice(dataStart, dataEnd));
   let derivedCount = 0;
   for (const persona of [...(db.normal_personas || []), ...(db.tokui_personas || [])]) {
     for (const skill of persona.skills || []) {
-      const suffix = String(skill.rank || "").match(/^(?:スキル)?\\s*(\\d+)-(\\d+)$/);
-      if (!suffix) continue;
+      const parts = String(skill.rank || "").replace(/^スキル/, "").split("-");
+      if (parts.length !== 2 || !parts.every(part => part.trim() !== "" && Number.isInteger(Number(part)))) continue;
       derivedCount++;
       const normalized = api.normalizeSkillRecord(skill);
-      assert.equal(normalized.slot, Number(suffix[1]), persona.name + " / " + skill.rank + " tactical slot");
-      assert.equal(normalized.derivedIndex, Number(suffix[2]), persona.name + " / " + skill.rank + " derived suffix");
+      assert.equal(normalized.slot, Number(parts[0]), persona.name + " / " + skill.rank + " tactical slot");
+      assert.equal(normalized.derivedIndex, Number(parts[1]), persona.name + " / " + skill.rank + " derived suffix");
       assert.equal(normalized.isDerived, true, persona.name + " / " + skill.rank + " derived flag");
     }
   }
