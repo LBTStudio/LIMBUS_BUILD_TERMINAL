@@ -433,7 +433,7 @@ function resourceSupplyFor(persona,skill,resource){
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
- const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を含まない|を含まず)/.test(source)||/他の味方/.test(source);
+ const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?|を含まない|を含まず|を含めない)/.test(source)||/他の味方/.test(source);
  if(excludesSelf)return {scope:"other",applies:false};
  const teamMatch=source.match(/(?:^|[\s、。\n])(ウサギチーム|トナカイチーム|サイチーム|第四群司令官)[：:]\s*$/);
  if(teamMatch){const required=teamMatch[1],own=String(persona?.team||"");return {scope:"team",team:required,applies:!!own&&own===required};}
