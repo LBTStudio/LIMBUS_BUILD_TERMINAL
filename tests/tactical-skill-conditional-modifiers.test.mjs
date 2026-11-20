@@ -685,3 +685,20 @@ test("実データのN社握らんとする者は5名編成の狂信付与を除
   assert.ok(supply.excluded.some(item => item.includes("味方編成条件")), "自分を含むN社狂信者5名条件を除外理由として保持");
   assert.equal(supply.unresolved, false);
 });
+
+test("N社中鎚の狂信はHP条件と前ラウンドのスキル獲得を合わせても6が到達上限", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="appendix-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const appendix = JSON.parse(html.slice(contentStart, end));
+  const persona = appendix.find(item => item.name === "N社中鎚 ガブナー");
+  assert.ok(persona, "N社中鎚の別冊人格データが存在する");
+  assert.equal(persona.unique.find(item => item.name === "狂信").max, 10);
+  const skill = persona.skills.find(item => item.name === "もう……無い。");
+  const supply = api.resourceSupplyFor(persona, skill, "狂信");
+  assert.equal(supply.total, 6, "HP50%未満または混乱時の自己獲得3と、前ラウンドの過半数的中による次R獲得3");
+  assert.equal(supply.unresolved, false);
+});
