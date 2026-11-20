@@ -658,3 +658,13 @@ test("自分を含む5名以上を要求する狂信付与は単独人格の到�
   assert.ok(supply.excluded.some(item => item.includes("味方編成条件")));
   assert.ok(supply.notes.some(item => item.includes("味方編成条件")));
 });
+
+test("持続期間の根拠がない資源は前ラウンドの獲得分を現在値へ持ち越さない", () => {
+  const { api } = loadHelpers();
+  const persona = {
+    skills: [{ name: "前ラウンドの呼吸獲得", effect: "使用時：呼吸2を得る", dice: [] }]
+  };
+  const supply = api.resourceSupplyFor(persona, { effect: "" }, "呼吸");
+  assert.equal(supply.total, 0);
+  assert.equal(supply.unresolved, true, "呼吸の持続・減衰根拠がないため前ラウンド分は未確定");
+});
