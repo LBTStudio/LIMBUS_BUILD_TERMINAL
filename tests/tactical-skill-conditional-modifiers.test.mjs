@@ -28,6 +28,7 @@ function loadHelpers() {
   controls.includeEffect.checked = false;
   const context = { $: (id) => controls[id] ?? { checked: false }, EMBEDDED_DB: { support_passives: [] } };
   vm.createContext(context);
+  vm.runInContext(sourceBetween("function slotOf", "const CONDITION_FILTER_IDS"), context);
   vm.runInContext(sourceBetween("const CONDITION_FILTER_IDS=", "function formatModifierReason"), context);
   vm.runInContext(sourceBetween("function formatModifierReason", "function passiveBonus"), context);
   vm.runInContext(sourceBetween("function passiveBonus", "function deferredSkillBonus"), context);
@@ -35,7 +36,7 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(sourceBetween("function normalizeDbPersona", "function addPersona"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, formatModifierReason, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, formatModifierReason, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, normalizeSkillRecord, derivedSkillMatches, slotOf, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -1308,4 +1309,59 @@ test("状態を持つ敵の存在条件を対象状態へ分類し、他者付�
   assert.deepEqual(Array.from(reason.targetConditions, x => [x.kind, x.value]), [["targetStatus", "仕返し対象状態"]]);
   assert.equal(reason.recipientScope, "other");
   assert.equal(reason.excludedRecipient, true);
+});
+
+
+test("戦術枠と派生スキル番号を分離して保持し、派生単位で絞り込む", () => {
+  const { api } = loadHelpers();
+  const base = api.normalizeSkillRecord({ rank: "スキル1", name: "親スキル", dice: [{ roll: "2d6" }] });
+  const first = api.normalizeSkillRecord({ rank: "スキル1-1", name: "派生A", dice: [{ roll: "2d7" }] });
+  const second = api.normalizeSkillRecord({ rank: "スキル1-2", name: "派生B", derived_from: "スキル1", derived_index: 2, derived_condition: "自分の火傷が15以上", dice: [{ roll: "2d8" }] });
+  assert.equal(base.slot, 1);
+  assert.equal(base.isDerived, false);
+  assert.equal(first.slot, 1, "派生番号を戦術枠番号に混入させない");
+  assert.equal(first.derivedIndex, 1, "メタデータがなくてもrank末尾から派生番号を復元する");
+  assert.equal(first.derivedFrom, "スキル1");
+  assert.equal(first.isDerived, true);
+  assert.equal(second.slot, 1);
+  assert.equal(second.derivedIndex, 2);
+  assert.equal(second.derivedFrom, "スキル1");
+  assert.equal(second.derivedCondition, "自分の火傷が15以上");
+  assert.equal(api.derivedSkillMatches(base, ""), true);
+  assert.equal(api.derivedSkillMatches(first, "base"), false);
+  assert.equal(api.derivedSkillMatches(base, "base"), true);
+  assert.equal(api.derivedSkillMatches(first, "derived"), true);
+  assert.equal(api.derivedSkillMatches(second, "index:2"), true);
+  assert.equal(api.derivedSkillMatches(first, "index:2"), false);
+  assert.equal(api.derivedSkillMatches(second, "index:1"), false);
+});
+
+
+test("基本・特異・別冊の内蔵データ全件で派生コード末尾を保持する", () => {
+  const { api } = loadHelpers();
+  function embedded(id) {
+    const marker = '<script id="' + id + '" type="application/json">';
+    const markerStart = html.indexOf(marker);
+    assert.notEqual(markerStart, -1, id + " が存在する");
+    const dataStart = markerStart + marker.length;
+    const dataEnd = html.indexOf("</script>", dataStart);
+    assert.notEqual(dataEnd, -1, id + " の終端が存在する");
+    return JSON.parse(html.slice(dataStart, dataEnd));
+  }
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  let derivedCount = 0;
+  for (const persona of personas) {
+    for (const skill of persona.skills || []) {
+      const parts = String(skill.rank || "").replace(/^スキル/, "").split("-");
+      if (parts.length !== 2 || !parts.every(part => part.trim() !== "" && Number.isInteger(Number(part)))) continue;
+      derivedCount++;
+      const normalized = api.normalizeSkillRecord(skill);
+      assert.equal(normalized.slot, Number(parts[0]), persona.name + " / " + skill.rank + " tactical slot");
+      assert.equal(normalized.derivedIndex, Number(parts[1]), persona.name + " / " + skill.rank + " derived suffix");
+      assert.equal(normalized.isDerived, true, persona.name + " / " + skill.rank + " derived flag");
+    }
+  }
+  assert.ok(derivedCount >= 140, "基本・特異・別冊の派生スキルを横断する");
 });
