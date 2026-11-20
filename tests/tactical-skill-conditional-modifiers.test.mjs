@@ -533,6 +533,30 @@ test("資源の明示上限と前ラウンドのスキル選択上限を適用�
   assert.equal(capped.total, 5, "資源そのものの最大蓄積量を超えない");
 });
 
+test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越せる量で評価する", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="persona-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const db = JSON.parse(html.slice(contentStart, end));
+  const all = [...(db.normal_personas || []), ...(db.tokui_personas || [])];
+  const byName = (name) => all.find(persona => persona.name === name);
+  const attainable = (persona) => Math.max(0, ...(persona.skills || []).map(skill =>
+    api.resourceSupplyFor(persona, skill, "狂信").total
+  ));
+
+  const hammer = byName("N社大鎚");
+  const smallHammer = byName("N社小鎚");
+  const holder = byName("N社握る者");
+  assert.ok(hammer && smallHammer && holder, "N社の該当人格データが存在する");
+  assert.equal(hammer.unique_buffs[0].max, 10);
+  assert.equal(attainable(hammer), 3, "大鎚は前ラウンドのマッチ敗北による狂信3が本人の最大供給");
+  assert.equal(attainable(smallHammer), 1, "小鎚は前ラウンドのマッチ勝利による狂信1が本人の最大供給");
+  assert.equal(attainable(holder), 4, "握る者は本人のスキルによる次R狂信4を数え、ランダムな味方への付与を本人保証として扱わない");
+});
+
 test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
   const { api, controls, context } = loadHelpers();
   context.EMBEDDED_DB.support_passives = [
