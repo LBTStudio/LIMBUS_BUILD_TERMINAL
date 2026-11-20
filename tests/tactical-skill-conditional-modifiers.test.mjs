@@ -35,7 +35,7 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(sourceBetween("function normalizeDbPersona", "function addPersona"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, formatModifierReason, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -377,8 +377,9 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
 
   const allyBuff = "味方全体にスキル威力+2を付与";
   const excluded = api.kindMods(allyBuff, "斬撃", dice, nCorp).reasons[0];
-  assert.equal(excluded.excludedRecipient, true);
-  assert.equal(api.skillBonus({ type: "斬撃", effect: allyBuff, dice }, nCorp).bonus, 0);
+  assert.equal(excluded.excludedRecipient, false, "自分を除外しない味方全体への付与は本人にも適用する");
+  assert.equal(excluded.recipientScope, "self");
+  assert.equal(api.skillBonus({ type: "斬撃", effect: allyBuff, dice }, nCorp).bonus, 4);
 
   const selfBuff = "自分にスキル威力+2";
   assert.equal(api.skillBonus({ type: "斬撃", effect: selfBuff, dice }, wCorp).bonus, 4);
@@ -888,4 +889,80 @@ test("特殊な所属名を名前から正しく復元する", () => {
   assert.equal(blackBuff.excludedRecipient, false);
   assert.equal(pirateBuff.recipientScope, "affiliation");
   assert.equal(pirateBuff.excludedRecipient, false);
+});
+
+
+test("同所属でも自分以外と指定された付与は本人に加算しない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const effect = "自分以外の炎拳事務所所属の味方にスキル威力+2を付与";
+  const persona = { affiliation: "炎拳事務所" };
+  const reason = api.kindMods(effect, "斬撃", dice, persona).reasons[0];
+
+  assert.equal(reason.recipientScope, "other");
+  assert.equal(reason.excludedRecipient, true);
+  assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, persona).bonus, 0);
+});
+
+test("選出対象の味方への付与は適用先未確定として加算を保留する", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const cases = [
+    ["最もHPが少ないヴィリーブ工房所属の味方2名へスキル威力+2を付与", { affiliation: "ヴィリーブ工房" }],
+    ["ラ・マンチャランド所属の血鬼の味方に優先してスキル威力+2を付与", { affiliation: "ラ・マンチャランド" }],
+    ["ランダムな味方1名にスキル威力+2を付与", {}],
+    ["味方2名にスキル威力+2を付与", {}]
+  ];
+
+  for (const [effect, persona] of cases) {
+    const reason = api.kindMods(effect, "斬撃", dice, persona).reasons[0];
+    assert.equal(reason.recipientScope, "allySelection", effect);
+    assert.equal(reason.recipientUnresolved, true, effect);
+    assert.equal(reason.excludedRecipient, false, effect);
+    assert.equal(reason.unresolved, true, effect);
+    assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, persona).bonus, 0, effect);
+    assert.match(api.formatModifierReason(reason), /受け手未確定/);
+  }
+});
+
+test("味方が使用する別スキルへの威力補正は本人のスキル威力に混ぜない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  for (const effect of [
+    "使用時：前方の味方1名の使用するスキルが嫉妬スキルならスキル威力+2",
+    "後方の味方の使用しているスキルが打撃属性ならスキル威力+2"
+  ]) {
+    const reason = api.kindMods(effect, "斬撃", dice, {}).reasons[0];
+    assert.ok(reason, effect);
+    assert.equal(reason.recipientScope, "allySelection", effect);
+    assert.equal(reason.recipientUnresolved, true, effect);
+    assert.equal(reason.excludedRecipient, false, effect);
+    assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 0, effect);
+  }
+});
+
+test("他の味方の人数を参照する自己威力補正を他者への付与と誤認しない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  for (const effect of [
+    "使用時：群れたハイエナ所属の他の味方1名ごとにスキル威力+1（最大5）",
+    "自分以外の味方の数だけスキル威力+1"
+  ]) {
+    const reason = api.kindMods(effect, "斬撃", dice, { affiliation: "群れたハイエナ" }).reasons[0];
+    assert.ok(reason, effect);
+    assert.equal(reason.excludedRecipient, false, effect);
+    assert.notEqual(reason.recipientScope, "other", effect);
+  }
+});
+
+test("自分を除外しない味方全体への付与は本人にも適用する", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const effect = "味方全体にスキル威力+1を付与";
+  const reason = api.kindMods(effect, "斬撃", dice, {}).reasons[0];
+
+  assert.equal(reason.recipientScope, "self");
+  assert.equal(reason.excludedRecipient, false);
+  assert.equal(reason.recipientUnresolved, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 2);
 });
