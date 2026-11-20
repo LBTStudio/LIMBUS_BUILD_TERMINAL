@@ -757,7 +757,7 @@ function affiliationFromName(name){
  }
  const special=text.match(/ラ・マンチャランド(?:第[一二三]区画)?|黒雲会|双鉤海賊団/);
  if(special)return special[0];
- const match=text.match(/[A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,20}?(?:協会|工房|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?/);
+ const match=text.match(/[A-ZＡ-Ｚ]社|(?:(?!の)[一-龥ぁ-んァ-ヶー])[一-龥ぁ-んァ-ヶー]{0,19}?(?:協会|工房|組|支部|チーム|事務所|音楽隊|運送|派)(?:[一-龥ぁ-んァ-ヶー]{1,8}派)?/);
  return match?.[0]||"";
 }
 function teamFromName(name){
