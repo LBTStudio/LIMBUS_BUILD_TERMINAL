@@ -1294,3 +1294,18 @@ test("改行折返し・状態変換・対象との速度一致を対象条件�
   assert.ok(api.conditionClasses("煙状態の対象に与えるダメージ量+3").includes("targetStatus"));
   assert.ok(api.conditionClasses("対象が出血で受けるダメージ量+3").includes("targetStatus"));
 });
+
+
+test("状態を持つ敵の存在条件を対象状態へ分類し、他者付与の受け手判定と分離する", () => {
+  const { api } = loadHelpers();
+  const source = "戦闘開始時：仕返し対象状態の敵がいるなら、次のRに両隣の味方に嫉妬威力増加1を付与";
+  const found = api.targetConditionDetails(source);
+  assert.deepEqual(Array.from(found, x => [x.kind, x.value]), [["targetStatus", "仕返し対象状態"]]);
+
+  const reason = api.kindMods(source, "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(reason);
+  assert.ok(reason.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(reason.targetConditions, x => [x.kind, x.value]), [["targetStatus", "仕返し対象状態"]]);
+  assert.equal(reason.recipientScope, "other");
+  assert.equal(reason.excludedRecipient, true);
+});
