@@ -248,12 +248,17 @@ function selectedResourceSupportPassives(){
 }
 function resourceStatusRecords(persona,resource){
  const local=[...(persona?.unique_buffs||[]),...(persona?.unique||[])].filter(item=>String(item?.name||"")===resource);
- if(local.length)return local;
  const allRecords=[
   ...(typeof EMBEDDED_DB!=="undefined"?[...(EMBEDDED_DB.normal_personas||[]),...(EMBEDDED_DB.tokui_personas||[])]:[]),
   ...(typeof APPENDIX!=="undefined"&&Array.isArray(APPENDIX)?APPENDIX:[])
  ];
- return allRecords.flatMap(record=>[...(record.unique_buffs||[]),...(record.unique||[])]).filter(item=>String(item?.name||"")===resource);
+ const global=allRecords.flatMap(record=>[...(record.unique_buffs||[]),...(record.unique||[])]).filter(item=>String(item?.name||"")===resource);
+ const seen=new Set();
+ return [...local,...global].filter(item=>{
+  const key=[item.name,item.max,item.desc,item.effect].join("|");
+  if(seen.has(key))return false;
+  seen.add(key);return true;
+ }); 
 }
 function resourceMaximumFor(persona,resource){
  const maxima=resourceStatusRecords(persona,resource).map(item=>Number(item?.max)).filter(value=>Number.isFinite(value)&&value>0);
@@ -505,7 +510,9 @@ function formatModifierReason(x,origin=""){
  return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${target}${recipient}${supply}${x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):""}`;
 }
 function uniqueEffectText(u){
- const text=[u.name,u.desc,u.effect].filter(Boolean).join(" ");
+ const name=String(u?.name||"");
+ const desc=String(u?.desc||"").replace(/数値/g,name||"数値");
+ const text=[name,desc,u.effect].filter(Boolean).join(" ");
  const boundary=text.search(/[「『][^」』]{1,120}?の[\s\u3000]*人[\s\u3000]*格[」』]/);
  const ownText=boundary>=0?text.slice(0,boundary):text;
  return ownText.replace(/ディエーチ協会フィクサーの特定スキル威力上昇/g,"");
