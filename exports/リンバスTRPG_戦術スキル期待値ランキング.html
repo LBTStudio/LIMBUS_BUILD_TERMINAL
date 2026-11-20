@@ -508,7 +508,10 @@ function targetsForModifier(scope,count,dice,targetType,skillType){
  return Array.from({length:count},(_,i)=>i);
 }
 function kindMods(text,skillType,dice=[],persona=null,skill=null){
- const src=String(text||"").replace(/[＋]/g,"+").replace(/[－−]/g,"-").replace(/\r\n?/g,"\n").split("\n").map(line=>line.replace(/[ \t\u3000]+/g,"")).join("\n");
+ let raw=String(text||"").replace(/[＋]/g,"+").replace(/[－−]/g,"-").replace(/\r\n?/g,"\n");
+ const lineWrapPairs=[["スキ","ル"],["ス","キル"],["スキル","威力"],["ダ","イス"],["ダイ","ス"],["ダイス","威力"],["マ","ッチ"],["マッ","チ"],["マッチ","威力"],["威","力"],["斬","撃"],["貫","通"],["打","撃"],["銃","撃"],["全","て"],["増","加"],["減","少"],["上","昇"],["下","降"],["自","分"],["味","方"],["所","属"],["対","象"]];
+ for(const [left,right] of lineWrapPairs)raw=raw.replaceAll(left+"\\n"+right,left+right);
+ const src=raw.split("\n").map(line=>line.replace(/[ \\t\\u3000]+/g,"")).join("\n");
  const reasons=[],occupied=[];
  const applies=prefix=>!prefix||(prefix==="攻撃"?!/防御|回避/.test(skillType):String(skillType||"").includes(prefix));
  const patterns=[
