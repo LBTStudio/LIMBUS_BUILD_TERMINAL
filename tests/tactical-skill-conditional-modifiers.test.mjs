@@ -387,6 +387,17 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
 
   assert.equal(api.affiliationFromName("南部リウ協会5課フィクサー アニス"), "南部リウ協会");
   assert.equal(api.affiliationFromName("薬指点描派 スチューデントB"), "薬指点描派");
+  assert.equal(api.affiliationFromName("の終止符事務所"), "終止符事務所");
+  assert.equal(api.affiliationFromName("バラのスパナ工房"), "バラのスパナ工房", "organization-internal の must be preserved");
+  const endMarkerText = "舞台開始時、最初のRの終止符事務所所属の味方のスキル威力+1";
+  const endMarkerPersona = { affiliation: "終止符事務所" };
+  const endMarkerReason = api.kindMods(endMarkerText, "斬撃", dice, endMarkerPersona).reasons[0];
+  assert.equal(endMarkerReason.recipientScope, "affiliation");
+  assert.equal(endMarkerReason.recipientAffiliation, "終止符事務所");
+  assert.equal(endMarkerReason.excludedRecipient, false);
+  assert.equal(endMarkerReason.conditional, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: endMarkerText, dice }, endMarkerPersona).bonus, 2);
+
   const nCorp = { name: "N社人格", affiliation: "N社" };
   const wCorp = { name: "W社人格", affiliation: "W社" };
   const buffText = "N社所属の味方にスキル威力+2を付与";
