@@ -830,6 +830,8 @@ test("複合所属名を正しく解決し、同所属バフだけを本人へ�
   const wrongReason = api.kindMods(wrappedAffiliationBuff, "斬撃", dice, wrongAffiliation).reasons[0];
   assert.equal(wrongReason.excludedRecipient, true, "wrapped affiliation restrictions must not leak to unrelated Personas");
   assert.equal(api.skillBonus({ type: "斬撃", effect: wrappedAffiliationBuff, dice }, wrongAffiliation).bonus, 0);
+  assert.equal(api.passiveBonus({ ...endMarker, passives: wrappedAffiliationBuff }, { type: "斬撃", dice }).bonus, 2);
+  assert.equal(api.passiveBonus({ ...wrongAffiliation, passives: wrappedAffiliationBuff }, { type: "斬撃", dice }).bonus, 0);
 
   for (const [wrapped, expected] of [
     ["使用時：マッ\\nチ威力+1", "マッチ威力+1"],
