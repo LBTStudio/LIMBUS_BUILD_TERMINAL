@@ -473,66 +473,6 @@ test("資源の明示上限と前ラウンドのスキル選択上限を適用�
   assert.equal(capped.total, 5, "資源そのものの最大蓄積量を超えない");
 });
 
-test("前ラウンドに同じスキルを再使用する場合の資源獲得を数え、1R限定資源の即時獲得は持ち越さない", () => {
-  const { api } = loadHelpers();
-  const skill = {
-    name: "罪悪を貫く釘",
-    type: "貫通",
-    effect: "マッチ勝利時：次のRに狂信4を得る",
-    dice: [{ effect: "" }]
-  };
-  const persona = {
-    name: "N社握る者",
-    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 数値2ごとにダメージ量が1増加" }],
-    skills: [skill]
-  };
-  const supply = api.resourceSupplyFor(persona, skill, "狂信");
-  assert.equal(supply.total, 4, "同じスキルを前ラウンドに使用して得た次R分は本人の蓄積として数える");
-  assert.equal(supply.maximum, 10);
-
-  const immediateSkill = {
-    name: "即時獲得",
-    type: "斬撃",
-    effect: "使用時：狂信2を得る",
-    dice: [{ effect: "" }]
-  };
-  const immediate = api.resourceSupplyFor({
-    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 数値2ごとにダメージ量が1増加" }],
-    skills: [immediateSkill]
-  }, immediateSkill, "狂信");
-  assert.equal(immediate.total, 2, "当該スキル使用時の獲得は加算する");
-  assert.equal(immediate.unresolved, false, "1R限定の即時獲得を前ラウンドから持ち越さない");
-});
-
-test("資源の明示上限と前ラウンドのスキル選択上限を適用する", () => {
-  const { api } = loadHelpers();
-  const strongest = {
-    name: "大釘打ち",
-    effect: "マッチ敗北時：次のRに狂信3を得る",
-    dice: [{ effect: "" }]
-  };
-  const weaker = {
-    name: "狂的な浄化",
-    effect: "マッチ勝利時：次のRに狂信1を得る",
-    dice: [{ effect: "" }]
-  };
-  const persona = {
-    unique_buffs: [{ name: "狂信", max: 10, desc: "[1R] 数値2ごとにダメージ量が1増加" }],
-    skills: [strongest, weaker]
-  };
-  const supply = api.resourceSupplyFor(persona, strongest, "狂信");
-  assert.equal(supply.total, 3, "前ラウンドに使えるスキルは最大1つとして最大供給を採用");
-  assert.equal(supply.maximum, 10);
-
-  const capped = api.resourceSupplyFor({
-    unique_buffs: [{ name: "狂信", max: 5, desc: "[1R] 狂信" }],
-    passive_effect: "R開始時、自分に狂信4を得る",
-    skills: [strongest]
-  }, strongest, "狂信");
-  assert.equal(capped.rawTotal, 7);
-  assert.equal(capped.total, 5, "資源そのものの最大蓄積量を超えない");
-});
-
 test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越せる量で評価する", () => {
   const { api } = loadHelpers();
   const open = '<script id="persona-data" type="application/json">';
