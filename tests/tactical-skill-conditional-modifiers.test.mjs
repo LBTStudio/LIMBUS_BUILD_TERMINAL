@@ -520,6 +520,18 @@ test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越�
     assert.equal(scaled.value,expected,persona.name+" は本人の到達可能量から比例補正を算出する");
     assert.equal(scaled.resourceSupply.total,attainable(persona));
   }
+
+  const holderSkill=holder.skills.find(item=>item.name==="罪悪を貫く釘");
+  const impossible=api.kindMods("自分の狂信が10以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
+  assert.equal(impossible.value,0,"本人の到達量4では狂信10以上の条件を成立扱いにしない");
+  assert.equal(impossible.unresolved,false);
+  assert.equal(impossible.resourceSupply.total,4);
+  const reachable=api.kindMods("自分の狂信が4以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
+  assert.equal(reachable.value,2,"到達可能な閾値は通常どおり評価する");
+  const target=api.kindMods("対象の狂信が10以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
+  assert.equal(target.value,null,"対象側の資源量は本人の蓄積量で代用しない");
+  assert.equal(target.unresolved,true);
+  assert.ok(target.conditionCategories.includes("targetStatus"));
 });
 
 test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
