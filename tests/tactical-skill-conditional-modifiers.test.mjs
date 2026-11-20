@@ -925,6 +925,34 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   }
 });
 
+test("状態名を挟んだ両隣の味方への威力増加付与を本人に加算しない", () => {
+  const { api, controls } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  const effect = "戦闘開始時：両隣の味方に嫉妬威力増加1を付与";
+  const reason = api.kindMods(effect, "斬撃", dice, {}).reasons[0];
+
+  assert.ok(reason, "威力増加の記述を検出する");
+  assert.equal(reason.recipientScope, "other");
+  assert.equal(reason.excludedRecipient, true);
+  const row = { dieRows: [{}, {}], passCandidates: [], effectCandidates: [reason] };
+  controls.includeEffect.checked = true;
+  controls.includeConditional.checked = true;
+  assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
+});
+
+test("同所属の味方が別スキルを使う条件を受け手指定と誤認しない", () => {
+  const { api } = loadHelpers();
+  const effect = "使用時：自分と同じ所属のキャラクターがスキル4を使う時、使う味方の数だけスキル威力+2（最大6）";
+  const reason = api.kindMods(effect, "斬撃", [{ effect: "" }], {
+    name: "ダンダダダダ工房所属フィクサー レミス"
+  }).reasons[0];
+
+  assert.ok(reason, "威力補正を検出する");
+  assert.equal(reason.recipientScope, "selfOrUnspecified");
+  assert.equal(reason.excludedRecipient, false);
+  assert.equal(reason.unresolved, true, "人数が不明な条件値は加算しない");
+});
+
 test("味方が使用する別スキルへの威力補正は本人のスキル威力に混ぜない", () => {
   const { api } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
