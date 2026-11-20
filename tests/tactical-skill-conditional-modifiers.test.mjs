@@ -1595,7 +1595,7 @@ test("回数依存で数値が確定しないスキル威力減少も候補と�
 
 test("前行の数値未確定式をマッチ敗北時の固定減少へ引き継がない", () => {
   const { api } = loadHelpers();
-  const source = "死亡した味方の数だけスキル威力が増加（最大5）\\nマッチ敗北時：スキル威力-15";
+  const source = "死亡した味方の数だけスキル威力が増加（最大5）\nマッチ敗北時：スキル威力-15";
   const result = api.kindMods(source, "斬撃", [{ roll: "2d8", effect: "" }]).reasons;
   const penalty = result.find(item => item.source === "スキル威力-15");
   assert.ok(penalty);
