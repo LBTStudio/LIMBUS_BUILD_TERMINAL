@@ -266,6 +266,7 @@ test("人格・別冊・パッシブ全データを走査し、上限値だけ�
             assert.equal(item.value, null, persona.name + " / " + (skill.name || skill.rank));
             assert.equal(item.unresolved, true, persona.name + " / " + (skill.name || skill.rank));
           }
+          if ((item.targetConditions || []).length) assert.equal(item.conditional, true, persona.name + " / " + (skill.name || skill.rank));
           for (const target of item.targetConditions || []) {
             if (target.kind === "targetType") targetTypes.add(target.value);
             if (target.kind === "targetStatus") targetStatuses.add(target.value);
