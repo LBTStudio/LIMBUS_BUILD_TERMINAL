@@ -249,6 +249,112 @@ test("対象が状態異常を保有する条件は対象種別ではなく対�
   assert.equal(type[0].kind, "targetType");
 });
 
+test("対象状態・対象数値の段階比例条件も個別フィルターへ分類する", () => {
+  const { api } = loadHelpers();
+  const statusText = "使用時：対象の火傷と振動の合計が7ごとにスキル威力+1（最大2）";
+  const status = api.targetConditionDetails(statusText);
+  assert.deepEqual(Array.from(status, x => [x.kind, x.value]), [["targetStatus", "火傷と振動の合計"]]);
+  const statusModifier = api.kindMods(statusText, "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(statusModifier.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(statusModifier.targetConditions, x => [x.kind, x.value]), [["targetStatus", "火傷と振動の合計"]]);
+
+  const debuffText = "メインターゲットのデバフの種類2ごとにスキル威力+1";
+  const debuffs = api.targetConditionDetails(debuffText);
+  assert.deepEqual(Array.from(debuffs, x => [x.kind, x.value]), [["targetStatus", "デバフの種類"]]);
+
+  const speedText = "対象との速度差2ごとにスキル威力+1";
+  const speed = api.targetConditionDetails(speedText);
+  assert.deepEqual(Array.from(speed, x => [x.kind, x.value]), [["targetStat", "速度差"]]);
+  const speedModifier = api.kindMods(speedText, "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(speedModifier.conditionCategories.includes("targetStat"));
+
+  const hp = api.targetConditionDetails("対象の失ったHP10ごとにダメージ量+1");
+  assert.deepEqual(Array.from(hp, x => [x.kind, x.value]), [["targetStat", "失ったHP"]]);
+
+  const namedStatus = api.targetConditionDetails("対象の紅梅が10ならスキル威力+1");
+  assert.deepEqual(Array.from(namedStatus, x => [x.kind, x.value]), [["targetStatus", "紅梅"]]);
+
+  const mixed = api.targetConditionDetails("対象が束縛状態かつ速度が1ならばスキル威力+6");
+  assert.ok(mixed.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(mixed.some(x => x.kind === "targetStatus" && /束縛状態/.test(x.value)));
+
+  const relativeSpeed = api.targetConditionDetails("自分の速度が対象の速度より高ければスキル威力+2");
+  assert.ok(relativeSpeed.some(x => x.kind === "targetStat" && x.value === "速度"));
+
+  const targetDebuffs = api.targetConditionDetails("メインターゲットに付与されたデバフの種類1つごとにスキル威力+1");
+  assert.ok(targetDebuffs.some(x => x.kind === "targetStatus" && x.value === "デバフの種類"));
+
+  const matchCount = api.targetConditionDetails("対象とのマッチ回数2ごとにマッチ威力+2");
+  assert.ok(matchCount.some(x => x.kind === "targetStat" && x.value === "マッチ回数"));
+  const ownedDebuffs = api.targetConditionDetails("対象の保有するデバフ2種ごとにスキル威力+1");
+  assert.ok(ownedDebuffs.some(x => x.kind === "targetStatus" && x.value === "デバフの種類"));
+  const debuffCount = api.targetConditionDetails("対象のデバフの種類の数だけスキル威力+1");
+  assert.ok(debuffCount.some(x => x.kind === "targetStatus" && x.value === "デバフの種類"));
+  const mixedResourceTarget = api.targetConditionDetails("自分の呼吸と対象の出血の合計6ごとにスキル威力+1");
+  assert.ok(mixedResourceTarget.some(x => x.kind === "targetStatus" && x.value === "出血の合計"));
+  const alternateCounter = api.targetConditionDetails("対象の恐慌と振動の合計4に付きスキル威力+1");
+  assert.ok(alternateCounter.some(x => x.kind === "targetStatus" && x.value === "恐慌と振動の合計"));
+  const speedGap = api.targetConditionDetails("対象と速度差2以下ならスキル威力+1");
+  assert.ok(speedGap.some(x => x.kind === "targetStat" && x.value === "速度差"));
+  const equalSpeed = api.targetConditionDetails("対象と自分の速度が同じならスキル威力+1");
+  assert.ok(equalSpeed.some(x => x.kind === "targetStat" && x.value === "速度"));
+  const mixedThreshold = api.targetConditionDetails("自分の呼吸と対象の出血の合計が6以上ならスキル威力+1");
+  assert.ok(mixedThreshold.some(x => x.kind === "targetStatus" && x.value === "出血の合計"));
+  const targetSpeedBelow = api.targetConditionDetails("対象の速度が自分より3以上低ければスキル威力+1");
+  assert.ok(targetSpeedBelow.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(!targetSpeedBelow.some(x => x.kind === "targetStatus" && /自分より/.test(x.value)));
+  const ownSpeedAbove = api.targetConditionDetails("自分の速度が対象よりも3以上高ければスキル威力+1");
+  assert.ok(ownSpeedAbove.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(!ownSpeedAbove.some(x => x.value === "も"), "比較助詞を対象数値名として扱わない");
+  const enemyPresence = api.targetConditionDetails("戦闘開始時：仕返し対象状態の敵がいるなら、次のRに味方へ威力増加1を付与。使用時：対象が仕返し対象ならスキル威力+2");
+  assert.ok(!enemyPresence.some(x => x.value === "いる"), "敵の存在条件を対象状態として誤分類しない");
+  const absentStatus = api.targetConditionDetails("対象に引き裂かれた色彩[ルージュ]がないならスキル威力+1");
+  assert.ok(absentStatus.some(x => x.kind === "targetStatus" && x.value === "引き裂かれた色彩[ルージュ]"));
+  const presentThreshold = api.targetConditionDetails("対象に沈潜が8以上あるならスキル威力+1");
+  assert.ok(presentThreshold.some(x => x.kind === "targetStatus" && x.value === "沈潜"));
+  const statusCount = api.targetConditionDetails("対象の振動の数だけスキル威力+1");
+  assert.ok(statusCount.some(x => x.kind === "targetStatus" && x.value === "振動"));
+  const statusFraction = api.targetConditionDetails("対象の振動/3だけスキル威力+1");
+  assert.ok(statusFraction.some(x => x.kind === "targetStatus" && x.value === "振動"));
+  const multipliedCount = api.targetConditionDetails("対象の破壊不能ダイスx2だけスキル威力+1");
+  assert.ok(multipliedCount.some(x => x.kind === "targetStatus" && x.value === "破壊不能ダイス"));
+  const allEnemies = api.targetConditionDetails("敵全体の火傷10ごとにスキル威力+1");
+  assert.ok(allEnemies.some(x => x.kind === "targetStatus" && x.value === "火傷"));
+  const targetDefenseDie = api.targetConditionDetails("対象のダイスが防御ダイスならスキル威力+1");
+  assert.ok(targetDefenseDie.some(x => x.kind === "targetType" && x.value === "防御ダイス"));
+  const speedGapWithParticle = api.targetConditionDetails("対象と速度差が1以下ならスキル威力+2");
+  assert.ok(speedGapWithParticle.some(x => x.kind === "targetStat" && x.value === "速度差"));
+  const specialVibration = api.targetConditionDetails("対象の振動が特殊振動ならマッチ威力+2");
+  assert.ok(specialVibration.some(x => x.kind === "targetStatus" && x.value === "特殊振動"));
+  const bracketedStatus = api.targetConditionDetails("対象の[光電]だけスキル威力増加（最大3）");
+  assert.ok(bracketedStatus.some(x => x.kind === "targetStatus" && x.value === "光電"));
+  for (const [source, expected] of [
+    ["対象の振動が特殊振動ならマッチ威力+2", "特殊振動"],
+    ["対象の[光電]だけスキル威力増加（最大3）", "光電"]
+  ]) {
+    const modifier = api.kindMods(source, "斬撃", [{ effect: "" }]).reasons[0];
+    assert.ok(modifier, source);
+    assert.ok(modifier.targetConditions.some(x => x.kind === "targetStatus" && x.value === expected), source);
+  }
+
+
+  for (const source of [
+    "対象に引き裂かれた色彩[ルージュ]がないならスキル威力+1",
+    "対象に沈潜が8以上あるならスキル威力+1",
+    "対象の振動の数だけスキル威力+1",
+    "対象の振動/3だけスキル威力+1",
+    "対象の破壊不能ダイスx2だけスキル威力+1"
+  ]) {
+    const modifier = api.kindMods(source, "斬撃", [{ effect: "" }]).reasons[0];
+    assert.ok(modifier, source);
+    assert.ok(modifier.targetConditions.length > 0, source);
+    assert.ok(modifier.conditionCategories.includes("targetStatus"), source);
+  }
+
+
+
+});
+
 
 test("人格・別冊・パッシブ全データを走査し、上限値だけの資源補正を加算しない", () => {
   const { api } = loadHelpers();
@@ -945,6 +1051,23 @@ test("同所属でも自分以外と指定された付与は本人に加算し�
   assert.equal(reason.recipientScope, "other");
   assert.equal(reason.excludedRecipient, true);
   assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, persona).bonus, 0);
+});
+
+test("直前の文で指定された自分以外の味方への追加威力付与を本人に加算しない", () => {
+  const { api } = loadHelpers();
+  const effect = "攻撃後、対象が混乱するか死亡したなら、自分を除くSANが最も高い味方に次のRにて貫通ダメージ量増加1を付与。対象が薬指所属なら追加で貫通威力増加1を付与";
+  const dice = [{ effect }];
+  const reason = api.kindMods(effect, "貫通", dice, {}).reasons.find(item => item.source === "貫通威力増加1");
+
+  assert.ok(reason, "後続の追加威力付与を検出する");
+  assert.equal(reason.recipientScope, "other");
+  assert.equal(reason.excludedRecipient, true);
+  assert.equal(api.skillBonus({ type: "貫通", effect, dice }, {}).bonus, 0);
+
+  const selfEffect = "攻撃後：自分以外の味方全員に貫通ダメージ量増加1を付与。対象が薬指所属なら追加でスキル威力+2";
+  const selfReason = api.kindMods(selfEffect, "斬撃", dice, {}).reasons[0];
+  assert.ok(selfReason);
+  assert.equal(selfReason.excludedRecipient, false, "後続が本人の威力補正なら直前の受け手を引き継がない");
 });
 
 test("選出対象の味方への付与は適用先未確定として加算を保留する", () => {
