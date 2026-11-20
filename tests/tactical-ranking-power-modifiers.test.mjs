@@ -342,3 +342,37 @@ test("rendered ranking rows keep twelve cells after adding conditional EV", () =
   assert.ok(htmlRow, "ranking row rendered");
   assert.equal((htmlRow[1].match(/<td\b/g) || []).length, 12);
 });
+
+
+test("メリアニア工房代表スピノのマッチ敗北時-15は今回EVに加算しない", () => {
+  const { tool, element } = createToolHarness();
+  element("includeConditional").checked = true;
+  const rows = Array.from(tool.records).filter(row =>
+    row.persona.name === "メリアニア工房代表 スピノ" &&
+    ["支援", "万歳突撃"].includes(row.skill.name)
+  );
+  assert.equal(rows.length, 2);
+  for (const row of rows) {
+    const penalty = row.effectCandidates.find(item => /スキル威力-15/.test(item.source || ""));
+    assert.ok(penalty, row.skill.name + " の負の補正を検出する");
+    assert.equal(penalty.value, -15);
+    assert.equal(penalty.afterResolution, true);
+    assert.equal(penalty.conditional, true);
+    assert.equal(tool.conditionalBonus(row, "all", "effect"), 0,
+      "敗北後の威力減少を現在の攻撃EVへ含めない");
+  }
+});
+
+test("エドガー家継承者クロムの回数依存ペナルティは未確定の候補として残す", () => {
+  const { tool } = createToolHarness();
+  const row = Array.from(tool.records).find(item =>
+    item.persona.name === "エドガー家継承者 クロム" &&
+    item.skill.name === "今こそ運命の刻だ"
+  );
+  assert.ok(row);
+  const penalty = row.effectCandidates.find(item => item.label === "数値未確定の威力減少");
+  assert.ok(penalty, "動的な負の威力補正を補正内訳に表示する");
+  assert.equal(penalty.value, null);
+  assert.equal(penalty.unresolved, true);
+  assert.equal(penalty.conditional, true);
+});
