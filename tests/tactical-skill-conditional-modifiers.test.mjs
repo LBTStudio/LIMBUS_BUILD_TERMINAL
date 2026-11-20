@@ -925,6 +925,20 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   }
 });
 
+test("他の味方の人数を参照する自己威力補正を他者への付与と誤認しない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  for (const effect of [
+    "使用時：群れたハイエナ所属の他の味方1名ごとにスキル威力+1（最大5）",
+    "自分以外の味方の数だけスキル威力+1"
+  ]) {
+    const reason = api.kindMods(effect, "斬撃", dice, { affiliation: "群れたハイエナ" }).reasons[0];
+    assert.ok(reason, effect);
+    assert.equal(reason.excludedRecipient, false, effect);
+    assert.notEqual(reason.recipientScope, "other", effect);
+  }
+});
+
 test("自分を除外しない味方全体への付与は本人にも適用する", () => {
   const { api } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
