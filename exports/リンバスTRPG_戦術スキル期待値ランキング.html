@@ -369,7 +369,7 @@ function resourceSupplyFor(persona,skill,resource){
   addGrants(other.effect,"前ラウンドのスキル:"+String(other.name||other.rank||"名称不明")+" / 使用時","priorSkill",candidate);
   (other.dice||[]).forEach((die,index)=>addGrants(die.effect,"前ラウンドのスキル:"+String(other.name||other.rank||"名称不明")+" / ダイス"+(index+1),"priorSkill",candidate));
   if(candidate.length){
-   const hasRoundLimit=[other.effect,...(other.dice||[]).map(x=>x.effect||"")].join("\n").includes("1Rに1回");
+   const hasRoundLimit=[other.effect,...(other.dice||[]).map(x=>x.effect||"")].join("\\n").includes("1Rに1回");
    const win=candidate.filter(x=>x.matchOutcome==="win").reduce((sum,x)=>sum+x.amount,0);
    const loss=candidate.filter(x=>x.matchOutcome==="loss").reduce((sum,x)=>sum+x.amount,0);
    const otherGains=candidate.filter(x=>!x.matchOutcome).reduce((sum,x)=>sum+x.amount,0);
@@ -412,7 +412,7 @@ function resourceSupplyFor(persona,skill,resource){
    if(!/(?:舞台|戦闘|R)開始時/.test(before)){unknownSupport.push(item.name);continue;}
    rawTotal+=Number(m[2]);supportGrantCount++;parsedGrant=true;notes.push(item.name+" +"+m[2]+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
   }
-  const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量(?:と[^、。\n]{0,20})?[^、。\n]{0,8}?(?:\\+\\s*(\\d+)|(?:が)?\\s*(\\d+)\\s*(?:増加|上昇))"));
+  const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量(?:と[^、。\\n]{0,20})?[^、。\\n]{0,8}?(?:\\+\\s*(\\d+)|(?:が)?\\s*(\\d+)\\s*(?:増加|上昇))"));
   if(gain){
    const eligible=grants.filter(x=>!/スキルで獲得する/.test(effect)||x.mode==="skill"||x.mode==="priorSkill");
    if(eligible.length){
