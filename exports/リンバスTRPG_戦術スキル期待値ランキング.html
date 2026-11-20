@@ -246,6 +246,16 @@ function resourceScalingDetails(context){
 function selectedResourceSupportPassives(){
  return String($("resourceSupportPassiveNames")?.value||"").split(/[、,，]/).map(x=>x.trim()).filter(Boolean);
 }
+function resourceMaximumFor(persona,resource){
+ const local=[...(persona?.unique_buffs||[]),...(persona?.unique||[])].filter(item=>String(item?.name||"")===resource);
+ const allRecords=[
+  ...(typeof EMBEDDED_DB!=="undefined"?[...(EMBEDDED_DB.normal_personas||[]),...(EMBEDDED_DB.tokui_personas||[])]:[]),
+  ...(typeof APPENDIX!=="undefined"&&Array.isArray(APPENDIX)?APPENDIX:[])
+ ];
+ const records=local.length?local:allRecords.flatMap(record=>[...(record.unique_buffs||[]),...(record.unique||[])]).filter(item=>String(item?.name||"")===resource);
+ const maxima=records.map(item=>Number(item?.max)).filter(value=>Number.isFinite(value)&&value>0);
+ return maxima.length?Math.min(...maxima):null;
+}
 function resourceSupplyFor(persona,skill,resource){
  const grants=[],selected=new Set(selectedResourceSupportPassives()),unknownSources=[],unknownSupport=[];
  const affiliation=String(persona?.affiliation||affiliationFromName(persona?.name||""));
@@ -254,15 +264,16 @@ function resourceSupplyFor(persona,skill,resource){
  const addGrants=(text,label,mode,target=grants)=>{
   const source=String(text||"");
   for(const m of source.matchAll(grantPattern)){
-   const before=source.slice(Math.max(0,m.index-100),m.index);
+   const clauseStart=Math.max(source.lastIndexOf("。",m.index),source.lastIndexOf("\n",m.index))+1;
+   const before=source.slice(clauseStart,m.index);
    const selfRecipient=/(?:自分|自身|本人)に/.test(before);
    const otherRecipient=/(?:味方|対象|敵|相手|前方|後方|両隣)に/.test(before);
    if(otherRecipient&&!selfRecipient)continue;
    const later=/マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃時|攻撃後|守備成功時|回避成功時|被攻撃時|R終了時/.test(before);
    const nextRound=/次のR|次R/.test(before);
    if(mode==="priorSkill"){
-    const priorTiming=/(?:使用前|使用時|マッチ開始時|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃後|守備成功時|回避成功時|次のR|次R)/.test(before);
-    if(!priorTiming){unknownSources.push(label);continue;}
+    // A prior-round skill only contributes resources explicitly carried into the following round.
+    if(!/(?:次のR|次R|R終了時)/.test(before)){unknownSources.push(label);continue;}
     target.push({amount:Number(m[2]||m[4]||m[6]),source:label,mode,conditional:true});
     continue;
    }
@@ -279,10 +290,9 @@ function resourceSupplyFor(persona,skill,resource){
  addGrants(skill?.effect,"当該スキル使用時","skill");
  const priorSkillOptions=[];
  for(const other of persona?.skills||[]){
-  if(other===skill)continue;
   const candidate=[];
-  addGrants(other.effect,"他スキル:"+String(other.name||other.rank||"名称不明")+" / 使用時","priorSkill",candidate);
-  (other.dice||[]).forEach((die,index)=>addGrants(die.effect,"他スキル:"+String(other.name||other.rank||"名称不明")+" / ダイス"+(index+1),"priorSkill",candidate));
+  addGrants(other.effect,"前ラウンドのスキル:"+String(other.name||other.rank||"名称不明")+" / 使用時","priorSkill",candidate);
+  (other.dice||[]).forEach((die,index)=>addGrants(die.effect,"前ラウンドのスキル:"+String(other.name||other.rank||"名称不明")+" / ダイス"+(index+1),"priorSkill",candidate));
   if(candidate.length){
    const hasRoundLimit=[other.effect,...(other.dice||[]).map(x=>x.effect||"")].join("\\n").includes("1Rに1回");
    const amount=hasRoundLimit?Math.max(...candidate.map(x=>x.amount)):candidate.reduce((sum,x)=>sum+x.amount,0);
@@ -291,7 +301,7 @@ function resourceSupplyFor(persona,skill,resource){
  }
  if(priorSkillOptions.length){
   const best=priorSkillOptions.sort((a,b)=>b.amount-a.amount)[0];
-  grants.push({amount:best.amount,source:"他スキル準備（最大1スキル）",mode:"priorSkill",conditional:true});
+  grants.push({amount:best.amount,source:"前ラウンドのスキル準備（最大1スキル）",mode:"priorSkill",conditional:true});
  }
  if(resource==="弾丸"){
   const bullets=Number(persona?.bullets);
@@ -302,7 +312,7 @@ function resourceSupplyFor(persona,skill,resource){
   if(/自分を含めて/.test(selfText)&&/N社狂信者に[^。\\n]{0,30}狂信1を付与/.test(selfText))
    grants.push({amount:1,source:"N社狂信者への常時付与（自分を含む）",mode:"passive",conditional:true});
  }
- let total=grants.reduce((sum,x)=>sum+x.amount,0),notes=grants.map(x=>x.source+" +"+x.amount);
+ let rawTotal=grants.reduce((sum,x)=>sum+x.amount,0),notes=grants.map(x=>x.source+" +"+x.amount);
  let conditional=grants.some(x=>x.conditional),supportGrantCount=0;
  const support=(typeof EMBEDDED_DB!=="undefined"&&Array.isArray(EMBEDDED_DB.support_passives))?EMBEDDED_DB.support_passives:[];
  for(const item of support){
@@ -328,8 +338,11 @@ function resourceSupplyFor(persona,skill,resource){
    unknownSupport.push(item.name);
   }
  }
+ const maximum=resourceMaximumFor(persona,resource);
+ const total=maximum==null?rawTotal:Math.min(rawTotal,maximum);
+ if(maximum!=null&&rawTotal>maximum)notes.push("資源上限 "+maximum+" により "+rawTotal+" から制限");
  const unknown=[...new Set([...unknownSources,...unknownSupport])];
- return {known:grants.length>0||supportGrantCount>0,total,notes,conditional,grantCount:grants.length+supportGrantCount,unknown,unresolved:unknown.length>0};
+ return {known:grants.length>0||supportGrantCount>0,total,rawTotal,maximum,notes,conditional,grantCount:grants.length+supportGrantCount,unknown,unresolved:unknown.length>0};
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
