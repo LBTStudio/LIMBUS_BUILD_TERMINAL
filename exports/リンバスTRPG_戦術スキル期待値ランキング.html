@@ -138,6 +138,8 @@ tbody td{padding:7px}
     <label class="check"><input type="checkbox" id="condResource" checked> 呼吸・充電・弾丸など</label>
     <label class="check"><input type="checkbox" id="condStats" checked> HP・SAN・速度</label>
     <label class="check"><input type="checkbox" id="condTeam" checked> 共鳴・所属・味方編成</label>
+    <label class="check"><input type="checkbox" id="condTargetStatus" checked> 対象の状態・デバフ</label>
+    <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別・所属</label>
     <label class="check"><input type="checkbox" id="condTrigger" checked> マッチ・会心・討伐など</label>
     <label class="check"><input type="checkbox" id="condOther" checked> その他・分類不能</label>
    </div>
@@ -195,13 +197,26 @@ function slotOf(rank){
  const m=String(rank??"").match(/(?:スキル)?\s*(\d+)/);
  return m?Number(m[1]):null;
 }
-const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",trigger:"condTrigger",other:"condOther"};
+const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetType:"condTargetType",trigger:"condTrigger",other:"condOther"};
+function targetConditionDetails(context){
+ const s=String(context||""),items=[];
+ for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g)){
+  const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
+ }
+ for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
+  const value=m[1].trim();if(value)items.push({kind:"targetType",value});
+ }
+ return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
+}
 function conditionClasses(context){
  const s=String(context||""),tags=[];
  if(/出血|破裂|沈潜|火傷|振動|束縛|麻痺|恐慌|混乱|呪い|脆弱|デバフ|状態|武装解除|虚弱|挑発|守る剣|貫く剣|ヒステリー|血鬼|血袋|仕返し対象|指令対象|特殊振動|眩惑|毒/.test(s))tags.push("status");
- if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|保有|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴/.test(s))tags.push("resource");
+ if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|保有|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴|狂信/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
  if(/共鳴|所属|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(s))tags.push("team");
+ const targetConditions=targetConditionDetails(s);
+ if(targetConditions.some(x=>x.kind==="targetStatus"))tags.push("targetStatus");
+ if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
  if(/マッチ|クリティカル|敵討伐|攻撃的中|被攻撃|マッチ勝利時|マッチ敗北時|使用時|戦闘開始時|R開始時|攻撃前|攻撃後|次のR|次R|的中時|相殺時|守備成功時|回避成功時/.test(s))tags.push("trigger");
  return tags.length?tags:["other"];
 }
@@ -276,7 +291,7 @@ function kindMods(text,skillType,dice=[]){
    if(p.kind==="signed"){
     const raw=Number(String(m[2]||"0").replace(/\s/g,""));
     value=explicitMax>0?(raw>=0?Math.max(raw,explicitMax):raw):rangeValue>0?Math.max(raw,rangeValue):raw;
-    if(perUnit&&!cap){value=null;unresolved=true;}
+    if(perUnit){value=null;unresolved=true;}
    }else if(p.kind==="change"){
     value=Number(m[2]||0)*(m[3]==="減少"?-1:1);
    }else if(p.kind==="postfix"){
@@ -288,11 +303,12 @@ function kindMods(text,skillType,dice=[]){
    }else{
     unresolved=true;
    }
+   if(perUnit){value=null;unresolved=true;}
    const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
    const conditional=unresolved||perUnit||(p.range&&rangeValue>0)||/なら|ならば|であれば|の場合|ご\s*とに|につき|\d+以上|\d+以下|\d+未満|数だけ|数値|保有|共鳴|消費|吸収|死亡|状態/.test(context)||event;
    const targetType=p.targetGroup?m[p.targetGroup]:null;
    const targets=targetsForModifier(p.scope,dice.length,dice,targetType,skillType);
-   reasons.push({label:p.label,value,scope:p.scope,targets,conditional,conditionCategories:conditionClasses(context),unresolved,source:m[0],context});
+   reasons.push({label:p.label,value,scope:p.scope,targets,conditional,conditionCategories:conditionClasses(context),targetConditions:targetConditionDetails(context),resourceScaling:perUnit,unresolved,source:m[0],context});
    occupied.push([start,end]);
   }
  }
@@ -301,7 +317,8 @@ function kindMods(text,skillType,dice=[]){
 function formatModifierReason(x,origin=""){
  const amount=x.unresolved?"数値未確定":`${x.value>=0?"+":""}${x.value}`;
  const scope=x.scope==="all"?"全ダイス":x.scope==="first"?"最初のダイス":x.scope==="last"?"最終ダイス":x.scope==="matching"?"該当属性ダイス":"対象ダイス";
- return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${x.conditional?(x.unresolved?"（条件式・数値未確定）":"（条件付き候補）"):""}`;
+ const target=x.targetConditions?.length?` / 対象:${x.targetConditions.map(item=>item.value).join("・")}`:"";
+ return `${origin?origin+": ":""}${x.label} ${amount} / ${scope}${target}${x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):""}`;
 }
 function uniqueEffectText(u){
  const text=[u.name,u.desc,u.effect].filter(Boolean).join(" ");
@@ -497,7 +514,7 @@ function updateSortHeaders(){
  });
 }
 function filterKey(){
- return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
+ return ["q","source","kind","slot","type","sin","sort","includePassive","includeEffect","includeExtra","excludeCounter","excludeDefense","excludeNormal","includeConditional","condStatus","condResource","condStats","condTeam","condTargetStatus","condTargetType","condTrigger","condOther"].map(id=>$(id).type==="checkbox"?$(id).checked:$(id).value).join("|")+"|column:"+customSortColumn+"|direction:"+customSortDirection;
 }
 function filteredRecords(){
  const key=filterKey();if(resultCache&&resultCacheKey===key)return resultCache;
@@ -533,10 +550,10 @@ function render(){
  $("rows").innerHTML=pageRows.map((r,i)=>{
   const p=r.persona,s=r.skill,source=p.source==="別冊"?`別冊 p.${(s.dice||[]).map(d=>d.page).filter(Boolean)[0]||p.pages?.[0]||"?"}`:`${p.source==="基本"?"基本":"パック"} No.${p.raw?.no??"—"}`;
   const notes=[...r.passReasons.map(x=>"固有/パッシブ: "+x),...r.effectReasons.map(x=>"スキル効果: "+x)];
-  const detail=[p.passive_name?`${p.passive_name} [${p.passive_cond||"条件不明"}]\n${r.passText}`:r.passText,s.effect,...(s.dice||[]).map((d,j)=>`${d.roll}: ${d.effect||""}`)].filter(Boolean).join("\n\n");
+  const detail=notes.length?notes.join("\n"):"数値化できる明示的な威力補正なし";
   const slot=s.slot===null?"枠?":`戦術${s.slot}`;
   const metric=individualMode?dieMetric(r,r.rankDieIndex):{base:r.base,passive:r.passive,effect:r.effect,conditional:conditionalBonus(r,"all"),candidate:conditionalBonus(r,"potential"),all:r.all+conditionalBonus(r,"all"),selected:selectedValue(r)};
-  return `<tr><td class="num">${(currentPage-1)*PAGE_SIZE+i+1}</td><td><span class="persona">${esc(p.name)}</span><span class="sub">${esc(p.kind)} · ${esc(p.affiliation||"")}<br>${esc(source)}</span></td><td><span class="pill">${esc(slot)}</span><span class="sub">${esc(s.type||"")}</span></td><td>${esc(s.name||s.rank||"名称不明")}${individualMode?` <span class="pill">D${r.rankDieIndex+1} 個別</span>`:""}<span class="sub">${esc(s.sin||"")}</span>${detail?`<details><summary>効果・補正根拠</summary><p>${esc(detail)}${notes.length?"\n\n抽出された補正:\n"+esc(notes.join("\n")):"\n\n数値化できる明示的な威力補正なし"}</p></details>`:""}</td><td>${individualMode?`<strong>D${r.rankDieIndex+1}: ${esc(r.rankDie.roll)}</strong>`:esc(r.diceText)}</td><td class="num base">${metric.base.toFixed(2)}</td><td class="num pass">${(metric.base+metric.passive).toFixed(2)}<span class="sub">+${metric.passive.toFixed(2)}</span></td><td class="num effect">${(metric.base+metric.effect).toFixed(2)}<span class="sub">+${metric.effect.toFixed(2)}</span></td><td class="num condition">${metric.conditional>=0?"+":""}${metric.conditional.toFixed(2)}<span class="sub">候補 ${metric.candidate>=0?"+":""}${metric.candidate.toFixed(2)}</span></td><td class="num">${metric.all.toFixed(2)}</td><td class="diceev">${individualMode?`<span class="sub">D${r.rankDieIndex+1} ${esc(r.rankDie.roll)}</span> <b>${metric.selected.toFixed(2)}</b>`:r.dieRows.map((d,j)=>`<span class="sub">D${j+1} ${esc(d.roll)}</span> <b>${(d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(r,j)).toFixed(2)}</b>`).join("<br>")}</td><td class="num selected">${valueForRow(r).toFixed(2)}</td></tr>`;
+  return `<tr><td class="num">${(currentPage-1)*PAGE_SIZE+i+1}</td><td><span class="persona">${esc(p.name)}</span><span class="sub">${esc(p.kind)} · ${esc(p.affiliation||"")}<br>${esc(source)}</span></td><td><span class="pill">${esc(slot)}</span><span class="sub">${esc(s.type||"")}</span></td><td>${esc(s.name||s.rank||"名称不明")}${individualMode?` <span class="pill">D${r.rankDieIndex+1} 個別</span>`:""}<span class="sub">${esc(s.sin||"")}</span>${detail?`<details><summary>補正内訳</summary><p>${esc(detail)}</p></details>`:""}</td><td>${individualMode?`<strong>D${r.rankDieIndex+1}: ${esc(r.rankDie.roll)}</strong>`:esc(r.diceText)}</td><td class="num base">${metric.base.toFixed(2)}</td><td class="num pass">${(metric.base+metric.passive).toFixed(2)}<span class="sub">+${metric.passive.toFixed(2)}</span></td><td class="num effect">${(metric.base+metric.effect).toFixed(2)}<span class="sub">+${metric.effect.toFixed(2)}</span></td><td class="num condition">${metric.conditional>=0?"+":""}${metric.conditional.toFixed(2)}<span class="sub">候補 ${metric.candidate>=0?"+":""}${metric.candidate.toFixed(2)}</span></td><td class="num">${metric.all.toFixed(2)}</td><td class="diceev">${individualMode?`<span class="sub">D${r.rankDieIndex+1} ${esc(r.rankDie.roll)}</span> <b>${metric.selected.toFixed(2)}</b>`:r.dieRows.map((d,j)=>`<span class="sub">D${j+1} ${esc(d.roll)}</span> <b>${(d.base+($("includePassive").checked?d.passive:0)+($("includeEffect").checked?d.effect:0)+conditionalPerDie(r,j)).toFixed(2)}</b>`).join("<br>")}</td><td class="num selected">${valueForRow(r).toFixed(2)}</td></tr>`;
  }).join("");
  $("pageInfo").textContent=`${currentPage} / ${pageCount} ページ · 全${n}件（1ページ${PAGE_SIZE}件）`;$("prevPage").disabled=currentPage<=1;$("nextPage").disabled=currentPage>=pageCount;
 }
