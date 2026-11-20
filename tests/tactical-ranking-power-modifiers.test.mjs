@@ -358,8 +358,10 @@ test("メリアニア工房代表スピノのマッチ敗北時-15は今回EVに
     assert.equal(penalty.value, -15);
     assert.equal(penalty.afterResolution, true);
     assert.equal(penalty.conditional, true);
-    assert.equal(tool.conditionalBonus(row, "all", "effect"), 0,
-      "敗北後の威力減少を現在の攻撃EVへ含めない");
+    assert.equal(tool.conditionalBonus(row, "all", "effect"), 2,
+      "敗北後の-15は除外しつつ、味方死亡条件の今回有効な+2は残す");
+    assert.ok(row.effectCandidates.some(item => item.value === 2 && item.conditional),
+      "同じスキルに併存する今回有効な正の補正を過剰除外しない");
   }
 });
 
