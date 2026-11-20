@@ -505,6 +505,19 @@ test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越�
   assert.equal(attainable(hammer), 3, "大鎚は前ラウンドのマッチ敗北による狂信3が本人の最大供給");
   assert.equal(attainable(smallHammer), 1, "小鎚は前ラウンドのマッチ勝利による狂信1が本人の最大供給");
   assert.equal(attainable(holder), 4, "握る者は本人のスキルによる次R狂信4を数え、ランダムな味方への付与を本人保証として扱わない");
+
+  for (const [persona,skill,expected] of [
+    [hammer,hammer.skills.find(item=>item.name==="大釘打ち"),1],
+    [smallHammer,smallHammer.skills[0],0],
+    [holder,holder.skills.find(item=>item.name==="罪悪を貫く釘"),2]
+  ]) {
+    const uniqueText=api.uniqueEffectText(persona.unique_buffs[0]);
+    assert.match(uniqueText,/狂信2ごとに/,"固有バフの『数値』は固有バフ名の蓄積量として読む");
+    const scaled=api.kindMods(uniqueText,skill.type,skill.dice,persona,skill).reasons.find(item=>item.resourceScaling);
+    assert.ok(scaled,persona.name+" の狂信比例スキル威力が抽出される");
+    assert.equal(scaled.value,expected,persona.name+" は本人の到達可能量から比例補正を算出する");
+    assert.equal(scaled.resourceSupply.total,attainable(persona));
+  }
 });
 
 test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
