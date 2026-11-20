@@ -1231,3 +1231,19 @@ test("対象状態の数値表記・対象数比例を個別条件へ分類す�
   assert.ok(modifier.conditionCategories.includes("targetStatus"));
   assert.deepEqual(Array.from(modifier.targetConditions, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
 });
+
+
+test("対象状態の分数・合計・デバフ種類数・比較条件を分類する", () => {
+  const { api } = loadHelpers();
+  const cases = [
+    ["対象の火傷と出血の合計/2だけダメージ量増加", "targetStatus", "火傷と出血の合計"],
+    ["対象の火傷と出血の合計だけダメージ量増加", "targetStatus", "火傷と出血の合計"],
+    ["対象の沈潜\n/3だけ憂鬱ダメージを与える", "targetStatus", "沈潜"],
+    ["対象の保有するデバフの種類1ごとに再使用確率+10％", "targetStatus", "デバフの種類"],
+    ["対象の破裂の数より自分の呼吸の数の方が大きいならマッチ威力+1", "targetStatus", "破裂"]
+  ];
+  for (const [source, kind, value] of cases) {
+    const found = api.targetConditionDetails(source);
+    assert.ok(found.some(x => x.kind === kind && x.value === value), source);
+  }
+});
