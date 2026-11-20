@@ -726,6 +726,16 @@ test("自分を除外した味方への威力付与を評価対象本人の補�
   assert.equal(selfReason.excludedRecipient, false, "自分を含むと明記された付与は本人にも適用する");
   assert.equal(selfReason.recipientScope, "self");
   assert.equal(api.skillBonus({ type: "斬撃", effect: included, dice }, { affiliation: "N社" }).bonus, 4);
+
+  for (const sharedRecipient of [
+    "自分と最大HPが最も高い味方1名にスキル威力+2を付与",
+    "自分とエドガー家継承者人格の味方にスキル威力+2を付与"
+  ]) {
+    const shared = api.kindMods(sharedRecipient, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+    assert.equal(shared.excludedRecipient, false, sharedRecipient + " は本人も付与対象に含む");
+    assert.equal(shared.recipientScope, "self");
+    assert.equal(api.skillBonus({ type: "斬撃", effect: sharedRecipient, dice }, { affiliation: "N社" }).bonus, 4);
+  }
 });
 
 
