@@ -938,6 +938,20 @@ test("前の同所属条件が後続の味方付与へ漏れない", () => {
   assert.equal(allyGrant.excludedRecipient, true);
 });
 
+test("前の自分以外への付与が後続の本人威力補正を除外しない", () => {
+  const { api } = loadHelpers();
+  const effect = "戦闘開始時：自分以外の味方全員に嫉妬威力増加1を付与\n使用時：自分にスキル威力+2";
+  const reasons = api.kindMods(effect, "斬撃", [{ effect: "" }], {}).reasons;
+  const ally = reasons.find(item => item.source === "威力増加1");
+  const self = reasons.find(item => item.source === "スキル威力+2");
+
+  assert.ok(ally);
+  assert.equal(ally.excludedRecipient, true);
+  assert.ok(self);
+  assert.equal(self.excludedRecipient, false);
+  assert.notEqual(self.recipientScope, "other");
+});
+
 test("前の味方付与が後続の本人威力補正へ漏れない", () => {
   const { api } = loadHelpers();
   const effect = "戦闘開始時：両隣の味方に嫉妬威力増加1を付与\n使用時：自分にスキル威力+2を付与";
