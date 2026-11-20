@@ -1247,3 +1247,28 @@ test("対象状態の分数・合計・デバフ種類数・比較条件を分�
     assert.ok(found.some(x => x.kind === kind && x.value === value), source);
   }
 });
+
+
+test("実データ由来の対象状態分数・消費量・速度差を正しく分類する", () => {
+  const { api } = loadHelpers();
+  const cases = [
+    ["（対象の火傷と出血の合計/2）だけ打撃ダメージを与える", "targetStatus", "火傷と出血の合計"],
+    ["対象の\n保有するデバフの種類1ごとに再使用確率+10％", "targetStatus", "デバフの種類"],
+    ["対象との速度差/2だけこのダイスを再使用", "targetStat", "速度差"],
+    ["対象の沈潜を全て消費する。その後、消費した沈潜\n/2だけ毒を付与", "targetStatus", "沈潜"],
+    ["対象にある沈潜を最大20まで消費する。その後、消費した沈潜/3だけ毒を付与", "targetStatus", "沈潜"],
+    ["対象に付与されている武装解除/2だけ虚弱を付与", "targetStatus", "武装解除"]
+  ];
+  for (const [source, kind, value] of cases) {
+    const found = api.targetConditionDetails(source);
+    assert.ok(found.some(x => x.kind === kind && x.value === value), source);
+  }
+
+  const actualModifier = api.kindMods("対象の決闘高潮だけスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(actualModifier);
+  assert.ok(actualModifier.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(actualModifier.targetConditions, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+
+  assert.deepEqual(Array.from(api.targetConditionDetails("対象のスキル威力減少")), [],
+    "対象が受ける効果そのものを対象条件として誤分類しない");
+});
