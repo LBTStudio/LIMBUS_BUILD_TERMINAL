@@ -304,6 +304,9 @@ function resourceSupplyFor(persona,skill,resource){
   for(const m of source.matchAll(grantPattern)){
    const clauseStart=Math.max(source.lastIndexOf("。",m.index),source.lastIndexOf("\n",m.index))+1;
    const before=source.slice(clauseStart,m.index);
+   const lookback=source.slice(Math.max(0,m.index-120),m.index);
+   const timingTokens=[...lookback.matchAll(/(?:舞台|戦闘|R)開始時|使用前|使用時|マッチ開始時|マッチ進行時|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃前|攻撃後|攻撃時|守備成功時|回避成功時|被攻撃時|R終了時/g)];
+   const timingBefore=timingTokens.length?lookback.slice(timingTokens[timingTokens.length-1].index):before;
    const selfRecipient=/(?:自分|自身|本人)に/.test(before);
    const otherRecipient=/(?:味方|対象|敵|相手|前方|後方|両隣)に/.test(before);
    if(otherRecipient&&!selfRecipient)continue;
@@ -312,22 +315,20 @@ function resourceSupplyFor(persona,skill,resource){
     excludedSources.push(label+"（味方編成条件）");
     continue;
    }
-   const later=/マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃時|攻撃後|守備成功時|回避成功時|被攻撃時|R終了時/.test(before);
-   const nextRound=/次のR|次R/.test(before);
+   const later=/マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃時|攻撃後|守備成功時|回避成功時|被攻撃時|R終了時/.test(timingBefore);
+   const nextRound=/次のR|次R/.test(timingBefore);
    if(mode==="priorSkill"){
-    // A prior-round skill only contributes resources explicitly carried into the following round.
-    if(!/(?:次のR|次R|R終了時)/.test(before)){
-     if(resourceExpiresAfterRound(persona,resource))continue;
-     unknownSources.push(label);continue;
-    }
-    const matchOutcome=/マッチ勝利時/.test(before)?"win":/マッチ敗北時/.test(before)?"loss":"";
+    if(resourceExpiresAfterRound(persona,resource)&&!/(?:次のR|次R|R終了時)/.test(timingBefore))continue;
+    const knownTiming=/(?:使用前|使用時|マッチ開始時|マッチ進行時|マッチ勝利時|マッチ敗北時|的中時|過半数的中時|クリティカル|敵討伐時|対象を倒した時|攻撃前|攻撃後|攻撃時|守備成功時|回避成功時|被攻撃時|(?:舞台|戦闘|R)開始時|R終了時)/.test(timingBefore);
+    if(!knownTiming){unknownSources.push(label);continue;}
+    const matchOutcome=/マッチ勝利時/.test(timingBefore)?"win":/マッチ敗北時/.test(timingBefore)?"loss":"";
     target.push({amount:Number(m[2]||m[4]||m[6]),source:label,mode,conditional:true,matchOutcome});
     continue;
    }
    if(nextRound||later)continue;
-   const timely=mode==="skill"?/(?:使用前|使用時|マッチ開始時)/.test(before):/(?:舞台|戦闘|R)開始時|なら|ならば|であれば|の場合/.test(before);
+   const timely=mode==="skill"?/(?:使用前|使用時|マッチ開始時)/.test(timingBefore):/(?:舞台|戦闘|R)開始時|なら|ならば|であれば|の場合/.test(before)||/(?:舞台|戦闘|R)開始時/.test(timingBefore);
    if(!timely){unknownSources.push(label);continue;}
-   const battleStart=/(?:舞台|戦闘)開始時/.test(before);
+   const battleStart=/(?:舞台|戦闘)開始時/.test(timingBefore);
    target.push({amount:Number(m[2]||m[4]||m[6]),source:label+(battleStart?"（初回R）":""),mode,conditional:battleStart||/なら|ならば|であれば|の場合|以上|以下|保有|共鳴/.test(before)});
   }
  };
