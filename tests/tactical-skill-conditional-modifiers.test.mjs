@@ -986,6 +986,18 @@ test("同所属でも自分以外と指定された付与は本人に加算し�
   assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, persona).bonus, 0);
 });
 
+test("直前の文で指定された自分以外の味方への追加威力付与を本人に加算しない", () => {
+  const { api } = loadHelpers();
+  const effect = "攻撃後、対象が混乱するか死亡したなら、自分を除くSANが最も高い味方に次のRにて貫通ダメージ量増加1を付与。対象が薬指所属なら追加で貫通威力増加1を付与";
+  const dice = [{ effect }];
+  const reason = api.kindMods(effect, "斬撃", dice, {}).reasons.find(item => item.source === "貫通威力増加1");
+
+  assert.ok(reason, "後続の追加威力付与を検出する");
+  assert.equal(reason.recipientScope, "other");
+  assert.equal(reason.excludedRecipient, true);
+  assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 0);
+});
+
 test("選出対象の味方への付与は適用先未確定として加算を保留する", () => {
   const { api } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
