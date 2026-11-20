@@ -475,6 +475,8 @@ function modifierRecipient(before,after,persona){
   const recipientContext=activeSource+" "+tail;
   if(/(?:対象|相手|敵|前方|後方|両隣)/.test(recipientContext))return {scope:"other",applies:false};
   if(/味方(?:全体|全員)|全ての味方|すべての味方/.test(recipientContext))return {scope:"self",applies:true};
+  const characterRecipient=/(?:を|が|は)?キャラクター(?:全体|全員|[0-9０-９]+名|[0-9０-９]+人)?(?:に|へ|の)$/.test(activeSource)||/^(?:を|が|は)?キャラクター(?:全体|全員|[0-9０-９]+名|[0-9０-９]+人)?(?:に|へ)/.test(tail);
+  if(characterRecipient&&!/味方/.test(activeSource.slice(-32)+tail.slice(0,32)))return {scope:"characterSelection",applies:true,unresolved:true};
   return {scope:"allySelection",applies:true,unresolved:true};
  }
  return {scope:"selfOrUnspecified",applies:true};
@@ -615,7 +617,7 @@ function formatModifierReason(x,origin=""){
  const amount=x.value===null||x.unresolved&&!x.recipientUnresolved?"数値未確定":(x.value>=0?"+":"")+x.value;
  const scope=x.scope==="all"?"全ダイス":x.scope==="first"?"最初のダイス":x.scope==="last"?"最終ダイス":x.scope==="matching"?"該当属性ダイス":"対象ダイス";
  const target=x.targetConditions?.length?" / 対象:"+x.targetConditions.map(item=>item.value).join("・"):"";
- const recipient=x.recipientUnresolved?"（受け手未確定："+(x.recipientAffiliation?x.recipientAffiliation+"所属の":"")+"味方の選出）":x.recipientScope==="affiliation"?"（"+x.recipientAffiliation+"所属の受け手限定"+(x.excludedRecipient?"：評価対象外":"")+"）":x.recipientScope==="team"?"（"+x.recipientTeam+"限定"+(x.excludedRecipient?"：評価対象外":"")+"）":x.excludedRecipient?"（評価対象外：他者への付与）":"";
+ const recipient=x.recipientUnresolved?(x.recipientScope==="characterSelection"?"（受け手未確定：対象キャラクター）":"（受け手未確定："+(x.recipientAffiliation?x.recipientAffiliation+"所属の":"")+"味方の選出）"):x.recipientScope==="affiliation"?"（"+x.recipientAffiliation+"所属の受け手限定"+(x.excludedRecipient?"：評価対象外":"")+"）":x.recipientScope==="team"?"（"+x.recipientTeam+"限定"+(x.excludedRecipient?"：評価対象外":"")+"）":x.excludedRecipient?"（評価対象外：他者への付与）":"";
  const supply=x.resourceSupply?"（"+x.resourceName+"供給:"+x.resourceSupply.total+(x.resourceSupply.notes.length?" / "+x.resourceSupply.notes.join("・"):"")+(x.resourceSupply.unknown?.length?" / 未確定:"+x.resourceSupply.unknown.join("・"):"")+"）":"";
  const status=x.recipientUnresolved?(x.value===null?"（数値・受け手未確定）":""):x.conditional?(x.unresolved?"（条件式・実効値未確定）":"（条件付き候補）"):"";
  return (origin?origin+": ":"")+x.label+" "+amount+" / "+scope+target+recipient+supply+status;
