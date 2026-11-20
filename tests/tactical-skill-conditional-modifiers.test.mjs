@@ -21,12 +21,12 @@ function sourceBetween(startMarker, endMarker) {
 
 function loadHelpers() {
   const controls = Object.fromEntries(
-    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "condTrigger", "condOther"]
+    ["includeConditional", "includePassive", "includeEffect", "condStatus", "condResource", "condStats", "condTeam", "condTargetStatus", "condTargetType", "condTargetAffiliation", "targetConditionFilter", "resourceSupportPassiveNames", "condTrigger", "condOther"]
       .map((id) => [id, { checked: true, value: "" }])
   );
   controls.includePassive.checked = false;
   controls.includeEffect.checked = false;
-  const context = { $: (id) => controls[id] ?? { checked: false } };
+  const context = { $: (id) => controls[id] ?? { checked: false }, EMBEDDED_DB: { support_passives: [] } };
   vm.createContext(context);
   vm.runInContext(sourceBetween("const CONDITION_FILTER_IDS=", "function formatModifierReason"), context);
   vm.runInContext(sourceBetween("function formatModifierReason", "function passiveBonus"), context);
@@ -34,7 +34,7 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, affiliationFromName, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, affiliationFromName, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls };
 }
@@ -362,4 +362,65 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
   assert.equal(targetStatus.value, null);
   const targetGrant = api.kindMods("対象にスキル威力+2を付与", "斬撃", dice, nCorp).reasons[0];
   assert.equal(targetGrant.excludedRecipient, true, "a modifier granted to the target is not the evaluated identity's own modifier");
+});
+
+
+test("資源比例補正は同一人格の開始時・当該スキル使用時の自己獲得だけを数える", () => {
+  const { api } = loadHelpers();
+  const persona = {
+    name: "N社握らんとする者",
+    passive_effect: "R開始時、自分に狂信1を得る",
+    passive_always: "",
+    unique: []
+  };
+  const skill = {
+    type: "斬撃",
+    effect: "使用時：狂信2を得る。マッチ勝利時：次のRに狂信3を得る",
+    dice: [{ effect: "" }, { effect: "" }]
+  };
+  const item = api.kindMods("自分の狂信2ごとにスキル威力+1（最大10）", "斬撃", skill.dice, persona, skill).reasons[0];
+  assert.equal(item.resourceName, "狂信");
+  assert.equal(item.resourceSupply.total, 3);
+  assert.equal(item.value, 1);
+  assert.equal(item.unresolved, false);
+  assert.equal(item.conditional, true);
+  assert.deepEqual(Array.from(item.resourceSupply.notes), ["パッシブ +1", "当該スキル使用時 +2"]);
+});
+
+test("選択したサポートパッシブの資源供給・獲得量補正を所属と発動条件を保って反映する", () => {
+  const { api, controls } = loadHelpers();
+  const { context } = loadHelpers();
+  context.EMBEDDED_DB.support_passives = [
+    { name: "釘と金槌", cond: "憤怒x2 色欲x2 保有", effect: "狂信の獲得量とN社の釘の付与量+1" },
+    { name: "処断の歓喜", cond: "色欲x6 保有", effect: "N社狂信者所属の人格のみ発動。R開始時、狂信1を得る。" }
+  ];
+  controls.resourceSupportPassiveNames.value = "釘と金槌、処断の歓喜";
+  const persona = { name: "N社握らんとする者", affiliation: "N社", passive_effect: "R開始時、自分に狂信1を得る" };
+  const skill = { type: "斬撃", effect: "使用時：狂信2を得る", dice: [{ effect: "" }] };
+  const item = api.kindMods("自分の狂信2ごとにスキル威力+1（最大10）", "斬撃", skill.dice, persona, skill).reasons[0];
+  assert.equal(item.resourceSupply.total, 6, "own grants 3 + 釘と金槌 gain bonus 2 + 処断の歓喜 grant 1");
+  assert.equal(item.value, 3);
+  assert.equal(item.conditional, true);
+  assert.ok(item.resourceSupply.notes.some(x => x.includes("釘と金槌")));
+  assert.ok(item.resourceSupply.notes.some(x => x.includes("処断の歓喜")));
+
+  const nonN = api.resourceSupplyFor({ name: "W社人格", affiliation: "W社" }, skill, "狂信");
+  assert.equal(nonN.total, 2, "N社-only support passive is not applied to W社");
+});
+
+test("味方への付与・対象側資源・次ラウンドの獲得を自分の使用時資源へ混入しない", () => {
+  const { api } = loadHelpers();
+  const persona = {
+    name: "N社握らんとする者",
+    passive_effect: "R開始時、N社所属の味方に狂信2を付与",
+    unique: []
+  };
+  const skill = { type: "斬撃", effect: "使用時：次のRに狂信4を得る。マッチ勝利時：狂信3を得る", dice: [{ effect: "" }] };
+  const item = api.kindMods("自分の狂信2ごとにスキル威力+1（最大10）", "斬撃", skill.dice, persona, skill).reasons[0];
+  assert.equal(item.value, null);
+  assert.equal(item.unresolved, true);
+  assert.equal(item.resourceSupply.known, false);
+  const target = api.kindMods("対象の狂信2ごとにスキル威力+1（最大10）", "斬撃", skill.dice, persona, skill).reasons[0];
+  assert.equal(target.value, null);
+  assert.equal(target.unresolved, true);
 });
