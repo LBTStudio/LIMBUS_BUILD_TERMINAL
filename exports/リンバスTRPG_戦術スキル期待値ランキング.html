@@ -218,17 +218,21 @@ function slotOf(rank){
 const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
 function targetConditionDetails(context){
  const s=String(context||""),items=[];
- for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g)){
-  const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
+ const add=(kind,value)=>{const clean=String(value||"").trim();if(clean)items.push({kind,value:clean});};
+ const statValue=value=>/^(?:HP|SAN|速度|失ったHP|減少HP|体力|貫通耐性|斬撃耐性|打撃耐性|弾丸耐性)$/.test(value);
+ for(const m of s.matchAll(/(?:対象|相手|敵)に([^、。\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い)/g)){
+  const value=m[1].trim();add(statValue(value)?"targetStat":"targetStatus",value);
  }
- for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\\n]{1,18}?)(?:が)?\s*\d+\s*(?:以上|超|より多い|より高い)/g)){
-  const value=m[1].trim();if(value)items.push({kind:"targetStatus",value});
- }
- for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
+ for(const m of s.matchAll(/(?:対象|相手|敵)より([^、。\n]{1,12}?)(?:が)?(?:\s*\d+\s*以上)?(?:高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:対象|相手|敵)より(?:\s*\d+\s*以上)?(?:高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:自分|自身|本人)より(?:\s*\d+\s*以上)?(?:高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー ]{1,18}?)(?:が)?(?:対象|相手|敵)に(?:ある|存在する|付与されている|付与されていれば|付与されているなら)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:対象|相手|敵)が([^、。\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
   const affiliation=/所属|協会|組織|会社/.test(value);
   const entity=/機械融和生命体|血鬼|血袋|種族|種別|味方|敵|キャラクター|フィクサー/.test(value);
-  items.push({kind:affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value});
+  add(affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value);
  }
  return items.filter((item,index)=>items.findIndex(x=>x.kind===item.kind&&x.value===item.value)===index);
 }
