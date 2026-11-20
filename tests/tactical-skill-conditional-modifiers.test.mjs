@@ -668,3 +668,20 @@ test("持続期間の根拠がない資源は前ラウンドの獲得分を現�
   assert.equal(supply.total, 0);
   assert.equal(supply.unresolved, true, "呼吸の持続・減衰根拠がないため前ラウンド分は未確定");
 });
+
+test("実データのN社握らんとする者は5名編成の狂信付与を除外し本人の次R獲得2で評価する", () => {
+  const { api } = loadHelpers();
+  const open = '<script id="persona-data" type="application/json">';
+  const start = html.indexOf(open);
+  assert.notEqual(start, -1);
+  const contentStart = start + open.length;
+  const end = html.indexOf("</script>", contentStart);
+  const db = JSON.parse(html.slice(contentStart, end));
+  const persona = (db.tokui_personas || []).find(item => item.name === "N社握らんとする者");
+  assert.ok(persona, "実データの対象人格が存在する");
+  const skill = persona.skills.find(item => item.name === "自滅的浄化");
+  const supply = api.resourceSupplyFor(persona, skill, "狂信");
+  assert.equal(supply.total, 2, "本人のスキルによる次R獲得2のみを採用");
+  assert.ok(supply.excluded.some(item => item.includes("味方編成条件")), "自分を含むN社狂信者5名条件を除外理由として保持");
+  assert.equal(supply.unresolved, false);
+});
