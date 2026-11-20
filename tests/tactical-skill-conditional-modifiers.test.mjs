@@ -1545,3 +1545,35 @@ test("複数分類を同時に持つ条件は全ての該当フィルターがON
   controls.condTargetStats.checked = false;
   assert.equal(api.conditionalBonus(row, "all", "effect"), 0);
 });
+
+
+test("他スキルが勝利後に得る次Rの威力増加は次Rの別スキルへ渡し、発動元の今回EVには混ぜない", () => {
+  const { api } = loadHelpers();
+  const sourceSkill = {
+    rank: "スキル1", name: "勝利の報酬", type: "打撃",
+    effect: "マッチ勝利時：次のRに打撃威力増加1を得る",
+    dice: [{ roll: "2d6", effect: "" }]
+  };
+  const targetSkill = {
+    rank: "スキル2", name: "次Rの攻撃", type: "打撃",
+    effect: "", dice: [{ roll: "2d7", effect: "" }, { roll: "2d8", effect: "" }]
+  };
+  const persona = { name: "次R補正監査用人格", skills: [sourceSkill, targetSkill] };
+
+  const sourceCandidate = api.skillBonus(sourceSkill, persona).candidates[0];
+  assert.ok(sourceCandidate);
+  assert.equal(sourceCandidate.afterResolution, true,
+    "勝利時に得る効果は発動元スキルの今回EVには入らない");
+
+  const deferred = api.deferredSkillBonus(persona, targetSkill);
+  assert.equal(deferred.candidates.length, 1);
+  assert.equal(deferred.candidates[0].value, 1);
+  assert.equal(deferred.candidates[0].afterResolution, false,
+    "次Rを評価する別スキル側では既に利用可能な補正として扱う");
+  assert.equal(api.conditionalBonus({
+    dieRows: targetSkill.dice,
+    passCandidates: [],
+    effectCandidates: deferred.candidates
+  }, "all", "effect"), 2,
+  "次Rの2ダイスに威力+1を適用する");
+});
