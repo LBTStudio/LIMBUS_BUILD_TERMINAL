@@ -165,7 +165,8 @@ test("own match-power bonuses are detected while target-side and ally-side chang
   assert.equal(kindMods("マッチ威力+2", "斬撃", dice).reasons.length, 0, "ownerless match power is ambiguous and must not be added");
   assert.equal(kindMods("マッチ進行時にマッチ威力+1", "斬撃", dice).reasons.length, 1);
   const duel = kindMods("決闘宣布を付与したキャラクターが付与されたキャラクターとマッチ進行時にマッチ威力+1、マッチ回数2ごとにマッチ威力+1（最大3）", "斬撃", dice).reasons;
-  assert.deepEqual(Array.from(duel, item => item.value), [1, 3]);
+  assert.deepEqual(Array.from(duel, item => item.value), [1, null], "the per-match cap is not an actual match-count measurement");
+  assert.equal(duel[1].unresolved, true);
 
   const own = kindMods("自分のマッチ威力+1", "斬撃", dice).reasons[0];
   assert.equal(own.value, 1);
@@ -177,9 +178,9 @@ test("own match-power bonuses are detected while target-side and ally-side chang
   assert.equal(conditional.conditional, true);
 
   const dynamic = kindMods("対象の振動6ごとにマッチ威力増加（最大3）", "斬撃", dice).reasons[0];
-  assert.equal(dynamic.value, 3);
+  assert.equal(dynamic.value, null, "the target vibration count is not known from the skill text");
   assert.equal(dynamic.conditional, true);
-  assert.equal(dynamic.unresolved, false);
+  assert.equal(dynamic.unresolved, true);
   const numericIncrease = kindMods("自分の充電が10以上ならマッチ威力が10増加する", "斬撃", dice).reasons[0];
   assert.equal(numericIncrease.value, 10);
   const suffix = kindMods("数値が5ならマッチ威力増加1", "斬撃", dice).reasons[0];
