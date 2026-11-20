@@ -223,6 +223,12 @@ function kindMods(text,skillType,dice=[]){
   {re:/((?:斬撃|貫通|打撃|銃撃)?)(?:全ての|すべての|全)ダイス(?:の)?(?:ダイス)?威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"全ダイス威力",kind:"signed",range:true},
   {re:/((?:斬撃|貫通|打撃|銃撃)?)(?:最後の|最終)ダイス(?:の)?(?:ダイス)?威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"last",label:"最後のダイス威力",kind:"signed",range:true},
   {re:/((?:斬撃|貫通|打撃|銃撃))ダイス(?:の)?(?:ダイス)?威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"matching",label:"属性ダイス威力",kind:"signed",targetGroup:1,range:true},
+  {re:/(マッチ)威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"マッチ威力",kind:"signed",range:true,matchPower:true,forceAll:true},
+  {re:/(マッチ)威力(?:を|が|は)?(?:増加|上昇)\s*(\d+)(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"マッチ威力増加",kind:"postfix",matchPower:true,forceAll:true},
+
+  {re:/(マッチ)威力(?:を|が|は)?(\d+)\s*(増加|上昇)/g,scope:"all",label:"マッチ威力変動",kind:"change",matchPower:true,forceAll:true},
+  {re:/(マッチ)威力[^。]{0,24}?(増加|上昇)(?:\s*[（(][^）)]{0,25}最大\s*(\d+)[^）)]*[）)])?/g,scope:"all",label:"式によるマッチ威力増加",kind:"dynamic",matchPower:true,forceAll:true},
+  {re:/(マッチ)威力(?:を|が|は)?(?:増加|上昇)/g,scope:"all",label:"数値未確定のマッチ威力増加",kind:"unresolved",matchPower:true,forceAll:true},
   {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?(?:の)?威力(?:とマッチ威力)?(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"スキル威力",kind:"signed",range:true},
   {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:の)?(?:ダイスの)?ダイス威力(?:を|が|は)?\s*([+-]\s*\d+)(?:\s*(?:~|〜|～)\s*(\d+))?(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"ダイス威力",kind:"signed",range:true},
   {re:/((?:斬撃|貫通|打撃|銃撃)?)(?:最後の|最終)ダイス(?:の)?(?:ダイス)?威力(?:が|を)?\s*(\d+)\s*(増加|上昇|減少)/g,scope:"last",label:"最後のダイス威力変動",kind:"change"},
@@ -240,13 +246,18 @@ function kindMods(text,skillType,dice=[]){
   for(const m of src.matchAll(p.re)){
    const start=m.index,end=start+m[0].length;
    if(occupied.some(([a,b])=>start<b&&end>a))continue;
-   const prefix=p.targetGroup?m[p.targetGroup]:(m[1]||"");
+   const prefix=p.targetGroup?m[p.targetGroup]:(p.forceAll?"":(m[1]||""));
    if(prefix&&!applies(prefix)&&p.scope!=="matching")continue;
    const before=src.slice(Math.max(0,start-80),start),after=src.slice(end,Math.min(src.length,end+35));
-   if((/対象の(?:スキル|ダイス)?\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||/マッチ(?:の)?\s*$/.test(before))continue;
+   if((/対象の(?:スキル|ダイス)?\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||(!p.matchPower&&/マッチ(?:の)?\s*$/.test(before)))continue;
+   if(p.matchPower&&/(?:対象|相手|敵)の$/.test(before))continue;
+   if(p.matchPower&&/対象が味方(?:なら|であれば)/.test(before))continue;
+   const recipientMatch=p.matchPower?before.match(/(?:味方|対象|敵|キャラクター|前方|後方|両隣)[^。]{0,15}(?:に|へ)(?:次のR|次R)?に?$/):null;
+   if(recipientMatch&&!/(?:時|たび|ごと)に(?:次のR|次R)?に?$/.test(recipientMatch[0]))continue;
    const clauseStart=src.lastIndexOf("。",start)+1,clauseEnd=src.indexOf("。",end);
    const context=src.slice(Math.max(clauseStart,start-80),clauseEnd<0?Math.min(src.length,end+35):Math.min(clauseEnd,end+35)).trim();
-   const perUnit=/ごとに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ごとに|\d+につき/.test(context);
+   const priorContext=src.slice(Math.max(clauseStart,start-80),start);
+   const perUnit=/ごとに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ごとに|\d+につき/.test(p.matchPower?priorContext:context);
    const rangeValue=p.range?Number(m[3]||0):0;
    const explicitMax=p.range?Number(m[4]||0):Number(m[3]||0);
    const cap=p.kind==="signed"?(explicitMax||rangeValue):p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[3]||0):0;
@@ -365,9 +376,46 @@ function loadDb(db){
  for(const p of (db.tokui_personas||[]))addPersona(normalizeDbPersona(p,"特異人格",Number(p.no)<=20?"基本":"パック"));
  return records.length-before;
 }
+function recoverAppendixEmbeddedPassives(persona){
+ const recovered=[];
+ for(const skill of (persona.skills||[])){
+  for(let dieIndex=0;dieIndex<(skill.dice||[]).length;dieIndex++){
+   const die=skill.dice[dieIndex],effect=String(die.effect||"");
+   const marker=effect.search(/\n(?=速度\s+\d+d\d+(?:[+-]\d+)?(?:\s|$))/);
+   if(marker<0)continue;
+   const tail=effect.slice(marker+1);
+   const lines=tail.split(/\r?\n/).map(line=>line.trim());
+   const markers=[];
+   lines.forEach((line,index)=>{if(line==="名称")markers.push(index);});
+   if(!markers.length||!lines.includes("発動条件"))continue;
+   die.effect=effect.slice(0,marker).trimEnd();
+   for(let n=0;n<markers.length;n++){
+    const at=markers[n],next=lines[at+1]||"",prev=lines[at-1]||"";
+    const nextIsCondition=/^(?:発動条件|常時発動|効果|パッシブ\d*)$/.test(next);
+    const nextIsCost=/(?:x\d+|×\d+|共鳴|保有|消耗|消費)/i.test(next);
+    const titleOnNext=!!next&&!nextIsCondition&&!nextIsCost;
+    const name=titleOnNext?next:prev;
+    const descStart=titleOnNext?at+2:at+1;
+    const descEnd=n+1<markers.length?markers[n+1]:lines.length;
+    const desc=lines.slice(descStart,descEnd).filter(Boolean).join("\n").trim();
+    if(!name||!desc)continue;
+    recovered.push({name,desc,source:"appendix-ocr-recovery",source_skill:skill.name||"",source_die:dieIndex+1});
+   }
+  }
+ }
+ if(recovered.length){
+  persona.unique=Array.isArray(persona.unique)?persona.unique.slice():[];
+  const existing=new Set(persona.unique.map(item=>String(item.name||"")));
+  persona.unique.push(...recovered.filter(item=>!existing.has(item.name)));
+ }
+ return recovered.length;
+}
 function addAppendix(){
  for(const p of APPENDIX){
-  const persona={...p,affiliation:"",passive_effect:"",source:"別冊"};
+  const persona={...p,affiliation:"",passive_effect:"",source:"別冊",
+   unique:Array.isArray(p.unique)?p.unique.slice():[],
+   skills:(p.skills||[]).map(s=>({...s,dice:(s.dice||[]).map(d=>({...d}))}))};
+  recoverAppendixEmbeddedPassives(persona);
   addPersona(persona);
  }
 }
