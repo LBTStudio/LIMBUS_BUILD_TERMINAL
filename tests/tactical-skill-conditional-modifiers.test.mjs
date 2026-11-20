@@ -1668,3 +1668,35 @@ test("内蔵全人格の負の威力補正は受け手と発動時点を失わ�
   assert.ok(candidates.some(candidate => candidate.item.afterResolution && /マッチ敗北時/.test(candidate.line)),
     "敗北後に発動するメリアニア等の負補正を実データから検出する");
 });
+
+
+test("別冊の明示的な派生先29件は親スキル本文にある切替条件を保持する", () => {
+  const embedded = (id) => {
+    const open = '<script id="' + id + '" type="application/json">';
+    const start = html.indexOf(open);
+    assert.notEqual(start, -1, "embedded JSON exists: " + id);
+    const contentStart = start + open.length;
+    const end = html.indexOf("</script>", contentStart);
+    assert.notEqual(end, -1, "embedded JSON closes: " + id);
+    return JSON.parse(html.slice(contentStart, end));
+  };
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  const expected = [["LCE E.G.O::AEDD","出力最大-超高圧電流放電","スキル4-2","自分の電圧が3以上"],["LCE E.G.O::次元裂き","四次角歪曲時系列切断","スキル4-2","自分の充電が15以上"],["剣契頭目","骨断","スキル4-2","マッチ敗北時（対象の攻撃終了後）"],["夜の錐カピターノ","夜の錐","スキル4-2","対象に深い傷がある"],["鴻園 家主","全黒仙丸-酉","スキル2-2","全黒仙丸-巳の攻撃後"],["鴻園 家主","全黒仙丸-寅","スキル3-2","全黒仙丸-卯の攻撃後"],["黒獣-卯 筆頭","黒獣 卯 奥義-雲解顕現","スキル4-2","天究星刀が10以上"],["黒獣-酉 筆頭","血天下鷄舞乱刀","スキル4-2","血闘本能が20"],["黒獣-午 筆頭","黒風馬脚月斬","スキル4-2","次のRに脚力【午】3を得た後、敵陣走破が5以上"],["R社第四群 司令官","処分","スキル4-2","自分の充電が15以上"],["薬指野獣派 ドーセント","クリティーク","スキル0-2","自分にレフレクスィヨンがなく、対象のデバフが3種以上"],["薬指野獣派 ドーセント","あなたの皮膚の下で脈動する赤い絵具を荒く","スキル4-2","対象のデバフが6種以上"],["蜘蛛の巣 小指の子方","回","スキル0-2","自分の呼吸が20以上"],["夜明事務所フィクサーA","正午の解体","スキル0-2","炎蝶の棺が30以上（加熱された棺がある場合は発動しない）"],["夜明事務所フィクサーA","射出-正午","スキル4-2","炎蝶の棺が30（加熱された棺がある場合は発動しない）"],["夜明事務所フィクサーB","燃えたぎる一撃","スキル4-2","不安定E.G.O::蜜蝋の翼状態"],["中指末姉 チェリク","十倍返し","スキル0-2","嫉妬共鳴が4以上"],["中指末姉 チェリク","百倍返し","スキル0-3","嫉妬共鳴が6以上"],["ロジックアトリエ代表 ハンク","弾丸補給","スキル0-2","戦闘開始時：保有弾丸数が0"],["ワン家家主候補 ヒスイ","布石を投じる-邪気","スキル1-2","邪気暴走状態"],["ワン家家主候補 ヒスイ","符霊術-邪乱","スキル3-2","邪気暴走状態"],["ワン家家主候補 ヒスイ","邪気爆発","スキル4-2","邪気暴走状態"],["ジア家家主候補 ガブナー","啜り喰らえ、卯。","スキル4-2","黒獣-卯所属の味方が3名以上、または黒獣-卯 筆頭が生存"],["LCE E.G.O::紅炎殺 カンパネルラ","紅殺炎 八熱地獄【劣化侵蝕】","スキル4-2","自分の火傷が15以上"],["夜明事務所フィクサー ジル","燃えたぎる一撃","スキル4-2","不安定E.G.O::蜜蝋の翼状態"],["湯の花運送配達員 ロンド","遅刻遅刻〜！","スキル0-2","温度が30以上"],["ストレングス処刑者 キド","致命一文字","スキル4-2","流血闊歩状態"],["ジャーマ工房代表 シュン","スクランブル","スキル3-2","ヒートアップ使用時（激熱2獲得後）"],["ジャーマ工房フィクサー ハイド","レッドアックス","スキル3-2","シャインスピア使用後"]];
+  assert.equal(expected.length, 29);
+  for (const [personaName, skillName, rank, condition] of expected) {
+    const persona = personas.find(item => item.name === personaName);
+    assert.ok(persona, personaName + " is present in the ranking data");
+    const skill = persona.skills.find(item => item.name === skillName && item.rank === rank);
+    assert.ok(skill, personaName + " / " + skillName + " exists at " + rank);
+    assert.equal(skill.derived_condition, condition,
+      personaName + " / " + skillName + " retains its verified switch condition");
+    const slot = Number(rank.match(/^スキル([0-9]+)-/)[1]);
+    const parent = persona.skills.find(item => item.rank === "スキル" + slot + "-1");
+    assert.ok(parent, personaName + " / " + skillName + " has its base form");
+    const parentSources = [parent.effect || "", ...(parent.dice || []).map(die => die.effect || "")];
+    assert.ok(parentSources.some(source => source.includes(skillName)),
+      personaName + " / " + skillName + " is explicitly referenced by its parent form");
+  }
+});
