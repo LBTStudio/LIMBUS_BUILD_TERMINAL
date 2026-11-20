@@ -925,6 +925,19 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   }
 });
 
+test("前の同所属条件が後続の味方付与へ漏れない", () => {
+  const { api } = loadHelpers();
+  const effect = "使用時：自分と同じ所属のキャラクターがスキル4を使う時、使う味方の数だけスキル威力+2（最大6）\n戦闘開始時：両隣の味方に嫉妬威力増加1を付与";
+  const reasons = api.kindMods(effect, "斬撃", [{ effect: "" }], {
+    name: "ダンダダダダ工房所属フィクサー レミス"
+  }).reasons;
+  const allyGrant = reasons.find(item => item.source === "威力増加1");
+
+  assert.ok(allyGrant, "後続の味方への威力付与を検出する");
+  assert.equal(allyGrant.recipientScope, "other");
+  assert.equal(allyGrant.excludedRecipient, true);
+});
+
 test("前の味方付与が後続の本人威力補正へ漏れない", () => {
   const { api } = loadHelpers();
   const effect = "戦闘開始時：両隣の味方に嫉妬威力増加1を付与\n使用時：自分にスキル威力+2を付与";
