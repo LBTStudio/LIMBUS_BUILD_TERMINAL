@@ -268,7 +268,7 @@ function resourceExpiresAfterRound(persona,resource){
  return resourceStatusRecords(persona,resource).some(item=>/\[\s*1R\s*\]|R終了時[^。\n]{0,24}消滅/.test(String(item?.desc||item?.effect||"")));
 }
 function resourceSupplyFor(persona,skill,resource){
- const grants=[],selected=new Set(selectedResourceSupportPassives()),unknownSources=[],unknownSupport=[];
+ const grants=[],selected=new Set(selectedResourceSupportPassives()),unknownSources=[],unknownSupport=[],excludedRecipients=[];
  const affiliation=String(persona?.affiliation||affiliationFromName(persona?.name||""));
  const escaped=resource.replaceAll("[","\\[").replaceAll("]","\\]");
  const grantPattern=new RegExp("(?:("+escaped+")\\s*(\\d+)\\s*を得る|("+escaped+")を\\s*(\\d+)\\s*(?:得る|回復)|("+escaped+")\\s*(\\d+)\\s*回復)","g");
@@ -301,7 +301,17 @@ function resourceSupplyFor(persona,skill,resource){
  };
  const ownSources=[["パッシブ",persona?.passive_effect],["常時パッシブ",persona?.passive_always],["別冊パッシブ",persona?.passives],
   ...((persona?.unique_buffs||persona?.unique||[]).map(u=>["固有パッシブ:"+String(u.name||"名称不明"),uniqueEffectText(u)]))];
- for(const [label,text] of ownSources)addGrants(text,label,"passive");
+ for(const [label,text] of ownSources){
+  addGrants(text,label,"passive");
+  const source=String(text||"");
+  const recipientGrant=new RegExp(escaped+"\\s*\\d+\\s*を付与","g");
+  for(const match of source.matchAll(recipientGrant)){
+   const before=source.slice(Math.max(0,match.index-90),match.index);
+   if(/自分を含めて/.test(source))continue;
+   if(/(?:味方|対象|敵|相手|前方|後方|両隣)/.test(before)&&!/(?:自分|自身|本人)に/.test(before))
+    excludedRecipients.push(label+"（本人への付与が保証されないため除外）");
+  }
+ }
  addGrants(skill?.effect,"当該スキル使用時","skill");
  const priorSkillOptions=[];
  for(const other of persona?.skills||[]){
@@ -331,6 +341,7 @@ function resourceSupplyFor(persona,skill,resource){
    grants.push({amount:1,source:"N社狂信者への常時付与（自分を含む）",mode:"passive",conditional:true});
  }
  let rawTotal=grants.reduce((sum,x)=>sum+x.amount,0),notes=grants.map(x=>x.source+" +"+x.amount);
+ notes.push(...[...new Set(excludedRecipients)]);
  let conditional=grants.some(x=>x.conditional),supportGrantCount=0;
  const support=(typeof EMBEDDED_DB!=="undefined"&&Array.isArray(EMBEDDED_DB.support_passives))?EMBEDDED_DB.support_passives:[];
  for(const item of support){
