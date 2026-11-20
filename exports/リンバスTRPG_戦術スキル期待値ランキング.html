@@ -223,7 +223,7 @@ function targetConditionDetails(context){
  const statValue=value=>/^(?:HP|SAN|速度|失ったHP|減少HP|体力|貫通耐性|斬撃耐性|打撃耐性|弾丸耐性)$/.test(value);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い|ならば|なら|の場合|の時)/g)){
-  const value=m[1].trim();add(statValue(value)?"targetStat":"targetStatus",value);
+  const value=m[1].trim();if(/(?:自分|自身|本人)より/.test(value))continue;add(statValue(value)?"targetStat":"targetStatus",value);
  }
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,24}?)(?:が)?\s*\d+\s*(?:ごとに|につき)/g)){
   const value=m[1].trim();add(statValue(value)?"targetStat":"targetStatus",value);
@@ -231,8 +231,8 @@ function targetConditionDetails(context){
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)との速度差\s*\d+\s*(?:ごとに|につき)/g))add("targetStat","速度差");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)が[^、。\n]{0,16}?速度が\s*\d+\s*(?:ならば|なら|の場合|の時)/g))add("targetStat","速度");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:弱点|抵抗|脆弱|普通)(?:なら|の場合|の時)/g))add("targetStat",m[1]);
- for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)より([^、。\n0-9０-９]{1,12}?)(?:が)?(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
- for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)より(?:も)?([^、。\n0-9０-９]{1,12}?)(?:が)?(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)より(?:も)?(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
  for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,12}?)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[2]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に付与された([^、。\n]{1,18}?)\s*\d+\s*(?:種類|種|回|つ)?\s*(?:ごとに|につき)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)とのマッチ回数\s*\d+\s*(?:ごとに|につき)/g))add("targetStat","マッチ回数");
@@ -246,7 +246,7 @@ function targetConditionDetails(context){
  for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー ]{1,18}?)(?:が)?(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に(?:ある|存在する|付与されている|付与されていれば|付与されているなら)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の所属が([^、。\n]{1,18}?)(?:ならば|なら|であれば|の場合|の時)/g))add("targetAffiliation",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)が([^、。\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
-  const value=m[1].trim();if(!value)continue;
+  const value=m[1].trim();if(!value||value==="いる")continue;
   const affiliation=/所属|協会|組織|会社/.test(value);
   const entity=/機械融和生命体|血鬼|血袋|種族|種別|味方|敵|キャラクター|フィクサー/.test(value);
   add(affiliation?"targetAffiliation":entity?"targetType":"targetStatus",value);
