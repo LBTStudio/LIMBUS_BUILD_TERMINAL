@@ -1592,7 +1592,8 @@ test("回数依存で数値が確定しないスキル威力減少も候補と�
 });
 
 test("メリアニア工房代表スピノのマッチ敗北時-15は今回EVに加算しない", () => {
-  const { tool } = createToolHarness();
+  const { tool, element } = createToolHarness();
+  element("includeConditional").checked = true;
   const rows = Array.from(tool.records).filter(row =>
     row.persona.name === "メリアニア工房代表 スピノ" &&
     ["支援", "万歳突撃"].includes(row.skill.name)
