@@ -377,8 +377,9 @@ test("攻撃対象の所属条件と、所属を受け手にするバフを別�
 
   const allyBuff = "味方全体にスキル威力+2を付与";
   const excluded = api.kindMods(allyBuff, "斬撃", dice, nCorp).reasons[0];
-  assert.equal(excluded.excludedRecipient, true);
-  assert.equal(api.skillBonus({ type: "斬撃", effect: allyBuff, dice }, nCorp).bonus, 0);
+  assert.equal(excluded.excludedRecipient, false, "自分を除外しない味方全体への付与は本人にも適用する");
+  assert.equal(excluded.recipientScope, "self");
+  assert.equal(api.skillBonus({ type: "斬撃", effect: allyBuff, dice }, nCorp).bonus, 4);
 
   const selfBuff = "自分にスキル威力+2";
   assert.equal(api.skillBonus({ type: "斬撃", effect: selfBuff, dice }, wCorp).bonus, 4);
