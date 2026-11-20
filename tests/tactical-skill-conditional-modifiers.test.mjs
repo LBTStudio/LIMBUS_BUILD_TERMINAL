@@ -505,6 +505,8 @@ test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越�
   assert.equal(attainable(hammer), 3, "大鎚は前ラウンドのマッチ敗北による狂信3が本人の最大供給");
   assert.equal(attainable(smallHammer), 1, "小鎚は前ラウンドのマッチ勝利による狂信1が本人の最大供給");
   assert.equal(attainable(holder), 4, "握る者は本人のスキルによる次R狂信4を数え、ランダムな味方への付与を本人保証として扱わない");
+  const holderSupply=api.resourceSupplyFor(holder,holder.skills.find(item=>item.name==="罪悪を貫く釘"),"狂信");
+  assert.ok(holderSupply.notes.some(note=>note.includes("本人への付与が保証されないため除外")),"ランダムな味方への狂信付与を本人獲得に混ぜず、除外理由を表示する");
 
   for (const [persona,skill,expected] of [
     [hammer,hammer.skills.find(item=>item.name==="大釘打ち"),1],
