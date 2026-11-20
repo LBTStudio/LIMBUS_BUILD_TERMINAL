@@ -29,7 +29,7 @@ function loadHelpers() {
   const context = { $: (id) => controls[id] ?? { checked: false } };
   vm.createContext(context);
   vm.runInContext(sourceBetween("const CONDITION_FILTER_IDS=", "function formatModifierReason"), context);
-  vm.runInContext(sourceBetween("function uniqueEffectText", "function passiveBonus"), context);
+  vm.runInContext(sourceBetween("function formatModifierReason", "function passiveBonus"), context);
   vm.runInContext(sourceBetween("function passiveBonus", "function deferredSkillBonus"), context);
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
