@@ -44,7 +44,7 @@ function loadDB(){
           return r.json();
         });
       }
-      readJSON("data/db.json?v=e0594573", {priority:"high"}).then(function(db){
+      readJSON("data/db.json?v=0a24da52", {priority:"high"}).then(function(db){
         return Promise.allSettled([
           readJSON("data/items.json?v=b185394a"),
           readJSON("data/gacha-theme-packs.json?v=8d4dced2"),
@@ -87,7 +87,7 @@ function loadDB(){
       });
     }
     Promise.all([
-      readXHR("data/db.json?v=e0594573"),
+      readXHR("data/db.json?v=0a24da52"),
       readXHR("data/items.json?v=b185394a"),
       readXHR("data/gacha-theme-packs.json?v=8d4dced2", true),
       readXHR("data/special-items.json?v=aaa21cfb")

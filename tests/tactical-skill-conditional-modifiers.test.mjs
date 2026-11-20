@@ -1668,3 +1668,93 @@ test("内蔵全人格の負の威力補正は受け手と発動時点を失わ�
   assert.ok(candidates.some(candidate => candidate.item.afterResolution && /マッチ敗北時/.test(candidate.line)),
     "敗北後に発動するメリアニア等の負補正を実データから検出する");
 });
+
+
+test("別冊の明示的な派生先29件は親スキル本文にある切替条件を保持する", () => {
+  const embedded = (id) => {
+    const open = '<script id="' + id + '" type="application/json">';
+    const start = html.indexOf(open);
+    assert.notEqual(start, -1, "embedded JSON exists: " + id);
+    const contentStart = start + open.length;
+    const end = html.indexOf("</script>", contentStart);
+    assert.notEqual(end, -1, "embedded JSON closes: " + id);
+    return JSON.parse(html.slice(contentStart, end));
+  };
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  const expected = [["LCE E.G.O::AEDD","出力最大-超高圧電流放電","スキル4-2","自分の電圧が3以上"],["LCE E.G.O::次元裂き","四次角歪曲時系列切断","スキル4-2","自分の充電が15以上"],["剣契頭目","骨断","スキル4-2","マッチ敗北時（対象の攻撃終了後）"],["夜の錐カピターノ","夜の錐","スキル4-2","対象に深い傷がある"],["鴻園 家主","全黒仙丸-酉","スキル2-2","全黒仙丸-巳の攻撃後"],["鴻園 家主","全黒仙丸-寅","スキル3-2","全黒仙丸-卯の攻撃後"],["黒獣-卯 筆頭","黒獣 卯 奥義-雲解顕現","スキル4-2","天究星刀が10以上"],["黒獣-酉 筆頭","血天下鷄舞乱刀","スキル4-2","血闘本能が20"],["黒獣-午 筆頭","黒風馬脚月斬","スキル4-2","次のRに脚力【午】3を得た後、敵陣走破が5以上"],["R社第四群 司令官","処分","スキル4-2","自分の充電が15以上"],["薬指野獣派 ドーセント","クリティーク","スキル0-2","自分にレフレクスィヨンがなく、対象のデバフが3種以上"],["薬指野獣派 ドーセント","あなたの皮膚の下で脈動する赤い絵具を荒く","スキル4-2","対象のデバフが6種以上"],["蜘蛛の巣 小指の子方","回","スキル0-2","自分の呼吸が20以上"],["夜明事務所フィクサーA","正午の解体","スキル0-2","炎蝶の棺が30以上（加熱された棺がある場合は発動しない）"],["夜明事務所フィクサーA","射出-正午","スキル4-2","炎蝶の棺が30（加熱された棺がある場合は発動しない）"],["夜明事務所フィクサーB","燃えたぎる一撃","スキル4-2","不安定E.G.O::蜜蝋の翼状態"],["中指末姉 チェリク","十倍返し","スキル0-2","嫉妬共鳴が4以上"],["中指末姉 チェリク","百倍返し","スキル0-3","嫉妬共鳴が6以上"],["ロジックアトリエ代表 ハンク","弾丸補給","スキル0-2","戦闘開始時：保有弾丸数が0"],["ワン家家主候補 ヒスイ","布石を投じる-邪気","スキル1-2","邪気暴走状態"],["ワン家家主候補 ヒスイ","符霊術-邪乱","スキル3-2","邪気暴走状態"],["ワン家家主候補 ヒスイ","邪気爆発","スキル4-2","邪気暴走状態"],["ジア家家主候補 ガブナー","啜り喰らえ、卯。","スキル4-2","黒獣-卯所属の味方が3名以上、または黒獣-卯 筆頭が生存"],["LCE E.G.O::紅炎殺 カンパネルラ","紅殺炎 八熱地獄【劣化侵蝕】","スキル4-2","自分の火傷が15以上"],["夜明事務所フィクサー ジル","燃えたぎる一撃","スキル4-2","不安定E.G.O::蜜蝋の翼状態"],["湯の花運送配達員 ロンド","遅刻遅刻〜！","スキル0-2","温度が30以上"],["ストレングス処刑者 キド","致命一文字","スキル4-2","流血闊歩状態"],["ジャーマ工房代表 シュン","スクランブル","スキル3-2","ヒートアップ使用時（激熱2獲得後）"],["ジャーマ工房フィクサー ハイド","レッドアックス","スキル3-2","シャインスピア使用後"]];
+  assert.equal(expected.length, 29);
+  for (const [personaName, skillName, rank, condition] of expected) {
+    const persona = personas.find(item => item.name === personaName);
+    assert.ok(persona, personaName + " is present in the ranking data");
+    const skill = persona.skills.find(item => item.name === skillName && item.rank === rank);
+    assert.ok(skill, personaName + " / " + skillName + " exists at " + rank);
+    assert.equal(skill.derived_condition, condition,
+      personaName + " / " + skillName + " retains its verified switch condition");
+    const slot = Number(rank.match(/^スキル([0-9]+)-/)[1]);
+    const parent = persona.skills.find(item => item.rank === "スキル" + slot + "-1");
+    assert.ok(parent, personaName + " / " + skillName + " has its base form");
+    const parentSources = [parent.effect || "", ...(parent.dice || []).map(die => die.effect || "")];
+    assert.ok(parentSources.some(source => source.includes(skillName)),
+      personaName + " / " + skillName + " is explicitly referenced by its parent form");
+  }
+});
+
+
+
+test("親スキルが派生先を変換・使用する追加9パターンを条件メタデータへ保持する", () => {
+  const embedded = (id) => {
+    const open = '<script id="' + id + '" type="application/json">';
+    const start = html.indexOf(open);
+    assert.notEqual(start, -1, "embedded JSON exists: " + id);
+    const contentStart = start + open.length;
+    const end = html.indexOf("</script>", contentStart);
+    assert.notEqual(end, -1, "embedded JSON closes: " + id);
+    return JSON.parse(html.slice(contentStart, end));
+  };
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  const expected = [["蜘蛛の巣 薬指の子方","始まった展示会","スキル0-2","作品名：ファシアがある",1],["蜘蛛の巣 薬指の子方","ファシアの食事時間よ","スキル3-2","作品名：ファシアがある",1],["蜘蛛の巣 薬指の子方","抑圧された肉体の解放","スキル4-2","作品名：ファシアがある",1],["蜘蛛の巣 薬指の親方","設置美術第3号「簡易肋骨」","スキル3-2","対象のデバフの種類が5以上（第3ダイス的中時）",1],["蜘蛛の巣 薬指の親方","閉場 - 設置美術第1号「あなた方がまき散らした肉と骨が客席となり」","スキル4-2","眺望が0（1戦闘に1回）",1],["南部リウ協会5課フィクサー アニス","剛を制す","スキル0-2","回避失敗時（反撃として使用）",2],["ワザリングハイツ・ワイルドハント エーゲ","俺と共に地獄へ落ちろ","スキル4-2","自分に魔女の狼がある",1],["黒獣-卯筆頭 ダザイ","黒獣 卯 奥義-雲解顕現","スキル4-2","天究星刀が10以上",1],["シュエ家家主候補の護衛 サンジェルマン","加斥我援","スキル4-2","味方が攻撃され、その味方のHPが50％未満（戦闘中1回）",1]];
+  for (const [personaName, skillName, rank, condition, expectedCount] of expected) {
+    const matches = personas.filter(persona => persona.name === personaName &&
+      persona.skills.some(skill => skill.name === skillName && skill.rank === rank));
+    assert.equal(matches.length, expectedCount, personaName + " / " + skillName + " profile count");
+    for (const persona of matches) {
+      const skill = persona.skills.find(item => item.name === skillName && item.rank === rank);
+      assert.equal(skill.derived_condition, condition, personaName + " / " + skillName + " condition");
+      const slot = Number(rank.match(/^スキル([0-9]+)-/)[1]);
+      const parent = persona.skills.find(item => item.rank === "スキル" + slot + "-1");
+      assert.ok(parent, personaName + " / " + skillName + " has parent form");
+      const parentSources = [parent.effect || "", ...(parent.dice || []).map(die => die.effect || "")];
+      assert.ok(parentSources.some(source => source.includes(skillName)),
+        personaName + " / " + skillName + " is explicitly invoked by the parent");
+    }
+  }
+});
+
+
+test("追加6件の派生形態は親スキル本文に明示された切替条件を保持する", () => {
+  const start = html.indexOf('<script id="appendix-data" type="application/json">');
+  assert.notEqual(start, -1);
+  const contentStart = start + '<script id="appendix-data" type="application/json">'.length;
+  const end = html.indexOf("</script>", contentStart);
+  assert.notEqual(end, -1);
+  const appendix = JSON.parse(html.slice(contentStart, end));
+  const expected = [["ロボトミーE.G.O::涙で研ぎ澄まされた剣 RYU","アルカナ・ティアー・アンド・ピアース","スキル4-2","自分が貫く剣状態",["アルカナ・ティアー・アンド・ピアース"]],["ロボトミーE.G.O::愛と憎悪の名の下に アリラ","悪い子は…倒さなきゃだよね？","スキル3-2","自分のSANが最大の40%以下",["悪い子は…倒さなきゃだよね？"]],["炎拳事務所生存者 ローク","虫ケラ同然の野郎共が…","スキル4-2","炎拳事務所代表 ハンクが死亡している",["虫ケラ同然の野郎共が…"]],["終止符事務所フィクサー ジェフタ","高速粉砕","スキル4-2","自分が特殊弾丸-ロジックアトリエを持っている",["高速粉砕"]],["鬼門事務所フィクサー シュウコン","「グチグチグチグチうるせぇんだよアホ！！！」（妖刀投擲）","スキル4-2","自分の呪いが4以上",["グチグチグチグチうるせぇんだよアホ！！！","妖刀投擲"]],["双鉤海賊団副船長 アリス","手を斬り落とすわ！","スキル4-2","保有弾丸数が0",["手を切り落とすわ！","手を斬り落とすわ！"]]];
+  const normalize = value => String(value || "").split(String.fromCharCode(10)).join("").split(String.fromCharCode(13)).join("").replaceAll(" ", "").replaceAll("　", "");
+  for (const [personaName, skillName, rank, condition, aliases] of expected) {
+    const persona = appendix.find(item => item.name === personaName);
+    assert.ok(persona, personaName + " exists");
+    const skill = persona.skills.find(item => item.name === skillName && item.rank === rank);
+    assert.ok(skill, personaName + " / " + skillName + " exists");
+    assert.equal(skill.derived_condition, condition);
+    const slot = Number(rank.match(/^スキル([0-9]+)-/)[1]);
+    const parent = persona.skills.find(item => item.rank === "スキル" + slot + "-1");
+    assert.ok(parent, personaName + " / " + skillName + " parent exists");
+    const parentSources = [parent.effect || "", ...(parent.dice || []).map(die => die.effect || "")];
+    assert.ok(parentSources.some(source => aliases.some(alias => normalize(source).includes(normalize(alias)))),
+      personaName + " / " + skillName + " parent text includes the child name");
+  }
+});
