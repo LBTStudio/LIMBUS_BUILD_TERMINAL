@@ -1335,3 +1335,24 @@ test("戦術枠と派生スキル番号を分離して保持し、派生単位�
   assert.equal(api.derivedSkillMatches(first, "index:2"), false);
   assert.equal(api.derivedSkillMatches(second, "index:1"), false);
 });
+
+
+test("内蔵人格データ全件で派生コード末尾を保持する", () => {
+  const { api } = loadHelpers();
+  const match = html.match(/<script id="persona-data" type="application\\/json">([\\s\\S]*?)<\\/script>/);
+  assert.ok(match, "内蔵人格データが存在する");
+  const db = JSON.parse(match[1]);
+  let derivedCount = 0;
+  for (const persona of [...(db.normal_personas || []), ...(db.tokui_personas || [])]) {
+    for (const skill of persona.skills || []) {
+      const suffix = String(skill.rank || "").match(/^(?:スキル)?\\s*(\\d+)-(\\d+)$/);
+      if (!suffix) continue;
+      derivedCount++;
+      const normalized = api.normalizeSkillRecord(skill);
+      assert.equal(normalized.slot, Number(suffix[1]), persona.name + " / " + skill.rank + " tactical slot");
+      assert.equal(normalized.derivedIndex, Number(suffix[2]), persona.name + " / " + skill.rank + " derived suffix");
+      assert.equal(normalized.isDerived, true, persona.name + " / " + skill.rank + " derived flag");
+    }
+  }
+  assert.ok(derivedCount >= 90, "現在の埋め込みデータに含まれる派生スキル群を横断する");
+});
