@@ -286,6 +286,19 @@ test("対象状態・対象数値の段階比例条件も個別フィルター�
 
   const matchCount = api.targetConditionDetails("対象とのマッチ回数2ごとにマッチ威力+2");
   assert.ok(matchCount.some(x => x.kind === "targetStat" && x.value === "マッチ回数"));
+  const ownedDebuffs = api.targetConditionDetails("対象の保有するデバフ2種ごとにスキル威力+1");
+  assert.ok(ownedDebuffs.some(x => x.kind === "targetStatus" && x.value === "デバフの種類"));
+  const debuffCount = api.targetConditionDetails("対象のデバフの種類の数だけスキル威力+1");
+  assert.ok(debuffCount.some(x => x.kind === "targetStatus" && x.value === "デバフの種類"));
+  const mixedResourceTarget = api.targetConditionDetails("自分の呼吸と対象の出血の合計6ごとにスキル威力+1");
+  assert.ok(mixedResourceTarget.some(x => x.kind === "targetStatus" && x.value === "出血の合計"));
+  const alternateCounter = api.targetConditionDetails("対象の恐慌と振動の合計4に付きスキル威力+1");
+  assert.ok(alternateCounter.some(x => x.kind === "targetStatus" && x.value === "恐慌と振動の合計"));
+  const speedGap = api.targetConditionDetails("対象と速度差2以下ならスキル威力+1");
+  assert.ok(speedGap.some(x => x.kind === "targetStat" && x.value === "速度差"));
+  const equalSpeed = api.targetConditionDetails("対象と自分の速度が同じならスキル威力+1");
+  assert.ok(equalSpeed.some(x => x.kind === "targetStat" && x.value === "速度"));
+
 });
 
 
