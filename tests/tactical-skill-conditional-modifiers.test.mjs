@@ -277,6 +277,15 @@ test("対象状態・対象数値の段階比例条件も個別フィルター�
   const mixed = api.targetConditionDetails("対象が束縛状態かつ速度が1ならばスキル威力+6");
   assert.ok(mixed.some(x => x.kind === "targetStat" && x.value === "速度"));
   assert.ok(mixed.some(x => x.kind === "targetStatus" && /束縛状態/.test(x.value)));
+
+  const relativeSpeed = api.targetConditionDetails("自分の速度が対象の速度より高ければスキル威力+2");
+  assert.ok(relativeSpeed.some(x => x.kind === "targetStat" && x.value === "速度"));
+
+  const targetDebuffs = api.targetConditionDetails("メインターゲットに付与されたデバフの種類1つごとにスキル威力+1");
+  assert.ok(targetDebuffs.some(x => x.kind === "targetStatus" && x.value === "デバフの種類"));
+
+  const matchCount = api.targetConditionDetails("対象とのマッチ回数2ごとにマッチ威力+2");
+  assert.ok(matchCount.some(x => x.kind === "targetStat" && x.value === "マッチ回数"));
 });
 
 
