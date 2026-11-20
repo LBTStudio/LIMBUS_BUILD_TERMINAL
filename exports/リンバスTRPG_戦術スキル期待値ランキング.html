@@ -219,7 +219,7 @@ function slotOf(rank){
 const CONDITION_FILTER_IDS={status:"condStatus",resource:"condResource",stats:"condStats",team:"condTeam",targetStatus:"condTargetStatus",targetStat:"condTargetStats",targetType:"condTargetType",targetAffiliation:"condTargetAffiliation",trigger:"condTrigger",other:"condOther"};
 function targetConditionDetails(context){
  const s=String(context||""),items=[];
- const add=(kind,value)=>{const clean=String(value||"").trim();if(clean)items.push({kind,value:clean});};
+ const add=(kind,value)=>{const clean=String(value||"").trim().replace(kind==="targetStatus"?/^保有する/:"","");if(clean)items.push({kind,value:clean});};
  const statValue=value=>/^(?:HP|SAN|速度|失ったHP|減少HP|体力|貫通耐性|斬撃耐性|打撃耐性|弾丸耐性)$/.test(value);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い|ならば|なら|の場合|の時)/g)){
@@ -265,7 +265,7 @@ function targetConditionDetails(context){
 
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の振動が特殊振動(?:ならば|なら|の場合|の時)/g))add("targetStatus","特殊振動");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の\[([^\]、。\n]{1,18})\](?:の数|だけ|\/\s*\d+)?/g))add("targetStatus",m[1]);
- for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。]{1,24}?)(の合計)?\s*\/\s*\d+\s*だけ/g))add("targetStatus",m[1].trim()+(m[2]||""));
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。]{1,24}?の合計)\s*\/\s*\d+\s*だけ/g))add("targetStatus",m[1].trim());
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,24}?)の合計だけ/g))add("targetStatus",m[1].trim()+"の合計");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の(?:保有する|持つ)?デバフの種類\s*\d+\s*(?:ごとに|につき|に付き)/g))add("targetStatus","デバフの種類");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)の数より(?:自分|自身|本人)の[^、。\n]{1,18}?の数の方が(?:大きい|小さい|多い|少ない)/g))add("targetStatus",m[1].trim().replace(/の数$/,""));
