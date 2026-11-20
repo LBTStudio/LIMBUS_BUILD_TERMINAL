@@ -315,6 +315,25 @@ test("人格・別冊・パッシブ全データを走査し、上限値だけ�
 });
 
 
+test("マッチ威力は資源比例補正と共鳴補正を計算対象にしない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  for (const source of [
+    "自分の呼吸2ごとにマッチ威力+1（最大3）",
+    "自分の充電5ごとにマッチ威力+1（最大2）",
+    "嫉妬共鳴3以上ならマッチ威力+2",
+    "嫉妬共鳴数だけマッチ威力増加（最大3）"
+  ]) {
+    assert.equal(api.kindMods(source, "斬撃", dice, { passive_effect: "R開始時、自分に呼吸10を得る" }).reasons.length, 0, source);
+  }
+  const statusBased = api.kindMods("対象の火傷が8以上ならマッチ威力+2", "斬撃", dice).reasons;
+  assert.equal(statusBased.length, 1, "ordinary target-state conditions remain supported");
+  assert.equal(statusBased[0].value, 2);
+  const affiliationBased = api.kindMods("対象がN社所属ならマッチ威力+1", "斬撃", dice).reasons;
+  assert.equal(affiliationBased.length, 1, "attack-target affiliation conditions remain supported");
+  assert.equal(affiliationBased[0].value, 1);
+});
+
 test("攻撃対象の所属条件と、所属を受け手にするバフを別扱いにする", () => {
   const { api, controls } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];

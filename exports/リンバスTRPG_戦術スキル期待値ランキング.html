@@ -132,7 +132,7 @@ tbody td{padding:7px}
   <div class="conditional-panel" id="conditionalPanel">
    <div class="conditional-head">
     <label class="check"><input type="checkbox" id="includeConditional"> 条件付き威力補正を成立想定で加算</label>
-    <span class="condition-help">攻撃対象の所属は専用条件として分類。所属指定の味方バフは評価対象の所属が一致するときだけ通常補正に加算し、他者への付与は加算しません。資源比例補正は本人の開始時・使用時の獲得量と初期弾丸数から算出。対象側の資源や不明な蓄積量は推測しません。サポートパッシブは名前を入力して明示選択してください。</span>
+    <span class="condition-help">攻撃対象の所属は専用条件として分類。所属指定の味方バフは評価対象の所属が一致するときだけ通常補正に加算し、他者への付与は加算しません。資源比例のスキル威力補正は本人の開始時・使用時の獲得量と初期弾丸数から算出。マッチ威力は資源比例・共鳴補正を計算対象外とします。対象側の資源や不明な蓄積量は推測しません。サポートパッシブは名前を入力して明示選択してください。</span>
    </div>
    <div class="conditional-filters">
     <span class="check-group-label">条件フィルター（分類が複数なら全分類がONの補正のみ採用）：</span>
@@ -413,6 +413,8 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
    const priorContext=before;
    const perUnit=/(?:ご\s*とに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ご\s*とに|\d+につき)/.test(priorContext);
    const resourceScaling=resourceScalingDetails(context);
+   // Match power is not calculated from resource stacks or resonance. Keep resource-based skill-power scaling separate.
+   if(p.matchPower&&(/共鳴/.test(context)||(resourceScaling?.self&&/^(?:呼吸|充電|電圧|弾丸|狂信|煙|棺|釘)$/.test(resourceScaling.resource))))continue;
    const rangeValue=p.range?Number(m[3]||0):0;
    const explicitMax=p.range?Number(m[4]||0):Number(m[3]||0);
    const cap=p.kind==="signed"?(explicitMax||rangeValue):p.kind==="postfix"?Number(m[3]||0):p.kind==="cap"?Number(m[2]||0):p.kind==="dynamic"?Number(m[3]||0):0;
