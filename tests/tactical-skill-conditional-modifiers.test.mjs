@@ -33,8 +33,9 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function passiveBonus", "function deferredSkillBonus"), context);
   vm.runInContext(sourceBetween("function targetConditionMatches", "function selectedValue"), context);
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
+  vm.runInContext(sourceBetween("function normalizeDbPersona", "function addPersona"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, resourceScalingDetails, affiliationFromName, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, conditionClasses, targetConditionDetails, resourceScalingDetails, affiliationFromName, normalizeDbPersona, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -749,6 +750,8 @@ test("複合所属名を正しく解決し、同所属バフだけを本人へ�
   assert.equal(fourthAffiliation, "第四銀工房輪刃派");
   assert.equal(lamanchaAffiliation, "ラ・マンチャランド第一区画");
   assert.equal(musicAffiliation, "笛吹きの音楽隊");
+  assert.equal(api.normalizeDbPersona({ name: "第四銀工房輪刃派フィクサー", skills: [] }, "通常", "基本").affiliation, fourthAffiliation,
+    "通常人格もDB側の所属欠落を名前から補完する");
 
   const fourthBuff = "第四銀工房輪刃派の味方に斬撃威力増加1を付与";
   const fourth = api.kindMods(fourthBuff, "斬撃", dice, { affiliation: fourthAffiliation }).reasons[0];
