@@ -369,7 +369,7 @@ function resourceSupplyFor(persona,skill,resource){
   addGrants(other.effect,"前ラウンドのスキル:"+String(other.name||other.rank||"名称不明")+" / 使用時","priorSkill",candidate);
   (other.dice||[]).forEach((die,index)=>addGrants(die.effect,"前ラウンドのスキル:"+String(other.name||other.rank||"名称不明")+" / ダイス"+(index+1),"priorSkill",candidate));
   if(candidate.length){
-   const hasRoundLimit=[other.effect,...(other.dice||[]).map(x=>x.effect||"")].join("\\n").includes("1Rに1回");
+   const hasRoundLimit=[other.effect,...(other.dice||[]).map(x=>x.effect||"")].join("\n").includes("1Rに1回");
    const win=candidate.filter(x=>x.matchOutcome==="win").reduce((sum,x)=>sum+x.amount,0);
    const loss=candidate.filter(x=>x.matchOutcome==="loss").reduce((sum,x)=>sum+x.amount,0);
    const otherGains=candidate.filter(x=>!x.matchOutcome).reduce((sum,x)=>sum+x.amount,0);
@@ -412,7 +412,7 @@ function resourceSupplyFor(persona,skill,resource){
    if(!/(?:舞台|戦闘|R)開始時/.test(before)){unknownSupport.push(item.name);continue;}
    rawTotal+=Number(m[2]);supportGrantCount++;parsedGrant=true;notes.push(item.name+" +"+m[2]+"（"+(item.cond||"条件なし")+"）");conditional=conditional||!!item.cond&&item.cond!=="なし";
   }
-  const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量(?:と[^、。\\n]{0,20})?[^、。\\n]{0,8}?(?:\\+\\s*(\\d+)|(?:が)?\\s*(\\d+)\\s*(?:増加|上昇))"));
+  const gain=effect.match(new RegExp("(?:スキルで獲得する)?"+escaped+"(?:の)?獲得量(?:と[^、。\n]{0,20})?[^、。\n]{0,8}?(?:\\+\\s*(\\d+)|(?:が)?\\s*(\\d+)\\s*(?:増加|上昇))"));
   if(gain){
    const eligible=grants.filter(x=>!/スキルで獲得する/.test(effect)||x.mode==="skill"||x.mode==="priorSkill");
    if(eligible.length){
@@ -433,7 +433,7 @@ function resourceSupplyFor(persona,skill,resource){
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
- const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?|を含まない|を含まず|を含めない)/.test(source)||/他の味方/.test(source)||/自分が付与した[^、。\\n]{0,40}味方/.test(source+" "+tail);
+ const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた|を除外(?:して|した)?|を含まない|を含まず|を含めない)/.test(source)||/他の味方/.test(source)||/自分が付与した[^、。\n]{0,40}味方/.test(source+" "+tail);
  if(excludesSelf)return {scope:"other",applies:false};
  const teamMatch=source.match(/(?:^|[\s、。\n])(ウサギチーム|トナカイチーム|サイチーム|第四群司令官)[：:]\s*$/);
  if(teamMatch){const required=teamMatch[1],own=String(persona?.team||"");return {scope:"team",team:required,applies:!!own&&own===required};}
@@ -453,8 +453,8 @@ function modifierRecipient(before,after,persona){
   return {scope:"affiliation",affiliation:required,applies:!!own&&(own===required||own.startsWith(required))};
  }
  if(/(?:自分|自身|本人)を含む/.test(source))return {scope:"self",applies:true};
- const recipientBefore=/(?:(?:ランダムな|最も[^、。\\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
- const recipientAfter=/^(?:を|が|は)?(?:(?:ランダムな|最も[^、。\\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
+ const recipientBefore=/(?:(?:ランダムな|最も[^、。\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
+ const recipientAfter=/^(?:を|が|は)?(?:(?:ランダムな|最も[^、。\n]{0,20}?|優先して|優先的に)?味方(?:全体|全員|一人|一名|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:全体|全員|複数名|[0-9０-９]+名|[0-9０-９]+人|[一二三四五六七八九]+名|[一二三四五六七八九]+人)?(?:に|へ)(?:付与|与える|得る|受ける|付く|獲得)?/.test(tail);
  if(recipientBefore||recipientAfter){
   const recipientContext=source+" "+tail;
   if(/(?:対象|相手|敵|前方|後方|両隣)/.test(recipientContext))return {scope:"other",applies:false};
