@@ -1213,3 +1213,21 @@ test("自分を除外しない味方全体への付与は本人にも適用す�
   assert.equal(reason.recipientUnresolved, false);
   assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 2);
 });
+
+
+test("対象状態の数値表記・対象数比例を個別条件へ分類する", () => {
+  const { api } = loadHelpers();
+  const valuePerStack = api.targetConditionDetails("使用前：対象の決闘高潮の数値ごとに基本スキル威力+1");
+  assert.deepEqual(Array.from(valuePerStack, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+
+  const stateOnly = api.targetConditionDetails("対象の決闘高潮だけダメージ量増加");
+  assert.deepEqual(Array.from(stateOnly, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+
+  const targetCount = api.targetConditionDetails("このスキルの広域指定人数より攻撃対象が少ない場合、対象数1名ごとにダメージ量+4");
+  assert.deepEqual(Array.from(targetCount, x => [x.kind, x.value]), [["targetStat", "対象数"]]);
+
+  const modifier = api.kindMods("対象の決闘高潮だけスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(modifier);
+  assert.ok(modifier.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(modifier.targetConditions, x => [x.kind, x.value]), [["targetStatus", "決闘高潮"]]);
+});
