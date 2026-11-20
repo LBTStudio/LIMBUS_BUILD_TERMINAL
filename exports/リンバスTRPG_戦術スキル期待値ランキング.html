@@ -254,6 +254,9 @@ function targetConditionDetails(context){
 
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,24}?)(?:がないなら|がなければ|が存在しないなら|が存在しなければ|を保有していないなら|が付与されていないなら|が付与されていなければ)/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:以上|超|未満|以下|以内)(?:ある|存在する)?(?:ならば|なら|の場合|の時)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)の数値ごとに/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)だけ(?=(?:ダメージ量|スキル威力|マッチ威力|固定ダメージ|HPダメージ|SANダメージ))/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:攻撃対象|対象)数\s*\d+\s*名?ごとに/g))add("targetStat","対象数");
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)の数だけ/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)\/\s*\d+\s*だけ/g))add("targetStatus",m[1]);
  for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)[xｘ×]\s*\d+\s*だけ/g))add("targetStatus",m[1]);
