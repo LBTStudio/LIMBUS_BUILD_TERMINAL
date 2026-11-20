@@ -36,7 +36,7 @@ function loadHelpers() {
   vm.runInContext(sourceBetween("function affiliationFromName", "function addAppendix"), context);
   vm.runInContext(sourceBetween("function normalizeDbPersona", "function addPersona"), context);
   vm.runInContext(`
-    globalThis.api = { kindMods, uniqueEffectText, formatModifierReason, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, normalizeSkillRecord, derivedSkillMatches, slotOf, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
+    globalThis.api = { kindMods, uniqueEffectText, formatModifierReason, conditionClasses, targetConditionDetails, targetConditionMatches, resourceScalingDetails, affiliationFromName, normalizeDbPersona, normalizeSkillRecord, normalizeSkillSet, derivedSkillMatches, slotOf, resourceSupplyFor, passiveBonus, skillBonus, conditionalPerDie, conditionalBonus };
   `, context);
   return { api: context.api, controls, context };
 }
@@ -1312,6 +1312,25 @@ test("状態を持つ敵の存在条件を対象状態へ分類し、他者付�
 });
 
 
+test("同じ戦術番号・同じランクにある別スキルを個別の分岐として識別する", () => {
+  const { api } = loadHelpers();
+  const variants = api.normalizeSkillSet([
+    { rank: "スキル4", name: "通常形", type: "打撃", effect: "使用時：状態Aなら変更", dice: [{ roll: "2d6", effect: "" }] },
+    { rank: "スキル4", name: "変更形", type: "打撃", effect: "使用時：状態Aを消費", dice: [{ roll: "2d8", effect: "" }] }
+  ]);
+  assert.equal(variants.length, 2);
+  assert.ok(variants.every(skill => skill.slot === 4));
+  assert.ok(variants.every(skill => skill.sameRankVariant));
+  assert.ok(variants.every(skill => skill.isVariant));
+  assert.deepEqual(Array.from(variants, skill => skill.variantIndex), [1, 2]);
+  assert.ok(variants.every(skill => skill.variantCount === 2));
+  assert.equal(api.derivedSkillMatches(variants[0], "same"), true);
+  assert.equal(api.derivedSkillMatches(variants[1], "same:2"), true);
+  assert.equal(api.derivedSkillMatches(variants[0], "same:2"), false);
+  assert.equal(api.derivedSkillMatches(variants[0], "index:1"), false);
+  assert.equal(api.derivedSkillMatches(variants[0], "base"), false);
+});
+
 test("戦術枠と派生スキル番号を分離して保持し、派生単位で絞り込む", () => {
   const { api } = loadHelpers();
   const base = api.normalizeSkillRecord({ rank: "スキル1", name: "親スキル", dice: [{ roll: "2d6" }] });
@@ -1364,4 +1383,20 @@ test("基本・特異・別冊の内蔵データ全件で派生コード末尾�
     }
   }
   assert.ok(derivedCount >= 140, "基本・特異・別冊の派生スキルを横断する");
+
+  const knownSameRankVariants = new Set(["中指末姉 チェリク", "ワン家家主候補 ヒスイ", "ロボトミーE.G.O::愛と憎悪の名の下に アリラ", "第四銀工房太刀派代表 ウダ"]);
+  const foundSameRankVariants = new Set();
+  for (const persona of personas) {
+    const normalized = api.normalizeSkillSet(persona.skills || []);
+    const grouped = new Map();
+    for (const skill of normalized) {
+      if (!skill.sameRankVariant) continue;
+      const group = grouped.get(skill.rank) || [];
+      group.push(skill);
+      grouped.set(skill.rank, group);
+    }
+    if ([...grouped.values()].some(group => group.length > 1)) foundSameRankVariants.add(persona.name);
+  }
+  for (const name of knownSameRankVariants) assert.ok(foundSameRankVariants.has(name), name + " の同一ランク別スキルを識別する");
+  assert.ok(foundSameRankVariants.size >= 4, "同一ランク別スキル群を全件検出する");
 });
