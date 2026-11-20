@@ -1614,3 +1614,57 @@ test("80文字より前にある処理後トリガーを負の威力補正の発
   assert.equal(penalty.afterResolution, true, "発動時点が80文字より前にあっても敗北後として除外する");
   assert.equal(penalty.conditional, true);
 });
+
+
+test("内蔵全人格の負の威力補正は受け手と発動時点を失わない", () => {
+  const { api } = loadHelpers();
+  const embedded = (id) => {
+    const open = '<script id="' + id + '" type="application/json">';
+    const start = html.indexOf(open);
+    assert.notEqual(start, -1, "embedded JSON exists: " + id);
+    const contentStart = start + open.length;
+    const end = html.indexOf("</script>", contentStart);
+    assert.notEqual(end, -1, "embedded JSON closes: " + id);
+    return JSON.parse(html.slice(contentStart, end));
+  };
+  const db = embedded("persona-data");
+  const appendix = embedded("appendix-data");
+  const personas = [...(db.normal_personas || []), ...(db.tokui_personas || []), ...appendix];
+  const negativePattern = /(?:スキル|ダイス)?威力(?:増加|減少)?\s*[-－−]\s*\d+|(?:スキル|ダイス)?威力(?:が)?\s*\d+\s*(?:減少|低下)/;
+  const postResolutionPattern = /(?:マッチ勝利時|マッチ敗北時|攻撃後|的中時|敵討伐時|R終了時|ターン終了時|相殺時|被攻撃時|被攻撃前|守備成功時|回避成功時)/;
+  const candidates = [];
+  let scannedLines = 0;
+
+  for (const persona of personas) {
+    for (const skill of persona.skills || []) {
+      const sources = [skill.effect || "", ...(skill.dice || []).map(die => die.effect || "")];
+      for (const source of sources) {
+        for (const line of source.split(/\r?\n/)) {
+          if (!negativePattern.test(line)) continue;
+          scannedLines++;
+          for (const item of api.kindMods(line, skill.type || "", skill.dice || [], persona, skill).reasons) {
+            if (!Number.isFinite(item.value) || item.value >= 0) continue;
+            candidates.push({ persona: persona.name, skill: skill.name, line, item });
+          }
+        }
+      }
+    }
+  }
+
+  assert.ok(scannedLines >= 20, "人格・スキル本文から十分な負の威力補正候補を走査する");
+  assert.ok(candidates.length >= 8, "数値として認識できる負の威力補正を複数検出する");
+
+  for (const candidate of candidates) {
+    const label = candidate.persona + " / " + candidate.skill + " / " + candidate.line;
+    if (candidate.item.excludedRecipient) continue;
+    assert.equal(candidate.item.conditional, true,
+      label + " は無条件の負補正として固定加算してはならない");
+    if (postResolutionPattern.test(candidate.line)) {
+      assert.equal(candidate.item.afterResolution, true,
+        label + " は今回の攻撃解決後に発動する");
+    }
+  }
+
+  assert.ok(candidates.some(candidate => candidate.item.afterResolution && /マッチ敗北時/.test(candidate.line)),
+    "敗北後に発動するメリアニア等の負補正を実データから検出する");
+});
