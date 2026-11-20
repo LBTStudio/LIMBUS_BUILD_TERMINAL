@@ -755,6 +755,12 @@ test("複合所属名を正しく解決し、同所属バフだけを本人へ�
   const districtOnly = "ラ・マンチャランド第一区画所属の血鬼の味方にスキル威力+2を付与";
   const genericLamancha = api.kindMods(districtOnly, "斬撃", dice, { affiliation: "ラ・マンチャランド" }).reasons[0];
   assert.equal(genericLamancha.excludedRecipient, true, "一般所属だけでは区画限定の付与対象に含めない");
+
+  const sameAffiliation = "自分と同じ所属の味方にスキル威力+2を付与";
+  const sameAffiliationReason = api.kindMods(sameAffiliation, "斬撃", dice, { affiliation: "N社" }).reasons[0];
+  assert.equal(sameAffiliationReason.recipientScope, "affiliation");
+  assert.equal(sameAffiliationReason.excludedRecipient, false);
+  assert.equal(api.skillBonus({ type: "斬撃", effect: sameAffiliation, dice }, { affiliation: "N社" }).bonus, 4);
 });
 
 
