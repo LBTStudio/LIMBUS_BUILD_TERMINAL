@@ -224,6 +224,7 @@ function targetConditionDetails(context){
  for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い)/g)){
   const value=m[1].trim();add(statValue(value)?"targetStat":"targetStatus",value);
  }
+ for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:弱点|抵抗|脆弱|普通)(?:なら|の場合|の時)/g))add("targetStat",m[1]);
  for(const m of s.matchAll(/(?:対象|相手|敵)より([^、。\n0-9０-９]{1,12}?)(?:が)?(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
  for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:対象|相手|敵)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
  for(const m of s.matchAll(/(?:対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:自分|自身|本人)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
