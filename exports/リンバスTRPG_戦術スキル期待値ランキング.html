@@ -96,6 +96,10 @@ tbody td{padding:7px}
 .conditional-filters{display:none;align-items:center;gap:7px 13px;flex-wrap:wrap;padding-top:6px;border-top:1px solid #302b22}
 .conditional-panel.active .conditional-filters{display:flex}
 .conditional-filters .check{font-size:10px;font-weight:500;white-space:normal;color:#d0c6b1}
+.filter-group{display:flex;align-items:center;gap:7px 13px;flex-wrap:wrap;min-width:0;width:100%;padding:5px 0}
+.filter-group+.filter-group{border-top:1px solid #302b22}
+.filter-group-title{flex:0 0 100%;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--gold)}
+.filter-note{flex:0 0 100%;margin:2px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
 .conditional-filters .target-filter{display:flex;align-items:center;gap:6px}
 .target-filter input{width:230px;height:28px;padding:4px 7px;background:#11100e;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit}
 @media(max-width:900px){.conditional-filters{gap:7px 10px}.conditional-head{align-items:flex-start}}
@@ -135,18 +139,27 @@ tbody td{padding:7px}
     <span class="condition-help">攻撃対象の所属は専用条件として分類。所属指定の味方バフは評価対象の所属が一致するときだけ通常補正に加算し、他者への付与は加算しません。資源比例のスキル威力補正は本人の開始時・使用時の獲得量と初期弾丸数から算出。マッチ威力は資源条件・資源比例・共鳴補正を計算対象外とします。対象側の資源や不明な蓄積量は推測しません。サポートパッシブは名前を入力して明示選択してください。</span>
    </div>
    <div class="conditional-filters">
-    <span class="check-group-label">条件フィルター（分類が複数なら全分類がONの補正のみ採用）：</span>
-    <label class="check"><input type="checkbox" id="condStatus" checked> 状態異常・デバフ</label>
-    <label class="check"><input type="checkbox" id="condResource" checked> 呼吸・充電・弾丸など</label>
-    <label class="check"><input type="checkbox" id="condStats" checked> HP・SAN・速度</label>
-    <label class="check"><input type="checkbox" id="condTeam" checked> 共鳴・所属・味方編成</label>
-    <label class="check"><input type="checkbox" id="condTargetStatus" checked> 対象状態・条件</label>
-    <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別</label>
-    <label class="check"><input type="checkbox" id="condTargetAffiliation" checked> 攻撃対象の所属</label>
-    <label class="check target-filter">対象条件を絞り込む <input type="search" id="targetConditionFilter" placeholder="例：機械融和生命体 / 牙狩の血鬼 / N社の釘"></label>
-    <label class="check target-filter">資源供給に使うサポートパッシブ名 <input type="search" id="resourceSupportPassiveNames" placeholder="例：釘と金槌、処断の歓喜"></label>
-    <label class="check"><input type="checkbox" id="condTrigger" checked> マッチ・会心・討伐など</label>
-    <label class="check"><input type="checkbox" id="condOther" checked> その他・分類不能</label>
+    <div class="filter-group">
+     <span class="filter-group-title">効果に含まれる条件</span>
+     <label class="check"><input type="checkbox" id="condStatus" checked> 状態異常・デバフを参照する条件</label>
+     <label class="check"><input type="checkbox" id="condResource" checked> 資源・蓄積量（呼吸／充電／弾丸など）</label>
+     <label class="check"><input type="checkbox" id="condStats" checked> HP・SAN・速度などの数値条件</label>
+     <label class="check"><input type="checkbox" id="condTeam" checked> 味方側の所属・編成・共鳴条件</label>
+     <label class="check"><input type="checkbox" id="condTrigger" checked> 発動契機（マッチ・会心・討伐など）</label>
+     <label class="check"><input type="checkbox" id="condOther" checked> その他・未分類の条件</label>
+    </div>
+    <div class="filter-group target-group">
+     <span class="filter-group-title">攻撃対象に関する条件</span>
+     <label class="check"><input type="checkbox" id="condTargetStatus" checked> 対象の状態・付与物を参照する条件</label>
+     <label class="check"><input type="checkbox" id="condTargetType" checked> 対象の種別・特性を参照する条件</label>
+     <label class="check"><input type="checkbox" id="condTargetAffiliation" checked> 対象の所属を参照する条件</label>
+     <label class="check target-filter">対象条件の文字列で絞り込む <input type="search" id="targetConditionFilter" placeholder="例：機械融和生命体／牙狩の血鬼／N社の釘"></label>
+    </div>
+    <div class="filter-group resource-group">
+     <span class="filter-group-title">資源比例補正の供給元（スキル威力用）</span>
+     <label class="check target-filter">加算するサポートパッシブ名 <input type="search" id="resourceSupportPassiveNames" placeholder="例：釘と金槌、処断の歓喜"></label>
+    </div>
+    <p class="filter-note">分類が複数に該当する補正は、該当する分類のチェックがすべてONの場合のみ加算。攻撃対象の所属条件と、味方への所属指定バフは別分類です。資源比例・共鳴はマッチ威力に加算しません。</p>
    </div>
   </div>
   <div class="metrics">
