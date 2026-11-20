@@ -427,7 +427,7 @@ function resourceSupplyFor(persona,skill,resource){
 }
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
- if(/(?:自分|自身|本人)を含む/.test(source))return {scope:"self",applies:true};
+ if(/(?:自分|自身|本人)を含む/.test(source)||/(?:自分|自身|本人)(?:と|及び|、)[^、。\\n]{0,24}(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"self",applies:true};
  const ownAffiliation=String(persona?.affiliation||"").replace(/所属/g,"");
  if(/(?:自分と)?同じ所属の(?:味方|キャラクター|フィクサー)/.test(source))return {scope:"affiliation",affiliation:ownAffiliation||"同じ所属",applies:!!ownAffiliation};
  const excludesSelf=/(?:自分|自身|本人)(?:以外|を除く|を除き|を除いて|を除いた)/.test(source);
