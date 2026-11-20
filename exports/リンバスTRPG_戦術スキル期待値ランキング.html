@@ -235,7 +235,7 @@ function resourceSupplyFor(persona,skill,resource){
    const selfRecipient=/(?:自分|自身|本人)に/.test(before);
    const otherRecipient=/(?:味方|対象|敵|相手|前方|後方|両隣)に/.test(before);
    if(!timely||otherRecipient&&!selfRecipient)continue;
-   grants.push({amount:Number(m[1]),source:label,conditional:false});
+   grants.push({amount:Number(m[1]),source:label,conditional:/なら|ならば|であれば|の場合|以上|以下|保有|共鳴/.test(before)});
   }
  };
  const ownSources=[["パッシブ",persona?.passive_effect],["常時パッシブ",persona?.passive_always],["別冊パッシブ",persona?.passives],
@@ -260,7 +260,7 @@ function resourceSupplyFor(persona,skill,resource){
    if(!/(?:舞台|戦闘|R)開始時/.test(before)||/次のR|次R/.test(before))continue;
    total+=Number(m[1]);supportGrantCount++;notes.push(item.name+" +"+m[1]+"（"+(item.cond||"条件なし")+"）");conditional=true;
   }
-  const gain=effect.match(new RegExp(resource+"(?:の)?獲得量\\s*\\+\\s*(\\d+)"));
+  const gain=effect.match(new RegExp(resource+"(?:の)?獲得量[^。\\n]{0,20}?\\+\\s*(\\d+)"));
   if(gain&&grants.length){
    const extra=Number(gain[1])*grants.length;
    total+=extra;notes.push(item.name+" 獲得量+"+gain[1]+" × "+grants.length+"（"+(item.cond||"条件なし")+"）");conditional=true;
