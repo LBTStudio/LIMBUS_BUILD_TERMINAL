@@ -218,13 +218,13 @@ function targetConditionDetails(context){
 function modifierRecipient(before,after,persona){
  const source=String(before||""),tail=String(after||"");
  if(/(?:自分|自身|本人)(?:と|及び|、)?/.test(source))return {scope:"self",applies:true};
- const affiliationMatch=source.match(/([A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,12}(?:協会|工房|社|組|支部|チーム))(?:所属)?の(?:味方|キャラクター|フィクサー)/);
+ const affiliationMatch=source.slice(-60).match(/([A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,12}?(?:協会|工房|社|組|支部|チーム))(?:所属)?の(?:味方|キャラクター|フィクサー)(?:全体|全員|\\d+名|2名|２名)?(?:に|へ|の)$/);
  if(affiliationMatch){
-  const required=affiliationMatch[1].replace(/所属$/,"");
+  const required=affiliationMatch[1];
   const own=String(persona?.affiliation||"").replace(/所属/g,"");
   return {scope:"affiliation",affiliation:required,applies:!!own&&(own.includes(required)||required.includes(own))};
  }
- const recipientPhrase=/(?:味方(?:全体|全員|一人|2名|２名|複数名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
+ const recipientPhrase=/(?:味方(?:全体|全員|一人|2名|２名|複数名|\\d+名)?|対象|敵|相手|前方|後方|両隣|キャラクター)(?:に|へ|の)$/.test(source);
  if(recipientPhrase)return {scope:"other",applies:false};
  return {scope:"selfOrUnspecified",applies:true};
 }
