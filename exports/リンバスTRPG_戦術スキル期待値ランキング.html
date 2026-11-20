@@ -132,7 +132,7 @@ tbody td{padding:7px}
   <div class="conditional-panel" id="conditionalPanel">
    <div class="conditional-head">
     <label class="check"><input type="checkbox" id="includeConditional"> 条件付き威力補正を成立想定で加算</label>
-    <span class="condition-help">攻撃対象の所属は専用条件として分類。所属指定の味方バフは評価対象の所属が一致するときだけ通常補正に加算し、他者への付与は加算しません。資源量が未確定の式は加算しません。</span>
+    <span class="condition-help">攻撃対象の所属は専用条件として分類。所属指定の味方バフは評価対象の所属が一致するときだけ通常補正に加算し、他者への付与は加算しません。資源比例補正は自分の開始時・使用時に得る量から算出します。サポートパッシブは名前を入力して明示選択してください。</span>
    </div>
    <div class="conditional-filters">
     <span class="check-group-label">条件フィルター（分類が複数なら全分類がONの補正のみ採用）：</span>
@@ -465,7 +465,7 @@ function deferredSkillBonus(persona,skill){
   const fields=[["スキル効果",sourceSkill.effect||""],...(sourceSkill.dice||[]).map((d,i)=>[`ダイス${i+1}`,d.effect||""])];
   for(const [field,text] of fields){
    if(!text||!/(?:次のR|次R)/.test(text)||/(?:味方|対象).{0,12}(?:威力増加|威力\+)/.test(text))continue;
-   const parsed=kindMods(text,skill.type||"",dice,persona,skill);
+   const parsed=kindMods(text,skill.type||"",dice,persona);
    for(const x of parsed.reasons){
     if(!/(?:斬撃|貫通|打撃|銃撃)(?:スキル)?威力/.test(x.context||""))continue;
     const candidate={...x,conditional:true,conditionCategories:["trigger"],origin:`他スキル:${sourceSkill.name||sourceSkill.rank||"名称不明"} / ${field}`};
