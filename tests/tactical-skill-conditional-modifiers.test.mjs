@@ -1272,3 +1272,25 @@ test("実データ由来の対象状態分数・消費量・速度差を正し�
   assert.deepEqual(Array.from(api.targetConditionDetails("対象のスキル威力減少")), [],
     "対象が受ける効果そのものを対象条件として誤分類しない");
 });
+
+
+test("改行折返し・状態変換・対象との速度一致を対象条件として保持する", () => {
+  const { api } = loadHelpers();
+  const wrapped = api.kindMods("対象の破裂6ご\nとにマッチ威力+1（最大3）", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(wrapped);
+  assert.ok(wrapped.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(wrapped.targetConditions, x => [x.kind, x.value]), [["targetStatus", "破裂"]]);
+
+  const converted = api.kindMods("対象の振動が振動-灼熱に変換されているならスキル威力+2", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(converted);
+  assert.ok(converted.conditionCategories.includes("targetStatus"));
+  assert.deepEqual(Array.from(converted.targetConditions, x => [x.kind, x.value]), [["targetStatus", "振動-灼熱"]]);
+
+  const equalSpeed = api.kindMods("対象と速度が同じならスキル威力+1", "斬撃", [{ effect: "" }]).reasons[0];
+  assert.ok(equalSpeed);
+  assert.ok(equalSpeed.conditionCategories.includes("targetStat"));
+  assert.deepEqual(Array.from(equalSpeed.targetConditions, x => [x.kind, x.value]), [["targetStat", "速度"]]);
+
+  assert.ok(api.conditionClasses("煙状態の対象に与えるダメージ量+3").includes("targetStatus"));
+  assert.ok(api.conditionClasses("対象が出血で受けるダメージ量+3").includes("targetStatus"));
+});
