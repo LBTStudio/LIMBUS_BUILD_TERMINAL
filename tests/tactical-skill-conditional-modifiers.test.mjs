@@ -330,6 +330,9 @@ test("マッチ威力は資源比例補正と共鳴補正を計算対象にし�
   const statusBased = api.kindMods("対象の火傷が8以上ならマッチ威力+2", "斬撃", dice).reasons;
   assert.equal(statusBased.length, 1, "ordinary target-state conditions remain supported");
   assert.equal(statusBased[0].value, 2);
+  const targetDebuffCount = api.kindMods("対象が5種類以上のデバフを保有するならマッチ威力+1", "斬撃", dice).reasons[0];
+  assert.ok(targetDebuffCount.conditionCategories.includes("targetStatus"));
+  assert.ok(!targetDebuffCount.conditionCategories.includes("resource"), "generic target-state possession is not a resource condition");
   const affiliationBased = api.kindMods("対象がN社所属ならマッチ威力+1", "斬撃", dice).reasons;
   assert.equal(affiliationBased.length, 1, "attack-target affiliation conditions remain supported");
   assert.equal(affiliationBased[0].value, 1);
