@@ -61,7 +61,7 @@
     if (!token) throw new Error("外部の共有データにLBTトークンがありません");
     const [state, db, items, specialItems] = await Promise.all([
       window.LBT_shareLink.decodeToken(token),
-      fetch("data/db.json?v=1c0ff79c").then((response) => response.ok ? response.json() : {}).catch(() => ({})),
+      fetch("data/db.json?v=0a24da52").then((response) => response.ok ? response.json() : {}).catch(() => ({})),
       fetch("data/items.json?v=b185394a").then((response) => response.ok ? response.json() : []).catch(() => []),
       fetch("data/special-items.json?v=aaa21cfb").then((response) => response.ok ? response.json() : []).catch(() => [])
     ]);
