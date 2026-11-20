@@ -250,9 +250,10 @@ function kindMods(text,skillType,dice=[]){
    if(prefix&&!applies(prefix)&&p.scope!=="matching")continue;
    const before=src.slice(Math.max(0,start-80),start),after=src.slice(end,Math.min(src.length,end+35));
    if((/対象の(?:スキル|ダイス)?\s*$/.test(before)&&/(?:スキル|ダイス)?威力/.test(m[0]))||/対象の(?:スキル|ダイス)威力\s*$/.test(before)||(!p.matchPower&&/マッチ(?:の)?\s*$/.test(before)))continue;
-   if(p.matchPower&&/(?:対象|相手|敵)の$/.test(before))continue;
+   if(p.matchPower&&/(?:対象|相手|敵|味方)の$/.test(before))continue;
    if(p.matchPower&&!/(?:自分|自身|本人|マッチ進行時|マッチ開始時|戦闘開始時|使用時|使用前|攻撃時|攻撃前|なら|場合|ごとに|につき)/.test(before))continue;
    if(p.matchPower&&/対象が味方(?:なら|であれば)/.test(before))continue;
+   if(p.matchPower&&/(?:味方|対象|敵|相手|前方|後方|両隣).{0,12}(?:付与|得る|与える)/.test(after))continue;
    const recipientMatch=p.matchPower?before.match(/(?:味方|対象|敵|キャラクター|前方|後方|両隣)[^。]{0,15}(?:に|へ)(?:次のR|次R)?に?$/):null;
    if(recipientMatch&&!/(?:時|たび|ごと)に(?:次のR|次R)?に?$/.test(recipientMatch[0]))continue;
    const clauseStart=src.lastIndexOf("。",start)+1,clauseEnd=src.indexOf("。",end);
