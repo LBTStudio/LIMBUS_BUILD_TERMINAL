@@ -95,7 +95,7 @@ function createToolHarness() {
   const context = { document };
   vm.createContext(context);
   vm.runInContext(
-    mainScript + "\nglobalThis.__tool = { records, selectedValue, conditionalBonus, dieMetric, render };",
+    mainScript + "\nglobalThis.__tool = { records, selectedValue, conditionalBonus, dieMetric, filteredRecords, render };",
     context,
     { timeout: 15000 }
   );
@@ -384,4 +384,53 @@ test("エドガー家継承者クロムの回数依存ペナルティは未確�
   assert.equal(penalty.value, null);
   assert.equal(penalty.unresolved, true);
   assert.equal(penalty.conditional, true);
+});
+
+
+test("防御・回避・マッチ可能防御を同じ防御除外フィルターで除外する", () => {
+  const { tool, element } = createToolHarness();
+  const all = Array.from(tool.filteredRecords());
+  const defenseTypes = new Set(["防御", "回避", "マッチ可能防御"]);
+  const defenseRows = all.filter(row => defenseTypes.has(row.skill.type));
+  assert.ok(defenseRows.length >= 300, "防御・回避の各種別を実データから検出する");
+
+  element("excludeDefense").checked = true;
+  const withoutDefense = Array.from(tool.filteredRecords());
+  assert.equal(withoutDefense.length, all.length - defenseRows.length,
+    "防御除外後の母数は防御・回避・マッチ可能防御の全件分だけ減る");
+  assert.ok(withoutDefense.every(row => !defenseTypes.has(row.skill.type)));
+
+  element("excludeCounter").checked = true;
+  const withoutDefenseOrCounter = Array.from(tool.filteredRecords());
+  assert.ok(withoutDefenseOrCounter.every(row =>
+    !defenseTypes.has(row.skill.type) && !/反撃/.test(row.skill.type || "")
+  ));
+  assert.ok(withoutDefenseOrCounter.length < withoutDefense.length);
+
+  element("source").value = "別冊";
+  element("kind").value = "別冊・同期化";
+  element("slot").value = "4";
+  element("sin").value = "傲慢";
+  element("derived").value = "derived";
+  const combined = Array.from(tool.filteredRecords());
+  const expected = withoutDefenseOrCounter.filter(row =>
+    row.persona.source === "別冊" &&
+    row.persona.kind === "別冊・同期化" &&
+    row.skill.slot === 4 &&
+    row.skill.sin === "傲慢" &&
+    (row.skill.isDerived || row.skill.sameRankVariant)
+  );
+  assert.equal(combined.length, expected.length,
+    "出典・人格区分・戦術枠・属性・派生・区分除外の複合条件を同時に反映する");
+  assert.deepEqual(
+    Array.from(combined, row => row.persona.name + "/" + row.skill.name).sort(),
+    Array.from(expected, row => row.persona.name + "/" + row.skill.name).sort()
+  );
+
+  element("sort").value = "single";
+  const individual = Array.from(tool.filteredRecords());
+  const expectedDice = combined.reduce((sum, row) => sum + row.dieRows.length, 0);
+  assert.equal(individual.length, expectedDice,
+    "ダイス単体モードの表示件数は複合条件後の各スキルのダイス数合計と一致する");
+  assert.ok(individual.every(row => row.rankDie && Number.isInteger(row.rankDieIndex)));
 });
