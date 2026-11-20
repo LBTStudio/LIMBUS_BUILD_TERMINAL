@@ -270,6 +270,13 @@ test("対象状態・対象数値の段階比例条件も個別フィルター�
 
   const hp = api.targetConditionDetails("対象の失ったHP10ごとにダメージ量+1");
   assert.deepEqual(Array.from(hp, x => [x.kind, x.value]), [["targetStat", "失ったHP"]]);
+
+  const namedStatus = api.targetConditionDetails("対象の紅梅が10ならスキル威力+1");
+  assert.deepEqual(Array.from(namedStatus, x => [x.kind, x.value]), [["targetStatus", "紅梅"]]);
+
+  const mixed = api.targetConditionDetails("対象が束縛状態かつ速度が1ならばスキル威力+6");
+  assert.ok(mixed.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(mixed.some(x => x.kind === "targetStatus" && /束縛状態/.test(x.value)));
 });
 
 
