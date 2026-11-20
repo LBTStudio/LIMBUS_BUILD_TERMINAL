@@ -925,6 +925,22 @@ test("選出対象の味方への付与は適用先未確定として加算を�
   }
 });
 
+test("味方が使用する別スキルへの威力補正は本人のスキル威力に混ぜない", () => {
+  const { api } = loadHelpers();
+  const dice = [{ effect: "" }, { effect: "" }];
+  for (const effect of [
+    "使用時：前方の味方1名の使用するスキルが嫉妬スキルならスキル威力+2",
+    "後方の味方の使用しているスキルが打撃属性ならスキル威力+2"
+  ]) {
+    const reason = api.kindMods(effect, "斬撃", dice, {}).reasons[0];
+    assert.ok(reason, effect);
+    assert.equal(reason.recipientScope, "allySelection", effect);
+    assert.equal(reason.recipientUnresolved, true, effect);
+    assert.equal(reason.excludedRecipient, false, effect);
+    assert.equal(api.skillBonus({ type: "斬撃", effect, dice }, {}).bonus, 0, effect);
+  }
+});
+
 test("他の味方の人数を参照する自己威力補正を他者への付与と誤認しない", () => {
   const { api } = loadHelpers();
   const dice = [{ effect: "" }, { effect: "" }];
