@@ -528,6 +528,7 @@ test("実データのN社人格は狂信10ではなく本人が次Rへ持ち越�
   assert.equal(impossible.resourceSupply.total,4);
   const reachable=api.kindMods("自分の狂信が4以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
   assert.equal(reachable.value,2,"到達可能な閾値は通常どおり評価する");
+  assert.deepEqual(Array.from(api.targetConditionDetails("対象の狂信が10以上ならスキル威力+2"),item=>[item.kind,item.value]),[["targetStatus","狂信"]]);
   const target=api.kindMods("対象の狂信が10以上ならスキル威力+2",holderSkill.type,holderSkill.dice,holder,holderSkill).reasons[0];
   assert.equal(target.value,2,"対象側の蓄積条件は本人の資源量で判定せず、対象条件として扱う");
   assert.equal(target.unresolved,false);
