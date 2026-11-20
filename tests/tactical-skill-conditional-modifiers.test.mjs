@@ -807,12 +807,14 @@ test("対象条件検索が未満・以下・逆向きの状態付与・速度�
     "自分の速度が対象より2以上高ければスキル威力+1",
     "対象より速度が高いならスキル威力+1",
     "対象の速度が自分より高ければスキル威力+1",
+    "対象の貫通耐性が弱点ならダメージ量+7",
     "獲物の印が対象にあるならマッチ威力+2"
   ].join("。"));
 
   assert.ok(details.some(x => x.kind === "targetStatus" && x.value === "出血"));
   assert.ok(details.some(x => x.kind === "targetStat" && x.value === "HP"));
   assert.ok(details.some(x => x.kind === "targetStat" && x.value === "速度"));
+  assert.ok(details.some(x => x.kind === "targetStat" && x.value === "貫通耐性"));
   assert.ok(details.some(x => x.kind === "targetStatus" && x.value === "獲物の印"));
   assert.ok(api.targetConditionMatches({ kind: "targetStat", value: "速度" }, "速度"));
   assert.ok(api.targetConditionMatches({ kind: "targetStatus", value: "出血" }, "出血"));
