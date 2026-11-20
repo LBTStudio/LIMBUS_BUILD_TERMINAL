@@ -466,9 +466,13 @@ function recoverAppendixEmbeddedPassives(persona){
  }
  return recovered.length;
 }
+function affiliationFromName(name){
+ const match=String(name||"").match(/[A-ZＡ-Ｚ]社|[一-龥ぁ-んァ-ヶー]{1,14}?(?:協会|工房|組|支部|チーム|派)/);
+ return match?.[0]||"";
+}
 function addAppendix(){
  for(const p of APPENDIX){
-  const persona={...p,affiliation:"",passive_effect:"",source:"別冊",
+  const persona={...p,affiliation:p.affiliation||affiliationFromName(p.name),passive_effect:"",source:"別冊",
    unique:Array.isArray(p.unique)?p.unique.slice():[],
    skills:(p.skills||[]).map(s=>({...s,dice:(s.dice||[]).map(d=>({...d}))}))};
   recoverAppendixEmbeddedPassives(persona);
