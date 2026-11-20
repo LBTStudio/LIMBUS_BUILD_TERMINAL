@@ -283,7 +283,8 @@ function resourceSupplyFor(persona,skill,resource){
      if(resourceExpiresAfterRound(persona,resource))continue;
      unknownSources.push(label);continue;
     }
-    target.push({amount:Number(m[2]||m[4]||m[6]),source:label,mode,conditional:true});
+    const matchOutcome=/マッチ勝利時/.test(before)?"win":/マッチ敗北時/.test(before)?"loss":"";
+    target.push({amount:Number(m[2]||m[4]||m[6]),source:label,mode,conditional:true,matchOutcome});
     continue;
    }
    if(nextRound||later)continue;
@@ -304,7 +305,10 @@ function resourceSupplyFor(persona,skill,resource){
   (other.dice||[]).forEach((die,index)=>addGrants(die.effect,"前ラウンドのスキル:"+String(other.name||other.rank||"名称不明")+" / ダイス"+(index+1),"priorSkill",candidate));
   if(candidate.length){
    const hasRoundLimit=[other.effect,...(other.dice||[]).map(x=>x.effect||"")].join("\\n").includes("1Rに1回");
-   const amount=hasRoundLimit?Math.max(...candidate.map(x=>x.amount)):candidate.reduce((sum,x)=>sum+x.amount,0);
+   const win=candidate.filter(x=>x.matchOutcome==="win").reduce((sum,x)=>sum+x.amount,0);
+   const loss=candidate.filter(x=>x.matchOutcome==="loss").reduce((sum,x)=>sum+x.amount,0);
+   const otherGains=candidate.filter(x=>!x.matchOutcome).reduce((sum,x)=>sum+x.amount,0);
+   const amount=hasRoundLimit?Math.max(...candidate.map(x=>x.amount)):otherGains+Math.max(win,loss);
    priorSkillOptions.push({amount,notes:candidate.map(x=>x.source+" +"+x.amount),conditional:true});
   }
  }
