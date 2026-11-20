@@ -1577,3 +1577,40 @@ test("他スキルが勝利後に得る次Rの威力増加は次Rの別スキル
   }, "all", "effect"), 2,
   "次Rの2ダイスに威力+1を適用する");
 });
+
+
+test("回数依存で数値が確定しないスキル威力減少も候補として検出する", () => {
+  const { api } = loadHelpers();
+  const source = "この戦闘中にd値強化を得た回数だけスキル威力減少（最大5）";
+  const result = api.kindMods(source, "斬撃", [{ roll: "2d8", effect: "" }]).reasons;
+  const penalty = result.find(item => item.label === "数値未確定の威力減少");
+  assert.ok(penalty, "負の補正の語尾だけで検出対象から漏らさない");
+  assert.equal(penalty.value, null, "この戦闘中に得た回数は事前に決め打ちしない");
+  assert.equal(penalty.unresolved, true);
+  assert.equal(penalty.conditional, true);
+  assert.equal(api.kindMods("対象のスキル威力減少", "斬撃", [{ roll: "2d8" }]).reasons.length, 0,
+    "対象側への威力減少を攻撃者自身のEVへ混ぜない");
+});
+
+
+test("前行の数値未確定式をマッチ敗北時の固定減少へ引き継がない", () => {
+  const { api } = loadHelpers();
+  const source = "死亡した味方の数だけスキル威力が増加（最大5）\nマッチ敗北時：スキル威力-15";
+  const result = api.kindMods(source, "斬撃", [{ roll: "2d8", effect: "" }]).reasons;
+  const penalty = result.find(item => item.source === "スキル威力-15");
+  assert.ok(penalty);
+  assert.equal(penalty.value, -15);
+  assert.equal(penalty.afterResolution, true);
+  assert.equal(penalty.unresolved, false);
+  assert.equal(penalty.conditional, true);
+});
+
+
+test("80文字より前にある処理後トリガーを負の威力補正の発動時点判定で見落とさない", () => {
+  const { api } = loadHelpers();
+  const source = "マッチ敗北時：" + "対象と戦況についての補足説明".repeat(8) + "スキル威力-15";
+  const penalty = api.kindMods(source, "斬撃", [{ roll: "2d8", effect: "" }]).reasons.find(item => item.value === -15);
+  assert.ok(penalty, "長い処理説明の末尾にある負の威力補正を検出する");
+  assert.equal(penalty.afterResolution, true, "発動時点が80文字より前にあっても敗北後として除外する");
+  assert.equal(penalty.conditional, true);
+});

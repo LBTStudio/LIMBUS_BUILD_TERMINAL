@@ -342,3 +342,46 @@ test("rendered ranking rows keep twelve cells after adding conditional EV", () =
   assert.ok(htmlRow, "ranking row rendered");
   assert.equal((htmlRow[1].match(/<td\b/g) || []).length, 12);
 });
+
+
+test("メリアニア工房代表スピノのマッチ敗北時-15は今回EVに加算しない", () => {
+  const { tool, element } = createToolHarness();
+  element("includeConditional").checked = true;
+  const rows = Array.from(tool.records).filter(row =>
+    row.persona.name === "メリアニア工房代表 スピノ" &&
+    ["支援", "万歳突撃"].includes(row.skill.name)
+  );
+  assert.equal(rows.length, 2);
+  for (const row of rows) {
+    const penalty = row.effectCandidates.find(item => /スキル威力-15/.test(item.source || ""));
+    assert.ok(penalty, row.skill.name + " の負の補正を検出する");
+    assert.equal(penalty.value, -15);
+    assert.equal(penalty.afterResolution, true);
+    assert.equal(penalty.conditional, true);
+    const expectedLiveBonus = row.skill.name === "支援" ? 2 : 0;
+    assert.equal(tool.conditionalBonus(row, "all", "effect"), expectedLiveBonus,
+      "敗北後の-15は除外し、支援の固定+2は残す。万歳突撃の人数比例式は未確定のままにする");
+    if (row.skill.name === "支援") {
+      assert.ok(row.effectCandidates.some(item => item.value === 2 && item.conditional),
+        "同じスキルに併存する今回有効な正の補正を過剰除外しない");
+    } else {
+      const scaling = row.effectCandidates.find(item => item.resourceScaling);
+      assert.ok(scaling && scaling.value === null && scaling.unresolved,
+        "死亡した味方の人数が不明な補正を捏造しない");
+    }
+  }
+});
+
+test("エドガー家継承者クロムの回数依存ペナルティは未確定の候補として残す", () => {
+  const { tool } = createToolHarness();
+  const row = Array.from(tool.records).find(item =>
+    item.persona.name === "エドガー家継承者 クロム" &&
+    item.skill.name === "今こそ運命の刻だ"
+  );
+  assert.ok(row);
+  const penalty = row.effectCandidates.find(item => item.label === "数値未確定の威力減少");
+  assert.ok(penalty, "動的な負の威力補正を補正内訳に表示する");
+  assert.equal(penalty.value, null);
+  assert.equal(penalty.unresolved, true);
+  assert.equal(penalty.conditional, true);
+});

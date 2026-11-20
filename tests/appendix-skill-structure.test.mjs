@@ -60,7 +60,7 @@ test("別冊の番号付きスキルに、登録済み枠の間の欠番が残�
   const gaps = [];
   for (const persona of appendix) {
     const slots = [...new Set((persona.skills || [])
-      .map(skill => skill.rank && String(skill.rank).match(/^スキル(\\d+)(?:-\\d+)?$/))
+      .map(skill => skill.rank && String(skill.rank).match(/^スキル([0-9]+)(?:-[0-9]+)?$/))
       .filter(Boolean)
       .map(match => Number(match[1])))].sort((a, b) => a - b);
     if (!slots.length) continue;

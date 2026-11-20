@@ -621,6 +621,7 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
   {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?威力(?:が|を)?(?:増加|上昇)\s*(\d+)(?:\s*[（(]最大\s*(\d+)[）)])?/g,scope:"all",label:"威力増加",kind:"postfix"},
   {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?威力(?:が|を)?\s*(?:増加|上昇)\s*[（(][^）)]{0,30}最大\s*(\d+)[^）)]*[）)]/g,scope:"all",label:"威力増加上限",kind:"cap"},
   {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?威力(?:が|を)?[^。\n]{1,24}?(増加|上昇)(?:\s*[（(][^）)]{0,25}最大\s*(\d+)[^）)]*[）)])?/g,scope:"all",label:"式による威力増加",kind:"dynamic"},
+  {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:(?:スキル|ダイス))?威力(?:が|を)?(?:減少|低下)/g,scope:"all",label:"数値未確定の威力減少",kind:"unresolved"},
   {re:/((?:斬撃|貫通|打撃|銃撃|攻撃)?)(?:スキル)?威力(?:が|を|に)?(?:増加|上昇|変更)/g,scope:"all",label:"数値未確定の威力変化",kind:"unresolved"}
  ];
  for(const p of patterns){
@@ -635,8 +636,10 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
    const previousLineStart=previousLineEnd>clauseStart?src.lastIndexOf("\n",previousLineEnd-1)+1:clauseStart;
    const previousLine=src.slice(previousLineStart,previousLineEnd);
    const completedPowerLine=/(?:スキル|マッチ|ダイス)?威力(?:増加|上昇)?[+-]\d+(?:[（(]最大\d+[）)])?$/.test(previousLine);
+   const lineAfterResolution=/^(?:マッチ勝利時|マッチ敗北時|攻撃後|的中時|敵討伐時|R終了時|ターン終了時|相殺時|被攻撃時|被攻撃前|守備成功時|回避成功時)/.test(src.slice(lineStart,start));
    const localStart=completedPowerLine?lineStart:Math.max(clauseStart,start-80);
    const before=src.slice(localStart,start);
+   const perUnitContext=lineAfterResolution?src.slice(lineStart,start):before;
    const lineEnd=src.indexOf("\n",end),clauseEnd=src.indexOf("。",end);
    const afterEnd=[lineEnd,clauseEnd].filter(index=>index>=0).reduce((a,b)=>Math.min(a,b),Math.min(src.length,end+35));
    const after=src.slice(end,afterEnd);
@@ -648,7 +651,7 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
    const recipientMatch=p.matchPower?before.match(/(?:味方|対象|敵|キャラクター|前方|後方|両隣)[^。\n]{0,15}(?:に|へ)(?:次のR|次R)?に?$/):null;
    if(recipientMatch&&!/(?:時|たび|ご\s*と)に(?:次のR|次R)?に?$/.test(recipientMatch[0]))continue;
    const context=(before+after).trim();
-   const priorContext=before;
+   const priorContext=perUnitContext;
    const perUnit=/(?:ご\s*とに|につき|数だけ|数の|人数だけ|数値.{0,8}だけ|\/\d+だけ|.{1,10}だけ|\d+ご\s*とに|\d+につき)/.test(priorContext);
    const resourceScaling=resourceScalingDetails(context);
    const resourceCondition=resourceConditionDetails(context);
@@ -690,7 +693,7 @@ function kindMods(text,skillType,dice=[],persona=null,skill=null){
    }
    const event=/戦闘開始時|R開始時|次のRに|使用前|使用時|攻撃前|攻撃後|攻撃時|的中時|マッチ敗北時|マッチ勝利時|マッチ開始時|マッチ進行時|一方攻撃時|R終了時|ターン終了時|相殺時|クリティカル|敵討伐時|被攻撃時|被攻撃前|守備成功時|回避成功時/.test(context);
    // Outcome/post-resolution triggers cannot change the skill power that already produced this attack.
-   const afterResolution=/(?:マッチ勝利時|マッチ敗北時|攻撃後|的中時|敵討伐時|R終了時|ターン終了時|相殺時|被攻撃時|被攻撃前|守備成功時|回避成功時)/.test(before);
+   const afterResolution=/(?:マッチ勝利時|マッチ敗北時|攻撃後|的中時|敵討伐時|R終了時|ターン終了時|相殺時|被攻撃時|被攻撃前|守備成功時|回避成功時)/.test(src.slice(clauseStart,start))||/(?:マッチ勝利時|マッチ敗北時|攻撃後|的中時|敵討伐時|R終了時|ターン終了時|相殺時|被攻撃時|被攻撃前|守備成功時|回避成功時)/.test(before);
    const targetConditions=targetConditionDetails(context);
    const previousClauseStart=Math.max(src.lastIndexOf("。",clauseStart-2)+1,src.lastIndexOf("\n",clauseStart-2)+1);
    const previousClause=src.slice(previousClauseStart,clauseStart);
