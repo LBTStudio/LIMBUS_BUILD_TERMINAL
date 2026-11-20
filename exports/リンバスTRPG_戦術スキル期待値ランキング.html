@@ -221,17 +221,17 @@ function targetConditionDetails(context){
  const s=String(context||""),items=[];
  const add=(kind,value)=>{const clean=String(value||"").trim();if(clean)items.push({kind,value:clean});};
  const statValue=value=>/^(?:HP|SAN|速度|失ったHP|減少HP|体力|貫通耐性|斬撃耐性|打撃耐性|弾丸耐性)$/.test(value);
- for(const m of s.matchAll(/(?:メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g))add("targetStatus",m[1]);
- for(const m of s.matchAll(/(?:メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い)/g)){
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に([^、。\n]{1,24}?)(?:があれば|があるなら|を保有|が付与されていれば|が付与されているなら)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,18}?)(?:が)?\s*\d+\s*(?:種類|種|回)?\s*(?:%|％)?\s*(?:以上|超|より多い|より高い|未満|以下|以内|より少ない|より低い)/g)){
   const value=m[1].trim();add(statValue(value)?"targetStat":"targetStatus",value);
  }
- for(const m of s.matchAll(/(?:メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:弱点|抵抗|脆弱|普通)(?:なら|の場合|の時)/g))add("targetStat",m[1]);
- for(const m of s.matchAll(/(?:メインターゲット|攻撃対象|対象|相手|敵)より([^、。\n0-9０-９]{1,12}?)(?:が)?(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
- for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:メインターゲット|攻撃対象|対象|相手|敵)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
- for(const m of s.matchAll(/(?:メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:自分|自身|本人)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
- for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー ]{1,18}?)(?:が)?(?:メインターゲット|攻撃対象|対象|相手|敵)に(?:ある|存在する|付与されている|付与されていれば|付与されているなら)/g))add("targetStatus",m[1]);
- for(const m of s.matchAll(/(?:メインターゲット|攻撃対象|対象|相手|敵)の所属が([^、。\n]{1,18}?)(?:ならば|なら|であれば|の場合|の時)/g))add("targetAffiliation",m[1]);
- for(const m of s.matchAll(/(?:メインターゲット|攻撃対象|対象|相手|敵)が([^、。\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:弱点|抵抗|脆弱|普通)(?:なら|の場合|の時)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)より([^、。\n0-9０-９]{1,12}?)(?:が)?(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:自分|自身|本人)の([^、。\n]{1,12}?)(?:が)?(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の([^、。\n]{1,12}?)(?:が)?(?:自分|自身|本人)より(?:\s*\d+\s*以上)?(?:高ければ|低ければ|上回れば|下回れば|高い|低い|上回る|下回る)/g))add("targetStat",m[1]);
+ for(const m of s.matchAll(/([一-龥ぁ-んァ-ヶーA-ZＡ-Ｚ0-9・ー ]{1,18}?)(?:が)?(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)に(?:ある|存在する|付与されている|付与されていれば|付与されているなら)/g))add("targetStatus",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)の所属が([^、。\n]{1,18}?)(?:ならば|なら|であれば|の場合|の時)/g))add("targetAffiliation",m[1]);
+ for(const m of s.matchAll(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)が([^、。\n]{1,24}?)(?:ならば|なら|であれば|の場合|の時)/g)){
   const value=m[1].trim();if(!value)continue;
   const affiliation=/所属|協会|組織|会社/.test(value);
   const entity=/機械融和生命体|血鬼|血袋|種族|種別|味方|敵|キャラクター|フィクサー/.test(value);
@@ -489,7 +489,7 @@ function conditionClasses(context){
  if(/呼吸|充電|電圧|弾丸|残弾|煙|保護|バリア|武装|血餐|血染|棺|探求した知識|懺悔|刺青|仕返し|自我の欠片|血闘|高揚|時間貸与|酔い|点穴|嫉妬共鳴|憤怒共鳴|憂鬱共鳴|怠惰共鳴|暴食共鳴|傲慢共鳴|狂信/.test(s))tags.push("resource");
  if(/HP|SAN|速度|減少HP|失ったHP|体力/.test(s))tags.push("stats");
  const targetConditions=targetConditionDetails(s);
- const nonTargetContext=s.replace(/(?:メインターゲット|攻撃対象|対象|相手|敵)(?:が|の所属が)[^、。\n]{1,24}?(?:ならば|なら|であれば|の場合|の時)/g,"");
+ const nonTargetContext=s.replace(/(?:サブターゲット|メインターゲット|攻撃対象|対象|相手|敵)(?:が|の所属が)[^、。\n]{1,24}?(?:ならば|なら|であれば|の場合|の時)/g,"");
  if(/共鳴|味方|隣|人数|何名|同じ所属|キャラクター|部隊|チーム|編成/.test(nonTargetContext)||(/所属/.test(s)&&!targetConditions.some(x=>x.kind==="targetAffiliation")))tags.push("team");
  if(targetConditions.some(x=>x.kind==="targetStatus"))tags.push("targetStatus");
  if(targetConditions.some(x=>x.kind==="targetType"))tags.push("targetType");
